@@ -1,26 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Status = "Đang dùng" | "Cất kho" | "Đang giặt-sửa" | "Cho mượn" | "Muốn thanh lý";
-type Item = {
-  id: string;
-  name: string;
-  category: string;
-  status: Status;
-  colors: string[];
-  seasons: string[];
-  brand: string;
-  size: string;
-  location: string;
-  price: number;
-  purchaseDate: string;
-  material: string;
-  tags: string[];
-  notes: string;
-  photo: string;
-  wearCount: number;
-  lastWorn: string;
-  createdAt: string;
-};
+import type { Item, Status } from "@/types/item";
+import { useWardrobe } from "@/data/useWardrobe";
 
 const photos = [
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?auto=format&fit=crop&w=700&q=85",
@@ -345,6 +326,13 @@ const blankItem = (): Item => ({
 
 function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
+    logout: (
+      <>
+        <path d="M9 4H5v16h4" />
+        <path d="m14 7 5 5-5 5" />
+        <path d="M19 12H9" />
+      </>
+    ),
     search: (
       <>
         <circle cx="11" cy="11" r="7" />
@@ -467,13 +455,9 @@ function Modal({
 }
 
 function App() {
-  const [items, setItems] = useState<Item[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tu-do-items") || "") || starter;
-    } catch {
-      return starter;
-    }
-  });
+  const wardrobe = useWardrobe(starter, locations);
+  const { items, loading } = wardrobe;
+  const locationOptions = wardrobe.locations;
   const [dark, setDark] = useState(() => localStorage.getItem("tu-do-theme") === "dark");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Tất cả");
@@ -491,11 +475,8 @@ function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [toast, setToast] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem("tu-do-items", JSON.stringify(items));
-  }, [items]);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("tu-do-theme", dark ? "dark" : "light");
@@ -546,16 +527,19 @@ function App() {
     setEditor(blankItem());
     setIsNew(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!editor?.name.trim()) return notify("Vui lòng nhập tên món đồ");
-    if (isNew) {
-      setItems((p) => [{ ...editor, id: crypto.randomUUID() }, ...p]);
-      notify("Đã thêm vào tủ");
-    } else {
-      setItems((p) => p.map((i) => (i.id === editor.id ? editor : i)));
-      notify("Đã lưu thay đổi");
+    if (saving) return;
+    setSaving(true);
+    try {
+      await wardrobe.save(isNew ? { ...editor, id: crypto.randomUUID() } : editor);
+      notify(isNew ? "Đã thêm vào tủ" : "Đã lưu thay đổi");
+      setEditor(null);
+    } catch (e) {
+      notify(wardrobe.message(e));
+    } finally {
+      setSaving(false);
     }
-    setEditor(null);
   };
   const update = <K extends keyof Item>(key: K, val: Item[K]) =>
     setEditor((p) => (p ? { ...p, [key]: val } : p));
@@ -614,6 +598,16 @@ function App() {
           <button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Đổi giao diện">
             <Icon name={dark ? "sun" : "moon"} />
           </button>
+          {wardrobe.mode === "supabase" && (
+            <button
+              className="icon-btn"
+              onClick={wardrobe.signOut}
+              aria-label="Đăng xuất"
+              title="Đăng xuất"
+            >
+              <Icon name="logout" />
+            </button>
+          )}
           <Btn className="desktop-btn" onClick={() => setImportOpen(true)}>
             <Icon name="import" /> Import
           </Btn>
@@ -626,6 +620,20 @@ function App() {
         </div>
       </header>
 
+      {wardrobe.error && (
+        <div
+          role="alert"
+          className="mx-auto my-3 flex max-w-5xl items-center justify-between gap-3 rounded-2xl px-4 py-3"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
+          }}
+        >
+          <span>Không tải được tủ đồ: {wardrobe.error}</span>
+          <Btn onClick={wardrobe.refresh}>Thử lại</Btn>
+        </div>
+      )}
       <main>
         <section className="intro">
           <div className="hero-copy">
@@ -750,7 +758,7 @@ function App() {
               value={filters.location}
               onChange={(v) => setFilters((f) => ({ ...f, location: v }))}
               label="Vị trí lưu trữ"
-              options={locations}
+              options={locationOptions}
             />
             <FilterSelect
               value={filters.color}
@@ -814,6 +822,7 @@ function App() {
       {editor && (
         <Editor
           item={editor}
+          locations={locationOptions}
           isNew={isNew}
           update={update}
           onClose={() => setEditor(null)}
@@ -824,34 +833,45 @@ function App() {
             setIsNew(true);
             notify("Đã tạo bản sao");
           }}
-          onWorn={(delta) => {
-            const count = Math.max(0, editor.wearCount + delta);
-            update("wearCount", count);
-            if (delta > 0) update("lastWorn", new Date().toISOString());
-            notify(delta > 0 ? "Đã ghi nhận mặc hôm nay" : "Đã điều chỉnh số lần mặc");
+          onWorn={async (delta) => {
+            try {
+              const res = await wardrobe.wear(editor, delta > 0 ? 1 : -1);
+              setEditor((p) => (p ? { ...p, ...res } : p));
+              notify(delta > 0 ? "Đã ghi nhận mặc hôm nay" : "Đã điều chỉnh số lần mặc");
+            } catch (e) {
+              notify(wardrobe.message(e));
+            }
           }}
         />
       )}
       {confirm && (
         <Confirm
           onCancel={() => setConfirm(false)}
-          onConfirm={() => {
-            if (editor) {
-              setItems((p) => p.filter((i) => i.id !== editor.id));
-              setEditor(null);
-            }
+          onConfirm={async () => {
             setConfirm(false);
-            notify("Đã xoá món đồ");
+            if (!editor) return;
+            try {
+              await wardrobe.remove(editor);
+              setEditor(null);
+              notify("Đã xoá món đồ");
+            } catch (e) {
+              notify(wardrobe.message(e));
+            }
           }}
         />
       )}
       {importOpen && (
         <ImportModal
           onClose={() => setImportOpen(false)}
-          onDone={(added) => {
-            setItems((p) => [...added, ...p]);
-            setImportOpen(false);
-            notify(`Đã thêm ${added.length} món vào tủ`);
+          onDone={async (added) => {
+            try {
+              const saved = await wardrobe.importMany(added);
+              notify(`Đã thêm ${saved.length} món vào tủ`);
+            } catch (e) {
+              notify(wardrobe.message(e));
+            } finally {
+              setImportOpen(false);
+            }
           }}
         />
       )}
@@ -948,6 +968,7 @@ function ItemCard({
 
 function Editor({
   item,
+  locations,
   isNew,
   update,
   onClose,
@@ -957,6 +978,7 @@ function Editor({
   onWorn,
 }: {
   item: Item;
+  locations: string[];
   isNew: boolean;
   update: <K extends keyof Item>(k: K, v: Item[K]) => void;
   onClose: () => void;
