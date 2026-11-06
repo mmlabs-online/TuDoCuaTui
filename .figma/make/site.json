@@ -1,0 +1,10 @@
+{
+  "description": "Quản lý tủ quần áo cá nhân với tìm kiếm, theo dõi số lần mặc và nhập xuất dữ liệu, giúp bạn dễ dàng sắp xếp và lựa chọn trang phục.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
