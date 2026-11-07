@@ -103,7 +103,7 @@ Adapted from msitarzewski/agency-agents (MIT) via the stoktok project — see `T
 
 ### Files (`work/`)
 ```
-work/backlog.md          board: one row per ticket, in run order
+work/backlog.md          board: one row per ticket, in run order — changed only on `main` (D16)
 work/decisions.md        decisions taken for this project (dated)
 work/ming-todo.md        human steps (M-n), ticked by Ming
 work/solo-log.md         /solo changes

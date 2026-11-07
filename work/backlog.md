@@ -4,12 +4,13 @@ States: BACKLOG → PLANNING → IN_PROGRESS → REVIEW → DONE → MERGED · p
 **Row order is run order** (`docs/plan-M1.md` §3). `/run` with no ID picks the first row that is runnable:
 every `Depends on` ticket is `MERGED`, every `Needs Ming` item is ticked, and nobody holds a claim.
 Gate `plan-approval` = the loop stops after PLAN until Ming approves (High tier).
+This board is changed only on `main` (D16); each ticket's `ticket.md` is the source of truth for its state.
 
 | ID | Title | State | Priority | Size | Areas | Depends on | Gate | Attempts | Updated |
 |---|---|---|---|---|---|---|---|---|---|
-| F-003 | Add CI pipeline | DONE | P0 | S | architecture | — | none | 1 | 2026-11-07 |
-| F-001 | Verify the Supabase backend end-to-end | BACKLOG | P0 | S | db | — | none | 0 | 2026-11-07 |
-| F-101 | Polish the login screen | BACKLOG | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-07 |
+| F-003 | Add CI pipeline | MERGED | P0 | S | architecture | — | none | 1 | 2026-11-07 |
+| F-001 | Verify the Supabase backend end-to-end | DONE | P0 | S | db | — | none | 2 | 2026-11-07 |
+| F-101 | Polish the login screen | DONE | P1 | S | ui, security | — | plan-approval | 1 | 2026-11-07 |
 | F-005 | Set up Vitest and test the data layer | BACKLOG | P0 | M | data, architecture | F-003 | none | 0 | 2026-11-07 |
 | F-002 | Generate DB types from the local schema | BACKLOG | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
 | F-006 | Add RLS and storage policy tests | BACKLOG | P1 | M | db, security | F-001 | none | 0 | 2026-11-07 |

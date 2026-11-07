@@ -6,10 +6,13 @@ argument-hint: "[ID]"
 <!-- Orchestration logic adapted from agency-agents: specialized/agents-orchestrator.md and strategy/coordination/handoff-templates.md (MIT), via the stoktok project.
      The orchestrator is this command running in the main session, because subagents cannot dispatch subagents. -->
 
-You are the **orchestrator** for ticket `$ARGUMENTS`. You dispatch subagents and keep the board true. You write **no product code, no plan, no review** yourself — only ticket state, backlog rows, consult files, Handoff entries and the escalation report.
+You are the **orchestrator** for ticket `$ARGUMENTS`.
+
+**Board rule:** `work/backlog.md` is the shared board and is changed **only on `main`** (commit `chore: board — …`, pull first, push). Ticket branches change only their own `work/tickets/<ID>/` files (plus `work/ming-todo.md` when a stop adds an item), so parallel PRs never conflict on the board. The ticket's own `ticket.md` is the source of truth for its state; the board mirrors it.
+ You dispatch subagents and keep the board true. You write **no product code, no plan, no review** yourself — only ticket state, backlog rows, consult files, Handoff entries and the escalation report.
 
 ## 0. Select and prepare
-1. `git fetch origin main`. Refresh merge status first: for every `DONE` row in `work/backlog.md` whose ticket has a PR link, check it (`gh pr view <url> --json state,mergedAt`); if merged, set state `MERGED` in ticket.md and backlog.md and commit the change on `main`-based work later (step 0.6).
+1. `git switch main && git pull --ff-only`. Refresh the board first: for every ticket whose `ticket.md` on its branch or on `main` has a PR link, check it (`gh pr view <url> --json state,mergedAt`); if merged, set `MERGED` in the board row (and in `ticket.md` on `main` if it was merged with `DONE`). Also mirror the current state of open tickets from their branches into the board. Commit `chore: board — sync` on `main` and push if anything changed.
 2. If `$ARGUMENTS` is empty, pick the **first row in `work/backlog.md` order** that is runnable:
    - state `BACKLOG`, or `BLOCKED` whose blocking questions / plan approval are now answered in ticket.md (*Notes / answers from Ming*);
    - every ticket in its `Depends on` is `MERGED`;
@@ -19,7 +22,7 @@ You are the **orchestrator** for ticket `$ARGUMENTS`. You dispatch subagents and
 3. With an explicit ID, check the same conditions; if one fails, stop and tell Ming which one. Refuse `DONE`, `MERGED` or `ESCALATED` tickets.
 4. Make sure the working tree is clean (`git status --porcelain`). If not, stop and report.
 5. Create or switch to branch `ticket/<ID>` from the latest `origin/main`. If the environment mandates a different working branch (e.g. a cloud session's designated branch), use that branch instead and say so in the report.
-6. In ticket.md set `Claimed by: claude@<ISO timestamp>` and state `PLANNING`; update the backlog row. (If step 1 changed rows to `MERGED`, include them in this commit.) Commit `work/` (`<ID>: start planning`) and push the branch, so another agent sees the claim.
+6. In ticket.md set `Claimed by: claude@<ISO timestamp>` and state `PLANNING`. Also set the board row to `PLANNING` on `main` (board rule) before switching to the ticket branch. Commit `work/` (`<ID>: start planning`) and push the branch, so another agent sees the claim.
 
 ## 1. Consult (only for the ticket's `Areas`)
 | Area | Subagent |
@@ -46,7 +49,7 @@ Set state `REVIEW`. Then:
 4. A 🔴 finding in `security-review.md` turns a PASS into REWORK: append it to the review attempt under "Security blockers".
 
 ## 5. Loop decision
-- **PASS** → set state `DONE`, update the backlog row (state, attempts, updated date), commit `work/` (`<ID>: done`). Go to 6.
+- **PASS** → set state `DONE` in ticket.md, commit `work/tickets/<ID>/` (`<ID>: done`). Go to 6.
 - **REWORK** and reworks so far < 2 → increment `Attempts` in ticket.md, set state `REWORK`, dispatch `implementer` with "REWORK attempt N: fix only the issues in the latest review.md section", then return to step 4.
 - **REWORK** and reworks so far = 2 → set state `ESCALATED`, write `work/tickets/<ID>/escalation.md` from `work/templates/escalation.md` (what failed each attempt, root-cause guess, options for Ming), add an item to `work/ming-todo.md`, go to **Stop and hand off**.
 
@@ -67,7 +70,7 @@ Set state `REVIEW`. Then:
 5. **Never approve, merge or enable auto-merge.** Ming reviews and merges the PR.
 
 ## Stop and hand off (BLOCKED / ESCALATED)
-Clear `Claimed by`, append the Handoff entry, update the backlog row, commit `work/` (`<ID>: plan blocked` / `<ID>: escalated`), push the branch (no PR), and stop: show Ming the questions or the escalation.
+Clear `Claimed by`, append the Handoff entry, commit `work/tickets/<ID>/` and `work/ming-todo.md` (`<ID>: plan blocked` / `<ID>: escalated`), push the branch (no PR), and stop: show Ming the questions or the escalation.
 
 ## Handoff entry
 Append to `## Handoff` in ticket.md:
@@ -77,6 +80,9 @@ Append to `## Handoff` in ticket.md:
 - In progress / next: …
 - Gotchas: …
 ```
+
+## 6b. Update the board
+On `main` (pull first), set the ticket's board row to its final state (`DONE` with attempts, `BLOCKED` or `ESCALATED`) and today's date; commit `chore: board — <ID> <state>` and push. Switch back to `main` before ending, with a clean tree.
 
 ## 7. Report to Ming
 Short summary in Vietnamese: ticket, final state, attempts, files changed (`git diff --stat origin/main...HEAD`), check results, follow-ups the agents listed, and the next step: the PR link to approve and merge, or the escalation / blocking questions. Then name the next runnable ticket (or why none is).
