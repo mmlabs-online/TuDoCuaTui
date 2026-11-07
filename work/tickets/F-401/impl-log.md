@@ -31,3 +31,16 @@ None.
 ### Scope self-check
 - Could the diff be smaller? no
 - Diff size: see `git diff --stat origin/main..HEAD`
+
+## Attempt 2
+
+Rework for review Issue 1 (placeholder wording, R6).
+
+### Files touched
+- `src/App.tsx:715` — placeholder now `"Tìm theo tên, hãng, màu, tag, chất liệu, ghi chú, vị trí…"`. Required because the item form labels the field "Dịp / tag" (`src/App.tsx:1178`), so "tag" replaces "thẻ" as the review instructed. "vị trí" kept as the short form of "Vị trí lưu trữ".
+
+### Out-of-plan files
+None.
+
+### Scope self-check
+- Could the diff be smaller? no (one word)
