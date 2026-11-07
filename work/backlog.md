@@ -11,7 +11,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-003 | Add CI pipeline | MERGED | P0 | S | architecture | — | none | 1 | 2026-11-07 |
 | F-001 | Verify the Supabase backend end-to-end | DONE | P0 | S | db | — | none | 2 | 2026-11-07 |
 | F-101 | Polish the login screen | DONE | P1 | S | ui, security | — | plan-approval | 1 | 2026-11-07 |
-| F-005 | Set up Vitest and test the data layer | PLANNING | P0 | M | data, architecture | F-003 | none | 0 | 2026-11-07 |
+| F-005 | Set up Vitest and test the data layer | IN_PROGRESS | P0 | M | data, architecture | F-003 | none | 0 | 2026-11-07 |
+| F-005.2 | Test the Supabase repo and useWardrobe with a fake client | BACKLOG | P0 | M | data | F-005 | none | 0 | 2026-11-07 |
 | F-002 | Generate DB types from the local schema | BACKLOG | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
 | F-006 | Add RLS and storage policy tests | BACKLOG | P1 | M | db, security | F-001 | none | 0 | 2026-11-07 |
 | F-007 | Deploy to production with per-PR previews | BACKLOG | P0 | S | architecture, security | F-001 | plan-approval | 0 | 2026-11-07 |
