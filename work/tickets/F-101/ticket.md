@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T08:07:15Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,11 @@ The login screen looks like the rest of the app and handles common errors clearl
 - Manual: real magic link on a phone in light and dark mode; trigger the rate limit.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — BLOCKED (plan approval)
+- Done: plan.md READY (AuthGate restyle, 60 s resend cooldown, mapped Vietnamese errors, theme applied before render; `signInWithOtp` call, `emailRedirectTo` and session handling unchanged — see plan "Security summary").
+- In progress / next: Ming approves → add "Plan approved (YYYY-MM-DD)" under Notes → `/run F-101` implements.
+- Gotchas: no Vitest on main yet; plan verifies pure modules with a throwaway `node --experimental-strip-types` script; Vitest cases are a follow-up for F-005.
