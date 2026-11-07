@@ -1,0 +1,27 @@
+# Draft v1 (F-003). Not enforced yet; no CI step computes tiers.
+# Precedence: high > low > default. Globs use gitignore syntax.
+# Ming reviews this file (D10).
+version: 1
+default: medium
+high:
+  # DB migrations
+  - "supabase/migrations/**"
+  # Edge functions hold server secrets
+  - "supabase/functions/**"
+  # Auth code
+  - "src/features/auth/**"
+  # Supabase client / anon-key boundary (R3)
+  - "src/lib/supabase.ts"
+  # Production deploy workflows
+  - ".github/workflows/deploy*"
+  # Cloudflare Pages redirects
+  - "public/_redirects"
+  # Cloudflare Pages config
+  - "wrangler.toml"
+  # This file sets the merge rules for every later PR
+  - ".github/risk-tiers.yml"
+low:
+  - "docs/**"
+  - "work/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"

@@ -1,0 +1,8 @@
+AGENTS.md
+.figma/
+*.md
+docs/
+work/
+.claude/
+pnpm-lock.yaml
+dist/
