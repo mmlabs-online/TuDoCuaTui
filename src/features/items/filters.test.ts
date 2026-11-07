@@ -81,8 +81,32 @@ describe("matchesFilters", () => {
     expect(match(i, "quần")).toBe(false);
   });
 
-  test("query is diacritic-sensitive (records current behaviour)", () => {
-    expect(match(makeItem({ name: "Áo" }), "ao")).toBe(false);
+  test("query is diacritic- and case-insensitive", () => {
+    const i = makeItem({ name: "Áo sơ mi", colors: ["Xanh dương", "Đỏ"] });
+    for (const q of ["ao so mi", "AO SƠ MI", "Áo sơ mi"]) expect(match(i, q)).toBe(true);
+    expect(match(i, "quan")).toBe(false);
+    expect(match(i, "xanh")).toBe(true);
+    expect(match(i, "xanh duong")).toBe(true);
+    expect(match(i, "do")).toBe(true);
+  });
+
+  test("query matches every searchable field", () => {
+    const cases: [Partial<Item>, string][] = [
+      [{ name: "Váy" }, "vay"],
+      [{ brand: "Zara" }, "zara"],
+      [{ colors: ["Đen"] }, "den"],
+      [{ tags: ["đi làm"] }, "di lam"],
+      [{ material: "Lụa" }, "lua"],
+      [{ notes: "Ấm áp" }, "am ap"],
+      [{ location: "Tủ ngăn 1" }, "tu ngan 1"],
+    ];
+    for (const [over, q] of cases) expect(match(makeItem({ name: "", ...over }), q)).toBe(true);
+    expect(match(makeItem({ name: "", size: "XL" }), "xl")).toBe(false);
+  });
+
+  test("blank or whitespace query matches everything", () => {
+    expect(match(makeItem(), "")).toBe(true);
+    expect(match(makeItem(), "   ")).toBe(true);
   });
 
   test("category, status, season, location, color each filter", () => {

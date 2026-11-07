@@ -1,3 +1,4 @@
+import { normalize } from "@/lib/text";
 import type { Item } from "@/types/item";
 
 export const STALE_DAYS = 90;
@@ -22,9 +23,11 @@ export function matchesFilters(
   now = Date.now(),
 ) {
   const { query, category, filters } = c;
-  const hay = `${i.name} ${i.brand} ${i.colors.join(" ")} ${i.notes}`.toLowerCase();
+  const hay = normalize(
+    [i.name, i.brand, ...i.colors, ...i.tags, i.material, i.notes, i.location].join(" "),
+  );
   return (
-    hay.includes(query.toLowerCase()) &&
+    hay.includes(normalize(query)) &&
     (category === "Tất cả" || i.category === category) &&
     (!filters.status || i.status === filters.status) &&
     (!filters.season || i.seasons.includes(filters.season)) &&
