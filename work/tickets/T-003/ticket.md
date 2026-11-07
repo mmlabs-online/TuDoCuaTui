@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T13:34:23Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -48,4 +48,14 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 ## Notes / answers from Ming
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-07 — claude — BLOCKED
+- Done: consult (database-optimizer) and plan (`Status: READY`). Plan: one new migration `supabase/migrations/20261107120000_rls_hardening.sql` (two `alter policy ... with check`), `rls_gaps.sql` renamed to `rls_hardening.sql` with 23 real assertions (no `todo()`), 3 README lines. Deviations from the ticket are listed as C1–C9 in plan.md.
+- In progress / next: Ming approves the plan (write "Plan approved" under *Notes / answers from Ming*), then `/run T-003` implements.
+- Gotchas:
+  - The implementer applies the migration locally with `npx supabase migration up --local` (no `db reset`) and stops with plain `npx supabase stop`.
+  - The hosted project is Ming's step (M-5). Run the two precheck `select`s from the migration header first if the hosted project has data.
+  - Expect a small README conflict with F-002.
