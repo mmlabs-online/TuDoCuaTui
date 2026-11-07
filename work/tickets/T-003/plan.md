@@ -4,6 +4,35 @@ Status: READY
 
 > **High tier, `Gate: plan-approval`.** Ming approves this plan before any code is written. The section
 > **Changes vs ticket scope** lists every place where the plan differs from the ticket text.
+> **Revision 2 needs a new "Plan approved".** The approval from revision 1 does not cover it.
+
+## Revision 2 — 2026-11-07 (what changed and why)
+
+**Why.** Implementation attempt 1 (commit `a02e3f0`, `impl-log.md` § Attempt 1) failed on the `locations`
+policy from revision 1:
+1. **Recursion.** The `with check` on `public.locations` contained `exists (select … from public.locations …)`.
+   Postgres rejects any policy whose sub-query reads its own table: `42P17 infinite recursion detected in policy
+   for relation "locations"`. This happened on **every** location INSERT/UPDATE, so the existing `rls_tables.sql`
+   went red too. Revision 1 claimed there would be no recursion. That claim was wrong.
+2. **Name capture.** Inside the sub-query, the unqualified `parent_id` bound to the inner alias. The stored
+   expression was `p.id = p.parent_id`. Even without the recursion, the check would have been wrong.
+
+The `item_photos` half was applied as intended (live expression in impl-log), but no test reached it.
+
+**What changes (summary for Ming):**
+| | Revision 1 | Revision 2 |
+|---|---|---|
+| Parent check on `locations` | inline `exists (select … from public.locations …)` | calls a small helper function, **`private.owns_location(uuid)`**: `plpgsql`, `stable`, **SECURITY INVOKER** (no extra privileges), `set search_path = ''` (C10, C11) |
+| Where the helper lives | — | new schema **`private`**. It is not exposed through the REST API, and only `authenticated` can use it (C11) |
+| Column references | unqualified | **all qualified** (`locations.parent_id`, `item_photos.storage_path`, `item_photos.item_id`, …) (C13) |
+| Migration file | new | **the same file, edited in place** on this branch. It is unmerged and was never applied to the hosted project (C12) |
+| Local DB | `migration up` | first a **manual rollback** of the defective version through `docker exec psql` (one transaction, including the history row), then `migration up`. No `db reset` (Approach step 5) |
+| Tests | 23 | **33**: plus 7 checks on the helper's properties and privileges, 2 direct calls of the helper, and 1 control that inserts a child under an own location |
+| `item_photos` check | foldername check | **Unchanged** apart from qualifying the columns |
+
+The decision between a SECURITY DEFINER helper, a SECURITY INVOKER helper and a trigger is explained in
+**Approach § Design choice**. A fallback to SECURITY DEFINER is spelled out and pre-approved together with
+this plan (step 7). The implementer may use it only if the INVOKER version still raises `42P17` locally.
 
 ## Feature summary
 Not in the feature list. Sources:
@@ -25,192 +54,274 @@ Not in the feature list. Sources:
 ## Changes vs ticket scope
 Ming delegated reversible decisions to Annie (ticket notes, `work/decisions.md` header). Each change below is
 reversible. The default is chosen and the reason given; Ming can overturn any of them when approving.
+**C10–C13 are new in revision 2. C5 and C8 were adjusted.**
 
 | # | Ticket text | This plan | Why |
 |---|---|---|---|
-| C1 | `storage_path like auth.uid() \|\| '/%'` | `(storage.foldername(storage_path))[1] = (select auth.uid())::text` | Consult open question 1. This is the **same expression the storage bucket policies use** (`init.sql:170-182`), so a DB row can claim a path exactly when the caller could upload a file there. It also rejects a path with no folder (`x.jpg`), because `foldername` returns an empty array, `[1]` is `null`, and a `null` check rejects the row. `like` would give the same result for real paths (a uuid has no `%`/`_`). It is rejected only for parity. `split_part(…,'/',1)` was also rejected: it accepts a bare `"<uid>"` with no slash. |
-| C2 | "Regenerate types (F-002 script)" | **Dropped.** `src/types/database.ts` is not touched. | Consult open question 4. F-002 is `IN_PROGRESS`, not merged, so its script is not on this branch. The migration changes **policies only**. Generated types contain no policy information, so a regeneration would not change anything. D11's `--local` output would also differ in formatting from today's file for reasons unrelated to this ticket. |
-| C3 | Test plan: "the F-006 pgTAP suite" (flip the probes) | `supabase/tests/rls_gaps.sql` is **renamed** to `rls_hardening.sql` and rewritten. The `todo()` wrappers, the `probe()` helper and the always-passing `GAP-n result` lines are gone. The file now holds real assertions only. | Consult "Tests"; security review finding 6. `pg_prove` does not fail on "TODO passed", so a regression would go unnoticed unless the wrappers are removed. |
-| C4 | (not in ticket) | **Folded in:** update-path regression tests and positive controls (security review findings 3 and 4), plus edge tests for the new checks (squatting, no-folder path, existence oracle). | Consult open question 2. They cost about 15 lines of SQL. They guard exactly the policies this ticket rewrites: `for all` policies, so one `with check` serves both INSERT and UPDATE. Without them, a rewrite could break UPDATE isolation while the suite stays green. Test-only, no extra schema change. |
-| C5 | Consult: `drop policy` + `create policy` in `begin/commit` | **`alter policy … with check (…)`** | Each `ALTER POLICY` is one atomic statement, so there is never a moment with no policy. It does not depend on how the Supabase CLI wraps a migration file in a transaction (an explicit `begin`/`commit` inside a file the CLI already runs in a transaction only produces warnings, but there is no reason to rely on that). The name, command (`for all`), role and `using` stay unchanged. The old text sits in a comment block at the end of the file, for manual rollback. |
-| C6 | (not in ticket) | A **read-only precheck** (two `select`s) goes in the migration header as a comment. No data repair. | Consult open question 3. It matters only if the hosted project already has data when M-5 runs. Today M-1 (hosted project) is not done yet, so most likely both migrations run together on an empty DB. |
-| C7 | (not in ticket) | `README.md` § "Running DB tests": replace the `rls_gaps.sql` bullet and command (lines 46 and 49), which the rename makes stale. § "Set up Supabase" line 24 ("paste `…_init.sql` into SQL Editor") becomes "paste each file in `supabase/migrations/` in filename order". | A direct consequence of the rename and of adding a second migration. Without it, the manual setup path would skip this hardening. |
-| C8 | AC 1 "The F-006 gap probes pass." | Made testable: "passes" means `npx supabase test db` exits 0, **no `todo(` remains in `supabase/tests/`**, and each file's `plan(n)` equals its assertion count. | Security review finding 6 and recommendation 5. |
-| C9 | AC 2 "Ming applies the migration" | Moved to **Ming verification after merge**. This is the existing item **M-5** in `work/ming-todo.md`. No new M-item. | Workspace rule: only Ming applies migrations to the hosted project (R2). |
+| C1 | `storage_path like auth.uid() \|\| '/%'` | `(storage.foldername(item_photos.storage_path))[1] = (select auth.uid())::text` | Consult open question 1. This is the **same expression the storage bucket policies use** (`init.sql:170-182`), so a DB row can claim a path exactly when the caller could upload a file there. It also rejects a path with no folder (`x.jpg`): `foldername` returns an empty array, `[1]` is `null`, and a `null` check rejects the row. For real paths, `like` would give the same result (a uuid has no `%`/`_`); it is rejected only for parity. `split_part(…,'/',1)` was also rejected: it accepts a bare `"<uid>"` with no slash. |
+| C2 | "Regenerate types (F-002 script)" | **Dropped.** `src/types/database.ts` is not touched. | Consult open question 4. F-002 is not merged, so its script is not on this branch. Generated types contain no policy information. The new helper is in schema `private`, which typegen does not read (it reads `public` only), so the types stay identical (C11). |
+| C3 | Test plan: "the F-006 pgTAP suite" (flip the probes) | `supabase/tests/rls_gaps.sql` is **renamed** to `rls_hardening.sql` and holds real assertions only. No `todo()`, no `probe()`, no always-passing `GAP-n result` lines. | Consult "Tests"; security review finding 6. `pg_prove` does not fail on "TODO passed". (Done in `a02e3f0`; revision 2 extends the file.) |
+| C4 | (not in ticket) | **Folded in:** update-path regression tests and positive controls (security review findings 3 and 4), plus edge tests for the new checks (squatting, no-folder path, existence oracle). | Consult open question 2. These are the `for all` policies this ticket rewrites, so one `with check` serves both INSERT and UPDATE. Test-only. |
+| C5 | Consult: `drop policy` + `create policy` in `begin/commit` | **`alter policy … with check (…)`**. **Rev 2:** the migration also creates schema `private` and one function, **before** the two `alter policy` statements. Still no explicit `begin`/`commit`. | Each `ALTER POLICY` is atomic, so there is never a moment with no policy. The CLI runs each migration file in one transaction, so a failure in any statement rolls back the whole file. `using`, name, command and role stay unchanged. |
+| C6 | (not in ticket) | A **read-only precheck** (two `select`s) goes in the migration header as a comment. No data repair. | Consult open question 3. It matters only if the hosted project already has data when M-5 runs. |
+| C7 | (not in ticket) | `README.md`: the `rls_gaps.sql` → `rls_hardening.sql` rename, and "paste each file in `supabase/migrations/` in filename order". | Done in `a02e3f0`. **No further README change in revision 2.** |
+| C8 | AC 1 "The F-006 gap probes pass." | Made testable: `npx supabase test db` exits 0, **all three files `ok`**, no `todo(` in `supabase/tests/`, and each file's `plan(n)` equals its assertion count (**`plan(33)`** for `rls_hardening.sql`). | Security review finding 6 and recommendation 5. Rev 2: count 23 → 33. "All three files" is stated explicitly because attempt 1 broke `rls_tables.sql`. |
+| C9 | AC 2 "Ming applies the migration" | Moved to **Ming verification after merge** (existing item **M-5**). | Only Ming applies migrations to the hosted project (R2). |
+| **C10** | `locations`: "`parent_id is null or exists (own location)`" | `locations.parent_id is null or private.owns_location(locations.parent_id)`. The `exists (own location)` moves into a helper function. | An inline `exists` on `locations` inside a `locations` policy is impossible in Postgres (`42P17`, attempt 1). The semantics are the same as the ticket's: the parent is null, or it is a location the caller owns. |
+| **C11** | Ticket "Out of scope: any other schema change" | **Two extra objects**: schema `private`, and function `private.owns_location(uuid)`. Nothing else. | This is the minimum needed to make C10 work. `private` instead of `public` means the function is **not callable through PostgREST** (`supabase/config.toml:13` exposes only `public`, `graphql_public`), and the generated types do not change (C2). |
+| **C12** | R2 "never edit an applied migration" | `20261107120000_rls_hardening.sql` is **edited in place** on this branch, not superseded by a new file. | The file is unmerged and was **never applied to the hosted project**. It was applied only to the disposable local volume, and the implementer rolls that back first (Approach step 5). A second migration would ship a known-broken policy to `main` and to M-5. |
+| **C13** | (not in ticket) | Every column reference in both rewritten policies is **qualified with its table name** (`locations.user_id`, `locations.parent_id`, `item_photos.user_id`, `item_photos.storage_path`, `item_photos.item_id`). | Attempt 1, finding 2 (name capture). |
 
-Not changed: no other schema change; `items`, `wear_logs` and storage policies untouched; `init.sql` untouched (R2).
+Not changed: `items`, `wear_logs` and storage policies are untouched; `init.sql` is untouched (R2); no data change.
 
 ## Acceptance criteria → verification
 | # | Criterion | How the reviewer verifies it |
 |---|---|---|
-| 1 | A new migration closes GAP-1 and GAP-2 by changing only the `with check` of the two policies; no applied migration is edited. | `git diff --stat main -- supabase/migrations` shows exactly one **added** file `supabase/migrations/20261107120000_rls_hardening.sql` and no change to `20261106000000_init.sql`. The file contains exactly two `alter policy` statements (`"locations: owner full access"`, `"item_photos: owner full access"`), each with only a `with check (…)` clause (no `using`, no other DDL), plus comments. |
-| 2 | The F-006 gap probes pass, as real assertions (C3, C8). | On the local stack (Approach steps 5–7): `npx supabase test db` exits 0 with `rls_hardening.sql … ok`, `rls_storage.sql … ok`, `rls_tables.sql … ok`, `All tests successful`, `Result: PASS`, and **no** `# TODO` / `Failed (TODO)` line. `Grep "todo\(" supabase/tests` returns nothing. `plan(23)` in `rls_hardening.sql` equals the 23 assertions listed under Tests to write. `rls_tables.sql` stays `plan(37)` and `rls_storage.sql` stays `plan(10)`, both unchanged files. If the reviewer cannot run Docker, they use the verbatim output in `impl-log.md` § "DB test run". |
-| 3 | The migration is applied on the local stack, and the live policies match the file. | `impl-log.md` shows `npx supabase migration list --local` with `20261107120000` applied, and the output of the `pg_policy` query from Approach step 6, which shows both new `with check` expressions. |
-| 4 | Types unchanged by design (C2). | `git diff main -- src/types/database.ts` is empty. |
-| 5 | Checks green. | `pnpm typecheck`, `pnpm format:check`, `pnpm test`, `pnpm build` all pass (impl-log shows actual output; reviewer re-runs). |
+| 1 | One new migration closes GAP-1 and GAP-2. It changes only the `with check` of the two policies and adds only schema `private` + `private.owns_location(uuid)`. No applied migration is edited. | `git diff --stat main -- supabase/migrations` shows exactly one **added** file `20261107120000_rls_hardening.sql`, and no change to `20261106000000_init.sql`. The file contains exactly: `create schema private`, one `create function private.owns_location(p_location_id uuid)` exactly as in Approach step 2 (plpgsql, stable, `security invoker`, `set search_path = ''`, only schema-qualified names), revoke/grant statements, and two `alter policy` statements, each with only a `with check (…)` clause. **No unqualified column name** appears inside either `with check`. |
+| 2 | The gap probes pass as real assertions, and the existing suites are green again (C3, C8). | On the local stack (Approach steps 5–8): `npx supabase test db` exits 0 with `rls_hardening.sql … ok`, `rls_storage.sql … ok`, `rls_tables.sql … ok`, `All tests successful`, `Result: PASS`, and **no** `# TODO` / `Failed (TODO)` line. `Grep "todo\(" supabase/tests` returns nothing. `plan(33)` equals the 33 assertions under *Tests to write*. `rls_tables.sql` (`plan(37)`) and `rls_storage.sql` (`plan(10)`) are unchanged files. If the reviewer cannot run Docker, they use the verbatim output in `impl-log.md` § Attempt 2. |
+| 3 | The defective attempt-1 version was rolled back locally, and the corrected file is applied. The live objects match the file. | `impl-log.md` § Attempt 2 shows verbatim: (a) the rollback transaction's output, ending in `COMMIT`; (b) `migration list --local` **without** `20261107120000` after the rollback, and **with** it after `migration up`; (c) the `pg_policy` query output. The `locations` row shows `private.owns_location(parent_id)` and **no** `p.parent_id`. (d) the `pg_proc` query output: `prosecdef = f`, `provolatile = s`, `proconfig = {"search_path=\"\""}`, and an ACL with `authenticated=X` and no `anon` and no bare `=X` (PUBLIC). |
+| 4 | Types unchanged by design (C2, C11). | `git diff main -- src/types/database.ts` is empty. |
+| 5 | Checks green. | `pnpm typecheck`, `pnpm format:check`, `pnpm test`, `pnpm build` all pass (impl-log shows the actual output; the reviewer re-runs them). |
 
 ## Ming verification after merge
 - **M-5** (already in `work/ming-todo.md`): `npx supabase db push`.
   - If the hosted project **already has data** at that time, first run the two precheck `select`s from the migration header in Dashboard → SQL Editor. Both should return 0 rows. If they do not, stop and file a `/ticket`; do not push.
   - If M-1 is done in the same session (empty project), the precheck can be skipped.
-- After the push, a quick app check in Supabase mode: add a photo to an item, then change it. Expected: works as before, because the app builds paths as `${uid}/${itemId}/…` (`src/data/repo.ts:148,166`).
+  - If the hosted project has **already** got a schema named `private` (not expected: nothing in this repo creates one), `db push` fails on `create schema private` and nothing is applied. Stop and file a `/ticket`.
+- After the push, a quick app check in Supabase mode. Expected: all of these work as before:
+  - add a location, then set another location's parent to it;
+  - add a photo to an item, then change it.
+  The app builds paths as `${uid}/${itemId}/…` (`src/data/repo.ts:148,166`).
 - Orchestrator: please append the precheck hint to the M-5 text in `ming-todo.md` on `main` (D16; the implementer does not edit it).
 
 ## Files to create / modify
+Work on top of `a02e3f0` (branch `ticket/T-003`). README and the test-file rename are already done there.
+
 | File | Change | Required because |
 |---|---|---|
-| `supabase/migrations/20261107120000_rls_hardening.sql` | **New.** Two `alter policy … with check` statements; header comment (purpose, gaps closed, which `init.sql` lines it supersedes, precheck queries); trailing comment with the original `with check` text for manual rollback. | Ticket scope (GAP-1, GAP-2); C1, C5, C6 |
-| `supabase/tests/rls_gaps.sql` → `supabase/tests/rls_hardening.sql` | **Rename** (`git mv`) and rewrite: 23 real assertions, no `todo`, no `probe()` | AC 2; C3, C4, C8 |
-| `README.md` | § "Running DB tests": replace lines 46 and 49 (`rls_gaps.sql` → `rls_hardening.sql`, new one-line description). § "Set up Supabase" line 24: paste every migration in filename order. | C7 |
-| `work/tickets/T-003/impl-log.md` | Implementer log with verbatim DB test output | AC 2, AC 3 |
+| `supabase/migrations/20261107120000_rls_hardening.sql` | **Modify in place** (C12). Rewrite it to the exact SQL in Approach step 2. Update the header comment (adds: why the helper exists, the security notes) and the trailing "Rollback (manual)" comment (now also drops the function and the schema, in the right order). | C10, C11, C12, C13 |
+| `supabase/tests/rls_hardening.sql` | **Modify**: `plan(23)` → `plan(33)`; add 7 property/privilege tests, 2 direct-call tests and 1 control (see *Tests to write*); keep the 23 existing assertions as they are. | AC 2, AC 3 |
+| `work/tickets/T-003/impl-log.md` | **Append** `## Attempt 2 — <date>`. Keep Attempt 1 unchanged. | AC 2, AC 3 |
 
-Not touched: `supabase/migrations/20261106000000_init.sql` (R2, applied), `supabase/tests/rls_tables.sql`, `supabase/tests/rls_storage.sql`, `src/**` (incl. `src/types/database.ts`), `work/backlog.md`, `work/ming-todo.md`.
+Not touched: `README.md` (done in `a02e3f0`), `supabase/migrations/20261106000000_init.sql` (R2), `supabase/tests/rls_tables.sql`, `supabase/tests/rls_storage.sql`, `supabase/config.toml`, `src/**` (incl. `src/types/database.ts`), `work/backlog.md`, `work/ming-todo.md`.
 
 ## Tests to write
-All in `supabase/tests/rls_hardening.sql`. One transaction, `begin … rollback`, `plan(23)`.
-
-Seed as `postgres`: users A and B (the same fixed UUIDs as the other files). Then:
-- locations `…a1` (A, "A loc"), `…a5` (A, "A loc 2"), `…b1` (B, "B loc");
-- items `…a2` (A, location a1), `…b2` (B);
-- photos `…a3` (A, item a2, `A/a2/a.jpg`, not primary) and `…b3` (B, item b2, `B/b2/b.jpg`);
-- wear log `…a4` (A, item a2, `current_date`).
-
-Use the `rls_test.affected(sql)` helper copied from `rls_tables.sql` (rows affected). Then switch to A, using the same three lines as the other files.
+All in `supabase/tests/rls_hardening.sql`. One transaction, `begin … rollback`, **`plan(33)`**. Seed, the users and the `rls_test.affected` helper stay as in `a02e3f0`. Use pgTAP's function assertions (`isnt_definer`, `volatility_is`, `function_lang_is`, `function_privs_are`, `schema_privs_are`; all in pgTAP ≥ 0.9x). If one of them is missing from the local pgTAP, replace it with an `is(…)` on the `pg_proc` / `has_*_privilege` query that checks the same thing, and record that.
 
 | Test (file › name) | Covers |
 |---|---|
-| **Positive controls (as A)** — so that a 42501 below cannot come from a missing grant (finding 3) | |
-| `rls_hardening.sql › control: A sets own location parent to own location` (`lives_ok` update a5 set parent_id = a1) | New locations check accepts own parent |
-| `› control: A updates own location` (`is(affected(update locations set name … where id=a1), 1)`) | Own-row UPDATE allowed |
-| `› control: A updates own item` (affected = 1 on a2) | Finding 3 |
-| `› control: A updates own photo without changing its path` (affected = 1, `set is_primary = true` on a3) | New photos check accepts own path on UPDATE (the app's real update shape) |
-| `› control: A updates own wear log` (affected = 1, `set worn_on = current_date - 1` on a4) | Finding 3 |
-| `› control: A inserts own photo under A/` (`lives_ok`, item a2, `A/a2/c.jpg`) | New photos check accepts own path on INSERT; `storage.foldername` is executable by `authenticated` |
-| **GAP-1** | |
-| `› GAP-1: A cannot set locations.parent_id to B's location` (`throws_ok` update a1 set parent_id = b1, `42501`) | The F-006 probe, now real |
-| `› A cannot insert a location under B's location` (`throws_ok` insert (name, parent_id = b1), `42501`) | INSERT path of GAP-1 |
-| `› A gets 42501, not 23503, for a parent id that does not exist` (`throws_ok` update a1 set parent_id = `'cccccccc-0000-4000-8000-0000000000ff'`, `42501`) | Existence oracle closed (finding 9). RLS `with check` runs before the FK trigger. |
-| **GAP-2** | |
-| `› GAP-2: A cannot insert item_photos with storage_path under B/` (`throws_ok`, item a2, `B/a2/x.jpg`, `42501`) | The F-006 probe, now real |
-| `› A cannot move own photo's storage_path under B/` (`throws_ok` update a3 set storage_path = `B/a2/x.jpg`, `42501`) | UPDATE path of GAP-2 |
-| `› A cannot insert a photo path without a folder` (`throws_ok`, item a2, `x.jpg`, `42501`) | Edge: `foldername` gives an empty array, so `[1]` is null and the row is rejected |
-| `› A gets 42501, not 23505, for B's existing path` (`throws_ok`, item a2, storage_path = b3's path, `42501`) | Unique-violation oracle closed (finding 9) |
-| `› squat: A cannot claim a path in B's folder` (`throws_ok`, item a2, `B/b2/squat.jpg`, `42501`) | Squatting scenario, step 1 |
-| **Update-path regressions** (finding 4) — all `throws_ok … '42501'` | |
-| `› A cannot hand own location to B` (update a1 set user_id = B) | Rewritten locations policy |
-| `› A cannot hand own item to B` (update a2 set user_id = B) | items policy (unchanged, regression guard) |
-| `› A cannot hand own photo to B` (update a3 set user_id = B) | Rewritten photos policy |
-| `› A cannot hand own wear log to B` (update a4 set user_id = B) | wear_logs policy (regression guard) |
-| `› A cannot move own photo to B's item` (update a3 set item_id = b2) | Rewritten photos policy |
-| `› A cannot move own wear log to B's item` (update a4 set item_id = b2) | Regression guard |
-| **Squatting, step 2 (switch to B)**: `reset role`, set B's claims (both forms), `set local role authenticated` | |
-| `› squat: B can still insert its own photo at B/b2/squat.jpg` (`lives_ok`, item b2) | The harm the ticket names ("B's upload for that path would then fail") does not happen |
-| **After (as postgres, `reset role`)** | |
-| `› after: no A-owned photo row outside A's folder` (`is(count(*) … where user_id = A and (storage.foldername(storage_path))[1] is distinct from A::text), 0)`) | No denied write leaked through |
-| `› after: A's location has no foreign parent` (`is((select parent_id from locations where id = a1), null::uuid)`) | GAP-1 write did not happen |
+| **NEW — helper properties (as `postgres`, right after the seed, before switching to A)** | |
+| `rls_hardening.sql › owns_location is SECURITY INVOKER` (`isnt_definer('private','owns_location',array['uuid'], …)`) | No privilege elevation (design choice). **Flip to `is_definer` only under the step-7 fallback.** |
+| `› owns_location is STABLE` (`volatility_is(…, 'stable', …)`) | Read-only, safe in a policy |
+| `› owns_location is plpgsql` (`function_lang_is(…, 'plpgsql', …)`) | It is never inlined into the policy (this is what avoids `42P17`) |
+| `› owns_location pins search_path to empty` (`is((select proconfig from pg_proc where oid = 'private.owns_location(uuid)'::regprocedure), array['search_path=""'], …)`) | No search_path hijack |
+| `› anon cannot execute owns_location` (`function_privs_are('private','owns_location',array['uuid'],'anon', array[]::text[], …)`) | Revoke from PUBLIC/anon worked |
+| `› authenticated can execute owns_location` (`function_privs_are(…, 'authenticated', array['EXECUTE'], …)`) | The grant the policy needs |
+| `› anon has no usage on schema private` (`schema_privs_are('private','anon', array[]::text[], …)`) | The schema is closed to anon |
+| **NEW — direct calls (as A, right after the switch)** | |
+| `› owns_location: true for A's own location` (`is(private.owns_location(a1), true, …)`) | Positive path, sees the caller's own row |
+| `› owns_location: false for B's location` (`is(private.owns_location(b1), false, …)`) | No cross-user true. The same `false` as for a nonexistent id (see below), so it is no oracle. |
+| **Positive controls (as A)** — existing 6, plus 1 new | |
+| `› control: A sets own location parent to own location` (existing) | UPDATE path of the new check, helper returns true |
+| **NEW** `› control: A inserts a location under own location` (`lives_ok` insert (name `'A child'`, parent_id = a1)) | INSERT path of the new check |
+| `› control: A updates own location` … `› control: A inserts own photo under A/` (5 existing) | As in revision 1 |
+| **GAP-1** (3 existing): set parent to B's location; insert under B's location; nonexistent parent gives `42501`, not `23503` | Now reached for the first time |
+| **GAP-2** (5 existing): insert under `B/`; move own path under `B/`; no-folder path; B's existing path gives `42501`, not `23505`; squat in B's folder | Now reached for the first time |
+| **Update-path regressions** (6 existing) | As in revision 1 |
+| **Squat step 2, as B** (1 existing) | As in revision 1 |
+| **After, as postgres** (2 existing) | As in revision 1 |
 
-Count: 6 + 3 + 5 + 6 + 1 + 2 = **23**. If the implementer must change the count, `plan(n)` must equal the
-real number, and the reason is recorded in impl-log.
+Count: 7 + 2 + 7 + 3 + 5 + 6 + 1 + 2 = **33**.
 
-Header comment of the file: what it covers (T-003 hardening plus the update-path guards), user ids, "everything
-rolls back". Add one line noting that `A/../B/x.jpg` passes the folder check by design, because object keys are
-literal (security review finding 10). There is no assertion for this.
+Rules:
+- The helper property tests run as `postgres`, before `set local role authenticated`.
+- The direct calls go right after the switch to A. The new control goes right after the existing control 1.
+- The name `'A child'` must not collide with `unique (user_id, name)`.
+- Never weaken an existing assertion. If the count must change, `plan(n)` equals the real number, and the reason goes in impl-log.
+
+Header comment of the file: add one line saying it also checks the helper's properties and privileges.
 
 No Vitest changes: no TypeScript logic changes (R8 is met by the pgTAP suite).
 
 ## Approach
-1. **Branch** `ticket/T-003` (already checked out from latest `main`). Confirm that `supabase/migrations/` contains only `20261106000000_init.sql`. If a newer migration exists, choose a timestamp later than it and record that.
-2. **Migration** `supabase/migrations/20261107120000_rls_hardening.sql`. No `begin`/`commit`. Do not touch `using`. Do not add a `NOT VALID` constraint, a trigger or a data fix.
+
+### Design choice: how to check "parent is my own location"
+| Option | Verdict | Reason |
+|---|---|---|
+| Inline `exists` on `locations` (revision 1) | ✗ | `42P17`. The rewriter expands policy sub-queries and refuses any that reads the policy's own table. |
+| **Helper, `plpgsql`, SECURITY INVOKER, in `private`** | **✓ chosen** | **Least privilege.** The body runs as the caller (`authenticated`), under the caller's own RLS, so the helper can never see more than the caller can. A function call is not a sub-link, so the rewriter does not expand it. A `plpgsql` body is never inlined, so it is planned as its own query at run time. That query's RLS on `locations` is the plain `using (user_id = auth.uid())`, which does not read `locations` again, so there is no recursion. |
+| Helper, SECURITY DEFINER | fallback only | This is the usual Supabase pattern, and it is the expected route if INVOKER unexpectedly still recurses. But it runs as the owner (`postgres`, which bypasses RLS on these tables), so any future edit of the body could leak other users' rows. Here it would gain nothing: the body filters on `auth.uid()` anyway, so the result is the same. |
+| Helper, `language sql`, INVOKER | ✗ | Whether the planner inlines a SQL function is decided by internal rules. Avoid depending on them. |
+| `BEFORE INSERT OR UPDATE` trigger | ✗ | The check would live outside RLS, where policy reviews do not look. The trigger also fires for `service_role`/`postgres`, which RLS bypasses; there `auth.uid()` is null, so the trigger would need its own bypass logic. It needs a hand-written error code. It is more code, and it moves away from the ticket's "with-check". |
+
+**Security notes (for the auditor):**
+- **No oracle.** The helper returns `true` only for a location the caller owns. It returns `false` both for another user's location and for a nonexistent id. The caller could already learn its own rows through `select`.
+- **No API surface.** Schema `private` is not in PostgREST `api.schemas` (`supabase/config.toml:13`), so the helper cannot be called as `/rpc/owns_location`.
+- **Grants.**
+  - `usage` on `private` goes to `authenticated` only.
+  - `EXECUTE` on the function is revoked from `PUBLIC` (a Postgres default) and from `anon`, and granted to `authenticated` only. The policy is `to authenticated`.
+  - `service_role` does not need it, because it bypasses RLS.
+  - Nobody gets `create` on `private`.
+- **Hardened body.**
+  - `set search_path = ''`, and every name is schema-qualified (`public.locations`, `auth.uid()`).
+  - It is `stable`: it reads, never writes.
+  - The parameter name `p_location_id` cannot clash with a column name.
+- **Snapshot.** The helper sees rows that existed when the statement started. So a parent and its child inserted **in the same statement** are rejected. The inline `exists` would behave the same. The app inserts one location per call (`src/data/repo.ts`).
+- **Unchanged behaviour.** `on delete set null` on `parent_id` is unaffected (FK actions run as the table owner). Self-parent and cycles are possible today and stay possible (out of scope).
+
+### Steps
+1. **Branch** `ticket/T-003` at `a02e3f0` or later. Do not create a new migration file (C12).
+2. **Migration**: rewrite `supabase/migrations/20261107120000_rls_hardening.sql`. Keep the existing header (gaps, precheck). Add a short "why a helper" paragraph and the security notes above, in a few lines. The statements, exactly:
    ```sql
+   create schema private;
+   revoke all on schema private from public;
+   grant usage on schema private to authenticated;
+
+   -- True when the caller owns the location. SECURITY INVOKER: runs under the caller's RLS.
+   -- plpgsql so it is never inlined into the policy (an inline self-reference raises 42P17).
+   create function private.owns_location(p_location_id uuid)
+   returns boolean
+   language plpgsql
+   stable
+   security invoker
+   set search_path = ''
+   as $$
+   begin
+     return exists (
+       select 1
+       from public.locations l
+       where l.id = p_location_id
+         and l.user_id = (select auth.uid())
+     );
+   end;
+   $$;
+
+   revoke all on function private.owns_location(uuid) from public, anon;
+   grant execute on function private.owns_location(uuid) to authenticated;
+
    alter policy "locations: owner full access" on public.locations
      with check (
-       user_id = (select auth.uid())
-       and (parent_id is null or exists (
-         select 1 from public.locations p
-         where p.id = parent_id and p.user_id = (select auth.uid())))
+       locations.user_id = (select auth.uid())
+       and (locations.parent_id is null or private.owns_location(locations.parent_id))
      );
 
    alter policy "item_photos: owner full access" on public.item_photos
      with check (
-       user_id = (select auth.uid())
-       and (storage.foldername(storage_path))[1] = (select auth.uid())::text
+       item_photos.user_id = (select auth.uid())
+       and (storage.foldername(item_photos.storage_path))[1] = (select auth.uid())::text
        and exists (select 1 from public.items i
-                   where i.id = item_id and i.user_id = (select auth.uid()))
+                   where i.id = item_photos.item_id and i.user_id = (select auth.uid()))
      );
    ```
-   - **Header comment:**
-     - which gaps it closes, and that it supersedes the `with check` of `init.sql:129-132` and `:144-150`;
-     - `using` is unchanged on purpose. A row that violates the check stays visible to its owner, so the owner can repair it.
-     - precheck for Ming, read-only, expected 0 rows each:
-       - `select c.id from public.locations c join public.locations p on p.id = c.parent_id where p.user_id <> c.user_id;`
-       - `select id from public.item_photos where (storage.foldername(storage_path))[1] is distinct from user_id::text;`
-   - **Trailing comment "Rollback (manual)":** the two original `with check` expressions as `alter policy` statements.
-   - The `exists` on `locations` inside the `locations` policy is evaluated under the caller's RLS (`using` has no subquery), so there is no recursion (consult, Risks).
-3. **Tests**: `git mv supabase/tests/rls_gaps.sql supabase/tests/rls_hardening.sql`, then rewrite it as in *Tests to write*. Never weaken an assertion to get green. If a planned denial passes or a control fails, that is a finding: record it and stop (escalate). Do not change the policy beyond this plan.
-4. **README** edits (C7) only: lines 24, 46 and 49. Keep the wording short.
-5. **Local stack**:
-   - `docker info` must exit 0. Then `npx supabase start` if `supabase_db_tudocuatui` is not running.
-   - If the DB volume already exists from F-006, `start` does **not** apply new migrations. Run `npx supabase migration up --local`, then `npx supabase migration list --local` and check that `20261107120000` shows as applied.
-   - **Do not run `npx supabase db reset`.** If the migration cannot be applied without a reset, stop and record why.
-6. **Verify the live policies** (no host `psql` or password needed):
-   - PowerShell: `"select polname, pg_get_expr(polwithcheck, polrelid) from pg_policy where polrelid in ('public.locations'::regclass, 'public.item_photos'::regclass);" | docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q`
-   - Paste the output into impl-log.
-7. **Run** `npx supabase test db` twice. Paste the verbatim output into impl-log § "DB test run". Optionally also capture the raw TAP of `rls_hardening.sql`, with the `docker exec … psql` command from README (PowerShell: `Get-Content supabase/tests/rls_hardening.sql -Raw | docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q`).
-8. **Stop** the stack with plain `npx supabase stop`. **Never `--no-backup`**, even though README line 41 shows it.
-9. **Checks**: `pnpm typecheck`, `pnpm format:check`, `pnpm test`, `pnpm build`. Confirm `git diff main -- src/types/database.ts` is empty.
-10. **Hosted project: do not touch.** No `supabase link`, `db push`, `--linked` or `--db-url`. Applying is M-5 (Ming).
-11. If Docker is unavailable, do not guess results. The orchestrator stops the ticket as `BLOCKED` with an M-item for Ming to run steps 5–8, as in F-006.
+   Trailing comment "Rollback (manual)", in this order (the policy depends on the function, so the policy goes first):
+   1. `alter policy "locations: owner full access" on public.locations with check (user_id = (select auth.uid()));`
+   2. the original `item_photos` `with check` (as it is now in the comment);
+   3. `drop function private.owns_location(uuid);`
+   4. `drop schema private;`
+3. **Tests**: edit `supabase/tests/rls_hardening.sql` as in *Tests to write*. If a planned denial passes or a control fails, that is a finding: record it and stop. Do not change the policies beyond this plan.
+4. **Local stack up**: `docker info` must exit 0. Start the stack with `npx supabase start` if `supabase_db_tudocuatui` is not running. The volume still has the **defective** attempt-1 version applied.
+5. **Roll back attempt 1 locally (no `db reset`)**. Run one transaction as `postgres` in the container. It restores the two `init.sql` checks and removes the history row, so `migration up` sees the version as pending. PowerShell:
+   ```powershell
+   @'
+   begin;
+   alter policy "locations: owner full access" on public.locations
+     with check (user_id = (select auth.uid()));
+   alter policy "item_photos: owner full access" on public.item_photos
+     with check (
+       user_id = (select auth.uid())
+       and exists (select 1 from public.items i where i.id = item_id and i.user_id = (select auth.uid()))
+     );
+   delete from supabase_migrations.schema_migrations where version = '20261107120000';
+   commit;
+   '@ | docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1
+   ```
+   - Attempt 1 created no schema or function, so there is nothing else to drop. Check it: `select nspname from pg_namespace where nspname = 'private';` must return 0 rows. If it returns a row, stop and record it.
+   - Then `npx supabase migration list --local` must **not** list `20261107120000`.
+   - Paste the outputs into impl-log.
+   - If any statement errors (e.g. permission denied on `supabase_migrations`), `ON_ERROR_STOP` leaves the DB unchanged. **Stop and record it.** Do not use `db reset` or `--no-backup`, and do not delete the volume.
+6. **Apply the corrected version**: `npx supabase migration up --local`, then `npx supabase migration list --local` (now with `20261107120000`).
+7. **Verify the live objects** (pipe into the same `docker exec … psql -U postgres -d postgres -X -q`):
+   - `select polname, pg_get_expr(polwithcheck, polrelid) from pg_policy where polrelid in ('public.locations'::regclass, 'public.item_photos'::regclass);`
+   - `select p.oid::regprocedure, p.prosecdef, p.provolatile, p.proconfig, p.proacl from pg_proc p where p.oid = 'private.owns_location(uuid)'::regprocedure;`
+   - Paste both outputs. Expected values are in AC 3.
+   - **Fallback (pre-approved with this plan):** if, and only if, step 8 shows `42P17` for `locations`, make exactly these changes:
+     - in the migration, change `security invoker` to `security definer`;
+     - flip the first property test to `is_definer`;
+     - roll back again as in step 5, plus `drop function private.owns_location(uuid); drop schema private;` inside the same transaction, **after** the two `alter policy` statements;
+     - re-apply, and record the switch and the error in impl-log.
 
-Rules:
+     Any other failure: stop and escalate.
+8. **Run** `npx supabase test db` twice. Paste the verbatim output into impl-log § Attempt 2 "DB test run". All three files must be `ok`.
+9. **Stop** with plain `npx supabase stop`. **Never `--no-backup`.**
+10. **Checks**: `pnpm typecheck`, `pnpm format:check`, `pnpm test`, `pnpm build`. Confirm that `git diff main -- src/types/database.ts` is empty.
+11. **Hosted project: do not touch.** No `supabase link`, `db push`, `--linked` or `--db-url`. Applying is M-5 (Ming).
+12. If Docker is unavailable, do not guess results. The orchestrator stops the ticket as `BLOCKED`, with an M-item for Ming to run steps 4–9.
+
+How R1–R10 apply:
 - **R1:** no app code change; local mode unaffected.
-- **R2:** new migration file only. `init.sql` is untouched, and the policies are altered in the same migration that defines the intent. Types: C2.
-- **R3:** no secrets; the local stack uses the CLI's default local credentials only.
+- **R2:**
+  - RLS stays on every table.
+  - The policy change and its helper are in one migration.
+  - The file is edited in place only because it was never applied outside the local volume (C12).
+  - `init.sql` is untouched.
+  - Types: C2/C11.
+- **R3:** no secrets; local CLI default credentials only.
 - **R4:** the photo-row path check now matches the storage policy.
-- **R5:** n/a.
-- **R6:** n/a.
-- **R7:** the file list above; follow-ups listed below.
-- **R8:** the pgTAP suite and the checks.
-- **R9:** no UI.
-- **R10:** untouched.
+- **R5, R6, R9, R10:** n/a or untouched.
+- **R7:** the file list above.
+- **R8:** pgTAP suite plus checks.
 
 ## Specialist input used
 `consult-database-optimizer.md`:
 - **Adopted:**
   - checks in `with check` only, with `using` unchanged (Finding 2);
-  - the `locations` expression, copied from the `items` pattern;
-  - the `foldername` variant (open question 1);
+  - the foldername variant (OQ 1);
   - drop "Regenerate types" (OQ 4);
-  - fold in the update-path tests and controls (OQ 2);
-  - precheck as a comment, no data repair, no `NOT VALID` or trigger (OQ 3);
-  - rename the test file to `rls_hardening.sql` and remove `todo`/`probe`/`GAP-n result`;
-  - squatting edge test;
-  - the old policy text as a rollback comment;
-  - timestamp after `20261106000000`;
-  - the existence oracle and `on delete set null` are closed as a consequence (no extra SQL; the oracle part is asserted by two tests).
-- **Changed:** `drop`+`create` in `begin/commit` → `alter policy` (C5), for atomicity per statement and no reliance on CLI transaction handling.
+  - update-path tests and controls (OQ 2);
+  - precheck as a comment, with no data repair, no `NOT VALID` and no trigger (OQ 3);
+  - rename the test file and remove `todo`/`probe`;
+  - the squatting test;
+  - the rollback comment;
+  - the existence oracle.
+- **Changed:**
+  - `drop`+`create` → `alter policy` (C5).
+  - **Rev 2:** the consult's inline `exists` on `locations`, copied from the `items` pattern, does not carry over to a self-reference. Its "Risks: no recursion" note was wrong (attempt 1). It is replaced by the INVOKER helper (C10).
 - **Rejected:**
-  - enforcing the full `{uid}/{item_id}/…` path: stricter than the ticket scope (consult agrees);
-  - an `A/../B` assertion: comment only (consult agrees);
-  - merging the tests into `rls_tables.sql`: a separate file keeps `rls_tables.sql` and its `plan(37)` untouched and keeps the diff small.
+  - enforcing the full `{uid}/{item_id}/…` path;
+  - an `A/../B` assertion (comment only);
+  - merging the tests into `rls_tables.sql`.
+
+`impl-log.md` Attempt 1:
+- **Adopted:** qualify the columns (finding 2); use a helper function.
+- **Changed:** the suggested SECURITY DEFINER helper becomes a SECURITY INVOKER one, with DEFINER kept as the pre-approved fallback (Design choice). The suggested trigger is rejected.
 
 From `F-006/security-review.md`:
-- **Adopted:** findings 3 and 4 (table part), finding 6 (no TODO), finding 9 (oracle tests).
-- **Not adopted:** finding 3 storage part, finding 5 (anon role) and finding 8. See follow-ups.
+- **Adopted:** findings 3 and 4 (table part), 6 and 9.
+- **Not adopted:** finding 3 (storage part), 5 and 8 (follow-ups).
+
+The security auditor (`security-ai-generated-code-auditor`) should review the migration diff, because it now adds a function and a schema.
 
 ## Assumptions
-- **Supabase CLI behaviour.** `npx supabase migration up --local` applies pending migrations to a running local stack without wiping data (CLI 3.0.0, as in F-006). If it does not, the implementer stops instead of using `db reset`.
-- **`storage.foldername(text)` exists** in both the local image and the hosted project, and `authenticated` can execute it. The storage policies in `init.sql` already depend on both. The control "A inserts own photo under A/" proves it locally.
-- **WITH CHECK runs before FK and unique checks.** Postgres evaluates RLS `with check` before constraint checks: FKs are deferred-to-statement-end triggers, and unique checks happen at index insert. So the oracle tests expect `42501`. If the local run shows `23503` or `23505`, record it as a finding; do not loosen the test.
-- **No hosted data yet** (M-1 unticked), so the precheck is most likely moot.
-- **Hotspot.** `README.md` is also likely edited by **F-002** (`IN_PROGRESS`, types section near line 29 `--linked`). That is close to this plan's line-24 edit, so expect a small rebase conflict. No `src/App.tsx` edit. No other open ticket touches `supabase/**`.
-- **Follow-ups** (not in this diff; the orchestrator files `debt` issues, `project:tudocuatui`, after checking whether F-006 already filed them):
-  1. anon-role tests (security finding 5);
-  2. storage own-object UPDATE control (finding 3, storage part);
-  3. README "local stack only; never `--linked`" line (finding 8);
-  4. README line 41 recommends `npx supabase stop --no-backup`, which conflicts with the agent rule of plain `stop`. Ming to decide the README wording.
+- **Recursion analysis (rev 2).** The rewriter checks for policy recursion only while it expands sub-links in policy expressions. It does not look inside function bodies. A `plpgsql` body is planned as a separate query, and its RLS on `locations` (`using (user_id = (select auth.uid()))`) has no sub-query on `locations`. The pgTAP controls prove this locally. The step-7 fallback covers the case where this is wrong.
+- **Supabase CLI**:
+  - runs each migration file in one transaction;
+  - `migration up --local` applies versions missing from `supabase_migrations.schema_migrations` without wiping data (CLI 3.0.0, as in attempt 1);
+  - `postgres` can delete that history row locally.
+
+  If any of these is false, stop. Do not use `db reset`.
+- **`storage.foldername(text)` exists**, and `authenticated` can execute it, both locally and on the hosted project. The storage policies already depend on it.
+- **WITH CHECK runs before FK and unique checks**, so the oracle tests expect `42501`. If the run shows `23503`/`23505`, record it as a finding; do not loosen the test.
+- **No hosted data yet** (M-1 unticked), and no `private` schema exists there.
+- **Hotspot.** `README.md` was edited in `a02e3f0` and is likely also edited by **F-002** (`IN_PROGRESS`), so expect a small rebase conflict. No `src/App.tsx` edit. No other open ticket touches `supabase/**`.
+- **Follow-ups** (not in this diff; the orchestrator files `debt` issues, `project:tudocuatui`, if F-006 did not already):
+  1. anon-role tests (finding 5);
+  2. a storage own-object UPDATE control (finding 3, storage part);
+  3. a README line "local stack only; never `--linked`" (finding 8);
+  4. README line 41 recommends `stop --no-backup`, which conflicts with the agent rule (Ming decides the wording);
+  5. **new:** `docs/data-model.md` does not describe the RLS helpers. Add a line once more helpers exist.
 
 ## Blocking questions
-None. All open questions are resolved with stated defaults (C1–C9), which Ming confirms or overturns when approving the plan.
+None. All choices have stated defaults (C1–C13), which Ming confirms or overturns when re-approving.
 
 ## Split proposal
-None. About 60 lines of migration (mostly comments), about 110 lines of test SQL replacing 51, and about 5 README lines.
+None. The migration grows to about 75 lines (mostly comments). The tests gain about 15 lines. No README change.

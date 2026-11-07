@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T13:42:17Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -49,6 +49,7 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 - 2026-11-07: Plan approved (Ming, in chat with Annie: "Plan approved", given right after the T-003 plan was presented; recorded by Annie).
+Waiting for Ming: plan approval (High tier) — plan Revision 2 (the 2026-11-07 approval covered revision 1 only)
 
 ## Handoff
 
@@ -59,3 +60,11 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
   - The implementer applies the migration locally with `npx supabase migration up --local` (no `db reset`) and stops with plain `npx supabase stop`.
   - The hosted project is Ming's step (M-5). Run the two precheck `select`s from the migration header first if the hosted project has data.
   - Expect a small README conflict with F-002.
+
+### 2026-11-07 — claude — BLOCKED
+- Done: attempt 1 (commit a02e3f0) followed the approved plan and failed on the local stack. The `locations` WITH CHECK subquery on `locations` raised `42P17 infinite recursion`, and the unqualified `parent_id` bound to the inner alias. `supabase test db` was red on both runs. The hosted project was not touched. The planner wrote plan Revision 2: a `private.owns_location(uuid)` helper (plpgsql, stable, SECURITY INVOKER, `search_path = ''`, execute for `authenticated` only), qualified columns, and the migration edited in place (C10–C13). 33 assertions.
+- In progress / next: Ming approves Revision 2, then `/run T-003` runs attempt 2.
+- Gotchas:
+  - The local DB volume still has the broken attempt-1 policy. Plan step 5 rolls it back with psql (no `db reset`) before re-applying.
+  - The migration file is edited in place. It was never applied to the hosted project, but R2 says "never edit an applied migration", so Ming confirms this as C12.
+  - A SECURITY DEFINER fallback is pre-approved in the plan only if INVOKER still gives `42P17`.
