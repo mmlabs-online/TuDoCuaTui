@@ -38,3 +38,29 @@ None. `supabase init` created only config.toml and .gitignore; an empty `supabas
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: see `git diff --stat origin/main..HEAD`.
+
+## Attempt 2 (REWORK) — 2026-11-07
+
+### Files touched
+- `docs/qa/smoke-test.md` — required because review Issues 1 and 2 are both in it.
+  - Issue 1 (Check b): query is now `select worn_on, count(*) ... group by worn_on order by worn_on desc;`, expectation "today's local date appears once with count 1"; removed `current_date` (UTC) filter. Added `<id>` to the placeholders list in "Find your ids" (and changed "three placeholders" to "these placeholders").
+  - Issue 2 (step 7): added a "Before deleting" step: press "Mặc hôm nay" once and check `wear_logs` count for `<orig_id>` returns 1; after delete expect 0 (cascade). Updated the reference block comment with the before/after note.
+
+### Tests added
+None (doc-only).
+
+### Checks (actual output summary)
+- typecheck: `npx tsc --noEmit` exit 0, no output.
+- format:check / test: n/a (scripts do not exist on this branch).
+- build: `npx pnpm@10.34.3 build` succeeded.
+- Secret grep over smoke-test.md: no matches.
+- No Supabase stack started (doc-only).
+
+### Out-of-plan files
+None.
+
+### Follow-ups (noticed, not done)
+None new.
+
+### Scope self-check
+- Could the diff be smaller? No. Nits not addressed.

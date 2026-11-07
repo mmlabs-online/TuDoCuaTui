@@ -55,7 +55,7 @@ Project URL and anon key from the Supabase dashboard (Project Settings → API) 
 | Browser | Desktop Chrome | Desktop Chrome, then a phone |
 
 ## Find your ids
-The SQL checks use three placeholders. Run these to find the values:
+The SQL checks use these placeholders. Run these to find the values:
 
 - `<uid>`: your user id.
   ```sql
@@ -66,6 +66,7 @@ The SQL checks use three placeholders. Run these to find the values:
   select id, name, created_at from items order by created_at desc;
   ```
   `<orig_id>` is the item you added in step 2. `<copy_id>` is the copy from step 6.
+- `<id>` (Check b only): the id of any item you wear in that check, from the same query.
 
 ## Steps
 Record the result of each step in the results table at the end.
@@ -112,6 +113,7 @@ Record the result of each step in the results table at the end.
   Two `item_photos` rows with different `storage_path` values. Folder segment 2 of each path is its own item id (`<uid>/<orig_id>/...` and `<uid>/<copy_id>/...`). Two storage objects, one per folder.
 
 ### Step 7: Delete
+- **Before deleting:** open the original item and press "Mặc hôm nay" once (step 5 undid the only wear, so this gives the cascade check something to delete). Run `select count(*) from wear_logs where item_id = '<orig_id>';`. It must return 1.
 - **Do:** open the original item, press "Xoá", confirm with "Xoá món đồ".
 - **Expected UI:** the original disappears; the copy stays and its photo still shows after the original is deleted.
 - **Expected DB:**
@@ -120,7 +122,7 @@ Record the result of each step in the results table at the end.
   select name from storage.objects where bucket_id = 'wardrobe' and name like '<uid>/<orig_id>/%';
   select count(*) from wear_logs where item_id = '<orig_id>';
   ```
-  `item_photos` count is 0, no storage objects under `<uid>/<orig_id>/`, `wear_logs` count is 0 (cascade). The copy's folder `<uid>/<copy_id>/` still has its object.
+  `item_photos` count is 0, no storage objects under `<uid>/<orig_id>/`, `wear_logs` count is 0 (cascade; it was 1 before the delete). The copy's folder `<uid>/<copy_id>/` still has its object.
 
 ## Extra checks (from the ticket)
 
@@ -132,7 +134,7 @@ Record the result of each step in the results table at the end.
 
 ### Check b: wear twice on the same day
 - **Do:** on an item, press "Mặc hôm nay" twice in a row (before any undo).
-- **Expected with current code:** `select count(*) from wear_logs where item_id = '<id>' and worn_on = current_date;` still returns 1 (unique per item per day), but the toast "Đã ghi nhận mặc hôm nay" shows again on the second press. This is known behaviour, not a new bug. Record it as "as expected".
+- **Expected with current code:** `select worn_on, count(*) from wear_logs where item_id = '<id>' group by worn_on order by worn_on desc;` shows today's local date (YYYY-MM-DD) once with count 1 (unique per item per day; do not filter on `current_date`, the DB runs in UTC and can differ from your local date), but the toast "Đã ghi nhận mặc hôm nay" shows again on the second press. This is known behaviour, not a new bug. Record it as "as expected".
 
 ### Check c: wear pill between 00:00 and 07:00 local time
 - **Do:** with an item worn today, look at its wear pill between 00:00 and 07:00 local time.
@@ -152,7 +154,7 @@ select name from storage.objects where bucket_id = 'wardrobe' and name like '<ui
 select count(*) from item_photos where item_id = '<orig_id>';
 select name from storage.objects where bucket_id = 'wardrobe' and name like '<uid>/<orig_id>/%';
 
--- wear_logs after wear twice / undo / delete (cascade)
+-- wear_logs: 1 after wearing once just before delete (step 7), 0 after delete (cascade)
 select count(*) from wear_logs where item_id = '<orig_id>';
 ```
 
