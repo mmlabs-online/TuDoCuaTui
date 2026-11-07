@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item, Status } from "@/types/item";
 import { useWardrobe } from "@/data/useWardrobe";
+import { toCsv } from "@/features/import-export/csv/serialize";
 import { ageInDays, isStale, matchesFilters, sortItems } from "@/features/items/filters";
 
 const photos = [
@@ -530,27 +531,8 @@ function App() {
     setFilters((f) => ({ ...f, special: f.special === s ? "" : s }));
 
   const download = (type: "json" | "csv") => {
-    const csv =
-      "name,category,status,colors,brand,size,location,price,wearCount\n" +
-      items
-        .map((i) =>
-          [
-            i.name,
-            i.category,
-            i.status,
-            i.colors.join("|"),
-            i.brand,
-            i.size,
-            i.location,
-            i.price,
-            i.wearCount,
-          ]
-            .map((v) => `"${v}"`)
-            .join(","),
-        )
-        .join("\n");
-    const blob = new Blob([type === "json" ? JSON.stringify(items, null, 2) : "\ufeff" + csv], {
-      type: type === "json" ? "application/json" : "text/csv",
+    const blob = new Blob([type === "json" ? JSON.stringify(items, null, 2) : toCsv(items)], {
+      type: type === "json" ? "application/json" : "text/csv;charset=utf-8",
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

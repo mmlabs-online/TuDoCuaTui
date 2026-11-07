@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-005 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/8 |
 
 ## Goal
 The CSV export opens correctly in Excel and Google Sheets and can be re-imported.
@@ -52,3 +52,11 @@ The CSV export opens correctly in Excel and Google Sheets and can be re-imported
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-07 — claude — DONE
+- Done: `toCsv` in `src/features/import-export/csv/serialize.ts` (all fields, RFC 4180 quoting, `|` multi-values, one BOM, CRLF, `last_worn` as YYYY-MM-DD in both modes) and tests. `App.tsx` changes only in `download` and one import. Reviewer PASS on attempt 1; checks green (74 tests). PR: https://github.com/mmlabs-online/TuDoCuaTui/pull/8
+- In progress / next: Ming merges, then opens an exported CSV in Excel (Windows) and Google Sheets (AC2). AC3 (re-import) is checked in F-601.2.
+- Gotchas:
+  - The round-trip test uses a test-local CSV reader. Swap it for `parseCsv` once F-601.1 merges.
+  - Excel with vi-VN list separator `;` may open the file in one column.
+  - Follow-ups are in the PR and in a workspace `debt` issue.
