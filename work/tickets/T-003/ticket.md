@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | PLANNING |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | F-006 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | claude@2026-11-07T13:42:17Z |
 | PR | — |

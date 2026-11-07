@@ -16,7 +16,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [ ] **M-4 — Cloudflare Pages** (after F-007 is merged): follow README → "Deploy": connect the repo, set the
       production-only env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, add the production URL to the
       Supabase Redirect URLs, then log in on a phone with a magic link.
-- [ ] **M-5 — Apply migration** (after T-003 is merged, if it exists): `npx supabase db push` If the hosted project already has data, first run the two read-only precheck `select`s in the header of `supabase/migrations/20261107120000_rls_hardening.sql`; both must return zero rows.
+- [ ] **M-5 — Apply migration** (after T-003 is merged, if it exists): `npx supabase db push`. If the hosted project already has data, first run the two read-only precheck `select`s in the header of `supabase/migrations/20261107120000_rls_hardening.sql`; both must return zero rows.
 - [ ] **M-6 — Phone checks** after each of these merges, on an iPhone and an Android phone: F-202.1 (photo
       upload), F-1002 (camera / library buttons), F-603 (30 photos), F-101 (login screen, dark mode).
       Write problems as `/ticket`.
