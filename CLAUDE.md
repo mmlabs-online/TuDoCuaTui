@@ -10,30 +10,117 @@ Personal wardrobe tracker ("Tủ đồ của tôi"). UI exported from Figma Make
 (Postgres + Auth + Storage). Without env vars it runs in local mode (localStorage + demo
 items, no login), which the Figma Make preview depends on.
 
+- Scope: [docs/feature-list.md](docs/feature-list.md) is the source of truth. If a ticket and the feature list
+  disagree on scope, the feature list wins unless `work/decisions.md` records a change; flag the conflict.
+- Milestone plan: [docs/plan-M1.md](docs/plan-M1.md). Data model: [docs/data-model.md](docs/data-model.md).
+- Workflow (tickets, agents, commands): see **Workflow** below.
+
 ## Repo
 - Remote: `git@github.com:mmlabs-online/TuDoCuaTui.git`, default branch `main`, write mode `direct`.
-- Backlog: none yet.
+- Backlog: `work/` (adapter `markdown-work-dir`).
 
 ## Stack
 - React 19, Vite 8, Tailwind CSS v4, TypeScript 5.7, formatter oxfmt.
 - Node 22 and pnpm 10 (pinned in `.mise.toml`).
 - Supabase via `@supabase/supabase-js`; client in `src/lib/supabase.ts`, data layer in `src/data/`.
+- Hosting: Cloudflare Pages (decision D5 in `work/decisions.md`).
+
+Do not change the stack without Ming's explicit decision.
 
 ## Commands
 - Install: `pnpm install`
 - Dev: `pnpm dev`
-- Build (also the type/compile check): `pnpm build`
-- Format: `pnpm format`
-- Tests: none yet.
+- Typecheck: `npx tsc --noEmit` (becomes `pnpm typecheck` with F-003). `pnpm build` does **not** typecheck.
+- Build: `pnpm build`
+- Format: `pnpm format` (check: `pnpm format:check` with F-003)
+- Tests: `pnpm test` (from F-005)
 
-## Conventions
-- Keep local mode working: every data access goes through `src/data/` and must fall back to
-  localStorage when `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are unset.
-- Do not edit `AGENTS.md`, `.figma/` or `vite.config.ts` Figma Make plugins unless Ming asks.
-- Schema changes: add a new file in `supabase/migrations/` (never edit an applied migration),
-  keep RLS on every table, then regenerate `src/types/database.ts`.
-- Applying migrations to the real Supabase project (`supabase db push`) is a human step for Ming.
+**Checks** = every one of these that exists at the time: typecheck, `pnpm format:check`, `pnpm test`, `pnpm build`.
+
+## Architecture rules (reviewer enforces these)
+
+| ID | Rule |
+|---|---|
+| R1 | **Local mode keeps working.** Every data access goes through `WardrobeRepo` (`src/data/`), with both a local and a Supabase implementation. Components never call `supabase` directly. With `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` unset, the app runs on localStorage + demo items. |
+| R2 | **RLS on every table.** Schema changes are a new file in `supabase/migrations/` with RLS in the same migration; never edit an applied migration; regenerate `src/types/database.ts`. Applying migrations to the real project is Ming's step. |
+| R3 | **Only the anon key reaches the browser.** Nothing secret in client code or in a `VITE_*` variable (no service role key, no LLM key). Server-side secrets live only in Supabase Edge Function secrets. |
+| R4 | **Photos are private.** Storage paths are `{user_id}/{item_id}/{uuid}.jpg` in bucket `wardrobe`; display only through signed URLs; never write outside the caller's own folder. |
+| R5 | **Derived values are never stored.** `wear_count` and `last_worn` come from `wear_logs` (view `items_with_stats`). |
+| R6 | **Vietnamese UI copy, English code.** Labels ↔ DB ids only through `src/data/mappers.ts` / `src/constants/`. After F-004, UI copy lives in one place per feature. |
+| R7 | **Stay inside the ticket's plan.** Anything else found goes to the follow-ups list, not into the diff. |
+| R8 | **No PASS without green checks.** New or changed pure logic (parsers, mappers, filters, validation, repo) has unit tests once F-005 has landed. |
+| R9 | **Mobile-first.** UI changes work at a 390px viewport and in dark mode. |
+| R10 | **Figma Make files are off-limits**: `AGENTS.md`, `.figma/`, and the Figma Make plugins in `vite.config.ts`, unless Ming asks. |
 
 ## Risk tiers
-- High: `supabase/migrations/**` (DB migrations, RLS), auth flow in `src/features/auth/**`.
-- `.github/risk-tiers.yml`: TODO, not created yet.
+- High: `supabase/migrations/**` (DB migrations, RLS), auth flow in `src/features/auth/**`, production
+  deploy config (Cloudflare Pages config, `public/_redirects`, `.github/workflows/deploy*`).
+- `.github/risk-tiers.yml`: created by F-003.
+
+## Workflow
+
+One orchestrated loop per ticket, the same as stoktok. **The main session is the orchestrator**
+(subagents cannot dispatch other subagents), driven by `/run`.
+
+```
+/ticket "..."  →  BACKLOG
+/run [ID]      →  CONSULT (optional) → PLAN → [plan approval, High tickets only] → IMPLEMENT → REVIEW ─PASS→ DONE → PR
+                                                                                     ^                  │
+                                                                                     └──── REWORK ──────┘  max 2 reworks → ESCALATED
+Ming merges the PR → MERGED (set by /run or /status when they see the merge)
+```
+
+- No human gate between PLAN and IMPLEMENT, **except** tickets with `Gate: plan-approval` (High tier:
+  auth, migrations, production deploy config, per workspace rule §8). For those the loop stops at
+  `BLOCKED` until Ming writes "Plan approved" under *Notes / answers from Ming*.
+- A ticket is runnable only when every ticket in its `Depends on` is `MERGED` and every Ming item it
+  lists (`M-n`) is ticked in `work/ming-todo.md`. Branches start from the latest `main`, so an
+  unmerged dependency would be missing from the branch.
+- Each ticket runs on branch `ticket/<ID>` (or the session's mandated branch in cloud sessions). The
+  loop commits and pushes there; when the ticket is `DONE` it **opens a PR into `main`**. **Ming
+  approves and merges** — agents never merge, never enable auto-merge (`auto_merge: off`).
+- Unattended: `/loop /run` keeps picking the next runnable ticket until nothing is runnable.
+
+### Commands (`.claude/commands/`)
+| Command | Purpose |
+|---|---|
+| `/ticket <description>` | Create `work/tickets/<ID>/ticket.md` and a backlog row |
+| `/run [ID]` | Run the full loop for a ticket (no ID = first runnable ticket in backlog order) |
+| `/status` | Board summary; marks merged PRs as `MERGED` |
+| `/solo <description>` | Small direct change outside the loop (still must pass checks; logged) |
+
+### Agents (`.claude/agents/`)
+| Agent | Model | Writes | Role |
+|---|---|---|---|
+| `planner` | opus | `plan.md` only | Ticket → implementable plan |
+| `implementer` | sonnet | code + `impl-log.md` | Smallest diff that meets the plan |
+| `reviewer` | opus | `review.md` only | PASS / REWORK with evidence |
+| `software-architect` | opus | — (consult) | Areas `architecture` |
+| `database-optimizer` | sonnet | — (consult) | Areas `db` |
+| `security-ai-generated-code-auditor` | opus | — (consult) | Areas `security`, or a diff touching auth, RLS, migrations, storage, env |
+
+Adapted from msitarzewski/agency-agents (MIT) via the stoktok project — see `THIRD_PARTY_NOTICES.md`.
+
+### Files (`work/`)
+```
+work/backlog.md          board: one row per ticket, in run order
+work/decisions.md        decisions taken for this project (dated)
+work/ming-todo.md        human steps (M-n), ticked by Ming
+work/solo-log.md         /solo changes
+work/templates/          ticket, plan, impl-log, review, escalation
+work/tickets/<ID>/
+  ticket.md              fields, goal, scope, acceptance criteria, notes, Handoff
+  consult-<agent>.md     specialist notes (optional)
+  plan.md · impl-log.md · review.md · security-review.md · escalation.md
+```
+
+Ticket IDs: `F-xxx` / `F-xxx.n` from the feature list (`.n` = a split); `T-xxx` for tickets that are not in
+the feature list. States: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus
+`REWORK`, `BLOCKED`, `ESCALATED`.
+
+Shared state (workspace rule §9): `Claimed by` in ticket.md is set to `claude@<ISO timestamp>` (or
+`antigravity@…`) when a run starts and cleared when it ends; every run appends to `## Handoff`.
+
+## Conventions
+- Commits: `<ID>: <imperative summary>` for ticket work; `solo: …` for `/solo`; otherwise conventional style.
+- Secrets: only in `.env.local` (git-ignored) and the hosting dashboard. `.env.example` lists names with no values.
