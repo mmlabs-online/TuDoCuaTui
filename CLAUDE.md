@@ -30,9 +30,9 @@ Do not change the stack without Ming's explicit decision.
 ## Commands
 - Install: `pnpm install`
 - Dev: `pnpm dev`
-- Typecheck: `npx tsc --noEmit` (becomes `pnpm typecheck` with F-003). `pnpm build` does **not** typecheck.
+- Typecheck: `pnpm typecheck`. `pnpm build` does **not** typecheck.
 - Build: `pnpm build`
-- Format: `pnpm format` (check: `pnpm format:check` with F-003)
+- Format: `pnpm format` (check: `pnpm format:check`)
 - Tests: `pnpm test` (from F-005)
 
 **Checks** = every one of these that exists at the time: typecheck, `pnpm format:check`, `pnpm test`, `pnpm build`.
@@ -55,7 +55,7 @@ Do not change the stack without Ming's explicit decision.
 ## Risk tiers
 - High: `supabase/migrations/**` (DB migrations, RLS), auth flow in `src/features/auth/**`, production
   deploy config (Cloudflare Pages config, `public/_redirects`, `.github/workflows/deploy*`).
-- `.github/risk-tiers.yml`: created by F-003.
+- `.github/risk-tiers.yml`: draft tier file (F-003), reviewed by Ming (D10), not yet enforced by CI.
 
 ## Workflow
 

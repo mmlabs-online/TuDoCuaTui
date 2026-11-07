@@ -7,7 +7,7 @@ Gate `plan-approval` = the loop stops after PLAN until Ming approves (High tier)
 
 | ID | Title | State | Priority | Size | Areas | Depends on | Gate | Attempts | Updated |
 |---|---|---|---|---|---|---|---|---|---|
-| F-003 | Add CI pipeline | BACKLOG | P0 | S | architecture | — | none | 0 | 2026-11-07 |
+| F-003 | Add CI pipeline | MERGED | P0 | S | architecture | — | none | 1 | 2026-11-07 |
 | F-001 | Verify the Supabase backend end-to-end | DONE | P0 | S | db | — | none | 2 | 2026-11-07 |
 | F-101 | Polish the login screen | BACKLOG | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-07 |
 | F-005 | Set up Vitest and test the data layer | BACKLOG | P0 | M | data, architecture | F-003 | none | 0 | 2026-11-07 |
