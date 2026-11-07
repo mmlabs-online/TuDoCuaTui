@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-07T08:57:09Z |
 | PR | — |
 
 ## Goal
@@ -46,7 +46,7 @@ The login screen looks like the rest of the app and handles common errors clearl
 - Manual: real magic link on a phone in light and dark mode; trigger the rate limit.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-07: Plan approved (2026-11-07) — Ming: "duyệt".
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff

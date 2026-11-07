@@ -9,7 +9,7 @@ Gate `plan-approval` = the loop stops after PLAN until Ming approves (High tier)
 |---|---|---|---|---|---|---|---|---|---|
 | F-003 | Add CI pipeline | BACKLOG | P0 | S | architecture | — | none | 0 | 2026-11-07 |
 | F-001 | Verify the Supabase backend end-to-end | BACKLOG | P0 | S | db | — | none | 0 | 2026-11-07 |
-| F-101 | Polish the login screen | BLOCKED | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-07 |
+| F-101 | Polish the login screen | IN_PROGRESS | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-07 |
 | F-005 | Set up Vitest and test the data layer | BACKLOG | P0 | M | data, architecture | F-003 | none | 0 | 2026-11-07 |
 | F-002 | Generate DB types from the local schema | BACKLOG | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
 | F-006 | Add RLS and storage policy tests | BACKLOG | P1 | M | db, security | F-001 | none | 0 | 2026-11-07 |
