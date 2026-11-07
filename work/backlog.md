@@ -9,16 +9,16 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | ID | Title | State | Priority | Size | Areas | Depends on | Gate | Attempts | Updated |
 |---|---|---|---|---|---|---|---|---|---|
 | F-003 | Add CI pipeline | MERGED | P0 | S | architecture | — | none | 1 | 2026-11-07 |
-| F-001 | Verify the Supabase backend end-to-end | DONE | P0 | S | db | — | none | 2 | 2026-11-07 |
-| F-101 | Polish the login screen | DONE | P1 | S | ui, security | — | plan-approval | 1 | 2026-11-07 |
-| F-005 | Set up Vitest and test the data layer | DONE | P0 | M | data, architecture | F-003 | none | 1 | 2026-11-07 |
-| F-005.2 | Test the Supabase repo and useWardrobe with a fake client | BACKLOG | P0 | M | data | F-005 | none | 0 | 2026-11-07 |
-| F-002 | Generate DB types from the local schema | BACKLOG | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
+| F-001 | Verify the Supabase backend end-to-end | MERGED | P0 | S | db | — | none | 2 | 2026-11-07 |
+| F-101 | Polish the login screen | MERGED | P1 | S | ui, security | — | plan-approval | 1 | 2026-11-07 |
+| F-005 | Set up Vitest and test the data layer | MERGED | P0 | M | data, architecture | F-003 | none | 1 | 2026-11-07 |
+| F-005.2 | Test the Supabase repo and useWardrobe with a fake client | PLANNING | P0 | M | data | F-005 | none | 0 | 2026-11-07 |
+| F-002 | Generate DB types from the local schema | PLANNING | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
 | F-006 | Add RLS and storage policy tests | BACKLOG | P1 | M | db, security | F-001 | none | 0 | 2026-11-07 |
-| F-007 | Deploy to production with per-PR previews | BACKLOG | P0 | S | architecture, security | F-001 | plan-approval | 0 | 2026-11-07 |
-| F-004.1 | Extract UI primitives and constants from `App.tsx` | BACKLOG | P0 | S | ui | F-005 | none | 0 | 2026-11-07 |
-| F-401 | Make search diacritic-insensitive | BACKLOG | P0 | S | data | F-005 | none | 0 | 2026-11-07 |
-| F-601.1 | CSV parser | BACKLOG | P0 | S | data | F-005 | none | 0 | 2026-11-07 |
+| F-007 | Deploy to production with per-PR previews | PLANNING | P0 | S | architecture, security | F-001 | plan-approval | 0 | 2026-11-07 |
+| F-004.1 | Extract UI primitives and constants from `App.tsx` | PLANNING | P0 | S | ui | F-005 | none | 0 | 2026-11-07 |
+| F-401 | Make search diacritic-insensitive | PLANNING | P0 | S | data | F-005 | none | 0 | 2026-11-07 |
+| F-601.1 | CSV parser | PLANNING | P0 | S | data | F-005 | none | 0 | 2026-11-07 |
 | F-604 | Real CSV export | BACKLOG | P0 | S | data | F-005 | none | 0 | 2026-11-07 |
 | F-004.2 | Extract the items feature from `App.tsx` | BACKLOG | P0 | M | ui | F-004.1 | none | 0 | 2026-11-07 |
 | F-601.2 | CSV row mapping and validation | BACKLOG | P0 | M | data | F-601.1, F-401 | none | 0 | 2026-11-07 |
