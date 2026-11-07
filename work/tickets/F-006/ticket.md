@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/7 |
 
 ## Goal
 Automated proof that one user can never see or change another user's data.
@@ -55,3 +55,17 @@ Automated proof that one user can never see or change another user's data.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-07 — claude — DONE
+- Done: pgTAP suite in `supabase/tests/` (`rls_tables.sql`, `rls_storage.sql`, `rls_gaps.sql`) and README "Running DB tests". `supabase test db`: Files=3, Tests=51, PASS (implementer and reviewer). Reviewer PASS on attempt 1; security review has no blockers. PR #7.
+- Gap probe results (raw TAP, both CONFIRMED):
+  - `ok 1 - GAP-1 result: CONFIRMED (statement succeeded)`
+  - `not ok 2 - GAP-1 (T-003): A cannot set locations.parent_id to B's location # TODO T-003: locations.parent_id is not checked against ownership`
+  - `ok 3 - GAP-2 result: CONFIRMED (statement succeeded)`
+  - `not ok 4 - GAP-2 (T-003): A cannot insert item_photos with storage_path under B/ # TODO T-003: item_photos.storage_path is not checked against the owner folder`
+- In progress / next: Ming reviews and merges PR #7. T-003 is confirmed needed (High, plan approval).
+- Gotchas:
+  - README says `npx supabase stop --no-backup`, which deletes the local DB. Should be plain `npx supabase stop` (follow-up).
+  - `storage.objects` has the `protect_delete` trigger. The tests set `storage.allow_delete_query` first.
+  - A "TODO passed" line does not fail the run. Check for it by hand after T-003.
+  - Security 🟡 follow-ups (own-row UPDATE/DELETE controls, UPDATE re-parenting denials, anon role) are listed in the PR.

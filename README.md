@@ -29,6 +29,27 @@ pnpm dev
    npx supabase gen types typescript --linked > src/types/database.ts
    ```
 
+## Running DB tests
+
+pgTAP tests in `supabase/tests/` check that RLS and the storage policies keep each user out of other users' data.
+
+Prerequisites: Docker Desktop running, and Node (the CLI runs via `npx supabase`). Ports 55320-55329 must be free.
+
+```bash
+npx supabase start       # first time pulls images
+npx supabase test db     # runs every file in supabase/tests/
+npx supabase stop --no-backup   # when done
+```
+
+- Each file runs in a transaction that rolls back, so no data is left behind and runs are repeatable.
+- `rls_tables.sql`: locations, items, photos, wear logs and the `items_with_stats` view. `rls_storage.sql`: bucket `wardrobe`.
+- `rls_gaps.sql` holds known RLS gaps as `not ok ... # TODO` lines. They are tracked in T-003 and do not fail the run. A `TODO passed` line means T-003 fixed one: remove its `todo` wrapper.
+- Raw TAP for one file (no host `psql` or password needed):
+  ```bash
+  docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q < supabase/tests/rls_gaps.sql
+  ```
+- CI does not run these tests yet.
+
 ## Code map
 
 | Path | Purpose |
@@ -40,4 +61,5 @@ pnpm dev
 | `src/data/photos.ts` | Client-side image resize before upload |
 | `src/features/auth/AuthGate.tsx` | Magic-link login (only in Supabase mode) |
 | `supabase/migrations/` | Schema, RLS, storage bucket and policies |
+| `supabase/tests/` | pgTAP RLS and storage policy tests |
 | `docs/data-model.md` | ERD and design decisions |
