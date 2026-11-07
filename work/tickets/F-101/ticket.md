@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T08:57:09Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/5 |
 
 ## Goal
 The login screen looks like the rest of the app and handles common errors clearly.
@@ -54,3 +54,7 @@ The login screen looks like the rest of the app and handles common errors clearl
 - Done: plan.md READY (AuthGate restyle, 60 s resend cooldown, mapped Vietnamese errors, theme applied before render; `signInWithOtp` call, `emailRedirectTo` and session handling unchanged — see plan "Security summary").
 - In progress / next: Ming approves → add "Plan approved (YYYY-MM-DD)" under Notes → `/run F-101` implements.
 - Gotchas: no Vitest on main yet; plan verifies pure modules with a throwaway `node --experimental-strip-types` script; Vitest cases are a follow-up for F-005.
+### 2026-11-07 — claude — DONE
+- Done: login screen restyle, 60 s resend cooldown, mapped Vietnamese auth errors, early theme init. Review PASS attempt 1; security audit no 🔴. PR #5.
+- In progress / next: Ming merges (High), then M-6 phone check (real magic link, rate-limit message, dark mode).
+- Gotchas: no visual check was possible by agents; pure-module checks live in a scratchpad script until F-005 adds Vitest.
