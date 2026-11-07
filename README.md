@@ -21,7 +21,7 @@ pnpm dev
    npx supabase link --project-ref <ref>
    npx supabase db push         # runs supabase/migrations/*.sql
    ```
-   Or paste `supabase/migrations/20261106000000_init.sql` into Dashboard → SQL Editor.
+   Or paste each file in `supabase/migrations/`, in filename order, into Dashboard → SQL Editor.
 3. Go to Auth → URL Configuration and add your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs** so magic links work.
 4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop --no-backup` when done).
 5. Optional: regenerate the DB types after any schema change:
@@ -43,10 +43,10 @@ npx supabase stop --no-backup   # when done
 
 - Each file runs in a transaction that rolls back, so no data is left behind and runs are repeatable.
 - `rls_tables.sql`: locations, items, photos, wear logs and the `items_with_stats` view. `rls_storage.sql`: bucket `wardrobe`.
-- `rls_gaps.sql` holds known RLS gaps as `not ok ... # TODO` lines. They are tracked in T-003 and do not fail the run. A `TODO passed` line means T-003 fixed one: remove its `todo` wrapper.
+- `rls_hardening.sql`: parent/path ownership checks on `locations` and `item_photos`, plus update-path guards.
 - Raw TAP for one file (no host `psql` or password needed):
   ```bash
-  docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q < supabase/tests/rls_gaps.sql
+  docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q < supabase/tests/rls_hardening.sql
   ```
 - CI does not run these tests yet.
 
