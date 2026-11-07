@@ -23,3 +23,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-07) Approve plan for F-101 (branch `ticket/F-101`): work/tickets/F-101/plan.md

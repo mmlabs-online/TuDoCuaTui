@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/5 |
 
 ## Goal
 The login screen looks like the rest of the app and handles common errors clearly.
@@ -46,6 +46,15 @@ The login screen looks like the rest of the app and handles common errors clearl
 - Manual: real magic link on a phone in light and dark mode; trigger the rate limit.
 
 ## Notes / answers from Ming
+- 2026-11-07: Plan approved (2026-11-07) — Ming: "duyệt".
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — BLOCKED (plan approval)
+- Done: plan.md READY (AuthGate restyle, 60 s resend cooldown, mapped Vietnamese errors, theme applied before render; `signInWithOtp` call, `emailRedirectTo` and session handling unchanged — see plan "Security summary").
+- In progress / next: Ming approves → add "Plan approved (YYYY-MM-DD)" under Notes → `/run F-101` implements.
+- Gotchas: no Vitest on main yet; plan verifies pure modules with a throwaway `node --experimental-strip-types` script; Vitest cases are a follow-up for F-005.
+### 2026-11-07 — claude — DONE
+- Done: login screen restyle, 60 s resend cooldown, mapped Vietnamese auth errors, early theme init. Review PASS attempt 1; security audit no 🔴. PR #5.
+- In progress / next: Ming merges (High), then M-6 phone check (real magic link, rate-limit message, dark mode).
+- Gotchas: no visual check was possible by agents; pure-module checks live in a scratchpad script until F-005 adds Vitest.
