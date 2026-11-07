@@ -22,7 +22,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-604 | Real CSV export | MERGED | P0 | S | data | F-005 | none | 1 | 2026-11-07 |
 | F-004.2 | Extract the items feature from `App.tsx` | BACKLOG | P0 | M | ui | F-004.1 | none | 0 | 2026-11-07 |
 | F-601.2 | CSV row mapping and validation | BACKLOG | P0 | M | data | F-601.1, F-401 | none | 0 | 2026-11-07 |
-| T-003 | Close RLS gaps found by F-006 (only if confirmed) | BLOCKED | P1 | S | db, security | F-006 | plan-approval | 0 | 2026-11-07 |
+| T-003 | Close RLS gaps found by F-006 (only if confirmed) | IN_PROGRESS | P1 | S | db, security | F-006 | plan-approval | 0 | 2026-11-07 |
 | F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | BACKLOG | P0 | M | ui | F-004.2 | none | 0 | 2026-11-07 |
 | F-201 | Harden the item editor | BACKLOG | P0 | M | ui | F-004.2 | none | 0 | 2026-11-07 |
 | F-202.2 | Lazy-load grid images and refresh expired signed URLs | BACKLOG | P0 | S | data | F-004.2 | none | 0 | 2026-11-07 |
