@@ -18,13 +18,13 @@ pnpm dev
 1. Create a project at supabase.com and copy the **Project URL** and **anon key** into `.env.local`.
 2. Apply the schema:
    ```bash
-   npx supabase init            # creates supabase/config.toml; keeps the existing migrations
    npx supabase link --project-ref <ref>
    npx supabase db push         # runs supabase/migrations/*.sql
    ```
    Or paste `supabase/migrations/20261106000000_init.sql` into Dashboard → SQL Editor.
 3. Go to Auth → URL Configuration and add your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs** so magic links work.
-4. Optional: regenerate the DB types after any schema change:
+4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop --no-backup` when done).
+5. Optional: regenerate the DB types after any schema change:
    ```bash
    npx supabase gen types typescript --linked > src/types/database.ts
    ```
