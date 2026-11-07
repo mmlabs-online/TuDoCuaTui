@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T07:38:51Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/3 |
 
 ## Goal
 Every PR is typechecked, format-checked and built automatically, so problems are caught before merge.
@@ -59,3 +59,7 @@ Every PR is typechecked, format-checked and built automatically, so problems are
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — DONE
+- Done: CI workflow (`ci`), typecheck/format:check scripts, pnpm pin, LF normalisation, `.prettierignore`, draft `risk-tiers.yml`. Review PASS on attempt 1; security audit had no 🔴. PR #3 opened.
+- In progress / next: Ming reviews `risk-tiers.yml` (D10) and the 4 🟡 tightening suggestions in the PR body; after merge, M-3 (require `ci`). F-005 then adds `pnpm test` to `ci.yml`.
+- Gotchas: run pnpm as `npx pnpm@10.34.3` (global pnpm is 11.5); `install` needs `CI=true` without a TTY. Never run `pnpm format` without `.prettierignore` (it would rewrite Figma Make files).
