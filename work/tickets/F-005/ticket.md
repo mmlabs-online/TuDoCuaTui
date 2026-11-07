@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T09:05:54Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/6 |
 
 ## Goal
 A test harness exists, and the logic that later tickets change (mappers, local repo, filter/sort/stale)
@@ -62,3 +62,7 @@ has tests.
 - AC2 (`src/data/**` >= 80%) is NOT complete here: `repo.ts` Supabase half and `useWardrobe.ts` are uncovered. F-005.2 completes it (fake Supabase client, useWardrobe tests, Testing Library packages, global threshold).
 - Deviation: jsdom pinned to 27.4.0 (latest 31.0.0 needs Node ^22.22.2; local Node is 22.16).
 - Follow-ups: see work/tickets/F-005/impl-log.md.
+### 2026-11-07 — claude — DONE
+- Done: Vitest 5.1 + coverage-v8 + jsdom, standalone vitest.config.ts (TZ Asia/Ho_Chi_Minh, local mode forced), 54 tests (mappers, local repo, filters), filters extracted from App.tsx with no behaviour change, CI runs test:coverage. Review PASS attempt 1; audit clean. PR #6.
+- In progress / next: F-005.2 (fake Supabase client, global 80% gate). Merge #6 before any F-004.x.
+- Gotchas: jsdom pinned to 27.x (31 needs Node ≥ 22.22). Tests pinning the T-002 date quirk are labelled "(records current behaviour)" — T-002 must update them.
