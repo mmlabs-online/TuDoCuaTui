@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T07:50:25Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/4 |
 
 ## Goal
 Prove that PR #1 works against a real Supabase project, so that M1 is built on a backend that runs.
@@ -61,3 +61,7 @@ hosted project) and M-2 (run the smoke test); they do not block this ticket.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — DONE
+- Done: `supabase/config.toml` (project_id tudocuatui, ports 553xx), `supabase/.gitignore`, `docs/qa/smoke-test.md` (Run A local, Run B hosted), README link. Local `db reset` applies the init migration cleanly. Review PASS on attempt 2 (attempt 1: two SQL-check blockers in the smoke test). PR #4.
+- In progress / next: Ming M-1 + M-2 after merge. F-002 / F-006 / F-007 become runnable once this merges.
+- Gotchas: a calechip Supabase stack runs on the default 543xx ports — never stop it; always `npx supabase stop --no-backup` from this repo after use. `supabase start` creates an empty `supabase/snippets/` — delete it. Never write keys from `supabase status` into files. Local config is NOT hosted config (security-review.md).
