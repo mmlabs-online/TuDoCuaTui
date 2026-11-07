@@ -6,3 +6,4 @@ work/
 .claude/
 pnpm-lock.yaml
 dist/
+coverage/

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item, Status } from "@/types/item";
 import { useWardrobe } from "@/data/useWardrobe";
+import { ageInDays, isStale, matchesFilters, sortItems } from "@/features/items/filters";
 
 const photos = [
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?auto=format&fit=crop&w=700&q=85",
@@ -485,9 +486,6 @@ function App() {
     setToast(s);
     setTimeout(() => setToast(""), 2400);
   };
-  const age = (date: string) =>
-    date ? Math.floor((Date.now() - new Date(date).getTime()) / 86400000) : 999;
-
   const counts = useMemo(
     () =>
       Object.fromEntries(
@@ -496,29 +494,9 @@ function App() {
     [items],
   );
   const visible = useMemo(() => {
-    let out = items.filter((i) => {
-      const hay = `${i.name} ${i.brand} ${i.colors.join(" ")} ${i.notes}`.toLowerCase();
-      return (
-        hay.includes(query.toLowerCase()) &&
-        (category === "Tất cả" || i.category === category) &&
-        (!filters.status || i.status === filters.status) &&
-        (!filters.season || i.seasons.includes(filters.season)) &&
-        (!filters.location || i.location === filters.location) &&
-        (!filters.color || i.colors.includes(filters.color)) &&
-        (filters.special !== "stale" || age(i.lastWorn) >= 90) &&
-        (filters.special !== "never" || i.wearCount === 0)
-      );
-    });
-    return out.sort((a, b) =>
-      sort === "Tên A→Z"
-        ? a.name.localeCompare(b.name, "vi")
-        : sort === "Mặc nhiều nhất"
-          ? b.wearCount - a.wearCount
-          : sort === "Lâu chưa mặc"
-            ? age(b.lastWorn) - age(a.lastWorn)
-            : sort === "Giá cao → thấp"
-              ? b.price - a.price
-              : +new Date(b.createdAt) - +new Date(a.createdAt),
+    return sortItems(
+      items.filter((i) => matchesFilters(i, { query, category, filters })),
+      sort,
     );
   }, [items, query, category, filters, sort]);
 
@@ -643,8 +621,8 @@ function App() {
               <br /> của bạn
             </h1>
             <p>
-              Hôm nay có {items.filter((i) => age(i.lastWorn) >= 90).length} món lâu chưa mặc — thử
-              một món nhé?
+              Hôm nay có {items.filter((i) => isStale(i)).length} món lâu chưa mặc — thử một món
+              nhé?
             </p>
           </div>
           <div className="hero-collage" aria-label="Một vài món đồ trong bộ sưu tập">
@@ -693,7 +671,7 @@ function App() {
             onClick={() => toggleSpecial("stale")}
           >
             <span>≥ 90 ngày chưa mặc</span>
-            <strong>{items.filter((i) => age(i.lastWorn) >= 90).length}</strong>
+            <strong>{items.filter((i) => isStale(i)).length}</strong>
             <small>
               Xem những món bị lãng quên <span>→</span>
             </small>
@@ -796,7 +774,7 @@ function App() {
                 <ItemCard
                   key={item.id}
                   item={item}
-                  age={age}
+                  age={ageInDays}
                   onClick={() => {
                     setEditor({ ...item });
                     setIsNew(false);

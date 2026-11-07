@@ -25,6 +25,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm test:coverage
       - run: pnpm format:check
       - run: pnpm build
-      # F-005 adds the `pnpm test` step here.
