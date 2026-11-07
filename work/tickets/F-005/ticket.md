@@ -56,3 +56,9 @@ has tests.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### Implementer, attempt 1 (2026-11-07)
+- Slice 1 implemented per plan.md: Vitest harness, CI step (`pnpm test:coverage`), mapper, local-repo and filters tests, `filters.ts` extraction (App.tsx behaviour unchanged).
+- AC2 (`src/data/**` >= 80%) is NOT complete here: `repo.ts` Supabase half and `useWardrobe.ts` are uncovered. F-005.2 completes it (fake Supabase client, useWardrobe tests, Testing Library packages, global threshold).
+- Deviation: jsdom pinned to 27.4.0 (latest 31.0.0 needs Node ^22.22.2; local Node is 22.16).
+- Follow-ups: see work/tickets/F-005/impl-log.md.
