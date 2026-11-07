@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-07T13:42:17Z |
 | PR | — |
 
 ## Goal
@@ -48,7 +48,7 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 ## Notes / answers from Ming
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
-Waiting for Ming: plan approval (High tier)
+- 2026-11-07: Plan approved (Ming, in chat with Annie: "Plan approved", given right after the T-003 plan was presented; recorded by Annie).
 
 ## Handoff
 
