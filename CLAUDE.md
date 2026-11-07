@@ -118,8 +118,12 @@ Ticket IDs: `F-xxx` / `F-xxx.n` from the feature list (`.n` = a split); `T-xxx` 
 the feature list. States: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus
 `REWORK`, `BLOCKED`, `ESCALATED`.
 
-Shared state (workspace rule §9): `Claimed by` in ticket.md is set to `claude@<ISO timestamp>` (or
-`antigravity@…`) when a run starts and cleared when it ends; every run appends to `## Handoff`.
+Shared state (workspace rule §9): `Claimed by` in ticket.md is set to `claude@<ISO timestamp>` when a run
+starts and cleared when it ends; every run appends to `## Handoff`.
+
+**Claude Code only** (Ming, 2026-11-07, decision D15): Antigravity does not work on this project. Claude
+plans, implements, writes the tests and reviews. Workspace routing that sends test writing to Antigravity
+does not apply here.
 
 ## Conventions
 - Commits: `<ID>: <imperative summary>` for ticket work; `solo: …` for `/solo`; otherwise conventional style.
