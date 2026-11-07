@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T12:29:04Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -52,6 +52,10 @@ The app has a production URL that Ming can open on a phone and log in to with a 
 - Manual: phone login on the production URL; open a preview URL and see local mode.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — BLOCKED (plan approval)
+- Done: consult + plan READY. Scope changes for Ming to approve: no `public/_redirects` (Pages' default SPA fallback; added back only if the deep-link check fails), build command `pnpm build`, `NODE_VERSION`/`PNPM_VERSION` dashboard vars; `_headers` deferred.
+- Next: Ming approves → implement `.node-version` + README "Deploy (Cloudflare Pages)" runbook (M-4).
