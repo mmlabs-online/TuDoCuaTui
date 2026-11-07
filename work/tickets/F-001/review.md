@@ -55,3 +55,42 @@ Changed files: `README.md`, `docs/qa/smoke-test.md`, `supabase/.gitignore`, `sup
 ### Follow-ups (out of scope)
 - F-003: classify `supabase/config.toml` as at least Medium in `.github/risk-tiers.yml` (already in impl-log).
 - `copyPhoto` (`src/data/repo.ts:169-172`) inserts the copied `item_photos` row without `width`/`height`, and leaves the copied storage object behind if the insert fails (unlike `uploadPrimary`). Candidate for its own ticket.
+
+## Attempt 2 — 2026-11-07
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `npx tsc --noEmit` exit 0, no output.
+- format:check: n/a (script does not exist on this branch).
+- test: n/a (script does not exist on this branch).
+- build: `npx pnpm@10.34.3 build` exit 0 ("built in 360ms").
+- Local stack: not restarted. `git diff HEAD~1 --stat` shows only `docs/qa/smoke-test.md` and `work/**` changed; nothing under `supabase/`, so the attempt-1 `db reset` result still holds.
+- Grep: `eyJ` / `sb_publishable_` / `sb_secret_` in `docs/qa/smoke-test.md` → none.
+- impl-log Attempt 2 claims match the reviewer's run.
+
+### Acceptance criteria
+- [x] AC1–AC6, AC9–AC11 — unchanged since attempt 1 (rework diff touches only `docs/qa/smoke-test.md` lines 58, 69, 116, 125, 137, 157); evidence as in Attempt 1.
+- [x] AC7 Check b fixed — evidence: `docs/qa/smoke-test.md:137` now groups by `worn_on` and expects today's local date with count 1, with no `current_date` filter. This matches the code: the app writes `worn_on: localToday()` (`src/data/repo.ts:242`), which is `new Date().toLocaleDateString("en-CA")` → local `YYYY-MM-DD` (`src/lib/supabase.ts:21`). Uniqueness comes from `unique (item_id, worn_on)` (`supabase/migrations/20261106000000_init.sql:92`) and the upsert `ignoreDuplicates` (`repo.ts:243`). `<id>` is now defined at `smoke-test.md:69`. Checks a and c unchanged and correct.
+- [x] AC8 cascade check is now meaningful — evidence: `docs/qa/smoke-test.md:116` adds one wear before the delete and requires count 1; `:125` expects 0 after delete; reference block `:157` has the same before/after note. The cascade really is the thing under test: `remove()` (`src/data/repo.ts:231-235`) deletes photos and the `items` row only, never `wear_logs`, so the 0 comes from `wear_logs.item_id ... on delete cascade` (`init.sql:89`). Re-wearing after the step-5 undo is valid: undo deletes the row (`repo.ts:256`), so the upsert inserts a new one.
+- [x] AC12 checks green — evidence: above.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. Rework is doc-only; no app code, migration, `VITE_*` value, storage path or Figma Make file changed.
+
+### Scope
+`git diff origin/main...HEAD`: `README.md`, `docs/qa/smoke-test.md`, `supabase/.gitignore`, `supabase/config.toml` (all in the plan) plus `work/**` loop files. Rework commit touched only `docs/qa/smoke-test.md` plus `work/**`. No unjustified out-of-plan change.
+
+### Ming verification after merge
+- M-1: hosted project created, `npx supabase db push` applies `20261106000000_init.sql`, Redirect URL `http://localhost:8443` set.
+- M-2: `docs/qa/smoke-test.md` Run B on desktop Chrome and on a phone; results table filled in; each failure filed with `/ticket`.
+
+### Nits (do not block)
+- Attempt-1 nits still open (not required): `smoke-test.md:76` "on a fresh account" for the empty state; where to read the wear count (editor "Đã mặc N lần" / card pill "👕 N×"); `user_id` filter on the `items` query for a shared hosted project.
+- `smoke-test.md:116-117`: "open the original item" appears twice in a row; the second can say "in the same editor".
+
+### Follow-ups (out of scope)
+- F-003: classify `supabase/config.toml` as at least Medium in `.github/risk-tiers.yml`.
+- `copyPhoto` (`src/data/repo.ts:169-172`): missing `width`/`height` on the copied `item_photos` row and orphaned storage object on insert failure.

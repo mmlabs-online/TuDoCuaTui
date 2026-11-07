@@ -21,3 +21,6 @@
 **Open questions**
 1. Keep password auth unused (magic link only)? Default: yes; note it in decisions.
 2. Add the "don't push config.toml to hosted" warning now or later? Default: now; it is a one-line docs change (Low).
+
+## Attempt 2 — 2026-11-07 — orchestrator note
+Not re-audited: attempt 2 changes only `docs/qa/smoke-test.md` (SQL check wording) and `impl-log.md`; no config, secret or code paths changed since attempt 1. Attempt 1 findings stand (no 🔴).
