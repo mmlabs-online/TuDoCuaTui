@@ -86,3 +86,67 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No for what was planned.
 - Diff size: migration +42, tests about +100 / -51 (rename), README +3 / -3.
+
+## Attempt 2 — 2026-11-08
+
+**RESULT: PASS on all local checks. SECURITY INVOKER helper worked; the SECURITY DEFINER fallback was NOT used.**
+
+### Files touched
+| File | Required because |
+|---|---|
+| `supabase/migrations/20261107120000_rls_hardening.sql` (edited in place, C12) | Plan step 2: schema `private`, `private.owns_location`, two `alter policy` with qualified columns, header and rollback comment updated |
+| `supabase/tests/rls_hardening.sql` | Plan: `plan(23)` -> `plan(33)`; +7 helper property tests, +2 direct calls, +1 control (23 existing assertions untouched) |
+| `work/tickets/T-003/impl-log.md` | This section |
+
+### Local stack steps (raw)
+- `docker info`: exit 0. `npx supabase start`: `Starting database from backup...` (stack up, container `supabase_db_tudocuatui`).
+- Rollback transaction (step 5) via `docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1`: exit 0, no error output (`-q` suppresses the `COMMIT` tag; the history row deletion is confirmed by the next list). No `db reset`, no `--no-backup`, volume kept.
+- `select nspname from pg_namespace where nspname = 'private';` -> `(0 rows)`.
+- `migration list --local` after rollback (note `"remote":""` for 20261107120000, i.e. not in history):
+  `{"migrations":[{"local":"20261106000000","remote":"20261106000000",...},{"local":"20261107120000","remote":"","time":"2026-11-07 12:00:00"}],...}`
+- `migration up --local`: `Applying migration 20261107120000_rls_hardening.sql...` `{"applied":[".../20261107120000_rls_hardening.sql"],"message":"Migrations applied",...}`
+- `migration list --local` after: `{"local":"20261107120000","remote":"20261107120000",...}`
+
+### Live objects (verbatim)
+```
+            polname             |                                                                    pg_get_expr
+--------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------
+ locations: owner full access   | ((user_id = ( SELECT auth.uid() AS uid)) AND ((parent_id IS NULL) OR private.owns_location(parent_id)))
+ item_photos: owner full access | ((user_id = ( SELECT auth.uid() AS uid)) AND ((storage.foldername(storage_path))[1] = (( SELECT auth.uid() AS uid))::text) AND (EXISTS ( SELECT 1+
+                                |    FROM items i                                                                                                                                  +
+                                |   WHERE ((i.id = item_photos.item_id) AND (i.user_id = ( SELECT auth.uid() AS uid))))))
+(2 rows)
+
+             oid             | prosecdef | provolatile |      proconfig       |                     proacl
+-----------------------------+-----------+-------------+----------------------+------------------------------------------------
+ private.owns_location(uuid) | f         | s           | {"search_path=\"\""} | {postgres=X/postgres,authenticated=X/postgres}
+(1 row)
+```
+`pg_get_expr` prints the locations column unqualified (deparse display only); the file text is qualified. No `p.parent_id`. prosecdef f, stable, empty search_path, ACL has authenticated=X, no anon, no PUBLIC.
+
+### DB test run (`npx supabase test db`, twice, identical; exit 0 both)
+```
+.../rls_hardening.sql .. ok
+.../rls_storage.sql .... ok
+.../rls_tables.sql ..... ok
+All tests successful.
+Files=3, Tests=80,  1 wallclock secs (...)
+Result: PASS
+```
+No TODO lines. No pgTAP function assertion was missing locally. 33 + 10 + 37 = 80. No `42P17`, so the step-7 fallback was not needed. Stopped with plain `npx supabase stop` (`"backup":true`).
+
+### Checks
+- typecheck: `tsc --noEmit`, no errors
+- format:check: `All matched files use the correct format.` (32 files)
+- test: `Test Files 5 passed (5)`, `Tests 74 passed (74)`
+- build: `built in 405ms`
+- `git diff main -- src/types/database.ts`: empty. `grep "todo(" supabase/tests`: nothing.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+The plan's five follow-ups stand (anon-role tests, storage UPDATE control, README `--linked` note, README `--no-backup` wording, data-model note on RLS helpers). Also: another project's stack (`calechip`) was running concurrently; no conflict occurred.
+
+### Scope self-check
+Only the three planned files changed. Migration is about 75 lines (mostly comments).

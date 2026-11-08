@@ -7,29 +7,59 @@
 -- visible to its owner, so the owner can repair it.
 -- The folder check is the same expression the storage bucket policies use.
 --
+-- Why a helper: an inline "exists (select ... from public.locations ...)" inside a locations policy
+-- raises 42P17 (infinite recursion). private.owns_location is plpgsql (never inlined) and SECURITY
+-- INVOKER (runs under the caller's own RLS, no extra privileges). search_path is empty and all names are
+-- schema-qualified. Schema private is not exposed by PostgREST; only authenticated may use it.
+-- It returns false for another user's location and for a nonexistent id (no existence oracle).
+--
 -- Precheck for an existing hosted project (read-only, both must return 0 rows):
 --   select c.id from public.locations c join public.locations p on p.id = c.parent_id
 --     where p.user_id <> c.user_id;
 --   select id from public.item_photos
 --     where (storage.foldername(storage_path))[1] is distinct from user_id::text;
 
+create schema private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+-- True when the caller owns the location. SECURITY INVOKER: runs under the caller's RLS.
+-- plpgsql so it is never inlined into the policy (an inline self-reference raises 42P17).
+create function private.owns_location(p_location_id uuid)
+returns boolean
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+begin
+  return exists (
+    select 1
+    from public.locations l
+    where l.id = p_location_id
+      and l.user_id = (select auth.uid())
+  );
+end;
+$$;
+
+revoke all on function private.owns_location(uuid) from public, anon;
+grant execute on function private.owns_location(uuid) to authenticated;
+
 alter policy "locations: owner full access" on public.locations
   with check (
-    user_id = (select auth.uid())
-    and (parent_id is null or exists (
-      select 1 from public.locations p
-      where p.id = parent_id and p.user_id = (select auth.uid())))
+    locations.user_id = (select auth.uid())
+    and (locations.parent_id is null or private.owns_location(locations.parent_id))
   );
 
 alter policy "item_photos: owner full access" on public.item_photos
   with check (
-    user_id = (select auth.uid())
-    and (storage.foldername(storage_path))[1] = (select auth.uid())::text
+    item_photos.user_id = (select auth.uid())
+    and (storage.foldername(item_photos.storage_path))[1] = (select auth.uid())::text
     and exists (select 1 from public.items i
-                where i.id = item_id and i.user_id = (select auth.uid()))
+                where i.id = item_photos.item_id and i.user_id = (select auth.uid()))
   );
 
--- Rollback (manual):
+-- Rollback (manual), in this order (the policy depends on the function):
 --   alter policy "locations: owner full access" on public.locations
 --     with check (user_id = (select auth.uid()));
 --   alter policy "item_photos: owner full access" on public.item_photos
@@ -37,3 +67,5 @@ alter policy "item_photos: owner full access" on public.item_photos
 --       user_id = (select auth.uid())
 --       and exists (select 1 from public.items i where i.id = item_id and i.user_id = (select auth.uid()))
 --     );
+--   drop function private.owns_location(uuid);
+--   drop schema private;
