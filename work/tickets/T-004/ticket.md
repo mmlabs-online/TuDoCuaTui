@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-003 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-08 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/10 |
 
 ## Goal
 Run TuDoCuaTui on the existing stoktok Supabase project (shared Postgres and Auth) with no name clashes. Every
@@ -93,7 +93,18 @@ TuDoCuaTui DB object gets the prefix `tudo_`, so one hosted project serves both 
 - Manual (Ming, after merge): M-1 and M-5 on the stoktok project, then the M-2 smoke test in Supabase mode.
 
 ## Notes / answers from Ming
+- 2026-11-08: Plan approved (Ming, in chat with Annie: "Plan approved (T-004)"; recorded by Annie).
 - 2026-11-08 (chat with Annie): "2 app này chỉ có tôi dùng, k sợ lộ"; edit the migration files in place; photos
   go to Google Drive like Ricotdin (separate ticket); schema `tudo_private` ok; run before the in-progress tickets.
 
 ## Handoff
+
+### 2026-11-08 — claude — BLOCKED
+- Done: consult (database-optimizer) saved; plan.md READY with changes vs ticket C1–C13 and a local-only simulation of stoktok's default-privilege revoke (`scripts/test-db-shared.sh`).
+- In progress / next: Ming approves the plan (write "Plan approved" under Notes); then `/run T-004` implements.
+- Gotchas: F-002, F-005.2 and F-007 will need a rebase after this merges; `database.ts` is regenerated with `--local` here (takes over F-002's regenerate step).
+
+### 2026-11-08 — claude — DONE
+- Done: attempt 1 REWORK (3 small doc/script fixes from review + security 🟡 Y1/Y2), attempt 2 PASS; security review no 🔴. PR #10.
+- In progress / next: Ming reviews/merges PR #10, then M-1 (SQL Editor on the stoktok project), M-5 checks, M-2 smoke test. Then T-005.1, F-007, and the takeover of F-401, F-004.1, F-601.1, F-005.2 (F-002 likely closes: types regenerated here).
+- Gotchas: never `db push`/`--linked` from this repo against the shared project (history mismatch with stoktok). `scripts/test-db-shared.sh` resets the local DB.

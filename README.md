@@ -15,18 +15,22 @@ pnpm dev
 
 ## Set up Supabase (one time)
 
-1. Create a project at supabase.com and copy the **Project URL** and **anon key** into `.env.local`.
-2. Apply the schema:
+TuDoCuaTui runs on the existing **stoktok** Supabase project (shared Postgres and Auth, decision D17). Every TuDo
+object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/ming-todo.md`.
+
+1. Copy the stoktok **Project URL** and **anon key** (Project Settings → API) into `.env.local`.
+2. Paste each file in `supabase/migrations/`, in filename order, into Dashboard → SQL Editor and run it.
+   **Never run `db push`, `supabase link`, `db reset --linked`, `db pull` or `db diff --linked` against the shared
+   project**: its migration history holds stoktok's versions.
+3. Go to Auth → URL Configuration and **add** your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs**
+   so magic links work. Do not change the Site URL (it stays stoktok's). First confirm under Authentication → Sign In / Providers that
+   *Allow new users to sign up* and *Allow anonymous sign-ins* are both OFF (if not, stop). Sign-ups being off, your login
+   email must already exist under Authentication → Users.
+4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop` when done).
+5. Optional: regenerate the DB types after any schema change (from the local stack, after `npx supabase db reset`):
    ```bash
-   npx supabase link --project-ref <ref>
-   npx supabase db push         # runs supabase/migrations/*.sql
-   ```
-   Or paste each file in `supabase/migrations/`, in filename order, into Dashboard → SQL Editor.
-3. Go to Auth → URL Configuration and add your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs** so magic links work.
-4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop --no-backup` when done).
-5. Optional: regenerate the DB types after any schema change:
-   ```bash
-   npx supabase gen types typescript --linked > src/types/database.ts
+   npx supabase gen types typescript --local > src/types/database.ts
+   pnpm format
    ```
 
 ## Running DB tests
@@ -38,12 +42,16 @@ Prerequisites: Docker Desktop running, and Node (the CLI runs via `npx supabase`
 ```bash
 npx supabase start       # first time pulls images
 npx supabase test db     # runs every file in supabase/tests/
-npx supabase stop --no-backup   # when done
+npx supabase stop               # when done
 ```
 
 - Each file runs in a transaction that rolls back, so no data is left behind and runs are repeatable.
-- `rls_tables.sql`: locations, items, photos, wear logs and the `items_with_stats` view. `rls_storage.sql`: bucket `wardrobe`.
-- `rls_hardening.sql`: parent/path ownership checks on `locations` and `item_photos`, plus update-path guards.
+- `rls_tables.sql`: `tudo_locations`, `tudo_items`, photos, wear logs and the `tudo_items_with_stats` view. `rls_storage.sql`: bucket `wardrobe`.
+- `rls_hardening.sql`: parent/path ownership checks on `tudo_locations` and `tudo_item_photos`, plus update-path guards.
+- `grants.sql`: `authenticated` has exactly the grants it needs and `anon` has none; every object is prefixed `tudo_`
+  (the naming checks assume a local DB that holds only TuDo objects).
+- `bash scripts/test-db-shared.sh`: resets the local DB with stoktok's default-privilege revoke applied first, then runs
+  all tests. Afterwards run `npx supabase db reset` to return to the default variant. Local only.
 - Raw TAP for one file (no host `psql` or password needed):
   ```bash
   docker exec -i supabase_db_tudocuatui psql -U postgres -d postgres -X -q < supabase/tests/rls_hardening.sql

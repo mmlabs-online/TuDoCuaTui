@@ -15,7 +15,7 @@ import {
   rowToItem,
 } from "./mappers";
 
-type ItemRow = Database["public"]["Views"]["items_with_stats"]["Row"];
+type ItemRow = Database["public"]["Views"]["tudo_items_with_stats"]["Row"];
 
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
 
@@ -41,7 +41,8 @@ const makeItem = (over: Partial<Item> = {}): Item => ({
   ...over,
 });
 
-const nullRow: ItemRow = {
+// Views can return null at runtime even where the generated types say non-null.
+const nullRow = {
   id: null,
   user_id: null,
   name: null,
@@ -63,7 +64,7 @@ const nullRow: ItemRow = {
   last_worn: null,
   location_name: null,
   primary_photo_path: null,
-};
+} as unknown as ItemRow;
 
 const roundTrip = (name: string, to: Record<string, string>, from: Record<string, string>) => {
   test(`${name} round trip for every label`, () => {

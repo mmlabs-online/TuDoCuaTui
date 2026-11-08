@@ -21,3 +21,4 @@ logs/
 /.plugins/
 /.opencode-skills/
 !.env.example
+/supabase/migrations/20200101000000_sim_stoktok_default_privileges.sql

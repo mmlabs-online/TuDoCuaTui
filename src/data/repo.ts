@@ -106,7 +106,11 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
   };
 
   const fetchOne = async (id: string): Promise<Item> => {
-    const { data, error } = await sb.from("items_with_stats").select("*").eq("id", id).single();
+    const { data, error } = await sb
+      .from("tudo_items_with_stats")
+      .select("*")
+      .eq("id", id)
+      .single();
     if (error) throw error;
     const urls = await sign(data.primary_photo_path ? [data.primary_photo_path] : []);
     return rowToItem(data, data.primary_photo_path ? urls[data.primary_photo_path] : "");
@@ -116,14 +120,14 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
     const clean = name.trim();
     if (!clean) return null;
     const { data: found, error: fErr } = await sb
-      .from("locations")
+      .from("tudo_locations")
       .select("id")
       .eq("name", clean)
       .maybeSingle();
     if (fErr) throw fErr;
     if (found) return found.id;
     const { data, error } = await sb
-      .from("locations")
+      .from("tudo_locations")
       .insert({ name: clean })
       .select("id")
       .single();
@@ -133,13 +137,13 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
 
   const removePhotos = async (itemId: string) => {
     const { data, error } = await sb
-      .from("item_photos")
+      .from("tudo_item_photos")
       .select("id, storage_path")
       .eq("item_id", itemId);
     if (error) throw error;
     if (!data?.length) return;
     await sb.storage.from(PHOTO_BUCKET).remove(data.map((p) => p.storage_path));
-    await sb.from("item_photos").delete().eq("item_id", itemId);
+    await sb.from("tudo_item_photos").delete().eq("item_id", itemId);
   };
 
   const uploadPrimary = async (itemId: string, source: Blob) => {
@@ -152,7 +156,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
     if (upErr) throw upErr;
     await removePhotos(itemId); // one photo per item for now — replace the old one
     const { error } = await sb
-      .from("item_photos")
+      .from("tudo_item_photos")
       .insert({ item_id: itemId, storage_path: path, is_primary: true, width, height });
     if (error) {
       await sb.storage.from(PHOTO_BUCKET).remove([path]); // no orphans
@@ -167,7 +171,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
     const { error: cpErr } = await sb.storage.from(PHOTO_BUCKET).copy(fromPath, path);
     if (cpErr) throw cpErr;
     const { error } = await sb
-      .from("item_photos")
+      .from("tudo_item_photos")
       .insert({ item_id: itemId, storage_path: path, is_primary: true });
     if (error) throw error;
   };
@@ -177,7 +181,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
 
     async list() {
       const { data, error } = await sb
-        .from("items_with_stats")
+        .from("tudo_items_with_stats")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -192,7 +196,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
 
     async locations() {
       const { data, error } = await sb
-        .from("locations")
+        .from("tudo_locations")
         .select("name")
         .order("sort_order")
         .order("name");
@@ -203,7 +207,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
     async save(item) {
       const locationId = await ensureLocation(item.location);
       const { data, error } = await sb
-        .from("items")
+        .from("tudo_items")
         .upsert(itemToRow(item, locationId))
         .select("id")
         .single();
@@ -230,14 +234,14 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
 
     async remove(item) {
       await removePhotos(item.id);
-      const { error } = await sb.from("items").delete().eq("id", item.id);
+      const { error } = await sb.from("tudo_items").delete().eq("id", item.id);
       if (error) throw error;
     },
 
     async wear(item, delta) {
       if (delta > 0) {
         const { error } = await sb
-          .from("wear_logs")
+          .from("tudo_wear_logs")
           .upsert(
             { item_id: item.id, worn_on: localToday() },
             { onConflict: "item_id,worn_on", ignoreDuplicates: true },
@@ -245,7 +249,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
         if (error) throw error;
       } else {
         const { data, error } = await sb
-          .from("wear_logs")
+          .from("tudo_wear_logs")
           .select("id")
           .eq("item_id", item.id)
           .order("worn_on", { ascending: false })
@@ -253,12 +257,12 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
           .maybeSingle();
         if (error) throw error;
         if (data) {
-          const { error: dErr } = await sb.from("wear_logs").delete().eq("id", data.id);
+          const { error: dErr } = await sb.from("tudo_wear_logs").delete().eq("id", data.id);
           if (dErr) throw dErr;
         }
       }
       const { data, error } = await sb
-        .from("items_with_stats")
+        .from("tudo_items_with_stats")
         .select("wear_count, last_worn")
         .eq("id", item.id)
         .single();
