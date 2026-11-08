@@ -86,11 +86,11 @@ select throws_ok($$insert into public.tudo_item_photos (user_id, item_id, storag
 select throws_ok($$insert into public.tudo_wear_logs (user_id, item_id, worn_on) values ('bbbbbbbb-0000-4000-8000-00000000000b', 'bbbbbbbb-0000-4000-8000-0000000000b2', current_date - 7)$$, '42501', null, 'A cannot insert a wear log owned by B');
 
 -- tudo_items_with_stats (security_invoker)
-select is((select count(*) from public.tudo_items_with_stats where user_id = 'bbbbbbbb-0000-4000-8000-00000000000b'), 0::bigint, 'view: A sees 0 of B''s rows in items_with_stats');
-select is((select count(*) from public.tudo_items_with_stats where id = 'aaaaaaaa-0000-4000-8000-0000000000a2'), 1::bigint, 'view: A sees own item in items_with_stats');
+select is((select count(*) from public.tudo_items_with_stats where user_id = 'bbbbbbbb-0000-4000-8000-00000000000b'), 0::bigint, 'view: A sees 0 of B''s rows in tudo_items_with_stats');
+select is((select count(*) from public.tudo_items_with_stats where id = 'aaaaaaaa-0000-4000-8000-0000000000a2'), 1::bigint, 'view: A sees own item in tudo_items_with_stats');
 select is((select wear_count from public.tudo_items_with_stats where id = 'aaaaaaaa-0000-4000-8000-0000000000a2'), 1, 'view: wear_count of A''s item ignores B''s wear log');
 select is((select primary_photo_path from public.tudo_items_with_stats where id = 'aaaaaaaa-0000-4000-8000-0000000000a2'), 'aaaaaaaa-0000-4000-8000-00000000000a/aaaaaaaa-0000-4000-8000-0000000000a2/a.jpg', 'view: primary_photo_path of A''s item ignores B''s photo');
-select ok(exists (select 1 from pg_class where oid = 'public.tudo_items_with_stats'::regclass and reloptions @> array['security_invoker=true']), 'view: items_with_stats is security_invoker');
+select ok(exists (select 1 from pg_class where oid = 'public.tudo_items_with_stats'::regclass and reloptions @> array['security_invoker=true']), 'view: tudo_items_with_stats is security_invoker');
 
 -- B's data unchanged (as postgres)
 reset role;

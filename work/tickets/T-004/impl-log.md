@@ -43,3 +43,24 @@ None. (`mappers.test.ts` edit beyond type keys is the cast above; the plan liste
 ### Scope self-check
 - Could the diff be smaller? No: the rename and the regenerated types are one atomic change.
 - Diff size: see `git diff --stat` on the commit.
+
+## Attempt 2 — 2026-11-08 (REWORK)
+Fixes review.md attempt 1 issues 1-3, plus two trivial nits.
+
+### Files touched
+- `work/ming-todo.md`: M-1 new step 4 (sign-up and anonymous sign-ins must be OFF, else stop), steps renumbered; M-5 adds the all-`false` privilege query (Issues 1, 2).
+- `README.md`: "Set up Supabase" step 3 mirrors the sign-up / anonymous check (Issue 1).
+- `scripts/test-db-shared.sh`: `cd "$(dirname "$0")/.."` after `set -eu`; explicit `trap ... EXIT` and `trap 'exit 130' INT TERM` (Issue 3).
+- `supabase/migrations/20261106000000_init.sql`: `set search_path = ''` on `tudo_set_updated_at` (nit; in-place edits allowed by D17).
+- `supabase/tests/rls_tables.sql`, `rls_hardening.sql`: old names in description strings only (nit).
+
+### Checks
+- typecheck: `tsc --noEmit` clean. format:check: "Finished ... 32 files" no errors. test: 5 files, 74 passed. build: built OK.
+- `npx supabase db reset && npx supabase test db`: Files=4, Tests=101, Result: PASS.
+- `bash scripts/test-db-shared.sh` run from `/tmp` (not the repo root): "stoktok default privileges simulated: OK", Files=4, Tests=101, Result: PASS. Local DB reset to default afterwards; no temp migration left.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.

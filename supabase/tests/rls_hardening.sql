@@ -63,12 +63,12 @@ select is(rls_test.affected($$update public.tudo_wear_logs set worn_on = current
 select lives_ok($$insert into public.tudo_item_photos (item_id, storage_path) values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'aaaaaaaa-0000-4000-8000-00000000000a/aaaaaaaa-0000-4000-8000-0000000000a2/c.jpg')$$, 'control: A inserts own photo under A/');
 
 -- GAP-1: tudo_locations.parent_id
-select throws_ok($$update public.tudo_locations set parent_id = 'bbbbbbbb-0000-4000-8000-0000000000b1' where id = 'aaaaaaaa-0000-4000-8000-0000000000a1'$$, '42501', null, 'GAP-1: A cannot set locations.parent_id to B''s location');
+select throws_ok($$update public.tudo_locations set parent_id = 'bbbbbbbb-0000-4000-8000-0000000000b1' where id = 'aaaaaaaa-0000-4000-8000-0000000000a1'$$, '42501', null, 'GAP-1: A cannot set tudo_locations.parent_id to B''s location');
 select throws_ok($$insert into public.tudo_locations (name, parent_id) values ('x', 'bbbbbbbb-0000-4000-8000-0000000000b1')$$, '42501', null, 'A cannot insert a location under B''s location');
 select throws_ok($$update public.tudo_locations set parent_id = 'cccccccc-0000-4000-8000-0000000000ff' where id = 'aaaaaaaa-0000-4000-8000-0000000000a1'$$, '42501', null, 'A gets 42501, not 23503, for a parent id that does not exist');
 
 -- GAP-2: tudo_item_photos.storage_path
-select throws_ok($$insert into public.tudo_item_photos (item_id, storage_path) values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'bbbbbbbb-0000-4000-8000-00000000000b/aaaaaaaa-0000-4000-8000-0000000000a2/x.jpg')$$, '42501', null, 'GAP-2: A cannot insert item_photos with storage_path under B/');
+select throws_ok($$insert into public.tudo_item_photos (item_id, storage_path) values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'bbbbbbbb-0000-4000-8000-00000000000b/aaaaaaaa-0000-4000-8000-0000000000a2/x.jpg')$$, '42501', null, 'GAP-2: A cannot insert tudo_item_photos with storage_path under B/');
 select throws_ok($$update public.tudo_item_photos set storage_path = 'bbbbbbbb-0000-4000-8000-00000000000b/aaaaaaaa-0000-4000-8000-0000000000a2/x.jpg' where id = 'aaaaaaaa-0000-4000-8000-0000000000a3'$$, '42501', null, 'A cannot move own photo''s storage_path under B/');
 select throws_ok($$insert into public.tudo_item_photos (item_id, storage_path) values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'x.jpg')$$, '42501', null, 'A cannot insert a photo path without a folder');
 select throws_ok($$insert into public.tudo_item_photos (item_id, storage_path) values ('aaaaaaaa-0000-4000-8000-0000000000a2', 'bbbbbbbb-0000-4000-8000-00000000000b/bbbbbbbb-0000-4000-8000-0000000000b2/b.jpg')$$, '42501', null, 'A gets 42501, not 23505, for B''s existing path');

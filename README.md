@@ -23,8 +23,9 @@ object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/
    **Never run `db push`, `supabase link`, `db reset --linked`, `db pull` or `db diff --linked` against the shared
    project**: its migration history holds stoktok's versions.
 3. Go to Auth → URL Configuration and **add** your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs**
-   so magic links work. Do not change the Site URL (it stays stoktok's). Sign-ups are disabled, so your login email must
-   already exist under Authentication → Users.
+   so magic links work. Do not change the Site URL (it stays stoktok's). First confirm under Authentication → Sign In / Providers that
+   *Allow new users to sign up* and *Allow anonymous sign-ins* are both OFF (if not, stop). Sign-ups being off, your login
+   email must already exist under Authentication → Users.
 4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop` when done).
 5. Optional: regenerate the DB types after any schema change (from the local stack, after `npx supabase db reset`):
    ```bash

@@ -15,8 +15,10 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          `20261107120000_rls_hardening.sql` and run it, in that order. If either fails, stop and report the error;
          do not re-run part of a file.
       3. Auth → URL Configuration: **add** `http://localhost:8443` to Redirect URLs. Do not change the Site URL.
-      4. Authentication → Users: make sure your login email exists (sign-ups are disabled; use "Add user" if not).
-      5. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+      4. Authentication → Sign In / Providers: confirm *Allow new users to sign up* is OFF and *Allow anonymous
+         sign-ins* is OFF. If either is on, stop and tell Annie.
+      5. Authentication → Users: make sure your login email exists (use "Add user" if not).
+      6. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 - [ ] **M-2 — Smoke test** (after F-001 is merged and M-1 is done): run `docs/qa/smoke-test.md` once in Supabase
       mode; fill in its results table; file each failure with `/ticket`.
 - [ ] **M-3 — Branch protection** (after F-003 is merged): GitHub → Settings → Branches → `main`: require the `ci` check.
@@ -29,6 +31,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       `tudo_items_with_stats`, and no `anon` rows.
       `select relname, relrowsecurity from pg_class where relname like 'tudo\_%' and relkind = 'r';` Expect true on all 4.
       Settings → API → Exposed schemas must not list `tudo_private`.
+      `select has_table_privilege('anon','public.tudo_items','select'), has_table_privilege('anon','public.tudo_items_with_stats','select'), has_schema_privilege('anon','tudo_private','usage'), has_function_privilege('anon','tudo_private.tudo_owns_location(uuid)','execute'), has_function_privilege('anon','public.tudo_set_updated_at()','execute'), has_function_privilege('authenticated','public.tudo_set_updated_at()','execute');` Expect all `false`.
 - [ ] **M-6 — Phone checks** after each of these merges, on an iPhone and an Android phone: F-202.1 (photo
       upload), F-1002 (camera / library buttons), F-603 (30 photos), F-101 (login screen, dark mode).
       Write problems as `/ticket`.

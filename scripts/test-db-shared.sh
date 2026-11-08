@@ -2,9 +2,11 @@
 # Local-only: run the DB tests as if stoktok's default-privilege revoke had run before TuDo's migrations.
 # Never touches a hosted project. Run from the repo root: bash scripts/test-db-shared.sh
 set -eu
+cd "$(dirname "$0")/.."
 
 SIM="supabase/migrations/20200101000000_sim_stoktok_default_privileges.sql"
-trap 'rm -f "$SIM"' EXIT INT TERM
+trap 'rm -f "$SIM"' EXIT
+trap 'exit 130' INT TERM
 
 # Copied verbatim from stoktok 20261023000200_v1_rls_grants.sql lines 17-19.
 cat > "$SIM" <<'SQL'
