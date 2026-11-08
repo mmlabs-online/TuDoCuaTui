@@ -9,7 +9,7 @@
 | Epic | E2 — Items core |
 | Areas | ui, data |
 | Gate | none |
-| Depends on | F-004.2 |
+| Depends on | F-004.2, T-005.3 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
@@ -54,6 +54,7 @@ Photos taken on an iPhone or Android phone upload successfully, with clear feedb
 - Manual: iPhone (Safari) and Android (Chrome) camera photos; a HEIC file on desktop Chrome; a 12 MB file.
 
 ## Notes / answers from Ming
+- 2026-11-08: photos move to Google Drive (T-005.x). Re-scope this ticket to Drive photos served through `tudo-drive` URLs. It starts after T-005.3.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff

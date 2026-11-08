@@ -9,7 +9,7 @@
 | Epic | E2 — Items core |
 | Areas | data |
 | Gate | none |
-| Depends on | F-004.2 |
+| Depends on | F-004.2, T-005.3 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
@@ -47,6 +47,7 @@ The grid loads fast, and photos still show after the app has been open for more 
 - Manual: set a 60-second TTL in dev, wait, scroll; check the Network tab.
 
 ## Notes / answers from Ming
+- 2026-11-08: photos move to Google Drive (T-005.x). Re-scope this ticket to Drive photos served through `tudo-drive` URLs. Refresh those short-lived URLs, not Storage signed URLs. It starts after T-005.3.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
