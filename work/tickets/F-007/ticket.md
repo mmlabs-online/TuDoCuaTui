@@ -52,6 +52,7 @@ The app has a production URL that Ming can open on a phone and log in to with a 
 - Manual: phone login on the production URL; open a preview URL and see local mode.
 
 ## Notes / answers from Ming
+- 2026-11-08: Plan approved (Ming, in chat with Annie: "Plan approved (F-007), chạy sau T-004"; recorded by Annie). Run only after T-004 is merged.
 Waiting for Ming: plan approval (High tier)
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
