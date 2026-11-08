@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-08T14:07:09Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/14 |
 
 ## Goal
 The app has a production URL that Ming can open on a phone and log in to with a magic link.
@@ -59,3 +59,8 @@ The app has a production URL that Ming can open on a phone and log in to with a 
 ### 2026-11-07 — claude — BLOCKED (plan approval)
 - Done: consult + plan READY. Scope changes for Ming to approve: no `public/_redirects` (Pages' default SPA fallback; added back only if the deep-link check fails), build command `pnpm build`, `NODE_VERSION`/`PNPM_VERSION` dashboard vars; `_headers` deferred.
 - Next: Ming approves → implement `.node-version` + README "Deploy (Cloudflare Pages)" runbook (M-4).
+
+### 2026-11-08 — claude — DONE
+- Done: plan approved by Ming; implemented after T-004 (README Deploy section on the shared stoktok project, `.node-version`, no `_redirects`); review PASS; security review no 🔴 (two 🟡 README wording items → follow-ups).
+- In progress / next: Ming merges the PR, then M-4 (check stoktok redirect list for wildcards, no VITE_* in Preview).
+- Gotchas: log in only on the production URL, not per-deployment hash URLs.
