@@ -10,7 +10,7 @@
 | Areas | data, db, security |
 | Gate | plan-approval |
 | Depends on | T-005.1 |
-| Needs Ming | — |
+| Needs Ming | M-7 |
 | Attempts | 0 |
 | Created | 2026-11-08 |
 | Claimed by | — |
