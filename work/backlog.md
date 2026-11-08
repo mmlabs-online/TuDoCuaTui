@@ -18,7 +18,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-007 | Deploy to production with per-PR previews | BLOCKED | P0 | S | architecture, security | F-001 | plan-approval | 0 | 2026-11-07 |
 | F-004.1 | Extract UI primitives and constants from `App.tsx` | DONE | P0 | S | ui | F-005 | none | 1 | 2026-11-08 |
 | F-401 | Make search diacritic-insensitive | DONE | P0 | S | data | F-005 | none | 2 | 2026-11-08 |
-| F-601.1 | CSV parser | REVIEW | P0 | S | data | F-005 | none | 1 | 2026-11-07 |
+| F-601.1 | CSV parser | DONE | P0 | S | data | F-005 | none | 2 | 2026-11-08 |
 | F-604 | Real CSV export | MERGED | P0 | S | data | F-005 | none | 1 | 2026-11-07 |
 | F-004.2 | Extract the items feature from `App.tsx` | BACKLOG | P0 | M | ui | F-004.1 | none | 0 | 2026-11-07 |
 | F-601.2 | CSV row mapping and validation | BACKLOG | P0 | M | data | F-601.1, F-401 | none | 0 | 2026-11-07 |
