@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-08T14:00:08Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/12 |
 
 ## Goal
 Start breaking up the 1,547-line `App.tsx` with the parts that have no state, so later UI work does not
@@ -50,3 +50,8 @@ collide in one file.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-08 — claude — DONE
+- Done: took over the stale claim; the earlier session's uncommitted WIP was rebased onto main, verified against plan.md and finished (attempt 1); review PASS (moved-code check).
+- In progress / next: Ming merges the PR; screenshots before/after (AC1) are Ming's check.
+- Gotchas: conflicts with PR #11 (F-401, search placeholder in App.tsx); whichever merges second rebases.
