@@ -78,3 +78,77 @@ R1–R5, R9, R10 not affected.
 - Tab-delimited files (`a\tb`) parse as one column; tab is out of scope (plan Assumption 8). Consider for a
   later ticket if F-601.3 users paste from Sheets as TSV.
 - U+2028/U+2029 are not line breaks (correct per RFC 4180); no action.
+
+Verdict: PASS
+
+## Attempt 2 — 2026-11-08
+
+### Checks (run by reviewer, in the F-601.1 worktree)
+- typecheck: `npx pnpm@10.34.3 typecheck` → `tsc --noEmit` exit 0.
+- format:check: `npx pnpm@10.34.3 format:check` → exit 0 (32 files checked).
+- test: `npx pnpm@10.34.3 test` → 5 files, 87 tests passed, exit 0 (matches impl-log Attempt 2).
+- test:coverage: `npx pnpm@10.34.3 test:coverage` → exit 0, per-file thresholds met (incl. `parse.ts`).
+- build: `npx pnpm@10.34.3 build` → `vite build` ok, exit 0.
+- No dependency added: `git diff origin/main...HEAD -- package.json pnpm-lock.yaml` is empty.
+- Attempt-2 diff (`79cfe8e..44ae929`): only `parse.ts` (`detectDelimiter`) and `parse.test.ts` (+1 test).
+
+### Issue 1 (attempt 1) — resolved
+`detectDelimiter` (`parse.ts:20-62`) now opens a quoted section only at a field start (after optional
+spaces/tabs, after a counted delimiter, after a skipped blank line) or straight after a closing quote (`""`);
+any other `"` is literal. That is the rule `readRecords` uses (`parse.ts:72` field start; `:82-85` `""`;
+`:98-101` text after a closing quote is literal, so a later `"` in that field does not reopen).
+Test: `parse.test.ts:53-63 › delimiter › ignores a literal quote inside an unquoted header field` (pass).
+
+**On the implementer's deviation from the attempt-1 expected values: the implementer is right.**
+- Input 1 `Size 5";Name;Color\n1;2;3` → `;`, headers `['Size 5"',"Name","Color"]`, rows `[["1","2","3"]]` — same as the review expected.
+- Input 2 `x"y,a;b;c\nq;w;e`: attempt 1 printed the buggy output and noted "1 `,` vs 2 `;` unquoted". With the
+  fixed rule `;` wins, so headers `['x"y,a',"b","c"]` (rows `[["q","w","e"]]`) is the correct result; the
+  review's listed headers were the bug, not a target.
+- Input 3 `Size 5",Name\n"x;y";z;w`: review expected `,`, and `,` is chosen. With `,`, the data row is one
+  quoted field `x;y` followed by the literal tail `;z;w` (plan Assumption 5, test `quoting › appends non-space
+  text after a closing quote literally`), so `[["x;y;z;w"]]` is what the parser must return. Any other value
+  would need detection and record reading to disagree.
+
+Reviewer probes against the attempt-2 code (all consistent between detection and reading):
+`"a""b;c",d` → `,`, `["a\"b;c","d"]`; `"a""b,c";d` → `;`; ` "a,b" ;c` → `;`, `["a,b","c"]`;
+`"ab"c"d;e;f,g` → `;`, `['abc"d',"e","f,g"]`; `"ab" "cd;e",f` → tie → `,`, `['ab "cd;e"',"f"]`
+(tail literal, same in both); `;;\n\na;b` → `;` (delimiter-only line ignored by both);
+`"a\n;;;",b` → `,`; BOM + `"Tên";"Màu";Giá\nÁo;Trắng;"890,5"` → `;`, Vietnamese text byte-for-byte.
+
+### Acceptance criteria
+- [x] 1 BOM stripped — `BOM ›` tests pass; probe above.
+- [x] 2 `;` Excel export — `fixtures › parses the Excel semicolon export` passes.
+- [x] 3 Quotes with embedded delimiter / newline / quote — `quoting ›` tests + Google Sheets fixture pass.
+- [x] 4 Trailing newline — `line endings › ignores a trailing LF / CRLF` passes.
+- [x] 5 Ragged rows — `ragged rows ›` tests + `fixtures › parses ragged.csv` pass.
+- [x] 6 CRLF / LF — `line endings › parses CRLF, LF and mixed input identically` passes.
+- [x] 7 Delimiter from the header, ignoring quoted delimiters — `delimiter ›` tests incl. the new
+      `ignores a literal quote inside an unquoted header field` pass; probes above.
+- [x] 8 Fully empty lines skipped — `empty lines ›` tests pass.
+- [x] 9 Unterminated quote reported — `errors ›` tests pass.
+- [x] 10 No dependency added — see Checks.
+- [x] 11 Coverage gate — `vitest.config.ts` include + threshold; `test:coverage` exit 0.
+- [x] 12 Checks green — see Checks.
+
+Ming verification after merge: none (plan says none).
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. Changed files = plan file list + the ticket's own work files (R7). R6: English error
+message, no UI copy. R8: tests + coverage threshold. R1–R5, R9, R10 not affected.
+
+### Nits (do not block)
+- 💭 `parse.ts:29,39` (`hasContent`): detection treats a line of only quoted empty fields (`"";""`) as the
+  header, while `parseCsv` drops it as an empty record. Probe: `"";""\na,b\n1,2` → `;` chosen from the
+  dropped line → headers `["a,b"]`, rows `[["1,2"]]`. Only hit when a file starts with a fully-quoted blank
+  row; fix would be to set `hasContent` only for a non-blank char inside quotes or outside a delimiter.
+- 💭 Detection counts both candidates as field boundaries, while reading uses one; for mixed headers such as
+  `a;"b,c",d` the tie picks `,` and the header splits as `['a;"b','c"','d']`. Pathological; a per-candidate
+  tokenization would remove it.
+- 💭 Attempt-1 nits (tail spaces after a closing quote; `trim()` vs spaces/tabs wording) still apply.
+
+### Follow-ups (out of scope)
+- Tab-delimited input (unchanged from attempt 1).
+- The `"";""` leading-row nit above, if F-601.3 real-file testing shows such files.
