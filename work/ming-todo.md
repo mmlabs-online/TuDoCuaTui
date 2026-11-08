@@ -24,6 +24,6 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
 - [x] (2026-11-07) Approve plan for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — new RLS migration; changes vs ticket listed as C1–C9
-- [ ] Approve plan **Revision 2** for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — attempt 1 hit policy recursion; fix uses a `private.owns_location()` helper; new changes C10–C13
+- [x] (2026-11-08) Approve plan **Revision 2** for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — attempt 1 hit policy recursion; fix uses a `private.owns_location()` helper; new changes C10–C13
 - [ ] Approve plan for F-007 (branch `ticket/F-007`): work/tickets/F-007/plan.md — drops `_redirects`, see "Changes vs ticket scope"
 - [x] (2026-11-07) Approve plan for F-101 (branch `ticket/F-101`): work/tickets/F-101/plan.md

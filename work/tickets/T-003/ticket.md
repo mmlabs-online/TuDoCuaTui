@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-08T00:53:15Z |
 | PR | — |
 
 ## Goal
@@ -49,7 +49,7 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 - 2026-11-07: Plan approved (Ming, in chat with Annie: "Plan approved", given right after the T-003 plan was presented; recorded by Annie).
-Waiting for Ming: plan approval (High tier) — plan Revision 2 (the 2026-11-07 approval covered revision 1 only)
+- 2026-11-08: Plan approved — Revision 2, including the SECURITY DEFINER fallback in step 7 (Ming, in chat with Annie: "Plan approved"; recorded by Annie).
 
 ## Handoff
 
