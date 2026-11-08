@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | F-001 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | claude@2026-11-08T14:07:09Z |
 | PR | — |
@@ -53,7 +53,6 @@ The app has a production URL that Ming can open on a phone and log in to with a 
 
 ## Notes / answers from Ming
 - 2026-11-08: Plan approved (Ming, in chat with Annie: "Plan approved (F-007), chạy sau T-004"; recorded by Annie). Run only after T-004 is merged.
-Waiting for Ming: plan approval (High tier)
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
