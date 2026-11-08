@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 |
-| Claimed by | claude@2026-11-08T06:21:44Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -93,7 +93,13 @@ TuDoCuaTui DB object gets the prefix `tudo_`, so one hosted project serves both 
 - Manual (Ming, after merge): M-1 and M-5 on the stoktok project, then the M-2 smoke test in Supabase mode.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-08 (chat with Annie): "2 app này chỉ có tôi dùng, k sợ lộ"; edit the migration files in place; photos
   go to Google Drive like Ricotdin (separate ticket); schema `tudo_private` ok; run before the in-progress tickets.
 
 ## Handoff
+
+### 2026-11-08 — claude — BLOCKED
+- Done: consult (database-optimizer) saved; plan.md READY with changes vs ticket C1–C13 and a local-only simulation of stoktok's default-privilege revoke (`scripts/test-db-shared.sh`).
+- In progress / next: Ming approves the plan (write "Plan approved" under Notes); then `/run T-004` implements.
+- Gotchas: F-002, F-005.2 and F-007 will need a rebase after this merges; `database.ts` is regenerated with `--local` here (takes over F-002's regenerate step).
