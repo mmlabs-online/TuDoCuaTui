@@ -65,3 +65,57 @@ No violations found. R2: the in-place edits of the two migrations are the except
 - M-5 read-only verification queries.
 - M-2 smoke test Run B in Supabase mode — no `42501` / 403 on any TuDo call.
 - Confirm the stoktok app still works after the apply.
+
+## Attempt 2 — 2026-11-08
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit` clean (exit 0).
+- format:check: "All matched files use the correct format." (32 files).
+- test: vitest 5 files, 74 tests passed.
+- build: vite built OK (`dist/assets/index-*.js` 453.10 kB).
+- `npx supabase db reset && npx supabase test db` (local, default variant): Files=4, Tests=101, Result: PASS.
+- `bash scripts/test-db-shared.sh` run from the session scratchpad (not the repo root): "stoktok default privileges
+  simulated: OK", Files=4, Tests=101, Result: PASS, exit 0. Afterwards `supabase/migrations/` holds only the two TuDo
+  files and nothing was written to the caller's cwd. Local DB reset back to the default variant afterwards.
+- Extra: after reset, `pg_proc.proconfig` for `tudo_set_updated_at` = `{search_path=""}`; `supabase gen types
+  typescript --local` + oxfmt → identical to `src/types/database.ts`.
+- These results match impl-log.md attempt 2.
+
+### Acceptance criteria
+- [x] No TuDo object without `tudo_` — unchanged since attempt 1 (attempt 2 diff only touches description strings,
+  one function attribute, docs and the script); `grants.sql` N1–N6 pass.
+- [x] Grants hold with stoktok's revoke applied first; `anon` has none — `grants.sql` G1–G13 pass in both variants.
+- [x] `npx supabase test db` passes; all assertions kept — 4 files / 101 tests; attempt-2 test edits are description
+  strings only (`rls_tables.sql:89-90,93`, `rls_hardening.sql:66,71`), no SQL or expected value changed.
+- [x] Checks green; `database.ts` matches regenerated types — see Checks.
+- [x] Local mode unchanged (R1) — no `src/` change in attempt 2; `repo.local.test.ts` passes.
+- [x] README and M-1 / M-5 describe dashboard-only setup on the stoktok project; D17 recorded — attempt-1 Issues fixed:
+  - Issue 1: `work/ming-todo.md:18-19` (M-1 step 4: sign-up and anonymous sign-ins OFF, else stop) and
+    `README.md:26-28`.
+  - Issue 2: `work/ming-todo.md:34` adds the `has_*_privilege` query, expected all `false`; signature
+    `tudo_private.tudo_owns_location(uuid)` matches `20261107120000_rls_hardening.sql`.
+  - Issue 3: `scripts/test-db-shared.sh:5` `cd "$(dirname "$0")/.."`; traps at `:8-9`; verified by running from
+    another cwd.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R2: the in-place edit of `20261106000000_init.sql` (`set search_path = ''`) is covered by D17 and
+M-1 is still unticked (not applied to the hosted project). The function body only calls `now()` (pg_catalog), so the
+empty path is safe; trigger test U1 still passes. R7: all attempt-2 files are in the plan's file list.
+
+### Nits (do not block)
+- `README.md:27-28`: "Sign-ups being off, your login email must already exist" reads a little awkwardly; fine as is.
+
+### Follow-ups (out of scope)
+- Same as attempt 1: view Row nullability in generated types; unprefixed `wardrobe: …` storage policy names; CI job
+  for both DB variants.
+
+### Ming verification after merge (not verified by reviewer; carry into the PR)
+- M-1 on the stoktok project (pre-checks, both migrations in SQL Editor in filename order, Redirect URL, sign-up and
+  anonymous sign-ins OFF, user exists, `.env.local`).
+- M-5 read-only verification queries, including the new `has_*_privilege` query (all `false`).
+- M-2 smoke test Run B in Supabase mode — no `42501` / 403 on any TuDo call.
+- Confirm the stoktok app still works after the apply.

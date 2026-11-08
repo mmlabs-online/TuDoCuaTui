@@ -77,3 +77,69 @@ Limitation: I had no shell, so I could not run `git diff`. I reviewed the curren
 ### Open questions
 1. Does stoktok have any user-facing login? If yes, the shared-session point above matters more. Default: no, server uses `service_role` only.
 2. Should Y1 and Y2 be fixed in this ticket (doc-only edits to `ming-todo.md`/README) or go on the follow-ups list? Default: in this ticket, because AC6 covers these steps.
+
+## Attempt 2 — 2026-11-08 (security-ai-generated-code-auditor)
+
+**Verdict: no 🔴 findings.** Y1, Y2, G1 and G2 are all fixed correctly, and the attempt-2 changes add nothing unsafe. I left G3 (storage policy names) as it was in attempt 1: optional and out of scope.
+
+Limits: I worked read-only and ran nothing. I reviewed the current files on `ticket/T-004`, not a `git diff`.
+
+### Findings
+
+**🟢 Y1 fixed: sign-up and anonymous sign-in check**
+- `work/ming-todo.md:18-19`: M-1 step 4 now has Ming confirm that *Allow new users to sign up* and *Allow anonymous sign-ins* are both OFF, and stop if either is on.
+- The check comes after the migrations (step 2) but before the anon key goes into `.env.local` (step 6). Since the anon key only reaches a browser in step 6, that order works.
+- `README.md:26-28` repeats the check and notes that the login email must already exist.
+- Local `supabase/config.toml:179` has `enable_anonymous_sign_ins = false`. `enable_signup = true` at `:177` applies to the local stack only, which is fine.
+
+**🟢 Y2 fixed: stronger hosted privilege check**
+- `work/ming-todo.md:34` adds the `has_*_privilege` query with "expect all false".
+- These functions also count privileges inherited through PUBLIC, so this closes the gap left by the `role_table_grants` query.
+- The function signature `tudo_private.tudo_owns_location(uuid)` matches `supabase/migrations/20261107120000_rls_hardening.sql:28`.
+- Expecting `false` for `authenticated` EXECUTE on `tudo_set_updated_at()` is correct: triggers fire without the caller needing EXECUTE, and test U1 proves the trigger still works.
+- `:33` adds a check that `tudo_private` is not listed under Exposed schemas. This is a good addition.
+
+**🟢 G1 fixed: `search_path` on the trigger function**
+- `supabase/migrations/20261106000000_init.sql:23` now has `set search_path = ''`.
+- The function body only calls `now()`. That lives in `pg_catalog`, which is always searched, so the empty path cannot break it.
+- Editing this migration in place is acceptable: M-1 is unticked, so it has not been applied to the hosted project.
+
+**🟢 G2 fixed: script robustness**
+- `scripts/test-db-shared.sh:5` does `cd "$(dirname "$0")/.."`, so the script can no longer write into or reset another repo's DB when run from elsewhere.
+- `:8-9`: the EXIT trap removes the temp file, and the INT/TERM trap exits with 130, which then runs the EXIT cleanup.
+- Everything stays local: `db reset` and `test db` run without `--linked`.
+- The container name `supabase_db_tudocuatui` matches `config.toml:5` `project_id`.
+
+**🟢 Nothing new is unsafe**
+- RLS, grants, the view's `security_invoker`, and the bucket and storage policies are unchanged since attempt 1.
+- No secret values appear in README or `ming-todo.md`, only variable names.
+
+**🟢 N1 (optional): README order differs from M-1**
+- `README.md:21-22` lists "copy URL and anon key into `.env.local`" before running the migrations. It also has no pre-checks and puts the sign-up check inside step 3.
+- M-1 at `work/ming-todo.md:11-21` has the safer order: pre-checks → migrations → redirect URLs → sign-up check → users → env.
+- Since the README points to M-1 (`README.md:19`), M-1 is the one that counts.
+- Fix if cheap: make the README steps a short pointer to M-1, or reorder them to match.
+
+**🟢 N2 (optional): no test pins the new `search_path`**
+- No pgTAP test checks the `search_path` on `tudo_set_updated_at`, while `rls_hardening.sql:42` does this for `tudo_owns_location`.
+- Fix: add a one-line `proconfig` assertion in `supabase/tests/grants.sql`. It would only guard against a regression.
+
+### Recommendations
+- Treat Y1 and Y2 as closed for AC6 and AC2 (R2, R3), and G1 and G2 as closed.
+- N1 and N2 are not blocking. Put them on the follow-ups list (R7) unless they can be done in the same commit.
+
+### Risks
+The accepted risks from attempt 1 still apply:
+- stoktok's `service_role` key bypasses RLS on all TuDo tables and photos.
+- Auth is shared with stoktok: a TuDo session is a valid stoktok session, and deleting Ming's user deletes all TuDo data.
+- Redirect URLs must be exact URLs, never wildcards.
+
+### Open questions
+None new. Attempt 1's Q1 is still open: does stoktok have any user-facing login? The default assumption remains no.
+
+### Files
+- D:\mmlabs\spaceM\projects\tudocuatui\work\ming-todo.md
+- D:\mmlabs\spaceM\projects\tudocuatui\README.md
+- D:\mmlabs\spaceM\projects\tudocuatui\scripts\test-db-shared.sh
+- D:\mmlabs\spaceM\projects\tudocuatui\supabase\migrations\20261106000000_init.sql
+- D:\mmlabs\spaceM\projects\tudocuatui\supabase\tests\grants.sql
