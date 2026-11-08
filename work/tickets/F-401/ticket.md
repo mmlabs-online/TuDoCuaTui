@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REWORK |
+| State | REVIEW |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T12:29:04Z |
+| Claimed by | claude@2026-11-08T13:56:04Z |
 | PR | — |
 
 ## Goal
