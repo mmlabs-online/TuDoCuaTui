@@ -50,6 +50,17 @@ describe("delimiter", () => {
     expect(parseCsv('"a;b;c",d').headers).toEqual(["a;b;c", "d"]);
     expect(parseCsv('"x,y";z\n1;2')).toEqual({ headers: ["x,y", "z"], rows: [["1", "2"]] });
   });
+  test("ignores a literal quote inside an unquoted header field", () => {
+    expect(parseCsv('Size 5";Name;Color\n1;2;3')).toEqual({
+      headers: ['Size 5"', "Name", "Color"],
+      rows: [["1", "2", "3"]],
+    });
+    expect(parseCsv('x"y,a;b;c\nq;w;e').headers).toEqual(['x"y,a', "b", "c"]);
+    expect(parseCsv('Size 5",Name\n"x;y";z;w')).toEqual({
+      headers: ['Size 5"', "Name"],
+      rows: [["x;y;z;w"]],
+    });
+  });
   test("defaults to , on a tie or a single column", () => {
     expect(parseCsv("name\nx").headers).toEqual(["name"]);
     expect(parseCsv("a;b,c").headers).toEqual(["a;b", "c"]);

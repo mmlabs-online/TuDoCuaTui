@@ -22,22 +22,40 @@ function detectDelimiter(text: string): string {
   let semicolons = 0;
   let hasContent = false;
   let inQuotes = false;
+  let atFieldStart = true;
+  let justClosed = false;
   for (const c of text) {
+    if (inQuotes) {
+      hasContent = true;
+      if (c === '"') {
+        inQuotes = false;
+        justClosed = true;
+      }
+      continue;
+    }
     if (c === '"') {
-      inQuotes = !inQuotes;
       hasContent = true;
-    } else if (inQuotes) {
-      hasContent = true;
-    } else if (c === "\n" || c === "\r") {
+      // A quote opens a section only at a field start or right after a closing quote (`""`).
+      if (atFieldStart || justClosed) inQuotes = true;
+      atFieldStart = false;
+      justClosed = false;
+      continue;
+    }
+    justClosed = false;
+    if (c === "\n" || c === "\r") {
       if (hasContent) break;
       commas = 0;
       semicolons = 0;
+      atFieldStart = true;
     } else if (c === ",") {
       commas++;
+      atFieldStart = true;
     } else if (c === ";") {
       semicolons++;
+      atFieldStart = true;
     } else if (!isBlank(c)) {
       hasContent = true;
+      atFieldStart = false;
     }
   }
   return semicolons > commas ? ";" : ",";
