@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-08T00:53:15Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/9 |
 
 ## Goal
 Users cannot link their rows to another user's rows, even without being able to read them.
@@ -68,3 +68,11 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
   - The local DB volume still has the broken attempt-1 policy. Plan step 5 rolls it back with psql (no `db reset`) before re-applying.
   - The migration file is edited in place. It was never applied to the hosted project, but R2 says "never edit an applied migration", so Ming confirms this as C12.
   - A SECURITY DEFINER fallback is pre-approved in the plan only if INVOKER still gives `42P17`.
+
+### 2026-11-08 — claude — DONE
+- Done: attempt 2 (plan Revision 2) passed. Migration `20261107120000_rls_hardening.sql` adds the `private.owns_location(uuid)` helper (INVOKER) and two `alter policy` WITH CHECKs. `rls_hardening.sql` has 33 assertions, and `supabase test db` passes 80/80 (implementer and reviewer). Reviewer PASS; security review has no blockers. The DEFINER fallback was not used. PR: https://github.com/mmlabs-online/TuDoCuaTui/pull/9
+- In progress / next: Ming reviews and merges (High tier), then runs M-5: `migration list --linked` check, the header precheck, the "Exposed schemas" check, then `db push`.
+- Gotchas:
+  - The precheck is only a comment, not enforced (security 🟡). Turning it into a `DO` block needs a later migration.
+  - The local DB volume has the attempt-2 migration applied, which is correct.
+  - Follow-ups are in the PR and in a workspace debt issue.
