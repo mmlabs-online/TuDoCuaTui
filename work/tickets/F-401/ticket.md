@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-08T13:56:04Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/11 |
 
 ## Goal
 Searching "ao so mi" finds "Áo sơ mi", and search covers every useful text field.
@@ -52,3 +52,8 @@ Searching "ao so mi" finds "Áo sơ mi", and search covers every useful text fie
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-08 — claude — DONE
+- Done: took over the stale claim (another session, 2026-11-07); its attempt 2 commit was unpushed, now pushed; review attempt 2 PASS; rebased on main, checks re-run (105 tests).
+- In progress / next: Ming merges the PR.
+- Gotchas: F-004.1 must carry the new search placeholder when it moves the search input.
