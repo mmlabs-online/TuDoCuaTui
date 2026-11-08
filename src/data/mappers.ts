@@ -2,13 +2,13 @@ import type { Database } from "@/types/database";
 import type { Item, Status } from "@/types/item";
 
 type Enums = Database["public"]["Enums"];
-type ItemRow = Database["public"]["Views"]["items_with_stats"]["Row"];
-type ItemInsert = Database["public"]["Tables"]["items"]["Insert"];
+type ItemRow = Database["public"]["Views"]["tudo_items_with_stats"]["Row"];
+type ItemInsert = Database["public"]["Tables"]["tudo_items"]["Insert"];
 
 const invert = <K extends string, V extends string>(o: Record<K, V>) =>
   Object.fromEntries(Object.entries(o).map(([k, v]) => [v, k])) as Record<V, K>;
 
-export const CATEGORY_TO_DB: Record<string, Enums["item_category"]> = {
+export const CATEGORY_TO_DB: Record<string, Enums["tudo_item_category"]> = {
   Áo: "top",
   Quần: "bottom",
   "Váy/Đầm": "dress",
@@ -22,7 +22,7 @@ export const CATEGORY_TO_DB: Record<string, Enums["item_category"]> = {
 };
 export const CATEGORY_FROM_DB = invert(CATEGORY_TO_DB);
 
-export const STATUS_TO_DB: Record<Status, Enums["item_status"]> = {
+export const STATUS_TO_DB: Record<Status, Enums["tudo_item_status"]> = {
   "Đang dùng": "active",
   "Cất kho": "stored",
   "Đang giặt-sửa": "laundry",
@@ -31,7 +31,7 @@ export const STATUS_TO_DB: Record<Status, Enums["item_status"]> = {
 };
 export const STATUS_FROM_DB = invert(STATUS_TO_DB);
 
-export const SEASON_TO_DB: Record<string, Enums["season"]> = {
+export const SEASON_TO_DB: Record<string, Enums["tudo_season"]> = {
   Xuân: "spring",
   Hạ: "summer",
   Thu: "autumn",

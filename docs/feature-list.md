@@ -17,11 +17,11 @@
 | Users | Single owner first (personal use). Data model is already per-user (RLS), so friends/family can sign up later without schema changes |
 | Platform | Web app, mobile-first usage (photographing clothes at the closet) → PWA later |
 | Frontend | React 19 + Vite 8 + Tailwind v4 + TypeScript. UI exported from Figma Make (`src/App.tsx`, ~1.5k lines, single file) |
-| Backend | Supabase: Postgres + Auth (magic link) + Storage (private bucket `wardrobe`) |
+| Backend | Supabase: Postgres + Auth (magic link) + Storage (private bucket `wardrobe`), on the shared stoktok project (D17) |
 | Language | UI copy in Vietnamese; code, file names, DB ids and tickets in English |
 
 ### Current state (after PR #1 `feat/supabase-backend`)
-- Schema: `locations`, `items`, `item_photos`, `wear_logs`, and the view `items_with_stats`; RLS per user; storage policies on `{user_id}/{item_id}/...`.
+- Schema: `tudo_locations`, `tudo_items`, `tudo_item_photos`, `tudo_wear_logs`, and the view `tudo_items_with_stats` (every DB object is prefixed `tudo_`, D17); RLS per user; storage policies on `{user_id}/{item_id}/...`.
 - Data layer: `src/data/repo.ts` (the `WardrobeRepo` interface with **local** and **supabase** implementations), `src/data/useWardrobe.ts`, `src/data/mappers.ts` (Vietnamese label ↔ enum id).
 - Local mode (no env vars) uses localStorage + 16 demo items, so the Figma Make preview keeps working.
 - `AuthGate` provides magic-link login and a sign-out button.

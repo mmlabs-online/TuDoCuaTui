@@ -7,16 +7,28 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - Review and merge the PRs that `/run` opens (`/status` lists them). Agents never merge.
 
 ## Setup
-- [ ] **M-1 — Hosted Supabase project.** Create the project; `npx supabase login`; `npx supabase link --project-ref <ref>`;
-      `npx supabase db push`; Auth → URL Configuration: add `http://localhost:8443` to Redirect URLs; put the
-      Project URL and anon key in `.env.local`. (README → "Set up Supabase".)
+- [ ] **M-1 — Set up TuDo on the stoktok Supabase project** (dashboard only, D17; never the CLI against it).
+      1. SQL Editor, read-only pre-checks: `select to_regclass('public.tudo_items'), to_regnamespace('tudo_private');`
+         must return two nulls. `select defaclrole::regrole, defaclobjtype, defaclacl from pg_default_acl;` and note
+         the result. Check that no Storage bucket `wardrobe` exists yet (note it if one does).
+      2. Paste `supabase/migrations/20261106000000_init.sql` and run it, then
+         `20261107120000_rls_hardening.sql` and run it, in that order. If either fails, stop and report the error;
+         do not re-run part of a file.
+      3. Auth → URL Configuration: **add** `http://localhost:8443` to Redirect URLs. Do not change the Site URL.
+      4. Authentication → Users: make sure your login email exists (sign-ups are disabled; use "Add user" if not).
+      5. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 - [ ] **M-2 — Smoke test** (after F-001 is merged and M-1 is done): run `docs/qa/smoke-test.md` once in Supabase
       mode; fill in its results table; file each failure with `/ticket`.
 - [ ] **M-3 — Branch protection** (after F-003 is merged): GitHub → Settings → Branches → `main`: require the `ci` check.
 - [ ] **M-4 — Cloudflare Pages** (after F-007 is merged): follow README → "Deploy": connect the repo, set the
       production-only env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, add the production URL to the
       Supabase Redirect URLs, then log in on a phone with a magic link.
-- [ ] **M-5 — Apply migration** (after T-003 is merged, if it exists): `npx supabase db push`. If the hosted project already has data, first run the two read-only precheck `select`s in the header of `supabase/migrations/20261107120000_rls_hardening.sql`; both must return zero rows.
+- [ ] **M-5 — Verify the migrations** (after M-1), read-only in SQL Editor:
+      `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name like 'tudo\_%' and grantee in ('anon','authenticated') order by 1,2,3;`
+      Expect SELECT, INSERT, UPDATE, DELETE for `authenticated` on the 4 tables, SELECT on the view
+      `tudo_items_with_stats`, and no `anon` rows.
+      `select relname, relrowsecurity from pg_class where relname like 'tudo\_%' and relkind = 'r';` Expect true on all 4.
+      Settings → API → Exposed schemas must not list `tudo_private`.
 - [ ] **M-6 — Phone checks** after each of these merges, on an iPhone and an Android phone: F-202.1 (photo
       upload), F-1002 (camera / library buttons), F-603 (30 photos), F-101 (login screen, dark mode).
       Write problems as `/ticket`.

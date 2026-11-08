@@ -1,22 +1,23 @@
 # Data model — Wardrobe app
 
 Backend: Supabase (Postgres + Auth + Storage). Every row belongs to `auth.uid()`; RLS enforces it.
+Runs on the shared stoktok project (D17); every object is prefixed `tudo_`.
 
 ```mermaid
 erDiagram
-  auth_users ||--o{ locations : owns
-  auth_users ||--o{ items : owns
-  locations  ||--o{ locations : "parent_id (ngăn trong tủ)"
-  locations  ||--o{ items : "location_id"
-  items      ||--o{ item_photos : has
-  items      ||--o{ wear_logs : "worn on"
+  auth_users ||--o{ tudo_locations : owns
+  auth_users ||--o{ tudo_items : owns
+  tudo_locations  ||--o{ tudo_locations : "parent_id (ngăn trong tủ)"
+  tudo_locations  ||--o{ tudo_items : "location_id"
+  tudo_items      ||--o{ tudo_item_photos : has
+  tudo_items      ||--o{ tudo_wear_logs : "worn on"
 
-  items {
+  tudo_items {
     uuid id PK
     uuid user_id FK
     text name
-    item_category category
-    item_status status
+    tudo_item_category category
+    tudo_item_status status
     text brand
     text size
     text material
@@ -24,23 +25,23 @@ erDiagram
     date purchase_date
     uuid location_id FK
     text[] colors
-    season[] seasons
+    tudo_season[] seasons
     text[] tags
     text notes
   }
-  locations {
+  tudo_locations {
     uuid id PK
     text name
     uuid parent_id FK
     int sort_order
   }
-  item_photos {
+  tudo_item_photos {
     uuid id PK
     uuid item_id FK
     text storage_path "user/item/uuid.jpg"
     bool is_primary
   }
-  wear_logs {
+  tudo_wear_logs {
     uuid id PK
     uuid item_id FK
     date worn_on "unique per item/day"
@@ -51,9 +52,9 @@ erDiagram
 
 | Topic | Decision | Why |
 |---|---|---|
-| Colors / seasons / tags | `text[]` / `season[]` columns + GIN index, not join tables | Personal-scale data; simpler queries and CSV import. Move to tables only if tags need rename/merge. |
+| Colors / seasons / tags | `text[]` / `tudo_season[]` columns + GIN index, not join tables | Personal-scale data; simpler queries and CSV import. Move to tables only if tags need rename/merge. |
 | Locations | Separate table, with an optional `parent_id` | Filter/rename consistently; supports nested locations like "Tủ phòng ngủ → Ngăn 2". |
-| Wear count / last worn | Derived from `wear_logs` via the `items_with_stats` view | No counter drift; enables stats later (cost per wear, wear by month). |
+| Wear count / last worn | Derived from `tudo_wear_logs` via the `tudo_items_with_stats` view | No counter drift; enables stats later (cost per wear, wear by month). |
 | Photos | Private bucket `wardrobe`, resized client-side to 1200px JPEG, served by signed URLs | Privacy; small files; storage RLS keyed on the first path segment = user id. |
 | Price | `numeric(14,0)` VND | No float errors, no decimals needed. |
 | Filtering | Client-side over the full list | Hundreds of items load in one query; instant UI. Revisit at more than 2k items. |
