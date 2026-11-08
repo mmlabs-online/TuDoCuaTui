@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-08T13:23:03Z |
 | PR | — |
 
 ## Goal
@@ -93,7 +93,7 @@ TuDoCuaTui DB object gets the prefix `tudo_`, so one hosted project serves both 
 - Manual (Ming, after merge): M-1 and M-5 on the stoktok project, then the M-2 smoke test in Supabase mode.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-08: Plan approved (Ming, in chat with Annie: "Plan approved (T-004)"; recorded by Annie).
 - 2026-11-08 (chat with Annie): "2 app này chỉ có tôi dùng, k sợ lộ"; edit the migration files in place; photos
   go to Google Drive like Ricotdin (separate ticket); schema `tudo_private` ok; run before the in-progress tickets.
 
