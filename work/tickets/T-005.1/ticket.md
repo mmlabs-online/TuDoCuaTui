@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 |
-| Claimed by | claude@2026-11-08T14:07:09Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -73,6 +73,12 @@ The Edge Function `tudo-drive` can use Ming's Google Drive folder `TuDoCuaTui/`,
 - Manual (Ming, after merge): run M-7 smoke, then add, view and delete a photo in Supabase mode on a phone.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
 
 ## Handoff
+
+### 2026-11-08 — claude — BLOCKED
+- Done: consult (software-architect) saved; plan.md READY with changes C1–C13; consult Q1/Q3/Q4/Q5 defaults adopted, Q6 narrowed (C7).
+- In progress / next: Ming approves the plan; Q2 (separate Google Cloud project?) must be answered before M-7 step 1, not before coding.
+- Gotchas: expect small rebases with F-007, F-005.2, F-002 (README, ming-todo, vitest.config, tsconfig).
