@@ -41,3 +41,27 @@
 ### Risks
 - Accepted under D18: any stoktok account can sign in; isolation relies on RLS (unchanged).
 - Brute force relies on Supabase's server-side rate limit; 429 / `over_request_rate_limit` mapped (`authMessages.ts:29-36`).
+
+## Attempt 2 — 2026-11-09 (security-ai-generated-code-auditor, re-review of a408274)
+
+**Verdict: 🟡 1 is fixed. Nothing regressed, no 🔴, and the README change gives no unsafe advice.**
+
+### 🟢 1. Password no longer stays in state or in the form after sign-out (was 🟡 1)
+- `onAuthStateChange` clears the password before setting the session (`src/features/auth/AuthGate.tsx:20-23`). Sign-out (`src/data/useWardrobe.ts:96-98`) fires that callback with `null`, so the form returns with an empty password even though `AuthGate` never unmounts.
+- Cleared after a successful `signInWithPassword` (`AuthGate.tsx:41-42`); kept on error so the user can retry.
+- Tests catch a regression: `AuthGate.test.tsx:177-186` (session set → null → empty field) and `:188-195` (empty after successful sign-in).
+
+### 🟢 2. No regressions
+- No `console.*` / `service_role` in `src/`; only `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (R3).
+- Password untrimmed (`AuthGate.tsx:40`, test `:91-98`); input attributes unchanged (`:79-99`); fixed `COPY` errors and `try/catch/finally` (`:39-47`); local mode skips auth (`:11,18,27`, test `:55-64`, R1).
+
+### 🟢 3. README change is safe
+- `README.md:25-26`: no Auth changes (D18/D19), don't change the Site URL or other Auth settings, log in with the existing stoktok email + password. The D18 contradiction is gone. `README.md:61-63` and `:68-69` unchanged and correct; `docs/qa/smoke-test.md` has no sign-up/anonymous/Site URL/redirect wording.
+
+### 🟢 4. Minor notes (no action)
+- Password is cleared on every auth event (incl. `INITIAL_SESSION`, `TOKEN_REFRESHED`); at most a half-typed password could be wiped — UX nit.
+- Email stays prefilled after sign-out; not a secret. Optional follow-up.
+
+### Risks (accepted under D18)
+- Anyone who can sign up to stoktok can sign in to TuDo; isolation relies on RLS (`supabase/tests/`, not yet run in CI).
+- Brute force relies on Supabase's rate limit; 429 mapped.
