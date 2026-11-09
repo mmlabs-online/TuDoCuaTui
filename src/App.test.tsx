@@ -105,6 +105,32 @@ describe("App (local mode)", () => {
     await screen.findByText("Đã điều chỉnh số lần mặc");
   });
 
+  it('Mặc hôm nay twice counts once and shows "Đã ghi nhận hôm nay rồi"', async () => {
+    await renderApp();
+    fireEvent.click(cards()[0]);
+    const worn = () => Number(screen.getByText(/Đã mặc \d+ lần/).textContent!.match(/\d+/)![0]);
+    const n = worn();
+    fireEvent.click(screen.getByRole("button", { name: "Mặc hôm nay" }));
+    await screen.findByText(`Đã mặc ${n + 1} lần`);
+    fireEvent.click(screen.getByRole("button", { name: "Mặc hôm nay" }));
+    await screen.findByText("Đã ghi nhận hôm nay rồi");
+    expect(worn()).toBe(n + 1);
+  });
+
+  it("duplicate resets wear count and last worn", async () => {
+    await renderApp();
+    fireEvent.click(cards()[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Mặc hôm nay" }));
+    await screen.findByText("Đã ghi nhận mặc hôm nay");
+    fireEvent.click(screen.getByRole("button", { name: "Nhân bản" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lưu món đồ" }));
+    await screen.findByText("Đã thêm vào tủ");
+    await waitFor(() => expect(cards()).toHaveLength(17));
+    const copy = cards().find((c) => c.textContent?.includes("(bản sao)"))!;
+    expect(copy.textContent).toContain("0×");
+    expect(copy.textContent).not.toContain("hôm nay");
+  });
+
   it("duplicate creates a new item on save", async () => {
     await renderApp();
     fireEvent.click(cards()[0]);

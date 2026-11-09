@@ -9,6 +9,11 @@ export const EDITOR_COPY = {
     dateInvalid: "Ngày mua không hợp lệ",
     dateFuture: "Ngày mua không được ở tương lai",
   },
+  wear: {
+    worn: "Đã ghi nhận mặc hôm nay",
+    alreadyWorn: "Đã ghi nhận hôm nay rồi",
+    adjusted: "Đã điều chỉnh số lần mặc",
+  },
   discard: {
     title: "Bỏ thay đổi?",
     body: "Các thay đổi chưa lưu sẽ bị mất.",

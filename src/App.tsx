@@ -7,6 +7,7 @@ import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { ExportModal } from "@/features/import-export/ExportModal";
 import { ImportModal } from "@/features/import-export/ImportModal";
 import { blankItem } from "@/features/items/blankItem";
+import { EDITOR_COPY } from "@/features/items/copy";
 import { Editor } from "@/features/items/Editor";
 import { FilterBar } from "@/features/items/FilterBar";
 import { ItemGrid } from "@/features/items/ItemGrid";
@@ -165,15 +166,29 @@ function App() {
           onSave={save}
           onDelete={() => setConfirm(true)}
           onDuplicate={() => {
-            setEditor({ ...editor, id: "", name: `${editor.name} (bản sao)`, wearCount: 0 });
+            setEditor({
+              ...editor,
+              id: "",
+              name: `${editor.name} (bản sao)`,
+              wearCount: 0,
+              lastWorn: "",
+            });
             setIsNew(true);
             notify("Đã tạo bản sao");
           }}
           onWorn={async (delta) => {
             try {
               const res = await wardrobe.wear(editor, delta > 0 ? 1 : -1);
-              setEditor((p) => (p ? { ...p, ...res } : p));
-              notify(delta > 0 ? "Đã ghi nhận mặc hôm nay" : "Đã điều chỉnh số lần mặc");
+              setEditor((p) =>
+                p ? { ...p, wearCount: res.wearCount, lastWorn: res.lastWorn } : p,
+              );
+              notify(
+                delta < 0
+                  ? EDITOR_COPY.wear.adjusted
+                  : res.already
+                    ? EDITOR_COPY.wear.alreadyWorn
+                    : EDITOR_COPY.wear.worn,
+              );
             } catch (e) {
               notify(wardrobe.message(e));
             }

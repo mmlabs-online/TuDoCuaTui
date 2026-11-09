@@ -37,18 +37,19 @@ describe("ageInDays", () => {
     expect(ageInDays("", NOW)).toBe(999);
   });
 
-  test("floors whole days for ISO timestamps", () => {
-    const t = "2026-11-06T00:00:00Z";
-    const base = Date.parse(t);
-    expect(ageInDays(t, base + DAY - 60000)).toBe(0);
-    expect(ageInDays(t, base + DAY)).toBe(1);
+  test("counts local calendar days for ISO timestamps", () => {
+    const t = "2026-11-06T00:00:00Z"; // 07:00 on 6 Nov in UTC+7
+    expect(ageInDays(t, Date.parse("2026-11-06T23:59:00+07:00"))).toBe(0);
+    expect(ageInDays(t, Date.parse("2026-11-07T00:00:00+07:00"))).toBe(1);
   });
 
-  test("parses YYYY-MM-DD as UTC midnight (records current behaviour)", () => {
-    expect(ageInDays("2026-11-07", Date.parse("2026-11-07T01:00:00+07:00"))).toBe(-1);
-    expect(ageInDays("2026-11-07", Date.parse("2026-11-07T08:00:00+07:00"))).toBe(0);
-    const iso = "2026-11-07T01:00:00+07:00";
-    expect(ageInDays(iso, Date.parse(iso) + 3600000)).toBe(0);
+  test("ageInDays is 0 at 02:00 UTC+7 for today's date-only value", () => {
+    expect(ageInDays("2026-11-07", Date.parse("2026-11-07T02:00:00+07:00"))).toBe(0);
+  });
+
+  test("ageInDays returns 999 for an empty or invalid date", () => {
+    expect(ageInDays("", NOW)).toBe(999);
+    expect(ageInDays("garbage", NOW)).toBe(999);
   });
 });
 
@@ -61,6 +62,11 @@ describe("isStale", () => {
   });
   test("is true at 91 days", () => {
     expect(isStale({ lastWorn: ago(91) }, NOW)).toBe(true);
+  });
+  test("isStale flips exactly at 90 calendar days for a YYYY-MM-DD value at 02:00 UTC+7", () => {
+    const now = Date.parse("2026-11-07T02:00:00+07:00");
+    expect(isStale({ lastWorn: "2026-08-10" }, now)).toBe(false); // 89 days
+    expect(isStale({ lastWorn: "2026-08-09" }, now)).toBe(true); // 90 days
   });
   test("is true for an item never worn", () => {
     expect(isStale({ lastWorn: "" }, NOW)).toBe(true);

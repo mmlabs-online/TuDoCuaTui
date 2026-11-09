@@ -16,6 +16,3 @@ export const supabase: SupabaseClient<Database> | null =
     : null;
 
 export const PHOTO_BUCKET = "wardrobe";
-
-/** Local calendar date (YYYY-MM-DD) — avoids UTC shifting "today" for UTC+7 users. */
-export const localToday = () => new Date().toLocaleDateString("en-CA");
