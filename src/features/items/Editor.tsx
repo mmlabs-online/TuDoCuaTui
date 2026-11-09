@@ -37,6 +37,7 @@ export function Editor({
   onWorn: (n: number) => void;
 }) {
   const file = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
   const [initial] = useState(item);
   const [showErrors, setShowErrors] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -102,6 +103,14 @@ export function Editor({
                 </>
               )}
             </button>
+            <div className="photo-source-actions">
+              <Btn type="button" onClick={() => camera.current?.click()}>
+                {EDITOR_COPY.photo.takePhoto}
+              </Btn>
+              <Btn type="button" onClick={() => file.current?.click()}>
+                {EDITOR_COPY.photo.pickFromLibrary}
+              </Btn>
+            </div>
             <div className="photo-caption">
               <div>
                 <small>MÓN ĐỒ CỦA BẠN</small>
@@ -113,6 +122,14 @@ export function Editor({
               ref={file}
               type="file"
               accept="image/*"
+              hidden
+              onChange={(e) => upload(e.target.files?.[0])}
+            />
+            <input
+              ref={camera}
+              type="file"
+              accept="image/*"
+              capture="environment"
               hidden
               onChange={(e) => upload(e.target.files?.[0])}
             />
