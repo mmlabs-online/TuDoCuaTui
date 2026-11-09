@@ -10,6 +10,7 @@ import { categoryNames, colorMap, colors, seasons, statuses } from "@/constants/
 import { toDateOnly } from "@/features/import-export/csv/serialize";
 import { EDITOR_COPY } from "./copy";
 import { isDirty } from "./dirty";
+import { ageInDays } from "./filters";
 import { hasErrors, NAME_MAX, validateItem, type ItemErrorCode } from "./validate";
 
 export function Editor({
@@ -144,7 +145,7 @@ export function Editor({
                     <b>Đã mặc {item.wearCount} lần</b>
                     <small>
                       {item.lastWorn
-                        ? `Lần cuối ${Math.floor((Date.now() - +new Date(item.lastWorn)) / 86400000)} ngày trước`
+                        ? `Lần cuối ${ageInDays(item.lastWorn)} ngày trước`
                         : "Chưa có lịch sử"}
                     </small>
                   </div>

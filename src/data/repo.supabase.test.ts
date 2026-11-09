@@ -552,11 +552,15 @@ describe("createSupabaseRepo", () => {
   });
 
   describe("wear", () => {
-    test("+1 logs today's local date (UTC+7) ignoring duplicates and returns the stats", async () => {
+    test("+1 logs today's local date (UTC+7) ignoring duplicates, returns the stats and already=false", async () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-11-06T17:30:00Z"));
-      fake.push({ data: null }, { data: { wear_count: 3, last_worn: "2026-11-07" } });
-      expect(await make().wear(makeItem(), 1)).toEqual({ wearCount: 3, lastWorn: "2026-11-07" });
+      fake.push({ data: [{ id: "log-1" }] }, { data: { wear_count: 3, last_worn: "2026-11-07" } });
+      expect(await make().wear(makeItem(), 1)).toEqual({
+        wearCount: 3,
+        lastWorn: "2026-11-07",
+        already: false,
+      });
       expect(fake.calls).toEqual([
         call("tudo_wear_logs", "from"),
         call(
@@ -565,11 +569,26 @@ describe("createSupabaseRepo", () => {
           { item_id: ID, worn_on: "2026-11-07" },
           { onConflict: "item_id,worn_on", ignoreDuplicates: true },
         ),
+        call("tudo_wear_logs", "select", "id"),
         call(ITEMS, "from"),
         call(ITEMS, "select", "wear_count, last_worn"),
         call(ITEMS, "eq", "id", ID),
         call(ITEMS, "single"),
       ]);
+    });
+
+    test("+1 returns already=true when today's log already exists", async () => {
+      fake.push({ data: [] }, { data: { wear_count: 3, last_worn: "2026-11-07" } });
+      expect(await make().wear(makeItem(), 1)).toEqual({
+        wearCount: 3,
+        lastWorn: "2026-11-07",
+        already: true,
+      });
+    });
+
+    test("+1 treats a null upsert result as already", async () => {
+      fake.push({ data: null }, { data: { wear_count: 3, last_worn: "2026-11-07" } });
+      expect((await make().wear(makeItem(), 1)).already).toBe(true);
     });
 
     test("+1 throws the upsert error", async () => {
@@ -585,7 +604,11 @@ describe("createSupabaseRepo", () => {
         { data: null },
         { data: { wear_count: 1, last_worn: "2026-11-01" } },
       );
-      expect(await make().wear(makeItem(), -1)).toEqual({ wearCount: 1, lastWorn: "2026-11-01" });
+      expect(await make().wear(makeItem(), -1)).toEqual({
+        wearCount: 1,
+        lastWorn: "2026-11-01",
+        already: false,
+      });
       expect(fake.calls).toEqual([
         call("tudo_wear_logs", "from"),
         call("tudo_wear_logs", "select", "id"),
@@ -629,7 +652,11 @@ describe("createSupabaseRepo", () => {
 
     test("returns 0 and an empty string when stats are null", async () => {
       fake.push({ data: null }, { data: { wear_count: null, last_worn: null } });
-      expect(await make().wear(makeItem(), 1)).toEqual({ wearCount: 0, lastWorn: "" });
+      expect(await make().wear(makeItem(), 1)).toEqual({
+        wearCount: 0,
+        lastWorn: "",
+        already: true,
+      });
       expect(fake.calls).toContainEqual(call(ITEMS, "select", "wear_count, last_worn"));
     });
 

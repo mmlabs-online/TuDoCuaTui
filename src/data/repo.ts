@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
-import { PHOTO_BUCKET, localToday } from "@/lib/supabase";
+import { localToday, toLocalDate } from "@/lib/dates";
+import { PHOTO_BUCKET } from "@/lib/supabase";
 import { itemToRow, rowToItem } from "./mappers";
 import { resizeImage, urlToBlob } from "./photos";
 
 export type WearResult = Pick<Item, "wearCount" | "lastWorn">;
+/** `already` is true when +1 found a wear for today (nothing added); always false for -1. */
+export type WearOutcome = WearResult & { already: boolean };
 
 /** Persistence boundary. The UI only talks to this interface. */
 export interface WardrobeRepo {
@@ -16,7 +19,7 @@ export interface WardrobeRepo {
   save(item: Item): Promise<Item>;
   remove(item: Item): Promise<void>;
   /** +1 = "Mặc hôm nay", -1 = undo the latest wear. */
-  wear(item: Item, delta: 1 | -1): Promise<WearResult>;
+  wear(item: Item, delta: 1 | -1): Promise<WearOutcome>;
 }
 
 // =====================================================================
@@ -26,6 +29,7 @@ const LS_KEY = "tu-do-items";
 
 export function createLocalRepo(starter: Item[], defaultLocations: string[]): WardrobeRepo {
   let cache: Item[] | null = null;
+  const prevWorn = new Map<string, string>(); // lastWorn before today's wear, for undo (session only)
   const load = (): Item[] => {
     if (cache) return cache;
     try {
@@ -72,12 +76,25 @@ export function createLocalRepo(starter: Item[], defaultLocations: string[]): Wa
     async wear(item, delta) {
       const items = load();
       const cur = items.find((i) => i.id === item.id) ?? item;
-      const res: WearResult = {
-        wearCount: Math.max(0, cur.wearCount + delta),
-        lastWorn: delta > 0 ? new Date().toISOString() : cur.lastWorn,
-      };
+      const today = localToday();
+      const wornToday = toLocalDate(cur.lastWorn) === today;
+      if (delta > 0 && wornToday) {
+        return { wearCount: cur.wearCount, lastWorn: cur.lastWorn, already: true };
+      }
+      const wearCount = Math.max(0, cur.wearCount + delta);
+      let lastWorn = cur.lastWorn;
+      if (delta > 0) {
+        prevWorn.set(item.id, cur.lastWorn);
+        lastWorn = today;
+      } else if (wearCount === 0) {
+        lastWorn = "";
+      } else if (wornToday) {
+        lastWorn = prevWorn.get(item.id) ?? "";
+        prevWorn.delete(item.id);
+      }
+      const res: WearResult = { wearCount, lastWorn };
       persist(items.map((i) => (i.id === item.id ? { ...i, ...res } : i)));
-      return res;
+      return { ...res, already: false };
     },
   };
 }
@@ -239,14 +256,17 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
     },
 
     async wear(item, delta) {
+      let already = false;
       if (delta > 0) {
-        const { error } = await sb
+        const { data, error } = await sb
           .from("tudo_wear_logs")
           .upsert(
             { item_id: item.id, worn_on: localToday() },
             { onConflict: "item_id,worn_on", ignoreDuplicates: true },
-          );
+          )
+          .select("id");
         if (error) throw error;
+        already = !data?.length;
       } else {
         const { data, error } = await sb
           .from("tudo_wear_logs")
@@ -267,7 +287,7 @@ export function createSupabaseRepo(sb: Client): WardrobeRepo {
         .eq("id", item.id)
         .single();
       if (error) throw error;
-      return { wearCount: data.wear_count ?? 0, lastWorn: data.last_worn ?? "" };
+      return { wearCount: data.wear_count ?? 0, lastWorn: data.last_worn ?? "", already };
     },
   };
 }

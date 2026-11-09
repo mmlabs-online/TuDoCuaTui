@@ -112,33 +112,95 @@ describe("createLocalRepo", () => {
     expect(stored().map((i) => i.id)).toEqual(["2"]);
   });
 
-  test("wear +1 increments and sets lastWorn to now", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-11-07T03:00:00.000Z"));
+  const freeze = (iso: string) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(iso));
+  };
+
+  test("wear +1 sets lastWorn to today's local date (YYYY-MM-DD) and already=false", async () => {
+    freeze("2026-11-06T17:30:00Z");
     const repo = make();
     const item = makeItem({ id: "s1", wearCount: 2 });
     await repo.save(item);
     const res = await repo.wear(item, 1);
-    expect(res).toEqual({ wearCount: 3, lastWorn: "2026-11-07T03:00:00.000Z" });
-    expect((await repo.list())[0]).toMatchObject(res);
+    expect(res).toEqual({ wearCount: 3, lastWorn: "2026-11-07", already: false });
+    expect((await repo.list())[0]).toMatchObject({ wearCount: 3, lastWorn: "2026-11-07" });
   });
 
-  test("wear +1 twice on the same day counts twice (records current behaviour)", async () => {
+  test("wear +1 twice on the same day counts once and flags already", async () => {
+    freeze("2026-11-07T03:00:00Z");
     const repo = make();
     const item = makeItem({ id: "s1" });
     await repo.save(item);
     await repo.wear(item, 1);
+    const before = stored();
     const res = await repo.wear(item, 1);
+    expect(res).toEqual({ wearCount: 1, lastWorn: "2026-11-07", already: true });
+    expect(stored()).toEqual(before);
+  });
+
+  test("wear +1 counts again on the next local day", async () => {
+    freeze("2026-11-07T03:00:00Z");
+    const repo = make();
+    const item = makeItem({ id: "s1" });
+    await repo.save(item);
+    await repo.wear(item, 1);
+    freeze("2026-11-08T03:00:00Z");
+    expect(await repo.wear(item, 1)).toEqual({
+      wearCount: 2,
+      lastWorn: "2026-11-08",
+      already: false,
+    });
+  });
+
+  test("wear +1 when lastWorn is an ISO timestamp from earlier today (demo/legacy data) flags already", async () => {
+    freeze("2026-11-07T08:00:00Z");
+    const item = makeItem({ id: "s1", wearCount: 2, lastWorn: "2026-11-07T01:00:00.000Z" });
+    const repo = make();
+    await repo.save(item);
+    const res = await repo.wear(item, 1);
+    expect(res.already).toBe(true);
     expect(res.wearCount).toBe(2);
   });
 
-  test("wear -1 decrements and keeps lastWorn (records current behaviour)", async () => {
+  test("wear -1 after today's wear restores the previous lastWorn", async () => {
+    freeze("2026-11-07T03:00:00Z");
+    const item = makeItem({ id: "s1", wearCount: 3, lastWorn: "2026-11-01" });
+    const repo = make();
+    await repo.save(item);
+    await repo.wear(item, 1);
+    expect(await repo.wear(item, -1)).toEqual({
+      wearCount: 3,
+      lastWorn: "2026-11-01",
+      already: false,
+    });
+    expect((await repo.wear(item, 1)).already).toBe(false);
+  });
+
+  test("wear -1 of today's wear with no remembered previous date clears lastWorn", async () => {
+    freeze("2026-11-07T03:00:00Z");
+    const item = makeItem({ id: "s1", wearCount: 3, lastWorn: "2026-11-07" });
+    await make().save(item);
+    const res = await make().wear(item, -1);
+    expect(res).toEqual({ wearCount: 2, lastWorn: "", already: false });
+  });
+
+  test("wear -1 to 0 clears lastWorn", async () => {
+    const item = makeItem({ id: "s1", wearCount: 1, lastWorn: "2026-01-01" });
+    const repo = make();
+    await repo.save(item);
+    expect(await repo.wear(item, -1)).toEqual({ wearCount: 0, lastWorn: "", already: false });
+  });
+
+  test("wear -1 of an older wear keeps lastWorn", async () => {
+    freeze("2026-11-07T03:00:00Z");
     const item = makeItem({ id: "s1", wearCount: 3, lastWorn: "2026-01-01T00:00:00.000Z" });
     const repo = make();
     await repo.save(item);
     expect(await repo.wear(item, -1)).toEqual({
       wearCount: 2,
       lastWorn: "2026-01-01T00:00:00.000Z",
+      already: false,
     });
   });
 

@@ -71,9 +71,10 @@ export function useWardrobe(starter: Item[], defaultLocations: string[]) {
 
   const wear = useCallback(
     async (item: Item, delta: 1 | -1) => {
-      const res = await repo.wear(item, delta);
-      setItems((p) => p.map((i) => (i.id === item.id ? { ...i, ...res } : i)));
-      return res;
+      const out = await repo.wear(item, delta);
+      const stats = { wearCount: out.wearCount, lastWorn: out.lastWorn };
+      setItems((p) => p.map((i) => (i.id === item.id ? { ...i, ...stats } : i)));
+      return out;
     },
     [repo],
   );

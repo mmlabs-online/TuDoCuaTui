@@ -1,10 +1,10 @@
+import { daysSince } from "@/lib/dates";
 import { normalize } from "@/lib/text";
 import type { Item } from "@/types/item";
 
 export const STALE_DAYS = 90;
 
-export const ageInDays = (date: string, now = Date.now()) =>
-  date ? Math.floor((now - new Date(date).getTime()) / 86400000) : 999;
+export const ageInDays = (date: string, now = Date.now()) => daysSince(date, now) ?? 999;
 
 export const isStale = (i: Pick<Item, "lastWorn">, now = Date.now()) =>
   ageInDays(i.lastWorn, now) >= STALE_DAYS;

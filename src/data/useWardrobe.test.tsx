@@ -117,6 +117,22 @@ describe("useWardrobe", () => {
       expect(result.current.items[1]).toEqual(starter[1]);
     });
 
+    test("wear passes the already flag through and does not store it on the item", async () => {
+      const { result } = await setup();
+      let first: unknown;
+      let second: unknown;
+      await act(async () => {
+        first = await result.current.wear(starter[0], 1);
+      });
+      await act(async () => {
+        second = await result.current.wear(starter[0], 1);
+      });
+      expect(first).toMatchObject({ already: false });
+      expect(second).toMatchObject({ already: true });
+      expect(result.current.items[0]).not.toHaveProperty("already");
+      expect(result.current.items[0].wearCount).toBe(1);
+    });
+
     test("importMany saves in order with fresh ids and reports progress", async () => {
       const { result } = await setup();
       const onProgress = vi.fn();
