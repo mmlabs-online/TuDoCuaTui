@@ -86,3 +86,58 @@ No violations found.
 - Show-password toggle and a "forgot password" link to stoktok (plan A3).
 - `work/ming-todo.md`: the branch adds the T-006 approval line while main gets M-1/M-4 edits from D19. Watch for a
   merge conflict when the PR merges.
+
+## Attempt 2 — 2026-11-09
+Verdict: PASS
+
+Rework scope: Ming's note of 2026-11-09 (`ticket.md:75`) and security-review 🟡 1. Rework commit `a408274`.
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit` clean, no errors.
+- format:check: oxfmt, exit 0 ("Finished … on 83 files").
+- test: 21 files, 351 tests, all passed (attempt 1 had 349, so +2 is as expected).
+- test:coverage: All files 100% statements, 99.28% branches, 100% functions, 100% lines. Thresholds met.
+- build: `vite build` OK (`dist/assets/index-*.js` 233.42 kB).
+These match the impl-log Attempt 2 claims.
+
+### Rework items
+- [x] (1a) Password cleared after a successful sign-in. Evidence: `src/features/auth/AuthGate.tsx:42`
+  (`else setPassword("")`, runs only when `signInWithPassword` returns no error, so a wrong password still keeps
+  the field for correction). Test `AuthGate.test.tsx:188` "password is cleared after a successful sign-in". The
+  mock does not emit a session, so this test exercises the `else` branch on its own.
+- [x] (1b) Password cleared whenever the session changes. Evidence: `AuthGate.tsx:20-23` calls `setPassword("")`
+  in the `onAuthStateChange` callback before `setSession`. This covers sign-out through `useWardrobe.signOut`,
+  which is the scenario in the security review. Test `AuthGate.test.tsx:177`: fill → emit session → app content →
+  emit null → the password input is `""`. `AuthGate` keeps its state while the children are shown (same
+  component, no unmount), so without the fix this test would read `"secret"`. It discriminates.
+- [x] (2) README step 3 no longer contains the sign-ups/anonymous "if not, stop" check. It now reads "no changes
+  are needed … (D18/D19) … Do not change the Site URL … or any other Auth settings. Log in with your existing
+  stoktok email + password" (`README.md:25-26`). `grep` finds no "sign up"/"Allow new users" wording left in
+  `README.md` or `docs/qa/smoke-test.md`.
+
+### Regression / scope
+- `git diff 867a90a..HEAD` (since the attempt-1 review): code changes are only `AuthGate.tsx` (+4/−1),
+  `AuthGate.test.tsx` (+20) and `README.md` (step 3). The rest is workflow files: impl-log, security-review and
+  ticket.md (orchestrator note and state). No out-of-plan files.
+- The attempt-1 acceptance criteria still hold. All 12 earlier AuthGate tests and the authMessages tests pass
+  unchanged, the local-mode path is untouched (`AuthGate.tsx:27`, test `:55`), and the error paths still keep the
+  password (`:41,43-44`).
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R1 is unchanged (the clearing lives inside the `if (!supabase) return` effect). R3 is
+improved: the password no longer lingers in state after sign-in or sign-out. R8: both changes are tested. R10 is
+untouched.
+
+### Nits (do not block)
+- `AuthGate.tsx:21`: the callback also runs for `INITIAL_SESSION`/`TOKEN_REFRESHED`. That is harmless: on the
+  form, `INITIAL_SESSION` fires right at mount before any typing, and refresh events only happen while signed in.
+- The email stays filled after sign-out. That is fine (not secret) and matches the security review's scope.
+
+### Ming verification after merge (carry into the PR)
+Same as attempt 1, plus: sign in, then sign out. The login form shows the email but an **empty** password field.
+
+### Follow-ups (out of scope)
+Unchanged from attempt 1.
