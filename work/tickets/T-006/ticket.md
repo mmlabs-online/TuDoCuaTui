@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-09 |
-| Claimed by | claude@2026-11-09T09:15:41Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/22 |
 
 ## Goal
 Ming signs in to TuDo with the same email and password as stoktok (shared Supabase Auth, D17/D18), instead of
@@ -80,3 +80,8 @@ magic link; the feature list is not edited by this ticket.
 - Done: plan.md READY (email + password via signInWithPassword, magic link and cooldown removed, Vietnamese error mapping, AuthGate + authMessages tests, README/smoke-test updated). Assumptions A1–A9 listed for Ming.
 - In progress / next: Ming writes "Plan approved (YYYY-MM-DD)" under Notes / answers from Ming (and answers A1–A5 if different from defaults); then /run implements.
 - Gotchas: A4 drops the Redirect URL steps from the README (password login does not need them); M-1 step 3 / M-4 in ming-todo and the feature list (A1) are updated on main by the orchestrator after approval.
+
+### 2026-11-09 — claude — DONE
+- Done: plan approved by Ming; attempt 1 PASS (security 🟡: password left in form after sign-out); Ming asked for fixes; attempt 2 PASS (password cleared on session change / sign-in, README step 3 aligned with D18; security re-review clean). PR #22.
+- In progress / next: Ming reviews and merges PR #22 (High tier), then the phone checks after M-1.
+- Gotchas: Redirect URLs come back with F-102 (Google sign-in); `detectSessionInUrl` can be revisited then.
