@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-09 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-09T09:15:41Z |
 | PR | — |
 
 ## Goal
@@ -71,7 +71,7 @@ magic link; the feature list is not edited by this ticket.
 - 2026-11-09: "có và bỏ hẳn magic link" — email + password with the stoktok account, magic link removed, put at
   the top of the run order. No "forgot password" requested.
 
-Waiting for Ming: plan approval (High tier)
+- 2026-11-09: Plan approved (2026-11-09) — Ming: "approve"; assumptions A1–A5 accepted as defaults (D19 recorded; feature list, M-1, M-4 updated on main).
 
 ## Handoff
 
