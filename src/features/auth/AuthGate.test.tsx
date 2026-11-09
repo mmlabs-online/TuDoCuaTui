@@ -173,4 +173,24 @@ describe("AuthGate", () => {
     await waitFor(() => expect(button().disabled).toBe(false));
     expect(screen.queryByText(/Gửi lại/)).toBeNull();
   });
+
+  test("password field is empty after the session goes from set to null", async () => {
+    const { emit } = setup();
+    await waitForForm();
+    fill("a@b.co", "secret");
+    act(() => emit(fakeSession));
+    await screen.findByText("app content");
+    act(() => emit(null));
+    await waitForForm();
+    expect(passwordInput().value).toBe("");
+  });
+
+  test("password is cleared after a successful sign-in", async () => {
+    const { signInWithPassword } = setup();
+    await waitForForm();
+    fill("a@b.co", "secret");
+    submit();
+    await waitFor(() => expect(signInWithPassword).toHaveBeenCalled());
+    await waitFor(() => expect(passwordInput().value).toBe(""));
+  });
 });

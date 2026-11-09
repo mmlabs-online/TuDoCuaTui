@@ -22,10 +22,8 @@ object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/
 2. Paste each file in `supabase/migrations/`, in filename order, into Dashboard → SQL Editor and run it.
    **Never run `db push`, `supabase link`, `db reset --linked`, `db pull` or `db diff --linked` against the shared
    project**: its migration history holds stoktok's versions.
-3. Auth: no changes are needed for TuDo login (D18). Do not change the Site URL (it stays stoktok's) or the sign-up
-   settings. As a read-only check, confirm under Authentication → Sign In / Providers that
-   *Allow new users to sign up* and *Allow anonymous sign-ins* are both OFF (if not, stop). Sign-ups being off, your login
-   email must already exist under Authentication → Users, with a password.
+3. Auth: no changes are needed for TuDo login (D18/D19). Do not change the Site URL (it stays stoktok's) or any other
+   Auth settings. Log in with your existing stoktok email + password.
 4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop` when done).
 5. Regenerate the DB types after any migration change (needs Docker; use Git Bash on Windows, not PowerShell, whose `>` writes UTF-16):
    ```bash

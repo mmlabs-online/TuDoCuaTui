@@ -17,7 +17,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setPassword("");
+      setSession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -36,6 +39,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
       if (error) setError(authErrorMessage(error));
+      else setPassword("");
     } catch {
       setError(COPY.errGeneric);
     } finally {

@@ -33,3 +33,26 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: source/docs about +73 / -93 plus ~290 lines of new tests.
+
+## Attempt 2 (REWORK: Ming's 2026-11-09 note, security-review finding 1)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `src/features/auth/AuthGate.tsx` | Clear `password` state after successful sign-in and in the `onAuthStateChange` callback |
+| `src/features/auth/AuthGate.test.tsx` | 2 tests: password empty after session set -> null; password cleared after successful sign-in |
+| `README.md` | Setup step 3: removed the sign-up/anonymous read-only check (contradicted D18); log in with existing stoktok email + password |
+
+`docs/qa/smoke-test.md`: checked, no sign-up/anonymous wording, unchanged.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None.
+
+### Scope self-check
+Only the two requested fixes.
+
+### Checks (attempt 2)
+- typecheck clean; format:check all files formatted; test all passed (incl. 2 new); test:coverage thresholds met (lines 100%, functions 100%, branches 99.28%); build OK.
