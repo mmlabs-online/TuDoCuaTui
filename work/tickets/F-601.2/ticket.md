@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T07:51:07Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/18 |
 
 ## Goal
 Turn parsed rows into valid items, with a clear error per invalid row.
@@ -61,3 +61,8 @@ Turn parsed rows into valid items, with a clear error per invalid row.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). `mapRows` in `csv/map.ts` with header aliases, enum lookups, F-201 rules, per-row errors; template moved to `csv/template.ts`. PR #18.
+- In progress / next: Ming merges PR #18; F-601.3 (import preview UI) then needs F-004.3 too.
+- Gotchas: empty category/status default to "Khác"/"Đang dùng" (planner assumption, flagged in PR); F-201 rules are duplicated until a shared validator exists.
