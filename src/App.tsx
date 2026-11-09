@@ -1,66 +1,45 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { Item, Status } from "@/types/item";
+import type { Item } from "@/types/item";
 import { useWardrobe } from "@/data/useWardrobe";
 import { toCsv } from "@/features/import-export/csv/serialize";
-import { ageInDays, isStale, matchesFilters, sortItems } from "@/features/items/filters";
+import { blankItem } from "@/features/items/blankItem";
+import { Editor } from "@/features/items/Editor";
+import { FilterBar } from "@/features/items/FilterBar";
+import { ItemGrid } from "@/features/items/ItemGrid";
+import { StatsRow } from "@/features/items/StatsRow";
+import { useItemFilters } from "@/features/items/useItemFilters";
+import { Header } from "@/features/layout/Header";
+import { Hero } from "@/features/layout/Hero";
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
-import { Empty } from "@/components/Empty";
 import { Field } from "@/components/Field";
-import { FilterSelect } from "@/components/FilterSelect";
 import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/Modal";
-import { Skeleton } from "@/components/Skeleton";
-import {
-  categoryIcons,
-  categoryNames,
-  colorMap,
-  colors,
-  frameColors,
-  seasons,
-  sortOptions,
-  statuses,
-} from "@/constants/wardrobe";
+import { statuses } from "@/constants/wardrobe";
 import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
-
-const blankItem = (): Item => ({
-  id: "",
-  name: "",
-  category: "Áo",
-  status: "Đang dùng",
-  colors: [],
-  seasons: [],
-  brand: "",
-  size: "",
-  location: "",
-  price: 0,
-  purchaseDate: "",
-  material: "",
-  tags: [],
-  notes: "",
-  photo: "",
-  wearCount: 0,
-  lastWorn: "",
-  createdAt: new Date().toISOString(),
-});
 
 function App() {
   const wardrobe = useWardrobe(starter, locations);
   const { items, loading } = wardrobe;
   const locationOptions = wardrobe.locations;
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === "dark");
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("Tất cả");
-  const [filters, setFilters] = useState({
-    status: "",
-    season: "",
-    location: "",
-    color: "",
-    special: "",
-  });
-  const [sort, setSort] = useState<string>(sortOptions[0]);
+  const {
+    query,
+    setQuery,
+    category,
+    setCategory,
+    filters,
+    sort,
+    setSort,
+    counts,
+    visible,
+    hasActiveFilters,
+    setFilter,
+    toggleSpecial,
+    resetFilters,
+  } = useItemFilters(items);
   const [editor, setEditor] = useState<Item | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -77,21 +56,7 @@ function App() {
     setToast(s);
     setTimeout(() => setToast(""), 2400);
   };
-  const counts = useMemo(
-    () =>
-      Object.fromEntries(
-        categoryNames.map((c) => [c, items.filter((i) => i.category === c).length]),
-      ),
-    [items],
-  );
-  const visible = useMemo(() => {
-    return sortItems(
-      items.filter((i) => matchesFilters(i, { query, category, filters })),
-      sort,
-    );
-  }, [items, query, category, filters, sort]);
 
-  const most = [...items].sort((a, b) => b.wearCount - a.wearCount)[0];
   const openNew = () => {
     setEditor(blankItem());
     setIsNew(true);
@@ -112,13 +77,6 @@ function App() {
   };
   const update = <K extends keyof Item>(key: K, val: Item[K]) =>
     setEditor((p) => (p ? { ...p, [key]: val } : p));
-  const resetFilters = () => {
-    setQuery("");
-    setCategory("Tất cả");
-    setFilters({ status: "", season: "", location: "", color: "", special: "" });
-  };
-  const toggleSpecial = (s: string) =>
-    setFilters((f) => ({ ...f, special: f.special === s ? "" : s }));
 
   const download = (type: "json" | "csv") => {
     const blob = new Blob([type === "json" ? JSON.stringify(items, null, 2) : toCsv(items)], {
@@ -134,41 +92,16 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brandmark">
-          <span className="brand-icon">
-            <Icon name="shirt" size={21} />
-          </span>
-          <div>
-            <b>Tủ đồ</b>
-            <span>{items.length} món</span>
-          </div>
-        </div>
-        <div className="header-actions">
-          <button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Đổi giao diện">
-            <Icon name={dark ? "sun" : "moon"} />
-          </button>
-          {wardrobe.mode === "supabase" && (
-            <button
-              className="icon-btn"
-              onClick={wardrobe.signOut}
-              aria-label="Đăng xuất"
-              title="Đăng xuất"
-            >
-              <Icon name="logout" />
-            </button>
-          )}
-          <Btn className="desktop-btn" onClick={() => setImportOpen(true)}>
-            <Icon name="import" /> Import
-          </Btn>
-          <Btn className="desktop-btn" onClick={() => setExportOpen(true)}>
-            <Icon name="export" /> Export
-          </Btn>
-          <Btn kind="primary" onClick={openNew}>
-            <Icon name="plus" /> <span>Thêm món đồ</span>
-          </Btn>
-        </div>
-      </header>
+      <Header
+        count={items.length}
+        dark={dark}
+        onToggleDark={() => setDark(!dark)}
+        showSignOut={wardrobe.mode === "supabase"}
+        onSignOut={wardrobe.signOut}
+        onImport={() => setImportOpen(true)}
+        onExport={() => setExportOpen(true)}
+        onAdd={openNew}
+      />
 
       {wardrobe.error && (
         <div
@@ -185,85 +118,13 @@ function App() {
         </div>
       )}
       <main>
-        <section className="intro">
-          <div className="hero-copy">
-            <p className="eyebrow">TỦ ĐỒ CÁ NHÂN</p>
-            <h1>
-              Tủ đồ là <em>phong cách</em>
-              <br /> của bạn
-            </h1>
-            <p>
-              Hôm nay có {items.filter((i) => isStale(i)).length} món lâu chưa mặc — thử một món
-              nhé?
-            </p>
-          </div>
-          <div className="hero-collage" aria-label="Một vài món đồ trong bộ sưu tập">
-            {items
-              .filter((item) => item.photo)
-              .slice(0, 4)
-              .map((item, index) => (
-                <div className={`collage-card collage-${index + 1}`} key={item.id}>
-                  <img src={item.photo} alt={item.name} />
-                  <span>{["Mới mua", "Yêu thích", "Mặc nhiều nhất", "Dễ phối"][index]}</span>
-                </div>
-              ))}
-            <i className="hero-sparkle sparkle-one">✦</i>
-            <i className="hero-sparkle sparkle-two">✧</i>
-            <svg className="hero-squiggle" viewBox="0 0 90 25" aria-hidden="true">
-              <path d="M2 17c14-23 29 16 44-6 14-20 25 14 42-8" />
-            </svg>
-          </div>
-          <div className="mobile-import">
-            <Btn onClick={() => setImportOpen(true)}>
-              <Icon name="import" /> Import
-            </Btn>
-            <Btn onClick={() => setExportOpen(true)}>
-              <Icon name="export" /> Export
-            </Btn>
-          </div>
-        </section>
+        <Hero
+          items={items}
+          onImport={() => setImportOpen(true)}
+          onExport={() => setExportOpen(true)}
+        />
 
-        <section className="stats-grid">
-          <div className="stat-card">
-            <span>Tổng món đồ</span>
-            <strong>{items.length}</strong>
-            <small>
-              {new Set(items.map((i) => i.location).filter(Boolean)).size} vị trí lưu trữ
-            </small>
-          </div>
-          <div className="stat-card">
-            <span>Tổng giá trị</span>
-            <strong className="money">
-              {items.reduce((s, i) => s + i.price, 0).toLocaleString("vi-VN")} ₫
-            </strong>
-            <small>Giá mua ban đầu</small>
-          </div>
-          <button
-            className={`stat-card clickable ${filters.special === "stale" ? "active" : ""}`}
-            onClick={() => toggleSpecial("stale")}
-          >
-            <span>≥ 90 ngày chưa mặc</span>
-            <strong>{items.filter((i) => isStale(i)).length}</strong>
-            <small>
-              Xem những món bị lãng quên <span>→</span>
-            </small>
-          </button>
-          <button
-            className={`stat-card clickable ${filters.special === "never" ? "active" : ""}`}
-            onClick={() => toggleSpecial("never")}
-          >
-            <span>Chưa mặc lần nào</span>
-            <strong>{items.filter((i) => i.wearCount === 0).length}</strong>
-            <small>
-              Bắt đầu phối đồ <span>→</span>
-            </small>
-          </button>
-          <div className="stat-card most">
-            <span>Mặc nhiều nhất</span>
-            <strong>{most?.name}</strong>
-            <small>{most?.wearCount} lần mặc</small>
-          </div>
-        </section>
+        <StatsRow items={items} special={filters.special} onToggleSpecial={toggleSpecial} />
 
         <section className="wardrobe-panel">
           <div className="panel-heading">
@@ -272,100 +133,38 @@ function App() {
               <h2>Tất cả món đồ</h2>
               <span>{visible.length} kết quả</span>
             </div>
-            {(query || category !== "Tất cả" || Object.values(filters).some(Boolean)) && (
+            {hasActiveFilters && (
               <button className="text-btn" onClick={resetFilters}>
                 Xoá bộ lọc
               </button>
             )}
           </div>
-          <div className="toolbar">
-            <label className="searchbox">
-              <Icon name="search" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tìm theo tên, hãng, màu, tag, chất liệu, ghi chú, vị trí…"
-              />
-              {query && (
-                <button onClick={() => setQuery("")}>
-                  <Icon name="close" size={15} />
-                </button>
-              )}
-            </label>
-            <FilterSelect
-              value={filters.status}
-              onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
-              label="Trạng thái"
-              options={statuses}
-            />
-            <FilterSelect
-              value={filters.season}
-              onChange={(v) => setFilters((f) => ({ ...f, season: v }))}
-              label="Mùa"
-              options={seasons}
-            />
-            <FilterSelect
-              value={filters.location}
-              onChange={(v) => setFilters((f) => ({ ...f, location: v }))}
-              label="Vị trí lưu trữ"
-              options={locationOptions}
-            />
-            <FilterSelect
-              value={filters.color}
-              onChange={(v) => setFilters((f) => ({ ...f, color: v }))}
-              label="Màu"
-              options={colors}
-            />
-            <FilterSelect
-              value={sort}
-              onChange={setSort}
-              label="Sắp xếp"
-              options={sortOptions}
-              sort
-            />
-          </div>
-          <div className="categories">
-            {["Tất cả", ...categoryNames].map((c) => (
-              <button
-                key={c}
-                className={category === c ? "active" : ""}
-                onClick={() => setCategory(c)}
-              >
-                <i>{categoryIcons[c]}</i>
-                {c}
-                <span>{c === "Tất cả" ? items.length : counts[c]}</span>
-              </button>
-            ))}
-          </div>
+          <FilterBar
+            query={query}
+            onQuery={setQuery}
+            filters={filters}
+            onFilter={setFilter}
+            sort={sort}
+            onSort={setSort}
+            category={category}
+            onCategory={setCategory}
+            locationOptions={locationOptions}
+            counts={counts}
+            total={items.length}
+          />
 
-          {loading ? (
-            <Skeleton />
-          ) : visible.length ? (
-            <div className="item-grid">
-              {visible.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  age={ageInDays}
-                  onClick={() => {
-                    setEditor({ ...item });
-                    setIsNew(false);
-                  }}
-                />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <Empty onAdd={openNew} onImport={() => setImportOpen(true)} />
-          ) : (
-            <div className="no-results">
-              <span>
-                <Icon name="search" size={26} />
-              </span>
-              <h3>Không tìm thấy món đồ</h3>
-              <p>Thử một từ khoá khác hoặc xoá bớt bộ lọc.</p>
-              <Btn onClick={resetFilters}>Xoá bộ lọc</Btn>
-            </div>
-          )}
+          <ItemGrid
+            loading={loading}
+            visible={visible}
+            total={items.length}
+            onOpen={(item) => {
+              setEditor({ ...item });
+              setIsNew(false);
+            }}
+            onAdd={openNew}
+            onImport={() => setImportOpen(true)}
+            onReset={resetFilters}
+          />
         </section>
       </main>
 
@@ -435,338 +234,6 @@ function App() {
         </div>
       )}
     </div>
-  );
-}
-
-function ItemCard({
-  item,
-  age,
-  onClick,
-}: {
-  item: Item;
-  age: (s: string) => number;
-  onClick: () => void;
-}) {
-  const days = age(item.lastWorn);
-  const frameIndex = Number.parseInt(item.id.replace(/\D/g, "").slice(-2) || "0", 10);
-  return (
-    <button className="item-card" onClick={onClick}>
-      <div
-        className="photo-wrap"
-        style={{ "--frame": frameColors[frameIndex % frameColors.length] } as React.CSSProperties}
-      >
-        {item.photo ? (
-          <img src={item.photo} alt={item.name} />
-        ) : (
-          <div className="photo-placeholder">
-            <Icon name="shirt" size={42} />
-            <span>Chưa có ảnh</span>
-          </div>
-        )}
-        {item.status !== "Đang dùng" && (
-          <span className={`badge badge-${item.status.replaceAll(" ", "-")}`}>{item.status}</span>
-        )}
-        <span className="wear-pill">
-          👕 {item.wearCount}× ·{" "}
-          {days > 365 ? "hơn 1 năm" : days === 0 ? "hôm nay" : `${days} ngày`}
-        </span>
-        <i className="card-sparkle">✦</i>
-      </div>
-      <div className="card-info">
-        <div className="card-title">
-          <h3>{item.name}</h3>
-          <div className="dots">
-            {item.colors.slice(0, 3).map((c) => (
-              <i key={c} title={c} style={{ background: colorMap[c] }} />
-            ))}
-          </div>
-        </div>
-        <p>
-          {item.category} · {item.brand || "Không hãng"}
-        </p>
-        <p className="location">{item.location || "Chưa có vị trí"}</p>
-      </div>
-    </button>
-  );
-}
-
-function Editor({
-  item,
-  locations,
-  isNew,
-  update,
-  onClose,
-  onSave,
-  onDelete,
-  onDuplicate,
-  onWorn,
-}: {
-  item: Item;
-  locations: string[];
-  isNew: boolean;
-  update: <K extends keyof Item>(k: K, v: Item[K]) => void;
-  onClose: () => void;
-  onSave: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onWorn: (n: number) => void;
-}) {
-  const file = useRef<HTMLInputElement>(null);
-  const toggle = (key: "colors" | "seasons", v: string) =>
-    update(key, item[key].includes(v) ? item[key].filter((x) => x !== v) : [...item[key], v]);
-  const upload = (f?: File) => {
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => update("photo", String(r.result));
-    r.readAsDataURL(f);
-  };
-  return (
-    <Modal onClose={onClose} wide>
-      <div className="modal-header editor-header">
-        <div>
-          <p className="eyebrow">{isNew ? "THÊM VÀO BỘ SƯU TẬP" : "CHI TIẾT MÓN ĐỒ"}</p>
-          <h2>{isNew ? "Món đồ mới" : item.name}</h2>
-        </div>
-        <button className="icon-btn" onClick={onClose}>
-          <Icon name="close" />
-        </button>
-      </div>
-      <div className="editor-body">
-        <div className="photo-column">
-          <button
-            className={`upload-zone ${item.photo ? "has-photo" : ""}`}
-            onClick={() => file.current?.click()}
-            onDrop={(e) => {
-              e.preventDefault();
-              upload(e.dataTransfer.files[0]);
-            }}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            {item.photo ? (
-              <img src={item.photo} alt="Ảnh món đồ" />
-            ) : (
-              <>
-                <span className="upload-icon">
-                  <Icon name="image" size={25} />
-                </span>
-                <b>Thêm ảnh món đồ</b>
-                <small>
-                  Nhấp hoặc kéo ảnh vào đây
-                  <br />
-                  JPG, PNG · tối đa 10MB
-                </small>
-              </>
-            )}
-          </button>
-          <div className="photo-caption">
-            <div>
-              <small>MÓN ĐỒ CỦA BẠN</small>
-              <b>{item.name || "Chưa đặt tên"}</b>
-            </div>
-            <span>↗</span>
-          </div>
-          <input
-            ref={file}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => upload(e.target.files?.[0])}
-          />
-          <Btn
-            className="ai-btn"
-            onClick={() => {
-              update("name", item.name || "Áo sơ mi dáng rộng");
-              update("category", "Áo");
-              update("colors", ["Kem"]);
-              update("seasons", ["Xuân", "Hạ"]);
-              update("tags", ["đi làm", "tối giản"]);
-            }}
-          >
-            <Icon name="sparkle" /> Tự điền từ ảnh
-          </Btn>
-          {item.photo && (
-            <button className="remove-photo" onClick={() => update("photo", "")}>
-              Bỏ ảnh
-            </button>
-          )}
-        </div>
-        <div className="form-column">
-          {!isNew && (
-            <div className="wear-bar">
-              <div>
-                <span>
-                  <Icon name="shirt" />
-                </span>
-                <div>
-                  <b>Đã mặc {item.wearCount} lần</b>
-                  <small>
-                    {item.lastWorn
-                      ? `Lần cuối ${Math.floor((Date.now() - +new Date(item.lastWorn)) / 86400000)} ngày trước`
-                      : "Chưa có lịch sử"}
-                  </small>
-                </div>
-              </div>
-              <div>
-                <Btn onClick={() => onWorn(-1)}>−1</Btn>
-                <Btn kind="primary" onClick={() => onWorn(1)}>
-                  <Icon name="shirt" /> Mặc hôm nay
-                </Btn>
-              </div>
-            </div>
-          )}
-          <h3 className="form-section-title">
-            Thông tin <em>món đồ</em>
-          </h3>
-          <div className="form-grid">
-            <Field label="Tên món đồ" wide>
-              <input
-                autoFocus
-                value={item.name}
-                onChange={(e) => update("name", e.target.value)}
-                placeholder="Ví dụ: Áo sơ mi linen trắng"
-              />
-            </Field>
-            <Field label="Loại">
-              <select value={item.category} onChange={(e) => update("category", e.target.value)}>
-                {categoryNames.map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Trạng thái">
-              <select
-                value={item.status}
-                onChange={(e) => update("status", e.target.value as Status)}
-              >
-                {statuses.map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Hãng">
-              <input
-                value={item.brand}
-                onChange={(e) => update("brand", e.target.value)}
-                placeholder="Uniqlo, Zara…"
-              />
-            </Field>
-            <Field label="Size">
-              <input
-                value={item.size}
-                onChange={(e) => update("size", e.target.value)}
-                placeholder="S, M, 38…"
-              />
-            </Field>
-            <Field label="Vị trí lưu trữ" wide>
-              <input
-                list="locations"
-                value={item.location}
-                onChange={(e) => update("location", e.target.value)}
-                placeholder="Chọn hoặc nhập vị trí"
-              />
-              <datalist id="locations">
-                {locations.map((x) => (
-                  <option key={x} value={x} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Giá mua (₫)">
-              <input
-                type="number"
-                value={item.price || ""}
-                onChange={(e) => update("price", +e.target.value)}
-                placeholder="0"
-              />
-            </Field>
-            <Field label="Ngày mua">
-              <input
-                type="date"
-                value={item.purchaseDate}
-                onChange={(e) => update("purchaseDate", e.target.value)}
-              />
-            </Field>
-            <Field label="Chất liệu" wide>
-              <input
-                value={item.material}
-                onChange={(e) => update("material", e.target.value)}
-                placeholder="Cotton, linen, denim…"
-              />
-            </Field>
-            <Field label="Màu sắc" wide>
-              <div className="choice-chips colors">
-                {colors.map((c) => (
-                  <button
-                    type="button"
-                    key={c}
-                    className={item.colors.includes(c) ? "selected" : ""}
-                    onClick={() => toggle("colors", c)}
-                  >
-                    <i style={{ background: colorMap[c] }} />
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Mùa" wide>
-              <div className="choice-chips">
-                {seasons.map((s) => (
-                  <button
-                    type="button"
-                    key={s}
-                    className={item.seasons.includes(s) ? "selected" : ""}
-                    onClick={() => toggle("seasons", s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Dịp / tag" wide>
-              <input
-                value={item.tags.join(", ")}
-                onChange={(e) =>
-                  update(
-                    "tags",
-                    e.target.value
-                      .split(",")
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  )
-                }
-                placeholder="đi làm, đi chơi, dự tiệc…"
-              />
-            </Field>
-            <Field label="Ghi chú" wide>
-              <textarea
-                value={item.notes}
-                onChange={(e) => update("notes", e.target.value)}
-                placeholder="Cách bảo quản, phối cùng…"
-              />
-            </Field>
-          </div>
-        </div>
-      </div>
-      <div className="modal-footer">
-        {!isNew ? (
-          <div>
-            <Btn kind="danger" onClick={onDelete}>
-              <Icon name="trash" /> Xoá
-            </Btn>
-            <Btn onClick={onDuplicate}>
-              <Icon name="copy" /> Nhân bản
-            </Btn>
-          </div>
-        ) : (
-          <div />
-        )}
-        <div>
-          <Btn onClick={onClose}>Huỷ</Btn>
-          <Btn kind="primary" onClick={onSave}>
-            Lưu món đồ
-          </Btn>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
