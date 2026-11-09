@@ -41,3 +41,27 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; test-only plus config and dev dependencies.
 - Diff size: ~3 new files (~900 lines incl. tests), config +1/-1, package.json +2.
+
+## Attempt 2 — 2026-11-09 (REWORK)
+
+### Files touched
+- `src/data/repo.supabase.test.ts` — required because review Issue 1 (AC4) asked for call-log assertions. Test-only; no source change.
+
+### Changes per finding (Issue 1)
+Added call-log assertions to all 18 listed tests, using the existing `call()` / `methods()` helpers:
+- list (5 tests): `order created_at desc` call on the items view.
+- locations (2 tests): full 4-entry `tudo_locations` log.
+- save/photo: blob URL (upload args + photo insert), insert-error (insert with `NEW_PATH`, `pending()` 0), no-user (items upsert, no photo calls), list-rows failure (`eq item_id`, no delete), copy insert error (insert call), external URL ok (insert with width/height), external URL fails (no photo calls, re-fetch `eq id`).
+- remove delete-error: photo-rows delete index is lower than the `tudo_items` `eq id` index.
+- wear: `-1` lookup error (order call, no delete, no ITEMS calls); two null/stats tests assert `select wear_count, last_worn`.
+- Nits skipped (cosmetic, outside this rework).
+
+### Check results
+- typecheck: `tsc --noEmit` no errors
+- format:check: "All matched files use the correct format."
+- test: 209 passed (209)
+- test:coverage: exit 0; Statements 100% (348/348), Branches 100% (291/291), Lines 100% (293/293)
+- build: `vite build` built
+
+### Scope self-check
+Only the test file and this log changed.

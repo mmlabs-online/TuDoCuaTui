@@ -108,6 +108,7 @@ describe("createSupabaseRepo", () => {
       fake.push({ data: [makeRow()] });
       expect(await make().list()).toHaveLength(1);
       expect(fake.storage.createSignedUrls).not.toHaveBeenCalled();
+      expect(fake.calls).toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }));
     });
 
     test("uses an empty photo for a path that got no signed URL", async () => {
@@ -122,17 +123,20 @@ describe("createSupabaseRepo", () => {
         error: null,
       });
       expect((await make().list()).map((i) => i.photo)).toEqual(["", ""]);
+      expect(fake.calls).toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }));
     });
 
     test("returns [] when data is null", async () => {
       fake.push({ data: null });
       expect(await make().list()).toEqual([]);
+      expect(fake.calls).toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }));
     });
 
     test("throws the query error", async () => {
       const err = { code: "42501" };
       fake.push({ error: err });
       await expect(make().list()).rejects.toBe(err);
+      expect(fake.calls).toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }));
     });
 
     test("throws the signing error", async () => {
@@ -140,6 +144,7 @@ describe("createSupabaseRepo", () => {
       fake.push({ data: [makeRow({ primary_photo_path: "p/a.jpg" })] });
       fake.storage.createSignedUrls.mockResolvedValue({ data: null, error: err });
       await expect(make().list()).rejects.toBe(err);
+      expect(fake.calls).toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }));
     });
   });
 
@@ -158,12 +163,24 @@ describe("createSupabaseRepo", () => {
     test("returns [] when data is null", async () => {
       fake.push({ data: null });
       expect(await make().locations()).toEqual([]);
+      expect(fake.calls).toEqual([
+        call("tudo_locations", "from"),
+        call("tudo_locations", "select", "name"),
+        call("tudo_locations", "order", "sort_order"),
+        call("tudo_locations", "order", "name"),
+      ]);
     });
 
     test("throws the query error", async () => {
       const err = { code: "42501" };
       fake.push({ error: err });
       await expect(make().locations()).rejects.toBe(err);
+      expect(fake.calls).toEqual([
+        call("tudo_locations", "from"),
+        call("tudo_locations", "select", "name"),
+        call("tudo_locations", "order", "sort_order"),
+        call("tudo_locations", "order", "name"),
+      ]);
     });
   });
 
@@ -313,6 +330,19 @@ describe("createSupabaseRepo", () => {
         await make().save(makeItem({ photo: "blob:http://localhost/abc" }));
         expect(urlToBlob).toHaveBeenCalledWith("blob:http://localhost/abc");
         expect(fake.storage.upload).toHaveBeenCalledTimes(1);
+        expect(fake.storage.upload).toHaveBeenCalledWith(NEW_PATH, resized, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+        expect(fake.calls).toContainEqual(
+          call("tudo_item_photos", "insert", {
+            item_id: ID,
+            storage_path: NEW_PATH,
+            is_primary: true,
+            width: 800,
+            height: 600,
+          }),
+        );
       });
 
       test("upload with no previous photo skips storage.remove", async () => {
@@ -339,15 +369,26 @@ describe("createSupabaseRepo", () => {
           err,
         );
         expect(fake.storage.remove).toHaveBeenCalledWith([NEW_PATH]);
+        expect(fake.calls).toContainEqual(
+          call("tudo_item_photos", "insert", {
+            item_id: ID,
+            storage_path: NEW_PATH,
+            is_primary: true,
+            width: 800,
+            height: 600,
+          }),
+        );
+        expect(fake.pending()).toBe(0);
       });
 
       test("throws 'Chưa đăng nhập' when there is no signed-in user", async () => {
         fake = createFakeSupabase(null);
         fake.push({ data: { id: ID } });
-        await expect(make().save(makeItem({ photo: "data:image/png;base64,AAA" }))).rejects.toThrow(
-          "Chưa đăng nhập",
-        );
+        const item = makeItem({ photo: "data:image/png;base64,AAA" });
+        await expect(make().save(item)).rejects.toThrow("Chưa đăng nhập");
         expect(fake.storage.upload).not.toHaveBeenCalled();
+        expect(fake.calls).toContainEqual(call("tudo_items", "upsert", itemToRow(item, null)));
+        expect(methods("tudo_item_photos")).toEqual([]);
       });
 
       test("a cleared photo deletes the item's photo rows and files", async () => {
@@ -370,6 +411,8 @@ describe("createSupabaseRepo", () => {
         await expect(
           make().save(makeItem({ photo: "", photoPath: `user-1/${ID}/p.jpg` })),
         ).rejects.toBe(err);
+        expect(fake.calls).toContainEqual(call("tudo_item_photos", "eq", "item_id", ID));
+        expect(methods("tudo_item_photos")).not.toContain("delete");
       });
 
       test("a duplicated item's photo is copied into the new item's folder", async () => {
@@ -404,6 +447,13 @@ describe("createSupabaseRepo", () => {
           make().save(makeItem({ photo: "https://signed", photoPath: "user-1/other/p.jpg" })),
         ).rejects.toBe(err);
         expect(fake.storage.remove).not.toHaveBeenCalled();
+        expect(fake.calls).toContainEqual(
+          call("tudo_item_photos", "insert", {
+            item_id: ID,
+            storage_path: NEW_PATH,
+            is_primary: true,
+          }),
+        );
       });
 
       test("an external http URL is uploaded best effort", async () => {
@@ -411,6 +461,15 @@ describe("createSupabaseRepo", () => {
         await make().save(makeItem({ photo: "https://example.com/a.jpg" }));
         expect(urlToBlob).toHaveBeenCalledWith("https://example.com/a.jpg");
         expect(fake.storage.upload).toHaveBeenCalledWith(NEW_PATH, resized, expect.anything());
+        expect(fake.calls).toContainEqual(
+          call("tudo_item_photos", "insert", {
+            item_id: ID,
+            storage_path: NEW_PATH,
+            is_primary: true,
+            width: 800,
+            height: 600,
+          }),
+        );
       });
 
       test("a failing external URL is ignored and the item is still saved", async () => {
@@ -421,6 +480,8 @@ describe("createSupabaseRepo", () => {
           rowToItem(row),
         );
         expect(fake.storage.upload).not.toHaveBeenCalled();
+        expect(methods("tudo_item_photos")).toEqual([]);
+        expect(fake.calls).toContainEqual(call(ITEMS, "eq", "id", ID));
       });
 
       test("an owned photo is left untouched", async () => {
@@ -469,6 +530,13 @@ describe("createSupabaseRepo", () => {
       fake.push({ data: [{ id: "ph", storage_path: "p.jpg" }] }, { data: null }, { error: err });
       await expect(make().remove(makeItem())).rejects.toBe(err);
       expect(fake.storage.remove).toHaveBeenCalled();
+      const photosDelete = fake.calls.findIndex(
+        (c) => c.table === "tudo_item_photos" && c.method === "delete",
+      );
+      const itemEq = fake.calls.findIndex((c) => c.table === "tudo_items" && c.method === "eq");
+      expect(photosDelete).toBeGreaterThan(-1);
+      expect(photosDelete).toBeLessThan(itemEq);
+      expect(fake.calls[itemEq]).toEqual(call("tudo_items", "eq", "id", ID));
     });
 
     test("ignores storage and photo-row delete errors (records current behaviour)", async () => {
@@ -545,6 +613,11 @@ describe("createSupabaseRepo", () => {
       const err = { message: "lookup" };
       fake.push({ error: err });
       await expect(make().wear(makeItem(), -1)).rejects.toBe(err);
+      expect(fake.calls).toContainEqual(
+        call("tudo_wear_logs", "order", "worn_on", { ascending: false }),
+      );
+      expect(methods("tudo_wear_logs")).not.toContain("delete");
+      expect(methods(ITEMS)).toEqual([]);
     });
 
     test("-1 throws the delete error", async () => {
@@ -557,12 +630,14 @@ describe("createSupabaseRepo", () => {
     test("returns 0 and an empty string when stats are null", async () => {
       fake.push({ data: null }, { data: { wear_count: null, last_worn: null } });
       expect(await make().wear(makeItem(), 1)).toEqual({ wearCount: 0, lastWorn: "" });
+      expect(fake.calls).toContainEqual(call(ITEMS, "select", "wear_count, last_worn"));
     });
 
     test("throws the stats query error", async () => {
       const err = { message: "stats" };
       fake.push({ data: null }, { error: err });
       await expect(make().wear(makeItem(), 1)).rejects.toBe(err);
+      expect(fake.calls).toContainEqual(call(ITEMS, "select", "wear_count, last_worn"));
     });
   });
 });
