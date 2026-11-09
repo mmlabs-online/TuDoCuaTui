@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T06:41:33Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/15 |
 
 ## Goal
 Finish F-005's coverage goal: the Supabase repo and the `useWardrobe` hook are tested without a real backend, and CI enforces ≥ 80% coverage of `src/data/**` (excluding `photos.ts`).
@@ -55,3 +55,8 @@ Finish F-005's coverage goal: the Supabase repo and the `useWardrobe` hook are t
 - Done: took over the stale claim from 2026-11-07T12:29:04Z (no code had been written). Plan READY kept; work continues on the session branch `claude/loving-fermi-t90upb`, rebuilt on latest main.
 - In progress / next: implement attempt 1.
 - Gotchas: main moved since the plan (F-401, F-004.1, F-601.1 merged): `vitest.config.ts` now also has `src/lib/text.ts` and `csv/parse.ts` coverage entries; `src/data/demo.ts` now exists inside `src/data/**`.
+
+### 2026-11-09 — claude — DONE
+- Done: attempt 1 REWORK (18 tests lacked call-log assertions); attempt 2 PASS. 209 tests, `src/data/**` coverage 100%, gate verified to fail without the repo tests. PR #15 opened from `claude/loving-fermi-t90upb`.
+- In progress / next: Ming reviews and merges PR #15; old `ticket/F-005.2` branch (plan only) can be deleted.
+- Gotchas: follow-ups 1–6 in impl-log are real `repo.ts` weaknesses now pinned by tests; fixing them will change expected call logs.
