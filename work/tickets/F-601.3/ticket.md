@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T09:57:09Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/24 |
 
 ## Goal
 Ming can import a real spreadsheet, see what will happen first, and watch it run.
@@ -54,3 +54,8 @@ Ming can import a real spreadsheet, see what will happen first, and watch it run
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). Import mock removed; real CSV import with preview, progress, summary; `runImport` continues after failures and aborts after the current row; Photos/JSON tabs disabled with "Sắp có" (A1). PR #24.
+- In progress / next: Ming merges PR #24, confirms A1, decides whether to fix the 🟡 summary-vs-edited-CSV issue now or later; 200-row import check after M-1.
+- Gotchas: F-602 and F-603 build on `importMany(list, { onProgress, signal })` and must re-enable their tabs.
