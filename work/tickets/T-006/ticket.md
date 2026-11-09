@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | REWORK |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | F-101 |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-09 |
 | Claimed by | claude@2026-11-09T09:15:41Z |
 | PR | — |
@@ -72,6 +72,7 @@ magic link; the feature list is not edited by this ticket.
   the top of the run order. No "forgot password" requested.
 
 - 2026-11-09: Plan approved (2026-11-09) — Ming: "approve"; assumptions A1–A5 accepted as defaults (D19 recorded; feature list, M-1, M-4 updated on main).
+- 2026-11-09: After review attempt 1 (PASS) Ming chose "fix both, then open the PR": (1) clear the password from the form after successful sign-in and whenever the session changes (security-review 🟡 1), with a test; (2) README "Set up Supabase" step 3: drop the "confirm sign-ups and anonymous sign-ins are OFF (if not, stop)" check, which contradicts D18 — Auth stays as stoktok has it; log in with the existing stoktok email + password.
 
 ## Handoff
 
