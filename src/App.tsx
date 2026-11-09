@@ -694,7 +694,7 @@ function App() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tìm theo tên, hãng, màu, ghi chú…"
+                placeholder="Tìm theo tên, hãng, màu, tag, chất liệu, ghi chú, vị trí…"
               />
               {query && (
                 <button onClick={() => setQuery("")}>
