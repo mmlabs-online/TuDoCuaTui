@@ -17,14 +17,14 @@
 | Users | Single owner first (personal use). Data model is already per-user (RLS), so friends/family can sign up later without schema changes |
 | Platform | Web app, mobile-first usage (photographing clothes at the closet) → PWA later |
 | Frontend | React 19 + Vite 8 + Tailwind v4 + TypeScript. UI exported from Figma Make (`src/App.tsx`, ~1.5k lines, single file) |
-| Backend | Supabase: Postgres + Auth (magic link) + Storage (private bucket `wardrobe`), on the shared stoktok project (D17) |
+| Backend | Supabase: Postgres + Auth (email + password, shared stoktok accounts; D19) + Storage (private bucket `wardrobe`), on the shared stoktok project (D17) |
 | Language | UI copy in Vietnamese; code, file names, DB ids and tickets in English |
 
 ### Current state (after PR #1 `feat/supabase-backend`)
 - Schema: `tudo_locations`, `tudo_items`, `tudo_item_photos`, `tudo_wear_logs`, and the view `tudo_items_with_stats` (every DB object is prefixed `tudo_`, D17); RLS per user; storage policies on `{user_id}/{item_id}/...`.
 - Data layer: `src/data/repo.ts` (the `WardrobeRepo` interface with **local** and **supabase** implementations), `src/data/useWardrobe.ts`, `src/data/mappers.ts` (Vietnamese label ↔ enum id).
 - Local mode (no env vars) uses localStorage + 16 demo items, so the Figma Make preview keeps working.
-- `AuthGate` provides magic-link login and a sign-out button.
+- `AuthGate` provides email + password login (T-006, D19) and a sign-out button.
 - **Known gaps:**
   - `ImportModal` is a mock (adds 4 demo items).
   - Search is not diacritic-insensitive.
@@ -104,7 +104,7 @@ Set up the real Supabase project and verify PR #1.
 #### F-007 · Deploy · P0 · M1 · S
 - Deploy to Vercel or Cloudflare Pages (owner decides); preview deploy per PR; env vars configured.
 - Add the production URL to the Supabase redirect URLs.
-- **AC:** the prod URL works with magic-link login on a phone.
+- **AC:** the prod URL works with email + password login on a phone (D19).
 
 #### F-008 · Error monitoring · P2 · M2 · S
 - Sentry (or similar) for frontend errors; no PII in events.
@@ -119,7 +119,7 @@ Set up the real Supabase project and verify PR #1.
 - **AC:** matches the app style in light and dark mode; works on a 390px viewport.
 
 #### F-102 · Google sign-in · P2 · M2 · S
-- Supabase OAuth with Google, shown next to the magic link.
+- Supabase OAuth with Google, shown next to the email + password form (D19).
 
 #### F-103 · Account menu · P1 · M2 · S
 - Header avatar menu: email, theme toggle, export data, sign out.
