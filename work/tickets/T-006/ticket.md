@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | REVIEW |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | F-101 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-09 |
 | Claimed by | claude@2026-11-09T09:15:41Z |
 | PR | — |
