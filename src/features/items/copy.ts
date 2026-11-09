@@ -1,6 +1,10 @@
 export const EDITOR_COPY = {
   save: "Lưu món đồ",
   saving: "Đang lưu…",
+  photo: {
+    takePhoto: "Chụp ảnh",
+    pickFromLibrary: "Chọn từ thư viện",
+  },
   errors: {
     nameRequired: "Vui lòng nhập tên món đồ",
     nameTooLong: (max: number) => `Tên tối đa ${max} ký tự`,

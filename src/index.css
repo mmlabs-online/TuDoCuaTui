@@ -1935,6 +1935,21 @@ main {
 .photo-column .remove-photo {
   color: #ffc9a3;
 }
+.photo-source-actions {
+  display: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  .photo-source-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+}
+.photo-source-actions .btn {
+  border-color: #fff8eb;
+  color: #fff8eb;
+}
 .form-column {
   padding: 25px 28px;
   background: var(--surface);
