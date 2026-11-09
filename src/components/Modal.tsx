@@ -1,4 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+// Open modals, oldest first. Only the topmost one reacts to Escape.
+const stack: symbol[] = [];
 
 export function Modal({
   children,
@@ -9,8 +12,17 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const id = useRef(Symbol());
   useEffect(() => {
-    const f = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const mine = id.current;
+    stack.push(mine);
+    return () => {
+      stack.splice(stack.indexOf(mine), 1);
+    };
+  }, []);
+  useEffect(() => {
+    const f = (e: KeyboardEvent) =>
+      e.key === "Escape" && stack[stack.length - 1] === id.current && onClose();
     window.addEventListener("keydown", f);
     return () => window.removeEventListener("keydown", f);
   }, [onClose]);

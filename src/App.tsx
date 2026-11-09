@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Item } from "@/types/item";
 import { useWardrobe } from "@/data/useWardrobe";
@@ -57,9 +57,10 @@ function App() {
     setEditor(blankItem());
     setIsNew(true);
   };
+  const savingRef = useRef(false);
   const save = async () => {
-    if (!editor?.name.trim()) return notify("Vui lòng nhập tên món đồ");
-    if (saving) return;
+    if (!editor || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       await wardrobe.save(isNew ? { ...editor, id: crypto.randomUUID() } : editor);
@@ -68,6 +69,7 @@ function App() {
     } catch (e) {
       notify(wardrobe.message(e));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -157,6 +159,7 @@ function App() {
           item={editor}
           locations={locationOptions}
           isNew={isNew}
+          saving={saving}
           update={update}
           onClose={() => setEditor(null)}
           onSave={save}

@@ -133,12 +133,137 @@ describe("App (local mode)", () => {
     expect(screen.queryByText("CHI TIẾT MÓN ĐỒ")).toBeNull();
   });
 
-  it("saving a new item without a name shows a validation toast", async () => {
+  it("saving a new item without a name shows an inline error", async () => {
     await renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Thêm món đồ" }));
     fireEvent.click(screen.getByRole("button", { name: "Lưu món đồ" }));
-    await screen.findByText("Vui lòng nhập tên món đồ");
+    expect((await screen.findByRole("alert")).textContent).toBe("Vui lòng nhập tên món đồ");
     expect(screen.getByRole("heading", { name: "Món đồ mới" })).toBeTruthy();
+  });
+});
+
+describe("F-201 editor", () => {
+  const nameInput = () =>
+    screen.getByPlaceholderText("Ví dụ: Áo sơ mi linen trắng") as HTMLInputElement;
+  const priceInput = () => screen.getByPlaceholderText("0") as HTMLInputElement;
+  const dateInput = () => document.querySelector<HTMLInputElement>('input[type="date"]')!;
+  const openFirst = () => fireEvent.click(cards()[0]);
+  const saveBtn = () => screen.getByRole("button", { name: /Lưu món đồ|Đang lưu…/ });
+  const editorOpen = () => screen.queryByText("CHI TIẾT MÓN ĐỒ") !== null;
+  const closePaths: Record<string, () => void> = {
+    "X button": () =>
+      fireEvent.click(document.querySelector<HTMLElement>(".editor-header .icon-btn")!),
+    Huỷ: () => fireEvent.click(screen.getByRole("button", { name: "Huỷ" })),
+    Escape: () => fireEvent.keyDown(window, { key: "Escape" }),
+    "backdrop click": () => fireEvent.mouseDown(document.querySelector(".modal-backdrop")!),
+  };
+
+  it('double-clicking save adds one item and shows "Đang lưu…"', async () => {
+    await renderApp();
+    openFirst();
+    fireEvent.click(screen.getByRole("button", { name: "Nhân bản" }));
+    const btn = saveBtn();
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(saveBtn().textContent).toBe("Đang lưu…");
+    expect((saveBtn() as HTMLButtonElement).disabled).toBe(true);
+    await screen.findByText("Đã thêm vào tủ");
+    await waitFor(() => expect(cards()).toHaveLength(17));
+  });
+
+  it("a failed save shows the repo error as a toast", async () => {
+    await renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Thêm món đồ" }));
+    fireEvent.change(nameInput(), { target: { value: "Áo mới" } });
+    // The local repo swallows storage errors, so fail the id generation inside App.save's try.
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      throw new Error("Hết dung lượng");
+    });
+    fireEvent.click(saveBtn());
+    await screen.findByText("Hết dung lượng");
+    expect(screen.getByRole("heading", { name: "Món đồ mới" })).toBeTruthy();
+    await waitFor(() => expect(saveBtn().textContent).toBe("Lưu món đồ"));
+  });
+
+  describe("unsaved-changes guard", () => {
+    for (const [path, close] of Object.entries(closePaths)) {
+      it(path, async () => {
+        await renderApp();
+        openFirst();
+        const oldName = nameInput().value;
+        fireEvent.change(nameInput(), { target: { value: "Tên khác" } });
+        close();
+        expect(screen.getByText("Bỏ thay đổi?")).toBeTruthy();
+        if (path === "Escape") {
+          fireEvent.keyDown(window, { key: "Escape" });
+          expect(screen.queryByText("Bỏ thay đổi?")).toBeNull();
+          expect(editorOpen()).toBe(true);
+          close();
+        }
+        fireEvent.click(screen.getByRole("button", { name: "Tiếp tục sửa" }));
+        expect(screen.queryByText("Bỏ thay đổi?")).toBeNull();
+        expect(nameInput().value).toBe("Tên khác");
+        close();
+        fireEvent.click(screen.getByRole("button", { name: "Bỏ thay đổi" }));
+        expect(editorOpen()).toBe(false);
+        expect(cards()[0].querySelector("h3")?.textContent).toBe(oldName);
+      });
+    }
+  });
+
+  it("closes without asking when nothing changed", async () => {
+    await renderApp();
+    for (const close of Object.values(closePaths)) {
+      openFirst();
+      close();
+      expect(screen.queryByText("Bỏ thay đổi?")).toBeNull();
+      expect(editorOpen()).toBe(false);
+    }
+  });
+
+  it("wear +1 alone does not count as an unsaved change", async () => {
+    await renderApp();
+    openFirst();
+    fireEvent.click(screen.getByRole("button", { name: "Mặc hôm nay" }));
+    await screen.findByText("Đã ghi nhận mặc hôm nay");
+    closePaths.Huỷ();
+    expect(screen.queryByText("Bỏ thay đổi?")).toBeNull();
+    expect(editorOpen()).toBe(false);
+  });
+
+  it("a negative price shows an inline error and is not saved", async () => {
+    await renderApp();
+    openFirst();
+    fireEvent.change(priceInput(), { target: { value: "-1" } });
+    fireEvent.click(saveBtn());
+    expect((await screen.findByRole("alert")).textContent).toBe("Giá không được âm");
+    expect(screen.queryByText("Đã lưu thay đổi")).toBeNull();
+    expect(editorOpen()).toBe(true);
+    fireEvent.change(priceInput(), { target: { value: "0" } });
+    fireEvent.click(saveBtn());
+    await screen.findByText("Đã lưu thay đổi");
+  });
+
+  it("name and future-date errors are inline", async () => {
+    await renderApp();
+    openFirst();
+    fireEvent.change(nameInput(), { target: { value: "a".repeat(121) } });
+    const tomorrow = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    fireEvent.change(dateInput(), { target: { value: tomorrow } });
+    fireEvent.click(saveBtn());
+    await screen.findByText("Tên tối đa 120 ký tự");
+    expect(screen.getByText("Ngày mua không được ở tương lai")).toBeTruthy();
+    expect(screen.queryByText("Đã lưu thay đổi")).toBeNull();
+  });
+
+  it("Escape on the delete confirm closes only the confirm", async () => {
+    await renderApp();
+    openFirst();
+    fireEvent.click(screen.getByRole("button", { name: "Xoá" }));
+    expect(screen.getByText("Xoá món đồ này?")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Xoá món đồ này?")).toBeNull();
+    expect(editorOpen()).toBe(true);
   });
 });
 

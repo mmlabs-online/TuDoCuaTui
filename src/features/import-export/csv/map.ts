@@ -3,6 +3,7 @@ import { normalize } from "@/lib/text";
 import type { Item, Status } from "@/types/item";
 import { CSV_MAP_COPY as COPY } from "../copy";
 import type { ParsedCsv } from "./parse";
+import { NAME_MAX, nameError } from "@/features/items/validate";
 import { toDateOnly } from "./serialize";
 
 export type CsvField =
@@ -41,8 +42,6 @@ export interface MapOptions {
   /** createdAt of the produced items; defaults to the current time. */
   now?: string;
 }
-
-const NAME_MAX = 120;
 
 const ALIASES: Record<CsvField, string[]> = {
   name: ["Tên", "name"],
@@ -153,8 +152,9 @@ export function mapRows(parsed: ParsedCsv, options: MapOptions = {}): MapResult 
     };
 
     const name = cell("name");
-    if (name === "") fail("name", COPY.nameRequired);
-    else if ([...name].length > NAME_MAX) fail("name", COPY.nameTooLong(NAME_MAX));
+    const ne = nameError(name);
+    if (ne === "nameRequired") fail("name", COPY.nameRequired);
+    else if (ne === "nameTooLong") fail("name", COPY.nameTooLong(NAME_MAX));
 
     const rawCategory = cell("category");
     let category = "Khác";

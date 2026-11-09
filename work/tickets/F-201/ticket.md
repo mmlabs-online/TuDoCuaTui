@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-004.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/20 |
 
 ## Goal
 Saving is safe and predictable: no double submits, no silently dropped values, no lost edits.
@@ -54,3 +54,8 @@ Saving is safe and predictable: no double submits, no silently dropped values, n
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). `validate.ts` + `dirty.ts`, inline errors, saving state, discard guard on 4 close paths, double-submit ref guard, Modal stack for Escape; map.ts uses shared name rule. PR #20.
+- In progress / next: Ming merges PR #20 and confirms the planner choices (inline-only errors, price 0 = unknown, duplicate close prompts).
+- Gotchas: Editor.tsx / App.tsx changed a lot — F-202.x, F-1002, T-001, T-002 and a possible F-004.4 build on this.
