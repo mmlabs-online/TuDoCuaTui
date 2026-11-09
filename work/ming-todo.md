@@ -16,15 +16,14 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       2. Paste `supabase/migrations/20261106000000_init.sql` and run it, then
          `20261107120000_rls_hardening.sql` and run it, in that order. If either fails, stop and report the error;
          do not re-run part of a file.
-      3. Auth → URL Configuration: **add** `http://localhost:8443` to Redirect URLs. Do not change the Site URL.
+      3. Auth → URL Configuration: no change needed for TuDo (password login, D19). Do not change the Site URL.
       4. Auth: no changes (D18). Log in to TuDo with your existing stoktok account.
       5. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 - [ ] **M-2 — Smoke test** (after F-001 is merged and M-1 is done): run `docs/qa/smoke-test.md` once in Supabase
       mode; fill in its results table; file each failure with `/ticket`.
 - [ ] **M-3 — Branch protection** (after F-003 is merged): GitHub → Settings → Branches → `main`: require the `ci` check.
 - [ ] **M-4 — Cloudflare Pages** (after F-007 is merged): follow README → "Deploy": connect the repo, set the
-      production-only env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, add the production URL to the
-      Supabase Redirect URLs, then log in on a phone with a magic link.
+      production-only env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, then log in on a phone with your stoktok email + password (D19).
 - [ ] **M-5 — Verify the migrations** (after M-1), read-only in SQL Editor:
       `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name like 'tudo\_%' and grantee in ('anon','authenticated') order by 1,2,3;`
       Expect SELECT, INSERT, UPDATE, DELETE for `authenticated` on the 4 tables, SELECT on the view
