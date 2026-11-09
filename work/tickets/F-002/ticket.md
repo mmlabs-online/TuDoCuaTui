@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-001 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/16 |
 
 ## Goal
 DB types come from the real schema instead of a hand-written file, so schema drift shows up at compile time.
@@ -53,3 +53,8 @@ DB types come from the real schema instead of a hand-written file, so schema dri
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: took over the stale 2026-11-07 claim; re-consulted (database-optimizer) and re-planned after T-004; attempt 1 PASS. `db:types` script (pinned CLI 3.0.0, `--schema public`) + README sequence. PR #16.
+- In progress / next: Ming merges PR #16, then runs M-8 (first real regeneration, needs Docker) and commits the expected `graphql_public` diff via /solo.
+- Gotchas: CLI flags not verified here (no Docker, `--help` blocked); M-8 is the first real run. Plan says "M-7" = ming-todo M-8.
