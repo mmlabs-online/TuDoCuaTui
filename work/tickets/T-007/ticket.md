@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-09 |
-| Claimed by | claude@2026-11-09T13:13:00Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -87,4 +87,11 @@ In this repo:
 
 - 2026-11-09: Ming added the repo secrets `DEPLOY_REPO_TOKEN`, `DOCKERHUB_TOKEN`, `DOCKERHUB_USERNAME` to TuDoCuaTui (same names as stoktok). The two `VITE_SUPABASE_*` values are not added yet (they wait for M-1).
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-09 — claude — BLOCKED
+- Done: consult (software-architect) saved; plan.md READY with changes C1–C11 and assumptions A1–A11 (runner, Docker Hub visibility, release before M-1, Access, CI image job, risk-tiers, CLAUDE.md, no previews, versions, rollback, size).
+- In progress / next: Ming approves the plan (and confirms or changes A1–A11); then /run implements.
+- Gotchas: tunnel token in deployment/proxy/compose.yml is plaintext (M-9 proposed); CLAUDE.md Hosting line goes stale (Ming's call).
