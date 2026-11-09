@@ -25,6 +25,7 @@ export default defineConfig({
       include: [
         "src/data/**",
         "src/features/items/filters.ts",
+        "src/lib/text.ts",
         "src/features/import-export/csv/parse.ts",
       ],
       exclude: ["src/data/photos.ts", "**/*.test.*"],
@@ -32,6 +33,7 @@ export default defineConfig({
       thresholds: {
         "src/data/mappers.ts": thresholds,
         "src/features/items/filters.ts": thresholds,
+        "src/lib/text.ts": thresholds,
         "src/features/import-export/csv/parse.ts": thresholds,
       },
     },
