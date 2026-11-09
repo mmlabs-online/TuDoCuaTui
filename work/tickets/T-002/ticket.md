@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T08:45:37Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/21 |
 
 ## Goal
 Wear dates and counts are correct in Vietnam's time zone and behave the same in both modes.
@@ -54,3 +54,8 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS; security review no 🔴). `src/lib/dates.ts` calendar-day math; one wear per item per day in both modes with "already" toast; duplicate resets lastWorn. PR #21.
+- In progress / next: Ming merges PR #21 and checks double-tap wear on hosted Supabase (needs M-1).
+- Gotchas: `toDateOnly` still lives in import-export; `src/lib/dates.ts` not yet in coverage include.
