@@ -35,7 +35,7 @@ This repo uses its own ports so it does not collide with other Supabase stacks:
 | API (`VITE_SUPABASE_URL`) | `http://127.0.0.1:55321` |
 | Database | `55322` |
 | Studio (SQL editor, Storage) | `http://127.0.0.1:55323` |
-| Mail (Mailpit/Inbucket, magic links) | `http://127.0.0.1:55324` |
+| Mail (Mailpit/Inbucket) | `http://127.0.0.1:55324` |
 
 Reset to a clean database at any time with `npx supabase db reset`. When done:
 
@@ -44,12 +44,12 @@ npx supabase stop
 ```
 
 ### Run B values
-Project URL and anon key from the Supabase dashboard (Project Settings → API) go into `.env.local`. Prerequisites M-1: both migrations applied to the stoktok project in Dashboard → SQL Editor (never `db push`), and Auth → URL Configuration contains `http://localhost:8443`. Use the SQL editor in the dashboard and Storage → `wardrobe` for the checks.
+Project URL and anon key from the Supabase dashboard (Project Settings → API) go into `.env.local`. Prerequisites M-1: both migrations applied to the stoktok project in Dashboard → SQL Editor (never `db push`). Use the SQL editor in the dashboard and Storage → `wardrobe` for the checks.
 
 ### Differences between runs
 | | Run A | Run B |
 |---|---|---|
-| Magic link | Mailpit at `http://127.0.0.1:55324` | Real inbox |
+| Login user | Created in local Studio (Authentication → Add user) | Existing stoktok account |
 | SQL checks | Local Studio `http://127.0.0.1:55323` → SQL Editor | Dashboard → SQL Editor |
 | Storage view | Local Studio → Storage → `wardrobe` | Dashboard → Storage → `wardrobe` |
 | Browser | Desktop Chrome | Desktop Chrome, then a phone |
@@ -72,7 +72,7 @@ The SQL checks use these placeholders. Run these to find the values:
 Record the result of each step in the results table at the end.
 
 ### Step 1: Sign in
-- **Do:** open `http://localhost:8443`, enter your email, press "Gửi link đăng nhập", open the link from the mail inbox (Run A: Mailpit).
+- **Do:** open `http://localhost:8443`, enter your email and password, press "Đăng nhập". Run A: first create a user in local Studio (Authentication → Add user → Create new user, email + password, auto-confirm).
 - **Expected UI:** the app opens signed in, with an empty wardrobe and the empty-state text "Thêm món đồ đầu tiên hoặc import bộ sưu tập sẵn có."
 - **Expected DB:** `select id, email from auth.users;` lists your email.
 
