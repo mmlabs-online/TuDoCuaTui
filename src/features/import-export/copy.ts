@@ -1,0 +1,66 @@
+/** Vietnamese error messages for CSV row validation (F-601.2). */
+export const CSV_MAP_COPY = {
+  nameRequired: "Thiếu tên món đồ",
+  nameTooLong: (max: number) => `Tên dài quá ${max} ký tự`,
+  unknownCategory: (v: string) => `Loại không hợp lệ: ${v}`,
+  unknownStatus: (v: string) => `Trạng thái không hợp lệ: ${v}`,
+  unknownColors: (v: string[]) => `Màu không hợp lệ: ${v.join(", ")}`,
+  unknownSeasons: (v: string[]) => `Mùa không hợp lệ: ${v.join(", ")}`,
+  badPrice: (v: string) => `Giá không hợp lệ: ${v}`,
+  badDate: (v: string) => `Ngày mua không hợp lệ: ${v}`,
+  futureDate: (v: string) => `Ngày mua không được ở tương lai: ${v}`,
+};
+
+/** UI copy for the import and export modals (F-004.3). */
+export const IMPORT_EXPORT_COPY = {
+  import: {
+    eyebrow: "THÊM NHIỀU MÓN",
+    titleBefore: "Đưa tủ đồ",
+    titleEm: "vào app",
+    tabs: ["Ảnh hàng loạt", "CSV / Excel", "JSON (backup)"],
+    cancel: "Huỷ",
+    processing: "Đang xử lý…",
+    startImport: "Bắt đầu import",
+    checkAndImport: "Kiểm tra & import",
+    processingFile: (n: number) => `Đang xử lý ${n}/4: IMG_203${n}.jpg`,
+    parsedCount: (n: number) => `Nhận ${n} món`,
+    photos: {
+      dropTitle: "Kéo nhiều ảnh vào đây",
+      dropHint: "Mỗi ảnh sẽ trở thành một món đồ mới",
+      pickPhotos: "Chọn ảnh từ máy",
+      aiTitle: "Dùng AI nhận diện loại, màu, mùa",
+      aiHint: "Bạn luôn có thể kiểm tra và sửa lại sau",
+      locationLabel: "Vị trí lưu trữ mặc định",
+      locationPlaceholder: "Chọn vị trí…",
+      statusLabel: "Trạng thái mặc định",
+      defaultStatus: "Đang dùng",
+    },
+    csv: {
+      title: "Nhập danh sách từ bảng tính",
+      hint: "Tải lên file CSV hoặc dán dữ liệu. Hàng đầu tiên cần là tên các cột.",
+      sample: "Mẫu CSV",
+      copySample: "Copy mẫu",
+      pickFile: "Chọn file .csv",
+      orPaste: "hoặc dán dữ liệu",
+      pastePlaceholder: "Dán nội dung CSV tại đây…",
+      columnsHint: "Cột dùng được: name, category, colors, brand…",
+    },
+    json: {
+      title: "Khôi phục từ bản sao lưu",
+      hint: "Chọn tệp JSON đã xuất trước đó. Dữ liệu hiện tại sẽ được giữ nguyên và các món mới sẽ được thêm vào.",
+      pickFile: "Chọn file .json",
+      orPaste: "hoặc dán JSON",
+      pastePlaceholder: '[{"name": "Áo sơ mi", ...}]',
+    },
+  },
+  export: {
+    eyebrow: "SAO LƯU & CHIA SẺ",
+    title: "Export tủ đồ",
+    hint: "Chọn định dạng phù hợp với nhu cầu của bạn.",
+    jsonHint: "Bản sao lưu đầy đủ để khôi phục",
+    csvHint: "Mở bằng Excel hoặc Google Sheets",
+    photoNote: "Ảnh được giữ an toàn trong ứng dụng và không nằm trong tệp export.",
+  },
+  imported: (n: number) => `Đã thêm ${n} món vào tủ`,
+  exported: (t: "json" | "csv") => `Đã xuất ${t.toUpperCase()}`,
+};

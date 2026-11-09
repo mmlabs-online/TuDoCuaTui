@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import App from "@/App";
 import { starter } from "@/data/demo";
+import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
 
 afterEach(cleanup);
 
@@ -138,5 +139,121 @@ describe("App (local mode)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Lưu món đồ" }));
     await screen.findByText("Vui lòng nhập tên món đồ");
     expect(screen.getByRole("heading", { name: "Món đồ mới" })).toBeTruthy();
+  });
+});
+
+describe("App import/export (local mode)", () => {
+  const openImport = () => fireEvent.click(screen.getAllByRole("button", { name: "Import" })[0]);
+  const openExport = () => fireEvent.click(screen.getAllByRole("button", { name: "Export" })[0]);
+  const exportOption = (i: number) =>
+    document.querySelectorAll<HTMLElement>(".export-options button")[i];
+  const tabButton = (name: string) =>
+    Array.from(document.querySelectorAll<HTMLElement>(".tabs button")).find(
+      (b) => b.textContent === name,
+    )!;
+
+  it("import modal switches tabs and keeps pasted CSV across tabs", async () => {
+    await renderApp();
+    openImport();
+    expect(screen.getByText("Kéo nhiều ảnh vào đây")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bắt đầu import" })).toBeTruthy();
+    expect(tabButton("Ảnh hàng loạt").className).toContain("active");
+
+    fireEvent.click(tabButton("CSV / Excel"));
+    expect(tabButton("CSV / Excel").className).toContain("active");
+    expect(tabButton("Ảnh hàng loạt").className).not.toContain("active");
+    expect(screen.getByText("Nhập danh sách từ bảng tính")).toBeTruthy();
+    expect(document.querySelector("pre")!.textContent).toBe(CSV_TEMPLATE);
+    const area = () =>
+      screen.getByPlaceholderText("Dán nội dung CSV tại đây…") as HTMLTextAreaElement;
+    fireEvent.change(area(), { target: { value: "a\nb\nc" } });
+    expect(screen.getByText("Nhận 2 món")).toBeTruthy();
+
+    fireEvent.click(tabButton("JSON (backup)"));
+    expect(screen.getByText("Khôi phục từ bản sao lưu")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Kiểm tra & import" })).toBeTruthy();
+
+    fireEvent.click(tabButton("CSV / Excel"));
+    expect(area().value).toBe("a\nb\nc");
+
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
+  });
+
+  it('"Copy mẫu" copies the CSV template', async () => {
+    const writeText = vi.fn();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("CSV / Excel"));
+    fireEvent.click(screen.getByRole("button", { name: /Copy mẫu/ }));
+    expect(writeText).toHaveBeenCalledWith(CSV_TEMPLATE);
+  });
+
+  it("import mock shows progress, adds 4 items and closes", { timeout: 10000 }, async () => {
+    await renderApp();
+    openImport();
+    fireEvent.click(screen.getByRole("button", { name: "Bắt đầu import" }));
+    const busy = screen.getByRole("button", { name: "Đang xử lý…" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    const row = () => document.querySelector(".progress span")!.textContent;
+    expect(row()).toBe("Đang xử lý 1/4: IMG_2031.jpg");
+    expect(document.querySelector(".progress b")!.textContent).toBe("25%");
+
+    await screen.findByText("Đã thêm 4 món vào tủ", {}, { timeout: 5000 });
+    await waitFor(() => expect(cards()).toHaveLength(20));
+    expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
+  });
+
+  it("export JSON and CSV download files and keep the modal open", async () => {
+    const blobs: Blob[] = [];
+    const createObjectURL = vi.fn((b: Blob) => {
+      blobs.push(b);
+      return "blob:x";
+    });
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { value: createObjectURL, configurable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURL, configurable: true });
+    const names: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      names.push(this.download);
+    });
+    const read = (b: Blob) =>
+      new Promise<string>((resolve) => {
+        const r = new FileReader();
+        r.onload = () =>
+          resolve(new TextDecoder("utf-8", { ignoreBOM: true }).decode(r.result as ArrayBuffer));
+        r.readAsArrayBuffer(b);
+      });
+
+    await renderApp();
+    openExport();
+    fireEvent.click(exportOption(0));
+    expect(names).toEqual(["tu-do-cua-toi.json"]);
+    expect(blobs[0].type).toBe("application/json");
+    expect(JSON.parse(await read(blobs[0]))).toHaveLength(16);
+    await screen.findByText("Đã xuất JSON");
+
+    fireEvent.click(exportOption(1));
+    expect(names).toEqual(["tu-do-cua-toi.json", "tu-do-cua-toi.csv"]);
+    expect(blobs[1].type).toBe("text/csv;charset=utf-8");
+    expect(await read(blobs[1])).toMatch(/^\uFEFFname,/);
+    await screen.findByText("Đã xuất CSV");
+    expect(revokeObjectURL).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("SAO LƯU & CHIA SẺ")).toBeTruthy();
+  });
+
+  it("Escape and the close button close the modals", async () => {
+    await renderApp();
+    openExport();
+    expect(screen.getByText("SAO LƯU & CHIA SẺ")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("SAO LƯU & CHIA SẺ")).toBeNull();
+
+    openImport();
+    fireEvent.click(document.querySelector<HTMLElement>(".import-header .icon-btn")!);
+    expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
   });
 });
