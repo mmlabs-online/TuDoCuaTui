@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T12:29:04Z |
+| Claimed by | claude@2026-11-09T06:41:33Z |
 | PR | — |
 
 ## Goal
@@ -50,3 +50,8 @@ Finish F-005's coverage goal: the Supabase repo and the `useWardrobe` hook are t
 - 2026-11-07: created by the orchestrator from the F-005 split proposal (decision D6 allows it).
 
 ## Handoff
+
+### 2026-11-09 — claude — IN_PROGRESS (takeover)
+- Done: took over the stale claim from 2026-11-07T12:29:04Z (no code had been written). Plan READY kept; work continues on the session branch `claude/loving-fermi-t90upb`, rebuilt on latest main.
+- In progress / next: implement attempt 1.
+- Gotchas: main moved since the plan (F-401, F-004.1, F-601.1 merged): `vitest.config.ts` now also has `src/lib/text.ts` and `csv/parse.ts` coverage entries; `src/data/demo.ts` now exists inside `src/data/**`.
