@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | F-101 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-09 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/22 |
 
 ## Goal
 Ming signs in to TuDo with the same email and password as stoktok (shared Supabase Auth, D17/D18), instead of
@@ -71,4 +71,17 @@ magic link; the feature list is not edited by this ticket.
 - 2026-11-09: "có và bỏ hẳn magic link" — email + password with the stoktok account, magic link removed, put at
   the top of the run order. No "forgot password" requested.
 
+- 2026-11-09: Plan approved (2026-11-09) — Ming: "approve"; assumptions A1–A5 accepted as defaults (D19 recorded; feature list, M-1, M-4 updated on main).
+- 2026-11-09: After review attempt 1 (PASS) Ming chose "fix both, then open the PR": (1) clear the password from the form after successful sign-in and whenever the session changes (security-review 🟡 1), with a test; (2) README "Set up Supabase" step 3: drop the "confirm sign-ups and anonymous sign-ins are OFF (if not, stop)" check, which contradicts D18 — Auth stays as stoktok has it; log in with the existing stoktok email + password.
+
 ## Handoff
+
+### 2026-11-09 — claude — BLOCKED
+- Done: plan.md READY (email + password via signInWithPassword, magic link and cooldown removed, Vietnamese error mapping, AuthGate + authMessages tests, README/smoke-test updated). Assumptions A1–A9 listed for Ming.
+- In progress / next: Ming writes "Plan approved (YYYY-MM-DD)" under Notes / answers from Ming (and answers A1–A5 if different from defaults); then /run implements.
+- Gotchas: A4 drops the Redirect URL steps from the README (password login does not need them); M-1 step 3 / M-4 in ming-todo and the feature list (A1) are updated on main by the orchestrator after approval.
+
+### 2026-11-09 — claude — DONE
+- Done: plan approved by Ming; attempt 1 PASS (security 🟡: password left in form after sign-out); Ming asked for fixes; attempt 2 PASS (password cleared on session change / sign-in, README step 3 aligned with D18; security re-review clean). PR #22.
+- In progress / next: Ming reviews and merges PR #22 (High tier), then the phone checks after M-1.
+- Gotchas: Redirect URLs come back with F-102 (Google sign-in); `detectSessionInUrl` can be revisited then.

@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { COPY, authErrorMessage, isValidEmail } from "./authMessages";
-import { secondsLeft } from "./cooldown";
+import { COPY, authErrorMessage, validateLogin } from "./authMessages";
 
 /**
  * Requires a signed-in user when Supabase is configured.
@@ -11,56 +10,42 @@ import { secondsLeft } from "./cooldown";
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(supabase ? undefined : null);
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sentAt, setSentAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-  const cooling = secondsLeft(sentAt, now) > 0;
 
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setPassword("");
+      setSession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (!cooling) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [cooling]);
 
   if (!supabase || session) return <>{children}</>;
   if (session === undefined) return null;
 
-  const send = async () => {
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
     setError(null);
-    if (!isValidEmail(email)) {
-      setError(COPY.errInvalidEmail);
+    const invalid = validateLogin(email, password);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setBusy(true);
-    const { error } = await supabase!.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin + window.location.pathname },
-    });
-    setBusy(false);
-    if (error) {
-      setError(authErrorMessage(error));
-      return;
+    try {
+      const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) setError(authErrorMessage(error));
+      else setPassword("");
+    } catch {
+      setError(COPY.errGeneric);
+    } finally {
+      setBusy(false);
     }
-    setSent(true);
-    setSentAt(Date.now());
-    setNow(Date.now());
   };
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    void send();
-  };
-
-  const left = secondsLeft(sentAt, now);
 
   return (
     <div
@@ -88,42 +73,34 @@ export function AuthGate({ children }: { children: ReactNode }) {
         >
           {COPY.title}
         </h1>
-        {sent ? (
-          <>
-            <p style={{ color: "var(--muted)" }}>
-              {COPY.sentTo}{" "}
-              <b style={{ color: "var(--text)", overflowWrap: "anywhere" }}>{email.trim()}</b>.{" "}
-              {COPY.sentHint}
-            </p>
-            <button
-              type="button"
-              className="btn justify-center w-full"
-              disabled={busy || left > 0}
-              onClick={() => void send()}
-            >
-              {left > 0 ? COPY.resendIn(left) : COPY.resend}
-            </button>
-          </>
-        ) : (
-          <>
-            <p style={{ color: "var(--muted)" }}>{COPY.intro}</p>
-            <label className="field">
-              <span>{COPY.emailLabel}</span>
-              <input
-                type="email"
-                autoFocus
-                autoComplete="email"
-                placeholder={COPY.emailPlaceholder}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{ fontSize: 16, height: 44 }}
-              />
-            </label>
-            <button type="submit" className="btn btn-primary justify-center w-full" disabled={busy}>
-              {busy ? COPY.sending : COPY.send}
-            </button>
-          </>
-        )}
+        <p style={{ color: "var(--muted)" }}>{COPY.intro}</p>
+        <label className="field">
+          <span>{COPY.emailLabel}</span>
+          <input
+            type="email"
+            name="email"
+            autoFocus
+            autoComplete="email"
+            placeholder={COPY.emailPlaceholder}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ fontSize: 16, height: 44 }}
+          />
+        </label>
+        <label className="field">
+          <span>{COPY.passwordLabel}</span>
+          <input
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ fontSize: 16, height: 44 }}
+          />
+        </label>
+        <button type="submit" className="btn btn-primary justify-center w-full" disabled={busy}>
+          {busy ? COPY.signingIn : COPY.submit}
+        </button>
         {error && (
           <p role="alert" style={{ color: "var(--danger)" }}>
             {error}
