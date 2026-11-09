@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | PLANNING |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-07T12:29:04Z |
+| Claimed by | claude@2026-11-09T07:17:12Z |
 | PR | — |
 
 ## Goal
