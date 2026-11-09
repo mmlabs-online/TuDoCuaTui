@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | F-001 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/14 |
 
 ## Goal
 The app has a production URL that Ming can open on a phone and log in to with a magic link.
@@ -52,6 +52,15 @@ The app has a production URL that Ming can open on a phone and log in to with a 
 - Manual: phone login on the production URL; open a preview URL and see local mode.
 
 ## Notes / answers from Ming
+- 2026-11-08: Plan approved (Ming, in chat with Annie: "Plan approved (F-007), chạy sau T-004"; recorded by Annie). Run only after T-004 is merged.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+### 2026-11-07 — claude — BLOCKED (plan approval)
+- Done: consult + plan READY. Scope changes for Ming to approve: no `public/_redirects` (Pages' default SPA fallback; added back only if the deep-link check fails), build command `pnpm build`, `NODE_VERSION`/`PNPM_VERSION` dashboard vars; `_headers` deferred.
+- Next: Ming approves → implement `.node-version` + README "Deploy (Cloudflare Pages)" runbook (M-4).
+
+### 2026-11-08 — claude — DONE
+- Done: plan approved by Ming; implemented after T-004 (README Deploy section on the shared stoktok project, `.node-version`, no `_redirects`); review PASS; security review no 🔴 (two 🟡 README wording items → follow-ups).
+- In progress / next: Ming merges the PR, then M-4 (check stoktok redirect list for wildcards, no VITE_* in Preview).
+- Gotchas: log in only on the production URL, not per-deployment hash URLs.

@@ -22,8 +22,8 @@ object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/
 2. Paste each file in `supabase/migrations/`, in filename order, into Dashboard → SQL Editor and run it.
    **Never run `db push`, `supabase link`, `db reset --linked`, `db pull` or `db diff --linked` against the shared
    project**: its migration history holds stoktok's versions.
-3. Go to Auth → URL Configuration and **add** your dev and prod URLs (e.g. `http://localhost:8443`) to **Redirect URLs**
-   so magic links work. Do not change the Site URL (it stays stoktok's). First confirm under Authentication → Sign In / Providers that
+3. Go to Auth → URL Configuration and **add** the dev URL `http://localhost:8443` to **Redirect URLs**
+   so magic links work (the production URL is added in [Deploy](#deploy-cloudflare-pages)). Do not change the Site URL (it stays stoktok's). First confirm under Authentication → Sign In / Providers that
    *Allow new users to sign up* and *Allow anonymous sign-ins* are both OFF (if not, stop). Sign-ups being off, your login
    email must already exist under Authentication → Users.
 4. Run the smoke test: [docs/qa/smoke-test.md](docs/qa/smoke-test.md). It also describes a local stack (`npx supabase start`, ports 553xx, `npx supabase stop` when done).
@@ -32,6 +32,43 @@ object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/
    npx supabase gen types typescript --local > src/types/database.ts
    pnpm format
    ```
+
+## Deploy (Cloudflare Pages)
+
+Production is Cloudflare Pages with Git integration (decision D5); every PR gets a preview deploy. This is M-4 in
+`work/ming-todo.md`. Dashboard only; write names, never values, into the repo.
+
+1. Prerequisite: [Set up Supabase](#set-up-supabase-one-time) (M-1) is done on the stoktok project.
+2. Cloudflare dashboard → **Workers & Pages** → **Create** → the **Pages** tab (not Workers) → **Connect to Git** →
+   authorise GitHub → pick `mmlabs-online/TuDoCuaTui`.
+3. Project name `tudocuatui`, production branch `main`.
+4. Build settings:
+   - Framework preset **None**
+   - Build command `pnpm build`
+   - Build output directory `dist`
+   - Root directory `/`
+   - Pages installs dependencies from `pnpm-lock.yaml` itself. If the build log shows no install step, use
+     `pnpm install --frozen-lockfile && pnpm build`.
+5. Environment variables (plain text):
+   - **Production and Preview:** `NODE_VERSION` = `22`, `PNPM_VERSION` = `10.34.3`. Keep them equal to `.node-version`,
+     `.mise.toml` and `package.json` → `packageManager` (Pages reads `.node-version`, not mise).
+   - **Production only:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, copied from the stoktok project (Supabase →
+     Project Settings → API). Use the anon/publishable key only, never the service role key (R3). Never add them to
+     Preview: previews must stay in local mode (demo items, no login).
+   - Never set `FIGMA_PUBLIC_URL`; it changes Vite's `base`.
+6. Save and deploy. `VITE_*` values are baked in at build time, so after changing them use Deployments → latest
+   production → **Retry deployment**. This also applies if they were added after the first build.
+7. Copy the real production URL from the project page (it may be `tudocuatui-xxx.pages.dev` if the name was taken).
+8. In the **stoktok** Supabase project → Authentication → URL Configuration, add **exactly**
+   `https://<project>.pages.dev/` to **Redirect URLs** (keep `http://localhost:8443`). No wildcards, no preview or
+   hash URLs. Do not change the Site URL (it stays stoktok's; D17). If the phone login lands on the Site URL instead,
+   also add the URL without the trailing slash.
+9. Phone check: open the production URL, request a magic link, open it on the same phone and confirm you are logged
+   in. Open a PR's preview URL and confirm local mode.
+
+Why there is no `public/_redirects`: Pages serves `index.html` for unknown paths when the build has no top-level
+`404.html`, and the app has no client routes. Do not add a `404.html`, because it turns this fallback off.
+Not used: a custom domain, a separate staging Supabase project, `wrangler.toml`.
 
 ## Running DB tests
 
