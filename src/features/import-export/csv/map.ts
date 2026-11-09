@@ -1,7 +1,7 @@
 import { CATEGORY_TO_DB, COLOR_TO_DB, SEASON_TO_DB, STATUS_TO_DB } from "@/data/mappers";
 import { normalize } from "@/lib/text";
 import type { Item, Status } from "@/types/item";
-import { CSV_MAP_COPY as COPY } from "../messages";
+import { CSV_MAP_COPY as COPY } from "../copy";
 import type { ParsedCsv } from "./parse";
 import { toDateOnly } from "./serialize";
 
