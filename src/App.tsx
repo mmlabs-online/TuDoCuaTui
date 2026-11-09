@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { Item } from "@/types/item";
 import { useWardrobe } from "@/data/useWardrobe";
+import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
 import { toCsv } from "@/features/import-export/csv/serialize";
 import { blankItem } from "@/features/items/blankItem";
 import { Editor } from "@/features/items/Editor";
@@ -242,8 +243,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (x: Ite
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [paste, setPaste] = useState("");
-  const csv =
-    "name,category,status,colors,brand,size,location,price\nÁo sơ mi trắng,Áo,Đang dùng,Trắng|Kem,Uniqlo,M,Tủ ngăn 1,890000";
+  const csv = CSV_TEMPLATE;
   const doImport = () => {
     setProcessing(true);
     setProgress(1);
