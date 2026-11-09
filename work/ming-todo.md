@@ -8,6 +8,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Setup
 - [ ] **M-1 — Set up TuDo on the stoktok Supabase project** (dashboard only, D17; never the CLI against it).
+      **Deferred (D18, 2026-11-09):** run it when you are ready to use Supabase mode; until then TuDo's Supabase mode
+      has no tables. Auth stays exactly as stoktok has it: no TuDo-specific sign-up or user changes.
       1. SQL Editor, read-only pre-checks: `select to_regclass('public.tudo_items'), to_regnamespace('tudo_private');`
          must return two nulls. `select defaclrole::regrole, defaclobjtype, defaclacl from pg_default_acl;` and note
          the result. Check that no Storage bucket `wardrobe` exists yet (note it if one does).
@@ -15,10 +17,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          `20261107120000_rls_hardening.sql` and run it, in that order. If either fails, stop and report the error;
          do not re-run part of a file.
       3. Auth → URL Configuration: **add** `http://localhost:8443` to Redirect URLs. Do not change the Site URL.
-      4. Authentication → Sign In / Providers: confirm *Allow new users to sign up* is OFF and *Allow anonymous
-         sign-ins* is OFF. If either is on, stop and tell Annie.
-      5. Authentication → Users: make sure your login email exists (use "Add user" if not).
-      6. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+      4. Auth: no changes (D18). Log in to TuDo with your existing stoktok account.
+      5. Put the stoktok Project URL and anon key in `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 - [ ] **M-2 — Smoke test** (after F-001 is merged and M-1 is done): run `docs/qa/smoke-test.md` once in Supabase
       mode; fill in its results table; file each failure with `/ticket`.
 - [ ] **M-3 — Branch protection** (after F-003 is merged): GitHub → Settings → Branches → `main`: require the `ci` check.
