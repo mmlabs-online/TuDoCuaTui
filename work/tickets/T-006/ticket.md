@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-09 |
-| Claimed by | claude@2026-11-09T09:09:57Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -71,4 +71,11 @@ magic link; the feature list is not edited by this ticket.
 - 2026-11-09: "có và bỏ hẳn magic link" — email + password with the stoktok account, magic link removed, put at
   the top of the run order. No "forgot password" requested.
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-09 — claude — BLOCKED
+- Done: plan.md READY (email + password via signInWithPassword, magic link and cooldown removed, Vietnamese error mapping, AuthGate + authMessages tests, README/smoke-test updated). Assumptions A1–A9 listed for Ming.
+- In progress / next: Ming writes "Plan approved (YYYY-MM-DD)" under Notes / answers from Ming (and answers A1–A5 if different from defaults); then /run implements.
+- Gotchas: A4 drops the Redirect URL steps from the README (password login does not need them); M-1 step 3 / M-4 in ming-todo and the feature list (A1) are updated on main by the orchestrator after approval.

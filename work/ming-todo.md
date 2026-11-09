@@ -49,6 +49,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [ ] Approve plan for T-006 (branch `claude/loving-fermi-t90upb`): work/tickets/T-006/plan.md — email + password login, magic link removed; confirm assumptions A1–A5
 - [x] (2026-11-07) Approve plan for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — new RLS migration; changes vs ticket listed as C1–C9
 - [x] (2026-11-08) Approve plan **Revision 2** for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — attempt 1 hit policy recursion; fix uses a `private.owns_location()` helper; new changes C10–C13
 - [x] (2026-11-08) Approve plan for T-004 (branch `ticket/T-004`): work/tickets/T-004/plan.md — shared stoktok DB, `tudo_` prefix, explicit grants; changes vs ticket C1–C13
