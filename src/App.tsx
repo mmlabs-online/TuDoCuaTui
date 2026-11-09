@@ -214,16 +214,9 @@ function App() {
       {importOpen && (
         <ImportModal
           onClose={() => setImportOpen(false)}
-          onDone={async (added) => {
-            try {
-              const saved = await wardrobe.importMany(added);
-              notify(IMPORT_EXPORT_COPY.imported(saved.length));
-            } catch (e) {
-              notify(wardrobe.message(e));
-            } finally {
-              setImportOpen(false);
-            }
-          }}
+          locations={wardrobe.locations}
+          importMany={wardrobe.importMany}
+          onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
         />
       )}
       {exportOpen && (

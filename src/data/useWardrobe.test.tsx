@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { createFakeSupabase, type FakeSupabase } from "@/test/fakeSupabase";
 import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
-import { useWardrobe } from "./useWardrobe";
+import { type ImportResult, useWardrobe } from "./useWardrobe";
 
 const h = vi.hoisted(() => ({ client: null as unknown }));
 
@@ -136,15 +136,17 @@ describe("useWardrobe", () => {
     test("importMany saves in order with fresh ids and reports progress", async () => {
       const { result } = await setup();
       const onProgress = vi.fn();
-      let out: Item[] = [];
+      let out: ImportResult[] = [];
       await act(async () => {
         out = await result.current.importMany(
           [makeItem({ id: "x1", name: "X1" }), makeItem({ id: "x2", name: "X2" })],
-          onProgress,
+          { onProgress },
         );
       });
-      expect(out.map((i) => i.name)).toEqual(["X1", "X2"]);
-      expect(out.every((i) => i.id && i.id !== "x1" && i.id !== "x2")).toBe(true);
+      const saved = out.map((r) => (r.ok ? r.item : null));
+      expect(out.every((r) => r.ok)).toBe(true);
+      expect(saved.map((i) => i?.name)).toEqual(["X1", "X2"]);
+      expect(saved.every((i) => i && i.id && i.id !== "x1" && i.id !== "x2")).toBe(true);
       expect(onProgress.mock.calls).toEqual([
         [1, 2],
         [2, 2],
@@ -152,11 +154,50 @@ describe("useWardrobe", () => {
       expect(result.current.items).toHaveLength(4);
     });
 
-    test("importMany works without onProgress", async () => {
+    test("importMany works without options", async () => {
       const { result } = await setup();
       await act(async () => {
         await result.current.importMany([makeItem({ id: "x1" })]);
       });
+      expect(result.current.items).toHaveLength(3);
+    });
+
+    test("importMany adds each saved item to state before the next row starts", async () => {
+      const { result } = await setup();
+      const seen: number[] = [];
+      await act(async () => {
+        await result.current.importMany([makeItem({ name: "A" }), makeItem({ name: "B" })], {
+          onProgress: () => seen.push(result.current.items.length),
+        });
+      });
+      // onProgress runs right after onSaved; React may batch, so check the end state too.
+      expect(seen).toHaveLength(2);
+      expect(result.current.items.map((i) => i.name).slice(0, 2)).toEqual(["B", "A"]);
+    });
+
+    test("importMany imports 200 items and all of them are in state", async () => {
+      const { result } = await setup();
+      const list = Array.from({ length: 200 }, (_, i) => makeItem({ name: `Món ${i}` }));
+      let out: ImportResult[] = [];
+      await act(async () => {
+        out = await result.current.importMany(list);
+      });
+      expect(out).toHaveLength(200);
+      expect(out.every((r) => r.ok)).toBe(true);
+      expect(result.current.items).toHaveLength(202);
+    });
+
+    test("importMany stops when the signal is aborted", async () => {
+      const { result } = await setup();
+      const controller = new AbortController();
+      let out: ImportResult[] = [];
+      await act(async () => {
+        out = await result.current.importMany(
+          [makeItem({ name: "A" }), makeItem({ name: "B" }), makeItem({ name: "C" })],
+          { onProgress: (done) => done === 1 && controller.abort(), signal: controller.signal },
+        );
+      });
+      expect(out).toHaveLength(1);
       expect(result.current.items).toHaveLength(3);
     });
 
@@ -214,27 +255,31 @@ describe("useWardrobe", () => {
       expect(fake.client.auth.signOut).toHaveBeenCalledTimes(1);
     });
 
-    test("importMany stops at the first failure and adds nothing to state (records current behaviour)", async () => {
+    test("importMany continues after a failed row and keeps the saved rows in state", async () => {
       const fake = createFakeSupabase();
-      const err = { code: "23505" };
       fake.push(
         { data: [] },
         { data: [] },
         { data: { id: "n1" } },
         { data: { id: "n1", name: "X1" } },
-        { error: err },
+        { error: { code: "23505" } },
+        { data: { id: "n3" } },
+        { data: { id: "n3", name: "X3" } },
       );
       useFake(fake);
       const { result } = await setup();
-      let failure: unknown;
+      let out: ImportResult[] = [];
       await act(async () => {
-        failure = await result.current
-          .importMany([makeItem({ name: "X1" }), makeItem({ name: "X2" })])
-          .catch((e: unknown) => e);
+        out = await result.current.importMany([
+          makeItem({ name: "X1" }),
+          makeItem({ name: "X2" }),
+          makeItem({ name: "X3" }),
+        ]);
       });
-      expect(failure).toBe(err);
-      expect(result.current.items).toEqual([]);
-      expect(fake.calls.filter((c) => c.method === "upsert")).toHaveLength(2);
+      expect(out.map((r) => r.ok)).toEqual([true, false, true]);
+      expect(out[1]).toEqual({ index: 1, ok: false, error: "Dữ liệu bị trùng" });
+      expect(result.current.items.map((i) => i.id).sort()).toEqual(["n1", "n3"]);
+      expect(fake.calls.filter((c) => c.method === "upsert")).toHaveLength(3);
     });
   });
 });

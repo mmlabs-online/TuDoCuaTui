@@ -2,11 +2,13 @@ import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 
-const JSON_COPY = IMPORT_EXPORT_COPY.import.json;
+const COPY = IMPORT_EXPORT_COPY.import;
+const JSON_COPY = COPY.json;
 
 export function ImportJsonTab() {
   return (
     <>
+      <p className="coming-soon">{COPY.comingSoon}</p>
       <div className="backup-note">
         <Icon name="export" />
         <div>

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Item } from "@/types/item";
+import { runImport } from "./importRunner";
 import { createLocalRepo, createSupabaseRepo } from "./repo";
+
+export type ImportResult =
+  | { index: number; ok: true; item: Item }
+  | { index: number; ok: false; error: string };
 
 const message = (e: unknown) => {
   const code = (e as { code?: string })?.code;
@@ -81,14 +86,15 @@ export function useWardrobe(starter: Item[], defaultLocations: string[]) {
 
   /** Sequential on purpose: keeps request rate and storage uploads gentle. */
   const importMany = useCallback(
-    async (list: Item[], onProgress?: (done: number, total: number) => void) => {
-      const out: Item[] = [];
-      for (let i = 0; i < list.length; i++) {
-        out.push(await repo.save({ ...list[i], id: "" }));
-        onProgress?.(i + 1, list.length);
-      }
-      out.forEach(upsertLocal);
-      return out;
+    async (
+      list: Item[],
+      opts: { onProgress?: (done: number, total: number) => void; signal?: AbortSignal } = {},
+    ): Promise<ImportResult[]> => {
+      const results = await runImport(list, (it) => repo.save({ ...it, id: "" }), {
+        ...opts,
+        onSaved: upsertLocal,
+      });
+      return results.map((r) => (r.ok ? r : { ...r, error: message(r.error) }));
     },
     [repo],
   );
