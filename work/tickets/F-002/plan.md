@@ -2,128 +2,170 @@ Status: READY
 
 # Plan — F-002: Generate DB types from the local schema
 
+Revision 2 (2026-11-09), against `main` after T-004 (shared stoktok project, `tudo_` prefix, D17). Replaces the
+2026-11-07 plan. Uses `consult-database-optimizer.md` (2026-11-09); the 2026-11-07 consult is kept for reference only.
+
 ## Feature summary
 `docs/feature-list.md` §F-002 (Generated DB types · P0 · M1 · S · depends on F-001):
 > - Replace the hand-written `src/types/database.ts` with `supabase gen types typescript --linked`.
 > - Add a `pnpm db:types` script and document it in the README.
 > - **AC:** `tsc --noEmit` passes with the generated types; no `any` introduced.
 
-`work/decisions.md` D11 (changes the source):
-> `supabase gen types typescript --local` (local stack from `supabase/migrations/`) instead of `--linked`. Why: No Supabase login or secret needed; the migrations are the source of truth.
+`work/decisions.md`:
+> D11 — `supabase gen types typescript --local` (local stack from `supabase/migrations/`) instead of `--linked`. Why: No
+> Supabase login or secret needed; the migrations are the source of truth.
 
-Ticket scope (`work/tickets/F-002/ticket.md`): add `db:types` to `package.json`; regenerate `src/types/database.ts` and fix
-type errors in `src/data/**`; exclude the generated file from `oxfmt --check` **or format it inside the script**; update
-the README (replace the "Optional: regenerate" step). Out of scope: schema changes.
+> D17 — TuDoCuaTui runs on the existing stoktok Supabase project … agents never run `db push`, `link`,
+> `db reset --linked`, `db pull` or `db diff --linked` against it … Supersedes … `--linked` in F-002 (already D11).
+
+> D12 — Tickets contain agent work only. Steps only Ming can do are `M-n` items in `work/ming-todo.md`; a ticket waits
+> on one only when it lists it in `Needs Ming`.
+
+Ticket scope (`work/tickets/F-002/ticket.md`): add `db:types` to `package.json`; regenerate `src/types/database.ts` and
+fix type errors in `src/data/**`; exclude the generated file from `oxfmt --check` **or format it inside the script**;
+update the README (replace the "Optional: regenerate" step). Out of scope: schema changes.
+
+**State of `main` that changes the work** (consult finding 3): T-004 already replaced the hand-written file with
+generator output (`work/tickets/T-004/impl-log.md` line 16; `T-004/review.md` line 19: byte-identical to
+`gen types --local` + oxfmt). No migration changed since. So the remaining deliverables are the script, the README, the
+formatting guarantee and the drift workflow. The one-time regeneration with the new script flags needs a running local
+stack (Docker), which the agent sandbox does not have; it becomes a Ming step after merge (see below), not a precondition.
 
 ## Acceptance criteria → verification
 | # | Criterion | How the reviewer verifies it |
 |---|---|---|
-| 1 | `src/types/database.ts` is generated from the local schema, not hand-written (feature list "Replace the hand-written…", D11) | File has no hand-written header; contains generator markers (`__InternalSupabase`, a `Constants` export, `Tables<`/`TablesInsert<` helper types, `Relationships` with FK entries for `items`/`item_photos`/`wear_logs`/`locations`); `impl-log.md` records the exact command run and the CLI version (3.0.0). Optional, if Docker is available: start the stack from the worktree, run `npx pnpm@10.34.3 db:types`, then `git diff --exit-code src/types/database.ts` is clean; stop the stack. |
-| 2 | `pnpm db:types` script exists and uses the local DB with a pinned CLI | `package.json` `scripts.db:types` runs `npx --yes supabase@3.0.0 gen types typescript … --schema public > src/types/database.ts && oxfmt src/types/database.ts`; no `--linked` / `--remote` / `--project-id`; no `supabase` entry in `dependencies`/`devDependencies`; `pnpm-lock.yaml` unchanged. |
-| 3 | `tsc --noEmit` passes with the generated types | `npx pnpm@10.34.3 typecheck` exits 0. |
-| 4 | No `any` introduced | `git diff main -- src package.json \| grep '^+' \| grep -nwE 'any'` returns nothing (also no `as any`, no `@ts-ignore`/`@ts-expect-error` added); `grep -nw any src/types/database.ts` returns nothing. |
-| 5 | Generated file is formatted and `format:check` stays meaningful | `npx pnpm@10.34.3 format:check` exits 0; `src/types/database.ts` is **not** added to `.prettierignore` (unless the documented fallback in Approach step 5 was needed and `impl-log.md` shows why). |
-| 6 | File encoding is safe | `head -c 3 src/types/database.ts \| od -An -tx1` is not `ef bb bf`; `file src/types/database.ts` reports UTF-8/ASCII text, not UTF-16; `grep -c $'\r' src/types/database.ts` is 0. |
-| 7 | `pnpm db:types` is documented in the README | README "Set up Supabase" step 5 is replaced by a section that lists: Docker running, Git Bash, start the local stack, `pnpm db:types`, `npx supabase@3.0.0 stop --no-backup`; no remaining `--linked` gen-types command in README. |
-| 8 | Nothing else regresses | `npx pnpm@10.34.3 test`, `test:coverage` (thresholds still met), and `build` all exit 0. |
-| 9 | No key or local-stack state leaked into the repo | `git status` shows no `supabase/snippets/`, `supabase/.temp` tracked files, or `.env*`; `git diff main` contains no JWT-looking strings (`grep -E 'eyJ[A-Za-z0-9_-]{10,}'` returns nothing). |
+| 1 | `pnpm db:types` script exists, targets the **local** DB only, with a pinned CLI, and formats its output (ticket scope; D11; D17) | `package.json` → `scripts["db:types"]` is exactly `npx --yes supabase@<X.Y.Z> gen types typescript --local --schema public > src/types/database.ts && oxfmt src/types/database.ts` (`--local` may be absent only if `impl-log.md` shows `--help` output without it, Approach step 2). `<X.Y.Z>` is an exact version, not a range or tag. No `--linked`, `--project-id`, `--db-url`, `--remote`. No `supabase` in `dependencies`/`devDependencies`; `git diff main -- pnpm-lock.yaml` is empty. |
+| 2 | `tsc --noEmit` passes with the generated types (feature list AC) | `pnpm typecheck` exits 0. `src/types/database.ts` is the generator output on `main` (from T-004) — `git diff main -- src/types/database.ts` is empty (agents cannot regenerate without Docker; they must not hand-edit it, Approach step 4). |
+| 3 | No `any` introduced (feature list AC) | `git diff main -- src package.json \| grep '^+' \| grep -wE 'any\|@ts-ignore\|@ts-expect-error'` returns nothing; `grep -nw any src/types/database.ts` returns nothing. |
+| 4 | The generated file stays under `format:check` (ticket scope: "format it inside the script") | `pnpm format:check` exits 0; `.prettierignore` is unchanged (`git diff main -- .prettierignore` empty). |
+| 5 | `pnpm db:types` is documented in the README (feature list; ticket AC) | README "Set up Supabase" step 5 is replaced by a "Regenerate DB types" block that lists, in order: Docker running → `npx supabase start` → `npx supabase db reset` → `pnpm db:types` → `npx supabase stop`; states that the output covers `public` only and comes from `supabase/migrations/` (D11); contains a "never" line for pointing it at the shared project (`--linked` / `--project-id`); notes `--local` is deprecated for CLI v4 and the pin protects it. `grep -n 'gen types' README.md` shows no `--linked` command and no raw `gen types … > src/types/database.ts` command other than via `pnpm db:types`. `grep -n 'no-backup' README.md` returns only "never" lines or nothing (T-004 convention, consult rec 2). |
+| 6 | Nothing else regresses | `pnpm test`, `pnpm test:coverage` (thresholds still met) and `pnpm build` exit 0. |
+| 7 | No secrets or local-stack state in the diff (R3) | `git diff main --stat` lists only files from the table below; `git diff main \| grep -E 'eyJ[A-Za-z0-9_-]{10,}'` returns nothing; no `supabase/.temp`, `supabase/snippets`, `.env*` files added. |
+| 8 | The deferred regeneration is recorded, not hidden | `impl-log.md` has a section "Regeneration deferred" stating that Docker was unavailable, that `src/types/database.ts` was left as T-004 generated it, and the expected diff of the first real run (see Ming verification). |
 
 ## Ming verification after merge
-- After Ming has applied every migration to the hosted project (M-1 and later), the generated types match the hosted
-  schema by construction (D11). Nothing to check per se; if the hosted DB ever drifts from `supabase/migrations/`, that is a
-  migration problem, not a types problem. "None" beyond that.
+Proposed `work/ming-todo.md` item for the orchestrator to add (not a `Needs Ming` dependency of this ticket; D12):
+
+```
+- [ ] **M-7 — Regenerate DB types once with the pinned script** (after F-002 is merged; needs Docker Desktop, Git Bash on Windows).
+      From the repo root on an up-to-date `main`:
+      `npx supabase start` → `npx supabase db reset` → `pnpm db:types` → `npx supabase stop` (plain stop, no flags).
+      Then `pnpm typecheck && pnpm format:check && pnpm test && pnpm build`.
+      Expected diff in `src/types/database.ts`: the `graphql_public` blocks disappear from `Database` and `Constants`
+      (the script now passes `--schema public`), plus possibly small changes in the helper types from the pinned CLI version.
+      Anything else (a `tudo_*` table/column/enum change) means the committed types had drifted: tell Annie.
+      If there is a diff and the checks pass, commit it as `solo: regenerate DB types with pinned CLI` (or ask Annie to /solo it).
+      Do not run it while `scripts/test-db-shared.sh` is mid-run.
+```
+
+Nothing to check on the hosted project: `--local` never touches it (D11, D17).
 
 ## Files to create / modify
 | File | Change | Required because |
 |---|---|---|
-| `package.json` | Add `"db:types"` script (see Approach step 3). No dependency changes. | Ticket scope; feature list "Add a `pnpm db:types` script". |
-| `src/types/database.ts` | Replace with generator output (then oxfmt-formatted). Drop the hand-written header comment that mentions `--linked`. | Ticket scope; feature list "Replace the hand-written…". |
-| `README.md` | Replace "Set up Supabase" step 5 with the start → `pnpm db:types` → stop sequence (pinned CLI, Git Bash note). | AC "`pnpm db:types` is documented in the README". |
-| `src/data/mappers.ts` | **Only if** typecheck fails after regeneration: minimal type-only fix (e.g. `itemToRow` return/field types). No behaviour change. | Ticket scope "fix any type errors that appear in `src/data/**`"; ticket technical notes list it. |
-| `src/data/mappers.test.ts` | **Only if** the `nullRow: ItemRow` fixture no longer matches the generated view Row (missing/extra column). Adjust the fixture only. | Same; consult flags the fixture as at risk. |
-| `src/data/repo.ts` | **Only if** typecheck fails on Supabase query typing after regeneration. Minimal type-only fix. | Same. |
-| `.prettierignore` | **Only if** the fallback in Approach step 5 is needed: add `src/types/database.ts`. | Ticket scope allows excluding it; consult recommendation 2 fallback. |
-| `work/tickets/F-002/impl-log.md` | Implementer log (commands, CLI version, `--local` outcome, fallbacks used). | Workflow. |
+| `package.json` | Add the `db:types` script (Approach step 3). No dependency changes. | Ticket scope; feature list "Add a `pnpm db:types` script". |
+| `README.md` | Replace "Set up Supabase" step 5 with the regenerate block (Approach step 5). Optionally one row in "Code map" for `src/types/database.ts` ("generated by `pnpm db:types`, do not edit"). | Ticket scope / AC "documented in the README". |
+| `work/tickets/F-002/impl-log.md` | Implementer log: CLI version chosen and how, `--help` outcome, "Regeneration deferred" section, check outputs, greps. | Workflow; AC 8. |
 
-Do **not** edit: `docs/feature-list.md` (D11 records the change), `docs/qa/smoke-test.md`, `supabase/config.toml`,
-`supabase/migrations/**`, `src/lib/supabase.ts` (High tier, no change needed), `work/backlog.md` (D16), `.github/**`.
+**Not modified** (unless a check fails, which is not expected): `src/types/database.ts` (already generator output; do not
+hand-edit — consult rec 4), `src/data/mappers.ts`, `src/data/repo.ts`, `src/data/mappers.test.ts` (the
+`nullRow as unknown as ItemRow` cast stays — consult finding 4, R7). If `pnpm typecheck` fails on `main` before any change,
+stop and report; do not fix it here.
+
+Do **not** edit: `docs/feature-list.md` (D11 records the change), `docs/qa/smoke-test.md`, `supabase/**`,
+`.prettierignore`, `.github/**`, `src/lib/supabase.ts`, `work/backlog.md` (D16), `work/ming-todo.md` (the orchestrator
+adds M-7), `work/decisions.md`.
 
 ## Tests to write
 | Test (file › name) | Covers |
 |---|---|
-| None new. | Ticket test plan: "Unit: none (F-005 mapper tests cover the types indirectly)". Existing `src/data/mappers.test.ts` and `src/data/repo.local.test.ts` must stay green against the generated types; adjust only the `nullRow` fixture if the generated view Row shape requires it. |
+| None new. | Ticket test plan: "Unit: none (F-005 mapper tests cover the types indirectly)". No new pure logic (R8). Existing `src/data/*.test.ts` must stay green. |
 
 ## Approach
-Run everything from `D:\mmlabs\spaceM\projects\.wt-tudocuatui\F-002` in **Git Bash** (never PowerShell: PowerShell 5.1 `>`
-writes UTF-16 LE). Docker Desktop must be running.
+No Docker daemon in the sandbox: do **not** run `supabase start`, `db reset`, `test db` or `gen types`. Never run any
+supabase command with `--linked`, `--project-id`, `link`, `db push`, `db pull` (D17).
 
-1. **Pre-flight (do not touch other stacks).**
-   - `docker ps --format '{{.Names}}'`: note any `*_calechip` containers (ports 543xx) and **leave them alone**. If
-     `*_tudocuatui` containers are already up (stale or another ticket), stop: F-006 must not run concurrently. Only if
-     they are clearly stale from this worktree, run `npx --yes supabase@3.0.0 stop --no-backup` from the worktree.
-   - Never use `supabase stop --all`, `docker rm`, or `docker volume rm` on anything.
-2. **Check the flag.** `npx --yes supabase@3.0.0 gen types typescript --help`. If `--local` is listed and not marked
-   deprecated, keep it in the script (D11 wording). If it is missing or deprecated, omit it: the local DB is the default
-   target in 3.0.0, which still meets D11 (no `--linked`/`--remote`, no login). Record the outcome in `impl-log.md`.
-3. **Add the script** to `package.json`:
-   `"db:types": "npx --yes supabase@3.0.0 gen types typescript --local --schema public > src/types/database.ts && oxfmt src/types/database.ts"`
-   (drop `--local` per step 2 if needed). `--yes` avoids the npx install prompt; pinned version gives reproducible output;
-   no devDependency, so no `onlyBuiltDependencies` allowance for a postinstall (orchestrator preference, consult open
-   question 1). `>` in pnpm's script shell (cmd on Windows, sh elsewhere) is byte-faithful.
-4. **Generate.** `npx --yes supabase@3.0.0 start` (fallback if `vector`/analytics fails on Windows:
-   `npx --yes supabase@3.0.0 start -x vector,logflare`). Do **not** run `supabase status` unless needed for debugging, and
-   never copy any key it prints into any file, log, commit or message. Then `npx pnpm@10.34.3 db:types`.
-   **Always** finish with `npx --yes supabase@3.0.0 stop --no-backup` (also if a later step fails), then delete any
-   `supabase/snippets/` the start created (`rm -rf supabase/snippets`), and confirm `git status` shows no new files under
-   `supabase/`.
-5. **Verify the file.** UTF-8 without BOM, LF only (AC 6). `oxfmt --check src/types/database.ts` passes. Running
-   `oxfmt` twice gives no further change. Fallback only if oxfmt fails on or keeps churning the output: add
-   `src/types/database.ts` to `.prettierignore`, remove `&& oxfmt …` from the script, and record why.
-6. **Fix types.** `npx pnpm@10.34.3 typecheck`. Expected: passes unchanged (`mappers.ts` uses only `Enums`,
-   `Views.items_with_stats.Row`, `Tables.items.Insert`; view Row is all-nullable as before; `rowToItem` already uses `??`).
-   If anything fails, make the smallest type-only fix in `src/data/**`; no `any`, no `as never` beyond what exists, no
-   `@ts-*` comments, no behaviour change.
-7. **README.** Replace step 5 under "Set up Supabase" with a short "Regenerate DB types (after any migration)" block:
-   Docker running; Git Bash on Windows; `npx supabase@3.0.0 start`; `pnpm db:types`; `npx supabase@3.0.0 stop --no-backup`;
-   one line that types come from `supabase/migrations/` via the local stack (D11), no login needed.
-8. **Checks.** `npx pnpm@10.34.3 typecheck`, `format:check`, `test`, `test:coverage`, `build` — all green. Run the AC 4,
-   6 and 9 greps and paste results into `impl-log.md`.
+1. **Baseline.** On a fresh branch from `main`: `pnpm install --frozen-lockfile`, then `pnpm typecheck`,
+   `pnpm format:check`, `pnpm test`, `pnpm build`. All should pass; if not, stop and report (not this ticket's problem).
+2. **Pick the CLI pin and check the flag** (network via the proxy):
+   - `npm view supabase@3 version` → take the highest `3.x.y` listed. Stay on major 3 (`--local` is removed in v4,
+     T-004 impl-log line 40). If the registry is unreachable, use `3.0.0` (previous plan's pin) and write "pin not
+     verified" in `impl-log.md`.
+   - `npx --yes supabase@<X.Y.Z> gen types typescript --help` (needs no DB). If `--local` is listed (even as deprecated),
+     keep it (D11 wording). If it is not listed, drop it — the local DB is then the default — and paste the help excerpt
+     into `impl-log.md`. Also confirm `--schema` is listed. If `npx` cannot install the CLI at all (binary download blocked),
+     keep `--local --schema public` as written and record that `--help` could not be run.
+3. **Script.** Add to `package.json` `scripts` (after `test:coverage`):
+   `"db:types": "npx --yes supabase@<X.Y.Z> gen types typescript --local --schema public > src/types/database.ts && oxfmt src/types/database.ts"`.
+   - `--schema public`: `public` only; `tudo_private` (security-definer helper, not API) and `graphql_public` stay out and
+     the output does not depend on `supabase/config.toml` `api.schemas` (consult finding 2).
+   - `npx --yes` + exact pin, not a devDependency: no lockfile change and no postinstall/build-script allowance (consult
+     open question 2; previous plan's choice). `oxfmt` resolves from `node_modules/.bin` inside a pnpm script.
+   - Formatting inside the script keeps the file under `format:check`; no `.prettierignore` change.
+4. **Leave `src/types/database.ts` as it is.** It is T-004's generator output and no migration changed since. Do not
+   remove `graphql_public` or otherwise edit it by hand to look like the new script's output (consult rec 4). Run
+   `pnpm format` only if `format:check` flags something, and only on files you changed.
+5. **README.** Replace step 5 under "Set up Supabase" with a block like:
+   - "Regenerate the DB types after any migration change (needs Docker; Git Bash on Windows, not PowerShell — its `>`
+     writes UTF-16):"
+   - code block: `npx supabase start` / `npx supabase db reset   # local DB = supabase/migrations/` /
+     `pnpm db:types` / `npx supabase stop`
+   - "The script introspects the **local** stack only (`--local --schema public`, D11) and formats the file. Commit the
+     result. Never point it at the shared project (`--linked`, `--project-id`): that pulls in stoktok's tables (D17)."
+   - "`db reset` first: the generator reads the running DB, not the migration files, so a stack started before a
+     migration change gives stale types. Do not run it while `scripts/test-db-shared.sh` is running."
+   - "The CLI is pinned to `<X.Y.Z>`; `--local` is deprecated and goes away in CLI v4, so bump the pin deliberately."
+   - Use plain `npx supabase stop` (T-004/README convention: no `--no-backup`). Keep the other README sections unchanged.
+   - Optional code-map row: `src/types/database.ts` — "Generated by `pnpm db:types`; do not edit by hand".
+6. **Checks.** `pnpm typecheck`, `pnpm format:check`, `pnpm test`, `pnpm test:coverage`, `pnpm build` — all green.
+   Run the AC 3, 5 and 7 greps; paste outputs into `impl-log.md`.
+7. **impl-log "Regeneration deferred"** section (AC 8): Docker unavailable; file unchanged from T-004; expected first-run
+   diff (`graphql_public` removed from `Database` and `Constants`, possible helper-type changes from the pinned CLI);
+   pointer to the M-7 text in this plan.
 
-Rules: **R2** (types regenerated from migrations, no migration edited) — met. **R1** (local mode) — no runtime change;
-`Constants` is the only new runtime export and nothing imports it. **R3** — no keys anywhere; `supabase status` output
-never written. **R7** — files limited to the table above. **R8** — all checks green; no new pure logic, so no new tests.
-**R10** — no Figma Make files touched. Expected tier: Medium (`package.json`, `src/types/**`).
+Rules: **R1** — no runtime change; local mode untouched. **R2** — no migration touched; types still generated from
+migrations (regeneration deferred to M-7, file currently generator output). **R3** — no keys; never run `supabase status`
+into a file. **R7** — files limited to the table. **R8** — checks green; no new pure logic. **R10** — no Figma Make
+files. Expected tier: Medium (`package.json`).
 
 ## Specialist input used
-From `consult-database-optimizer.md`:
-- **Adopted** — Rec 1 script shape (`gen types typescript --schema public > … && oxfmt …`) and pinning the CLI; but pinned
-  via `npx --yes supabase@3.0.0`, **not** a devDependency (open question 1: orchestrator preference; avoids a build-script
-  allowance, which is security-relevant).
-- **Adopted** — Rec 2: format inside the script, keep the file under `format:check`; `.prettierignore` only as fallback.
-- **Adopted** — Rec 3: generate via bash; verify UTF-8 without BOM and no whole-file CRLF churn.
-- **Adopted** — Rec 4: drop the hand-written header; remove `--linked` references (README, header). Not extended to
-  `docs/feature-list.md` (D11 already records the change).
-- **Adopted** — Rec 5: no CI freshness check now (needs Docker); listed as a follow-up.
-- **Adopted** — Risk "`--local` may be rejected": handled by the help check in step 2.
-- **Adopted** — Open question 2: keep the generated `Constants` export unedited. Open question 3: always stop after gen.
-- **Rejected** — Open question 1 consultant default (devDependency): see above.
+From `consult-database-optimizer.md` (2026-11-09):
+- **Adopted** — Finding 1 / rec 1: keep `--local` (D11); never `--linked`/`--project-id` (D17). Help check before use.
+- **Adopted** — Finding 2: `--schema public`; no `--schema tudo_private`. Reviewer told the first real run diffs by
+  ~20 lines (`graphql_public`), and that this is expected (M-7 text, AC 8).
+- **Adopted** — Finding 3 / rec 4: the file is already generator output; F-002 delivers script + README + formatting;
+  agent does not hand-edit the file; regeneration is a Ming step after merge, not a blocker (open question 1 → resolved:
+  ship now, regenerate after, per D12).
+- **Adopted** — Rec 2: documented sequence start → `db reset` → `db:types` → `stop`; plain `stop` without `--no-backup`
+  (open question 3 → resolved: yes, per T-004 README convention); a "never the shared project" line.
+- **Adopted** — Rec 3 / finding 4: the "view rows are all nullable" statement is dropped; the `nullRow` cast stays (open
+  question 4 → resolved: no, R7; listed as follow-up).
+- **Adopted, adjusted** — Finding 6 / rec 1 pin: exact pin via `npx --yes` (open question 2 → resolved: no devDependency;
+  no earlier consult or decision overrides it). Version is the latest `3.x.y` checked on npm at implementation time instead
+  of a blind `3.0.0`, since nothing records which version T-004 used.
+- **Deferred** — Rec 5 (CI drift job): follow-up, not this diff (R7).
+- **Adopted** — Risks: `test-db-shared.sh` concurrency and PowerShell UTF-16 go into the README text.
 
 ## Assumptions
-- `--local`/default target introspects only the running `tudocuatui` stack resolved from `supabase/config.toml` in the
-  worktree (ports 553xx); calechip (543xx, different `project_id`) is unaffected as long as commands run from the worktree.
-- F-006 will later use the same local stack; the orchestrator runs them sequentially. If `*_tudocuatui` containers are up
-  at start, the implementer stops and reports rather than reusing or killing them (unless clearly stale from this worktree).
-- If generation fails midway, `>` may leave `src/types/database.ts` empty; `git checkout -- src/types/database.ts`
-  restores it. Acceptable for a dev-only script; no temp-file dance (it would need shell-specific `mv`).
-- Hotspots: no open ticket (state `IN_PROGRESS`/`REVIEW`/`DONE`) touches these files in this branch's view. Later tickets
-  that add migrations (T-003, F-006 fixtures) will regenerate `src/types/database.ts`; any README edits by F-007 may
-  conflict lightly on README "Set up Supabase".
-- Follow-ups (not in this diff, per R7): (a) CI job: start stack + `db:types` + `git diff --exit-code src/types/database.ts`;
-  (b) pin `supabase@3.0.0` in `docs/qa/smoke-test.md` commands for consistency; (c) optionally ignore `supabase/snippets/`
-  in `supabase/.gitignore`.
+- Ticket text "Requires `npx supabase start`" and "Regenerate `src/types/database.ts`" are satisfied by the script plus
+  the M-7 one-time run; the file on `main` is already the regenerated output from the same migrations (T-004 review line
+  19). The orchestrator adds M-7 to `work/ming-todo.md`; F-002's `Needs Ming` stays `—`.
+- The feature list's `--linked` is superseded by D11/D17; `docs/feature-list.md` is not edited (flagged here as the
+  known conflict, resolved by decisions).
+- If `npx` cannot download the Supabase CLI in the sandbox, the script is still correct by inspection; the M-7 run is
+  its first execution. Small risk that a flag spelling is wrong; mitigated by the `--help` step when possible and by M-7.
+- If generation fails midway on Ming's machine, `>` leaves the file truncated; `git checkout -- src/types/database.ts`
+  restores it. Acceptable for a dev script (noted in impl-log, not in README).
+- Hotspots: no ticket in `IN_PROGRESS`/`REVIEW`/`DONE` touches `package.json` or `README.md` (board 2026-11-09). Later
+  migration tickets (T-005.2, T-005.4) will run `pnpm db:types`; F-004.x do not touch these files.
+- Follow-ups (not in this diff, R7): (a) CI job: `supabase start` + `db reset` + `pnpm db:types` +
+  `git diff --exit-code src/types/database.ts` (GitHub runners have Docker); (b) align `tudo_items_with_stats` Row
+  nullability with runtime nulls and remove the `nullRow as unknown as ItemRow` cast in `mappers.test.ts`; (c) pin the
+  CLI version in `docs/qa/smoke-test.md` / README test commands for consistency; (d) ticket technical note "Generated view
+  rows are all nullable" is stale.
 
 ## Blocking questions
 None.
 
 ## Split proposal
-None (expected diff well under 400 hand-written lines; the generated file is the bulk).
+None (expected diff well under 100 lines).

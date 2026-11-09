@@ -36,6 +36,17 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       upload), F-1002 (camera / library buttons), F-603 (30 photos), F-101 (login screen, dark mode).
       Write problems as `/ticket`.
 
+- [ ] **M-8 — Regenerate DB types once with the pinned script** (after F-002 is merged; needs Docker Desktop, Git Bash on Windows).
+      (F-002's plan calls this "M-7"; renumbered because T-005.1 already uses M-7.)
+      From the repo root on an up-to-date `main`:
+      `npx supabase start` → `npx supabase db reset` → `pnpm db:types` → `npx supabase stop` (plain stop, no flags).
+      Then `pnpm typecheck && pnpm format:check && pnpm test && pnpm build`.
+      Expected diff in `src/types/database.ts`: the `graphql_public` blocks disappear from `Database` and `Constants`
+      (the script now passes `--schema public`), plus possibly small changes in the helper types from the pinned CLI version.
+      Anything else (a `tudo_*` table/column/enum change) means the committed types had drifted: tell Annie.
+      If there is a diff and the checks pass, commit it as `solo: regenerate DB types with pinned CLI` (or ask Annie to /solo it).
+      Do not run it while `scripts/test-db-shared.sh` is mid-run.
+
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
 - [x] (2026-11-07) Approve plan for T-003 (branch `ticket/T-003`): work/tickets/T-003/plan.md — new RLS migration; changes vs ticket listed as C1–C9
