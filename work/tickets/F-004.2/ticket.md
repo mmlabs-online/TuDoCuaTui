@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T07:42:35Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/17 |
 
 ## Goal
 The grid, filters, stats and editor live in their own feature folder, ready for F-201, F-202 and F-1002.
@@ -51,3 +51,8 @@ The grid, filters, stats and editor live in their own feature folder, ready for 
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). Items feature moved to `src/features/items/`, layout to `src/features/layout/`; App.tsx 991 → 458 lines; characterisation tests in `src/App.test.tsx`. PR #17.
+- In progress / next: Ming merges PR #17 and does the screenshot / click-through checks; then F-004.3 or F-601.2.
+- Gotchas: Editor.tsx / ItemCard.tsx are the next hotspot (F-004.3, F-201, F-202.x, F-1002, T-002) — run those one at a time.
