@@ -85,4 +85,6 @@ In this repo:
 - 2026-11-09: Ming set up (draft) the Cloudflare published application `tudocuatui.mmlabs.online` → service
   `tudocuatui:3000`, and asked for "setup CI CD tương tự stoktok".
 
+- 2026-11-09: Ming added the repo secrets `DEPLOY_REPO_TOKEN`, `DOCKERHUB_TOKEN`, `DOCKERHUB_USERNAME` to TuDoCuaTui (same names as stoktok). The two `VITE_SUPABASE_*` values are not added yet (they wait for M-1).
+
 ## Handoff
