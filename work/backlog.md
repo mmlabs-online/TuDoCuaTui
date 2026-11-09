@@ -20,7 +20,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-401 | Make search diacritic-insensitive | MERGED | P0 | S | data | F-005 | none | 2 | 2026-11-09 |
 | F-601.1 | CSV parser | MERGED | P0 | S | data | F-005 | none | 2 | 2026-11-09 |
 | F-604 | Real CSV export | MERGED | P0 | S | data | F-005 | none | 1 | 2026-11-07 |
-| F-004.2 | Extract the items feature from `App.tsx` | BACKLOG | P0 | M | ui | F-004.1 | none | 0 | 2026-11-07 |
+| F-004.2 | Extract the items feature from `App.tsx` | PLANNING | P0 | M | ui | F-004.1 | none | 0 | 2026-11-09 |
 | F-601.2 | CSV row mapping and validation | BACKLOG | P0 | M | data | F-601.1, F-401 | none | 0 | 2026-11-07 |
 | T-003 | Close RLS gaps found by F-006 (only if confirmed) | MERGED | P1 | S | db, security | F-006 | plan-approval | 2 | 2026-11-08 |
 | T-004 | Move TuDoCuaTui onto the shared stoktok Supabase project | MERGED | P0 | M | db, security | T-003 | plan-approval | 2 | 2026-11-08 |
