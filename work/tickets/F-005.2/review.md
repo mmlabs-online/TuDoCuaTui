@@ -69,3 +69,57 @@ R8 is otherwise met, apart from Issue 1. R2, R6 and R9 do not apply.
 
 ### Follow-ups (out of scope)
 - Same list as impl-log: the `copyPhoto` orphan on insert failure, `removePhotos` ignoring errors, `remove()` ordering, `save()` re-fetch failure after upsert, `importMany` partial state, and the F-101 auth tests ticket.
+
+## Attempt 2 — 2026-11-09
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `pnpm typecheck` (`tsc --noEmit`) — no errors.
+- format:check: "All matched files use the correct format." (51 files).
+- test: `pnpm test` — Test Files 11 passed (11), Tests 209 passed (209).
+- test:coverage: `pnpm test:coverage` exit 0. Statements 100% (348/348), Branches 100% (291/291), Functions 100% (76/76), Lines 100% (293/293). "7 files fully covered."
+- build: `pnpm build` — `vite build` ✓ built (index JS 227.94 kB).
+- Threshold spot check (AC3): `pnpm exec vitest run --coverage --exclude src/data/repo.supabase.test.ts` still fails on the `src/data/**` gate (lines 71.57%, statements 68.08%, branches 67.69%). The gate still works.
+- These results match impl-log Attempt 2.
+
+### Scope
+The rework commit `7cb660c` touches only `src/data/repo.supabase.test.ts` (+81/−3) and `impl-log.md`. Commit `8338031` is the orchestrator moving ticket.md's state to REVIEW. `git diff origin/main...HEAD -- src/data/repo.ts src/data/useWardrobe.ts src/lib/supabase.ts` is still empty, so there is no behaviour change (AC6). The rest of the branch diff is unchanged from Attempt 1.
+
+### Attempt 1 Issue 1 (AC4): resolved
+All 18 tests now assert the call log. Line numbers below are the current `test(` lines in `src/data/repo.supabase.test.ts`. `ITEMS` = `tudo_items_with_stats` (`:17`), which matches `repo.ts:110,184,265`.
+- list `:107`, `:114`, `:129`, `:135`, `:142`: each has `toContainEqual(call(ITEMS, "order", "created_at", { ascending: false }))`.
+- locations `:163`, `:174`: each has `toEqual` on the full 4-entry `tudo_locations` log (from, select name, order sort_order, order name).
+- save › photo:
+  - `:328`: `storage.upload` called with `(NEW_PATH, resized, { contentType: "image/jpeg", upsert: false })`, and the `tudo_item_photos` insert with `storage_path: NEW_PATH`, width 800, height 600.
+  - `:365`: asserts the insert with `NEW_PATH` and `fake.pending()` is 0.
+  - `:384`: asserts the `tudo_items` upsert with `itemToRow(item, null)` and `methods("tudo_item_photos")` equals `[]`.
+  - `:408`: asserts `eq("item_id", ID)` on `tudo_item_photos` and that the log has no `delete`.
+  - `:443`: asserts the insert `{ item_id, storage_path: NEW_PATH, is_primary: true }`.
+  - `:459`: asserts the insert with `NEW_PATH` and width/height.
+  - `:475`: asserts there are no `tudo_item_photos` calls and that the re-fetch `call(ITEMS, "eq", "id", ID)` happened.
+- remove `:528`: the index of the `tudo_item_photos` `delete` is above -1 and below the index of the first `tudo_items` `eq`. That entry is asserted to be `call("tudo_items", "eq", "id", ID)`, so the test now proves the "after photos are gone" ordering.
+- wear:
+  - `:612`: asserts `order("worn_on", { ascending: false })` on `tudo_wear_logs`, no `delete`, and no `ITEMS` calls.
+  - `:630` and `:636`: each asserts `call(ITEMS, "select", "wear_count, last_worn")`.
+
+Every assertion matches the fix instruction from Attempt 1. Expected args match the source in `repo.ts`. The tests pass, so the asserted chains are the ones that actually ran.
+
+### Acceptance criteria
+- [x] 1. `pnpm test` and `pnpm test:coverage` green locally (above).
+- [ ] 2. Green in CI. Can't be checked until the PR exists; `.github/workflows/ci.yml:28` runs `pnpm test:coverage`. Check it on the PR.
+- [x] 3. `src/data/**` gate works (`vitest.config.ts:35`, plus the spot check above).
+- [x] 4. Every test that hits the DB asserts the call log (see above).
+- [x] 5. Fake shape with one cast. No change since Attempt 1.
+- [x] 6. No behaviour change (empty source diff).
+- [x] 7. All checks green.
+- [x] 8. Single React. No dependency change in this attempt.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations. This attempt changed only a test file. R1 is unaffected, R7 holds, and R8 is now fully met.
+
+### Nits (do not block)
+- These Attempt 1 nits are still open and were deliberately skipped: the casts in `src/test/fakeSupabase.ts:36,56-67` and the method-only upsert filter at `useWardrobe.test.tsx:221`.
+- `repo.supabase.test.ts:528`: the `itemEq` lookup takes the first `tudo_items` `eq`. That is fine today because `remove()` has only one, but it would get fragile if more were added.
+
+### Follow-ups (out of scope)
+- Same as Attempt 1: the `copyPhoto` orphan on insert failure, `removePhotos` ignoring errors, `remove()` ordering, `save()` re-fetch failure after upsert, `importMany` partial state, and the F-101 auth tests ticket.
