@@ -28,8 +28,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-005.2 | Upload and delete item photos via Google Drive | BACKLOG | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-08 |
 | T-005.3 | Display item photos from Google Drive | BACKLOG | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-08 |
 | T-005.4 | Remove Supabase Storage for photos | BACKLOG | P0 | S | db, security | T-005.3 | plan-approval | 0 | 2026-11-08 |
-| F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | DONE | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
-| F-201 | Harden the item editor | BACKLOG | P0 | M | ui | F-004.2 | none | 0 | 2026-11-07 |
+| F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
+| F-201 | Harden the item editor | PLANNING | P0 | M | ui | F-004.2 | none | 0 | 2026-11-09 |
 | F-202.2 | Lazy-load grid images and refresh expired signed URLs | BACKLOG | P0 | S | data | F-004.2, T-005.3 | none | 0 | 2026-11-07 |
 | F-202.1 | Accept phone photo formats with size check and progress | BACKLOG | P0 | M | ui, data | F-004.2, T-005.3 | none | 0 | 2026-11-07 |
 | T-002 | Fix date-only wear math and align local wear rules | BACKLOG | P0 | S | data | F-005, F-004.2 | none | 0 | 2026-11-07 |
