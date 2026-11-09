@@ -7,15 +7,10 @@ import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 const COPY = IMPORT_EXPORT_COPY.import;
 const PHOTOS = COPY.photos;
 
-export function ImportPhotosTab({
-  processing,
-  progress,
-}: {
-  processing: boolean;
-  progress: number;
-}) {
+export function ImportPhotosTab() {
   return (
     <>
+      <p className="coming-soon">{COPY.comingSoon}</p>
       <div className="bulk-drop">
         <span>
           <Icon name="upload" size={25} />
@@ -47,17 +42,6 @@ export function ImportPhotosTab({
           </select>
         </Field>
       </div>
-      {processing && (
-        <div className="progress">
-          <div>
-            <span>{COPY.processingFile(progress)}</span>
-            <b>{progress * 25}%</b>
-          </div>
-          <i>
-            <span style={{ width: `${progress * 25}%` }} />
-          </i>
-        </div>
-      )}
     </>
   );
 }

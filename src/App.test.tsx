@@ -318,7 +318,7 @@ describe("App import/export (local mode)", () => {
     const area = () =>
       screen.getByPlaceholderText("Dán nội dung CSV tại đây…") as HTMLTextAreaElement;
     fireEvent.change(area(), { target: { value: "a\nb\nc" } });
-    expect(screen.getByText("Nhận 2 món")).toBeTruthy();
+    expect(screen.getByText("Bỏ qua 2 dòng lỗi")).toBeTruthy();
 
     fireEvent.click(tabButton("JSON (backup)"));
     expect(screen.getByText("Khôi phục từ bản sao lưu")).toBeTruthy();
@@ -341,19 +341,77 @@ describe("App import/export (local mode)", () => {
     expect(writeText).toHaveBeenCalledWith(CSV_TEMPLATE);
   });
 
-  it("import mock shows progress, adds 4 items and closes", { timeout: 10000 }, async () => {
+  const area = () =>
+    screen.getByPlaceholderText("Dán nội dung CSV tại đây…") as HTMLTextAreaElement;
+  const primary = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
+
+  it("CSV tab imports the template: preview, progress, summary, item visible", async () => {
     await renderApp();
     openImport();
-    fireEvent.click(screen.getByRole("button", { name: "Bắt đầu import" }));
-    const busy = screen.getByRole("button", { name: "Đang xử lý…" }) as HTMLButtonElement;
-    expect(busy.disabled).toBe(true);
-    const row = () => document.querySelector(".progress span")!.textContent;
-    expect(row()).toBe("Đang xử lý 1/4: IMG_2031.jpg");
-    expect(document.querySelector(".progress b")!.textContent).toBe("25%");
-
-    await screen.findByText("Đã thêm 4 món vào tủ", {}, { timeout: 5000 });
-    await waitFor(() => expect(cards()).toHaveLength(20));
+    fireEvent.click(tabButton("CSV / Excel"));
+    fireEvent.change(area(), { target: { value: CSV_TEMPLATE } });
+    expect(screen.getByText("Sẽ nhập 1 món")).toBeTruthy();
+    fireEvent.click(primary("Nhập 1 món"));
+    await screen.findByText("Đã nhập: 1");
+    fireEvent.click(primary("Xong"));
     expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
+    await screen.findByText("Đã thêm 1 món vào tủ");
+    await waitFor(() => expect(cards()).toHaveLength(17));
+    expect(cards().some((c) => c.textContent?.includes("Áo sơ mi trắng"))).toBe(true);
+  });
+
+  it("CSV tab reports invalid rows and imports only the valid ones", async () => {
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("CSV / Excel"));
+    fireEvent.change(area(), {
+      target: { value: "name,category\nA1,Áo\n,Áo\nA3,Áo\nA4,Xyz\nA5,Áo" },
+    });
+    expect(screen.getByText("Sẽ nhập 3 món")).toBeTruthy();
+    expect(screen.getByText("Bỏ qua 2 dòng lỗi")).toBeTruthy();
+    expect(screen.getByText("Thiếu tên món đồ")).toBeTruthy();
+    expect(screen.getByText("Loại không hợp lệ: Xyz")).toBeTruthy();
+    fireEvent.click(primary("Nhập 3 món"));
+    await screen.findByText("Đã nhập: 3");
+    fireEvent.click(primary("Xong"));
+    await waitFor(() => expect(cards()).toHaveLength(19));
+  });
+
+  it("CSV tab disables import for empty, header-only and broken CSV", async () => {
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("CSV / Excel"));
+    expect(primary("Nhập 0 món").disabled).toBe(true);
+    fireEvent.change(area(), { target: { value: "name,category" } });
+    expect(screen.getByText("Không có dòng dữ liệu nào")).toBeTruthy();
+    expect(primary("Nhập 0 món").disabled).toBe(true);
+    fireEvent.change(area(), { target: { value: 'name\n"abc' } });
+    expect(screen.getByText(/dấu ngoặc kép chưa đóng ở dòng 2/)).toBeTruthy();
+    expect(primary("Nhập 0 món").disabled).toBe(true);
+  });
+
+  it("picking a .csv file fills the text and shows the preview", async () => {
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("CSV / Excel"));
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File([CSV_TEMPLATE], "mau.csv", { type: "text/csv" });
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByText("Sẽ nhập 1 món");
+    expect(area().value).toBe(CSV_TEMPLATE);
+  });
+
+  it("Photos and JSON tabs are disabled until F-603 / F-602 and add nothing", async () => {
+    await renderApp();
+    openImport();
+    expect(primary("Bắt đầu import").disabled).toBe(true);
+    expect(screen.getByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeTruthy();
+    fireEvent.click(tabButton("JSON (backup)"));
+    expect(primary("Kiểm tra & import").disabled).toBe(true);
+    expect(screen.getByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeTruthy();
+    fireEvent.click(primary("Kiểm tra & import"));
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(cards()).toHaveLength(16);
   });
 
   it("export JSON and CSV download files and keep the modal open", async () => {
