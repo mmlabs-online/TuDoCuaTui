@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-005 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/13 |
 
 ## Goal
 A small, tested, dependency-free CSV parser that handles files from Excel and Google Sheets.
@@ -49,3 +49,8 @@ A small, tested, dependency-free CSV parser that handles files from Excel and Go
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-08 — claude — DONE
+- Done: took over the stale claim; committed the earlier session's attempt-1 review (REWORK, delimiter detection vs quoting); attempt 2 fixed it; review PASS; rebased on main (107 tests).
+- In progress / next: Ming merges the PR. F-601.2 also needs F-401 merged.
+- Gotchas: tab-delimited input is out of scope; two nits recorded in review.md.

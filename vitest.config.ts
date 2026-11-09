@@ -22,13 +22,19 @@ export default defineConfig({
     env: { VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "" },
     coverage: {
       provider: "v8",
-      include: ["src/data/**", "src/features/items/filters.ts", "src/lib/text.ts"],
+      include: [
+        "src/data/**",
+        "src/features/items/filters.ts",
+        "src/lib/text.ts",
+        "src/features/import-export/csv/parse.ts",
+      ],
       exclude: ["src/data/photos.ts", "**/*.test.*"],
       reporter: ["text", "html"],
       thresholds: {
         "src/data/mappers.ts": thresholds,
         "src/features/items/filters.ts": thresholds,
         "src/lib/text.ts": thresholds,
+        "src/features/import-export/csv/parse.ts": thresholds,
       },
     },
   },
