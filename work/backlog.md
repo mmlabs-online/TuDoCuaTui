@@ -15,10 +15,10 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-005.2 | Test the Supabase repo and useWardrobe with a fake client | IN_PROGRESS | P0 | M | data | F-005 | none | 0 | 2026-11-07 |
 | F-002 | Generate DB types from the local schema | IN_PROGRESS | P0 | S | db | F-001 | none | 0 | 2026-11-07 |
 | F-006 | Add RLS and storage policy tests | MERGED | P1 | M | db, security | F-001 | none | 1 | 2026-11-07 |
-| F-007 | Deploy to production with per-PR previews | DONE | P0 | S | architecture, security | F-001 | plan-approval | 1 | 2026-11-08 |
-| F-004.1 | Extract UI primitives and constants from `App.tsx` | DONE | P0 | S | ui | F-005 | none | 1 | 2026-11-08 |
-| F-401 | Make search diacritic-insensitive | DONE | P0 | S | data | F-005 | none | 2 | 2026-11-08 |
-| F-601.1 | CSV parser | DONE | P0 | S | data | F-005 | none | 2 | 2026-11-08 |
+| F-007 | Deploy to production with per-PR previews | MERGED | P0 | S | architecture, security | F-001 | plan-approval | 1 | 2026-11-09 |
+| F-004.1 | Extract UI primitives and constants from `App.tsx` | MERGED | P0 | S | ui | F-005 | none | 1 | 2026-11-09 |
+| F-401 | Make search diacritic-insensitive | MERGED | P0 | S | data | F-005 | none | 2 | 2026-11-09 |
+| F-601.1 | CSV parser | MERGED | P0 | S | data | F-005 | none | 2 | 2026-11-09 |
 | F-604 | Real CSV export | MERGED | P0 | S | data | F-005 | none | 1 | 2026-11-07 |
 | F-004.2 | Extract the items feature from `App.tsx` | BACKLOG | P0 | M | ui | F-004.1 | none | 0 | 2026-11-07 |
 | F-601.2 | CSV row mapping and validation | BACKLOG | P0 | M | data | F-601.1, F-401 | none | 0 | 2026-11-07 |
