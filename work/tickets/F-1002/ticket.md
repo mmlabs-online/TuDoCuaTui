@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-09T09:44:14Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/23 |
 
 ## Goal
 On a phone, adding a photo can open the camera directly while the gallery stays available.
@@ -47,3 +47,8 @@ On a phone, adding a photo can open the camera directly while the gallery stays 
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-09 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). Camera input with capture="environment" + "Chụp ảnh" / "Chọn từ thư viện" buttons on touch devices only; reviewer verified layout with Playwright at 390px (light/dark) and desktop. PR #23.
+- In progress / next: Ming merges PR #23 and tests on Android Chrome and iOS Safari.
+- Gotchas: Editor.tsx is shared with F-202.1 and T-001; input value is not reset after a pick (pre-existing).
