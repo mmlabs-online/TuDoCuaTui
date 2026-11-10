@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-10T03:02:03Z |
 | PR | — |
 
 ## Goal
@@ -61,7 +61,7 @@ Builds on T-007 (D20): releases are `vX.Y.Z` tags built by `.github/workflows/re
 ## Notes / answers from Ming
 - 2026-11-10: "tôi muốn thông tin version release vào UI".
 
-Waiting for Ming: plan approval (High tier)
+- 2026-11-10: Plan approved (2026-11-10) — Ming: "duyệt"; assumptions 1–9 accepted as the plan's defaults (footer line, `Phiên bản vX.Y.Z` / `Phiên bản dev`, build arg VITE_APP_VERSION, version.txt + nginx no-cache, malformed version fails the build).
 
 ## Handoff
 
