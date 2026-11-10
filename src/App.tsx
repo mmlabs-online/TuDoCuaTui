@@ -14,12 +14,14 @@ import { ItemGrid } from "@/features/items/ItemGrid";
 import { StatsRow } from "@/features/items/StatsRow";
 import { useItemFilters } from "@/features/items/useItemFilters";
 import { Header } from "@/features/layout/Header";
+import { LAYOUT_COPY } from "@/features/layout/copy";
 import { Hero } from "@/features/layout/Hero";
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
 import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
+import { APP_VERSION } from "@/lib/version";
 
 function App() {
   const wardrobe = useWardrobe(starter, locations);
@@ -154,6 +156,7 @@ function App() {
           />
         </section>
       </main>
+      <footer className="app-version">{LAYOUT_COPY.version(APP_VERSION)}</footer>
 
       {editor && (
         <Editor

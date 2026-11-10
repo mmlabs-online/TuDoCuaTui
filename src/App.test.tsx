@@ -28,6 +28,11 @@ const selectWithLabel = (label: string) =>
 const statCard = (label: RegExp) => screen.getByRole("button", { name: label });
 
 describe("App (local mode)", () => {
+  it('shows "Phiên bản dev" in local mode', async () => {
+    await renderApp();
+    expect(screen.getByText("Phiên bản dev")).toBeTruthy();
+  });
+
   it("renders the 16 demo items in local mode", async () => {
     await renderApp();
     expect(cards()).toHaveLength(16);

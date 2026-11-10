@@ -2,6 +2,7 @@
 # reaches it as `tudocuatui` on the external `web` network).
 # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are build args, baked into the bundle at build time.
 # Both are public by design (R3). Without them the image runs in local mode (R1).
+# VITE_APP_VERSION (T-008) is the release tag vX.Y.Z (public, not a secret); empty shows "dev".
 # Never set FIGMA_PUBLIC_URL: it changes Vite's `base`.
 
 FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS build
@@ -14,7 +15,13 @@ COPY . .
 # Build args live in this stage only: no ENV, so nothing lands in the runtime image config or history.
 ARG VITE_SUPABASE_URL=
 ARG VITE_SUPABASE_ANON_KEY=
-RUN pnpm build
+ARG VITE_APP_VERSION=
+RUN v="$VITE_APP_VERSION"; \
+    [ -z "$v" ] || { [ -z "$(printf '%s' "$v" | tr -d '0-9.v')" ] \
+      && [ "$(printf '%s\n' "$v" | wc -l)" = 1 ] \
+      && printf '%s\n' "$v" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; } \
+    || { echo "VITE_APP_VERSION must be empty or vX.Y.Z" >&2; exit 1; }
+RUN pnpm build && printf '%s\n' "${VITE_APP_VERSION:-dev}" > dist/version.txt
 
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf

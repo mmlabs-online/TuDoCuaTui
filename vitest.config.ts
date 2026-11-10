@@ -19,7 +19,7 @@ export default defineConfig({
     globals: false,
     restoreMocks: true,
     // Force local mode even if a developer has a .env.local.
-    env: { VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "" },
+    env: { VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "", VITE_APP_VERSION: "" },
     coverage: {
       provider: "v8",
       include: [
@@ -28,6 +28,7 @@ export default defineConfig({
         "src/features/items/validate.ts",
         "src/features/items/dirty.ts",
         "src/lib/text.ts",
+        "src/lib/version.ts",
         "src/features/auth/authMessages.ts",
         "src/features/import-export/csv/parse.ts",
         "src/features/import-export/csv/map.ts",
@@ -42,6 +43,7 @@ export default defineConfig({
         "src/features/items/validate.ts": thresholds,
         "src/features/items/dirty.ts": thresholds,
         "src/lib/text.ts": thresholds,
+        "src/lib/version.ts": thresholds,
         "src/features/auth/authMessages.ts": thresholds,
         "src/features/import-export/csv/parse.ts": thresholds,
         "src/features/import-export/csv/map.ts": thresholds,
