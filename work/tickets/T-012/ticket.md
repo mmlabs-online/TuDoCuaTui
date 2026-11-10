@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T12:34:25Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -45,7 +45,13 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] CI runs the migration tests against Postgres 17.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - (2026-11-10, from T-011 review/security) Migration runner must be `node server/migrate.js` (D24), exit non-zero on failure, never log `DATABASE_URL` or connection options; schema follows D25 (no RLS while single-user/no-login).
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: consults (database-optimizer, software-architect); plan.md READY — timestamped SQL migration, unprefixed schema, plain-ESM `server/migrate.js` runner (per-file tx, session advisory lock, checksums, exit 0/1/2), Postgres 17 tests in CI.
+- In progress / next: Ming approves the plan (assumptions 1–10, incl. new `pg` dependency and whether Supabase holds real data to move). Then implement.
+- Gotchas: never log DATABASE_URL; tests must not skip in CI; T-013 must set the pg `date` parser and keep `seasons` as text[].

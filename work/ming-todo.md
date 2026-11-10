@@ -120,6 +120,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [ ] (2026-11-10) Approve plan for T-012 (branch `claude/loving-fermi-t90upb`): work/tickets/T-012/plan.md — Postgres schema + `server/migrate.js` runner; confirm assumptions 1–10 (new `pg` dependency; is there real Supabase data to move?)
 - [x] (2026-11-10) Approve plan for T-011 (branch `claude/loving-fermi-t90upb`): work/tickets/T-011/plan.md — `tudocuatui` DB on shared Postgres + migrate-guarded deploy drafts; confirm A1–A9 and decide P1 (R2/RLS for the D23 backend)
 - [x] (2026-11-10) Approve plan for T-009 (branch `claude/loving-fermi-t90upb`): work/tickets/T-009/plan.md — AI settings storage + encrypted key + `tudo-ai-settings` function; confirm C1–C9 and A1–A12
 - [x] (2026-11-10) Approve plan for T-008 (branch `claude/loving-fermi-t90upb`): work/tickets/T-008/plan.md — release version in the UI footer + version.txt; confirm assumptions 1–9
