@@ -27,7 +27,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-006 | Replace magic-link login with email + password | MERGED | P0 | S | ui, security | F-101 | plan-approval | 2 | 2026-11-09 |
 | T-007 | Self-host via Cloudflare Tunnel with stoktok-style release/deploy CI/CD | MERGED | P0 | M | architecture, security | F-007 | plan-approval | 2 | 2026-11-10 |
 | T-008 | Show the release version in the UI | MERGED | P1 | S | ui | T-007 | plan-approval | 1 | 2026-11-10 |
-| T-011 | Register a `tudocuatui` database on the shared Postgres | BLOCKED | P0 | S | db, security | T-007 | plan-approval | 0 | 2026-11-10 |
+| T-011 | Register a `tudocuatui` database on the shared Postgres | DONE | P0 | S | db, security | T-007 | plan-approval | 0 | 2026-11-10 |
 | T-012 | Postgres schema and migration runner for the self-hosted database | BACKLOG | P0 | M | db, architecture | T-011 | plan-approval | 0 | 2026-11-10 |
 | T-013 | Node API server serving the SPA and `/api` | BACKLOG | P0 | L | architecture, security, data | T-012 | plan-approval | 0 | 2026-11-10 |
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | BACKLOG | P0 | M | ui, data | T-013 | none | 0 | 2026-11-10 |

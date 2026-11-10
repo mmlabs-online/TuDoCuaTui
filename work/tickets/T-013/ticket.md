@@ -44,6 +44,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Serves `dist/` with SPA fallback and correct caching (as nginx did in T-007).
 
 ## Notes / answers from Ming
+- (2026-11-10, from T-011 security review) Validate the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`: JWKS signature, `aud`, `iss`) — neighbours on the shared `web` network can reach the API directly. Provide `/readyz` with `select 1` on :3000, pg pool max 5, never log `DATABASE_URL`.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff

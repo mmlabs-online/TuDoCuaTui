@@ -45,6 +45,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] CI runs the migration tests against Postgres 17.
 
 ## Notes / answers from Ming
+- (2026-11-10, from T-011 review/security) Migration runner must be `node server/migrate.js` (D24), exit non-zero on failure, never log `DATABASE_URL` or connection options; schema follows D25 (no RLS while single-user/no-login).
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
