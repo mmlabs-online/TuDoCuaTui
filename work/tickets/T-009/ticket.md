@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T06:38:06Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -56,4 +56,11 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: consults (database-optimizer, software-architect) saved; plan.md READY — both tables in `public`, no client grants, RLS deny-all, AES-256-GCM with TUDO_AI_KEK in the Edge Function `tudo-ai-settings`, rate-limit table, mirrored allowlist in src/shared/ai + supabase/functions/_shared/ai with an equality test. Changes C1–C9, defaults A1–A14.
+- In progress / next: Ming approves the plan (confirm or change A1–A12); then /run implements.
+- Gotchas: D17 amendment needed for `supabase functions deploy <name> --project-ref` (A2 → D22); Gemini model ids must come from Google's docs at implementation time.
