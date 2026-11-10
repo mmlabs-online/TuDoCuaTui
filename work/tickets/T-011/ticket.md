@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T10:18:46Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,12 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Runbook lists the exact deployment-repo steps.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: database-optimizer consult; plan.md READY (drafts + M-12 runbook + D24; migrate guarded by compose `--profile migrate config --services`; new compose ships with T-015's first Node release).
+- In progress / next: Ming approves the plan (A1–A9) and decides P1 (R2/RLS wording, proposed D25 — needed before T-012 is planned). Then implement.
+- Gotchas: deployment repo already pins an nginx `release.env` (risk R-b); setup branch must not start with `release/`; never read `postgres/secrets/`. T-015 needs `Needs Ming: M-12`.
