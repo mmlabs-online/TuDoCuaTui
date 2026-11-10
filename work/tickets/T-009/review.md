@@ -108,3 +108,54 @@ No violations found.
 - Bump `@anthropic-ai/sdk` to the latest once it passes Deno's minimum-age rule.
 - `key_status` / `key_checked_at`; KEK rotation (`TUDO_AI_KEK_PREV`); README for local `functions serve`;
   feature-list update for D21 and the F-701 rename (`tudo-tag-item-photo`).
+
+## Attempt 2 — 2026-11-10
+Verdict: PASS
+
+Rework requested by Ming after attempt-1 PASS (ticket.md "Notes / answers from Ming", 2026-11-10; security-review 🟡1 and 🟡2).
+Reviewed at `f0b0053` (rework commit `388b655`). Diff `ec05df4..HEAD`: `supabase/functions/_shared/deno/claude.ts`,
+`work/ming-todo.md`, `work/tickets/T-009/impl-log.md`, `work/tickets/T-009/ticket.md` (state field only). No other file changed.
+A security re-review runs in parallel and is not repeated here.
+
+### Checks (run by reviewer)
+- typecheck: `pnpm typecheck` (tsc --noEmit) exit 0, no output.
+- format:check: `pnpm format:check` "All matched files use the correct format." (129 files).
+- test: `pnpm test` 41 files, 488 tests passed (same as attempt 1, matches impl-log).
+- test:coverage: `pnpm test:coverage` 488 passed; All files 99.64 % stmts / 98.69 % branches / 100 % funcs / 99.71 % lines (unchanged).
+- build: `pnpm build` built (`dist/assets/index-*.js` 242.49 kB).
+- `bash scripts/check-public-supabase-env.test.sh`: 17/17 passed.
+- `npx --yes deno@2 check --config supabase/functions/tudo-ai-settings/deno.json supabase/functions/tudo-ai-settings/index.ts`: exit 0, no errors.
+
+### Acceptance criteria (rework items)
+- [x] 🟡1 Anthropic client pinned against project-wide env — evidence: `supabase/functions/_shared/deno/claude.ts:9-17`
+  passes `apiKey`, `authToken: null`, `webhookKey: null`, `baseURL: "https://api.anthropic.com"`, `maxRetries: 0`,
+  `timeout: 10_000`, `logLevel: "off"`. Verified against SDK 1.6.0 (`@anthropic-ai/sdk/1.6.0/client.js:104-160`):
+  explicit `baseURL` replaces the `ANTHROPIC_BASE_URL` default; credential exclusivity counts only options `!= null`, so
+  `authToken: null` does not throw, and with `apiKey` passed the env (`ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` /
+  profile chain) is not read at all; explicit `webhookKey` and `logLevel` skip `ANTHROPIC_WEBHOOK_SIGNING_KEY` / `ANTHROPIC_LOG`.
+  `deno check` green. Error path unchanged (`claude.ts:20-28`, status only).
+- [x] 🟡2 M-10 smoke test keeps key/token off the command line — evidence: `work/ming-todo.md:80` `read -rs T` / `read -rs K`;
+  `:82` body built by `jq -n --arg k "$K"` and piped to `curl --data-binary @-`, token via `-H @<(printf ...)` (printf is a
+  shell builtin, curl reads the header from a fd); `:84` `get` variant and `unset K T`. Placeholder `<model id>` instead of a guessed id.
+- [x] Rollback wording (attempt-1 nit) — `work/ming-todo.md:89` now says "at the top"; matches
+  `supabase/migrations/20261110000000_tudo_ai_settings.sql:8`.
+- [x] No regression: all attempt-1 AC evidence unchanged (no source, test, migration or client file touched).
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R3 strengthened (user key can only reach api.anthropic.com). R7: both files were requested by Ming
+for this rework; impl-log "Attempt 2" lists them. No migration changed (R2).
+
+### Nits (do not block)
+- 💭 `work/ming-todo.md:82`: `jq --arg k "$K"` still puts the key in jq's argv for the few ms jq runs (visible in `ps`
+  to other local users, not in shell history). Fully stdin alternative: `printf '%s' "$K" | jq -Rn '{action:"save",provider:"claude",model:"<model id>",apiKey:input}' | curl ...`.
+  Ming's own machine, form suggested by the security review; acceptable.
+- 💭 SDK 1.6.0 still reads `ANTHROPIC_CUSTOM_HEADERS` (`client.js:174-184`) and OpenTelemetry env vars. With the base URL
+  pinned these cannot redirect the key; a project-wide custom header could only add headers to calls to api.anthropic.com.
+  Not part of Ming's requested fix.
+
+### Follow-ups (out of scope)
+- Consider `defaultHeaders`/OTel pinning or an env audit of the shared project for `ANTHROPIC_*` names before more Claude calls land (F-701).
+- Attempt-1 follow-ups still stand (Gemini ids, CI `deno check`, SDK bump, key status/KEK rotation, feature-list update).
