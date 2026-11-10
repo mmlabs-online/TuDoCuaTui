@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T02:57:20Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -61,4 +61,11 @@ Builds on T-007 (D20): releases are `vX.Y.Z` tags built by `.github/workflows/re
 ## Notes / answers from Ming
 - 2026-11-10: "tôi muốn thông tin version release vào UI".
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: plan.md READY — VITE_APP_VERSION build arg from the validated tag, footer line "Phiên bản vX.Y.Z" / "Phiên bản dev", dist/version.txt, check-image + CI coverage; assumptions 1–9 listed.
+- In progress / next: Ming approves the plan (and confirms or changes the assumptions); then /run implements.
+- Gotchas: touches Dockerfile, release.yml, ci.yml, nginx.conf (High tier) — security review at REVIEW.
