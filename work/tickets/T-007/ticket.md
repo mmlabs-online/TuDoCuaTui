@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-09 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-10T00:56:23Z |
 | PR | — |
 
 ## Goal
@@ -87,7 +87,7 @@ In this repo:
 
 - 2026-11-09: Ming added the repo secrets `DEPLOY_REPO_TOKEN`, `DOCKERHUB_TOKEN`, `DOCKERHUB_USERNAME` to TuDoCuaTui (same names as stoktok). The two `VITE_SUPABASE_*` values are not added yet (they wait for M-1).
 
-Waiting for Ming: plan approval (High tier)
+- 2026-11-10: Plan approved (2026-11-10) — Ming: "approve"; assumptions A1–A11 accepted as the plan's defaults (runner [self-hosted, macbook-runner], public Docker Hub repo, local-mode releases allowed before M-1, no Cloudflare Access, CI image job, risk-tiers updated, CLAUDE.md untouched, no previews, first release v0.1.0).
 
 ## Handoff
 
