@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-10T12:45:13Z |
 | PR | — |
 
 ## Goal
@@ -45,7 +45,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] CI runs the migration tests against Postgres 17.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-10). Assumption 9 (Supabase data migration) not answered: default kept — no data migration in T-012; ask again before T-016.
 - (2026-11-10, from T-011 review/security) Migration runner must be `node server/migrate.js` (D24), exit non-zero on failure, never log `DATABASE_URL` or connection options; schema follows D25 (no RLS while single-user/no-login).
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
