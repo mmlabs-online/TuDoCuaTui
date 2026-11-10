@@ -15,7 +15,7 @@
 | `vitest.config.ts` | Thresholds for static/access/http |
 | `work/ming-todo.md` | M-13 |
 
-Not created: `server/README.md` is listed in the plan but was not written in this attempt (see Follow-ups).
+`server/README.md` added after the first commit (start contract, env, logging rules).
 
 ### Tests added / changed
 - static, access, db, app, app.db, index.cli tests per the plan list (plus a few small extras: HEAD, index-missing 404, pool error code-only, 500 internal, `/api` 401 over a real port with Access on).
@@ -34,7 +34,6 @@ Not created: `server/README.md` is listed in the plan but was not written in thi
 None.
 
 ### Follow-ups (noticed, not done)
-- `server/README.md` (start contract, env table, logging rules) still to write.
 - Plan follow-ups: risk-tiers entries, gzip/ETag, T-015 healthcheck and check-image rewrite.
 
 ### Scope self-check
