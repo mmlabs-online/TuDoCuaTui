@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -59,5 +59,7 @@ Photos live only in Google Drive. The `wardrobe` bucket, its policies and their 
 
 ## Notes / answers from Ming
 - 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
+
+- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
 ## Handoff

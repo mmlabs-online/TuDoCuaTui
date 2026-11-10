@@ -58,6 +58,12 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [ ] **M-9 — Rotate the cloudflared tunnel token** that is committed in plaintext in `mmlabs-online/deployment`
       `proxy/compose.yml` (found in T-007): create a new token, move it out of the repo, revoke the old one.
 
+- [ ] **M-11 — Cloudflare Access for TuDo** (D23, before data goes on the new backend): Cloudflare Zero Trust →
+      Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
+      "Allow" for your email only (one-time PIN). Check that an incognito window gets the Access login page, and that
+      `/version.txt` is also behind it. Without this, anyone with the URL can read and change the wardrobe.
+- [ ] **PR #28 (T-009)** — paused by D23: do not merge; close it or convert to draft when convenient.
+
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
 - [x] (2026-11-10) Approve plan for T-008 (branch `claude/loving-fermi-t90upb`): work/tickets/T-008/plan.md — release version in the UI footer + version.txt; confirm assumptions 1–9

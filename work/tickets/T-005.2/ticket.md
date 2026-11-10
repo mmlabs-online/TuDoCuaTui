@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -67,5 +67,7 @@ In Supabase mode, adding, replacing or deleting an item's photo stores the file 
 
 ## Notes / answers from Ming
 - 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
+
+- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
 ## Handoff

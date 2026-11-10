@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -40,5 +40,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 ## Notes / answers from Ming
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
+
+- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
 ## Handoff
