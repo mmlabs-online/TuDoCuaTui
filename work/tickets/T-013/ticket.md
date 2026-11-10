@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | L |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T17:46:07Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -44,7 +44,14 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Serves `dist/` with SPA fallback and correct caching (as nginx did in T-007).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- (2026-11-10, orchestrator) Split per plan.md `## Split proposal`: this ticket delivers slice T-013.1 (server shell, static SPA serving = AC3, health, Access guard); AC1 + AC2 move to T-013.2.
 - (2026-11-10, from T-011 security review) Validate the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`: JWKS signature, `aud`, `iss`) — neighbours on the shared `web` network can reach the API directly. Provide `/readyz` with `select 1` on :3000, pg pool max 5, never log `DATABASE_URL`.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: software-architect consult; plan.md READY for slice T-013.1 (node:http server, static SPA, /healthz + /readyz, pool max 5, Cloudflare Access JWT via jose on /api/*, fail closed). T-013.2 created for the /api endpoints.
+- In progress / next: Ming approves A1–A14 (A8–A14 fix the T-013.2 contract) and supplies the Access AUD + team domain via M-13 before T-015.
+- Gotchas: never log DATABASE_URL/token; server must start without DATABASE_URL (T-015 smoke test); JWKS fetch needs container egress.
