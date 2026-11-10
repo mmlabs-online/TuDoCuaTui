@@ -57,6 +57,33 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Do not run it while `scripts/test-db-shared.sh` is mid-run.
 - [ ] **M-9 — Rotate the cloudflared tunnel token** that is committed in plaintext in `mmlabs-online/deployment`
       `proxy/compose.yml` (found in T-007): create a new token, move it out of the repo, revoke the old one.
+- [ ] **M-10 — Deploy the AI settings function (T-009)**, after M-1 and after T-009 is merged. Needs `tudo_set_updated_at`
+      from the init migration. Dashboard only for SQL and secrets (D17); the one CLI step is D22.
+      1. Pre-checks (read-only): SQL Editor `select to_regclass('public.tudo_ai_settings'), to_regclass('public.tudo_ai_calls');`
+         gives two nulls; Edge Functions has no `tudo-ai-settings`; Secrets has no `TUDO_AI_KEK` / `TUDO_ALLOWED_ORIGINS`.
+      2. Migration: paste `supabase/migrations/20261110000000_tudo_ai_settings.sql` into the SQL Editor and run it once.
+         If it fails, stop and report; do not re-run part of it.
+      3. Verify (read-only): `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name in ('tudo_ai_settings','tudo_ai_calls') order by 1,2,3;`
+         only `service_role` (and owner) rows, no `anon` / `authenticated`.
+         `select relname, relrowsecurity from pg_class where relname in ('tudo_ai_settings','tudo_ai_calls');` both true.
+         `select count(*) from pg_policies where tablename in ('tudo_ai_settings','tudo_ai_calls');` gives 0.
+      4. Secrets (Dashboard → Edge Functions → Secrets; never `secrets set --env-file`):
+         `TUDO_AI_KEK` = output of `openssl rand -base64 32`; keep a copy in the password manager BEFORE saving it
+         (if lost, every user must re-enter their key). `TUDO_ALLOWED_ORIGINS` = `https://tudocuatui.mmlabs.online,http://localhost:8443`.
+      5. Deploy (D22): `npx --yes supabase@3.0.0 login`, then
+         `npx --yes supabase@3.0.0 functions deploy tudo-ai-settings --project-ref <stoktok ref>`.
+         Add `--use-api` if `functions deploy --help` lists it (no Docker); otherwise Docker Desktop must be running.
+         Always name the function. Never run `link`, `db ...`, or a deploy without a name.
+         Then Dashboard → Edge Functions → `tudo-ai-settings` → "Verify JWT" shows off.
+      6. Optional smoke test before T-010: log in to TuDo, DevTools → Application → Local Storage → `sb-<ref>-auth-token` →
+         copy `access_token` (valid 1 h) into `T`, then
+         `curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H "Authorization: Bearer $T" -H "apikey: <anon key>" -H "Content-Type: application/json" -d '{"action":"get"}'`
+         and the same with `save` (Claude key), `test`, `get` (shows `••••` + last 4), `deleteKey`.
+         Without the `Authorization` header expect 401. Gemini is not selectable yet (empty model list). Clear shell history afterwards.
+      7. Local DB tests (needs Docker): `npx supabase db reset && npx supabase test db`, then `bash scripts/test-db-shared.sh`;
+         all files must pass, including `supabase/tests/rls_ai_settings.sql`.
+      8. Optional: regenerate types with M-8 (`src/types/database.ts` has the two new tables added by hand).
+      Rollback: the commented block at the end of the migration, plus Dashboard → delete function `tudo-ai-settings`.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
