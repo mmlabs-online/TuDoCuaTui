@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T12:45:13Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/30 |
 
 ## Goal
 A plain-Postgres schema for items, locations, photos (references) and wear logs, plus a migration runner the
@@ -55,3 +55,8 @@ Plan approved (Ming, 2026-11-10). Assumption 9 (Supabase data migration) not ans
 - Done: consults (database-optimizer, software-architect); plan.md READY — timestamped SQL migration, unprefixed schema, plain-ESM `server/migrate.js` runner (per-file tx, session advisory lock, checksums, exit 0/1/2), Postgres 17 tests in CI.
 - In progress / next: Ming approves the plan (assumptions 1–10, incl. new `pg` dependency and whether Supabase holds real data to move). Then implement.
 - Gotchas: never log DATABASE_URL; tests must not skip in CI; T-013 must set the pg `date` parser and keep `seasons` as text[].
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved; attempt 1 PASS; attempt 2 fixed two 🟡 security items at Ming's request (tx guard, CI pipefail); re-review PASS, security no 🔴/🟡; PR #30 opened.
+- In progress / next: Ming merges PR #30 (watch first CI run on Postgres 17). Next ticket T-013 (Node API).
+- Gotchas: local tests ran on PG 16.15 (no Docker daemon); A9 (Supabase data to move?) still open before T-016.
