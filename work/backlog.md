@@ -26,7 +26,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-004 | Move TuDoCuaTui onto the shared stoktok Supabase project | MERGED | P0 | M | db, security | T-003 | plan-approval | 2 | 2026-11-08 |
 | T-006 | Replace magic-link login with email + password | MERGED | P0 | S | ui, security | F-101 | plan-approval | 2 | 2026-11-09 |
 | T-007 | Self-host via Cloudflare Tunnel with stoktok-style release/deploy CI/CD | MERGED | P0 | M | architecture, security | F-007 | plan-approval | 2 | 2026-11-10 |
-| T-008 | Show the release version in the UI | IN_PROGRESS | P1 | S | ui | T-007 | plan-approval | 0 | 2026-11-10 |
+| T-008 | Show the release version in the UI | DONE | P1 | S | ui | T-007 | plan-approval | 1 | 2026-11-10 |
 | T-005.1 | Connect Google Drive through a Supabase Edge Function | BLOCKED | P0 | M | architecture, security | T-004 | plan-approval | 0 | 2026-11-08 |
 | T-005.2 | Upload and delete item photos via Google Drive | BACKLOG | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-08 |
 | T-005.3 | Display item photos from Google Drive | BACKLOG | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-08 |
