@@ -10,7 +10,7 @@
 | Areas | architecture, security |
 | Gate | plan-approval |
 | Depends on | T-013, T-011 |
-| Needs Ming | — |
+| Needs Ming | M-12 |
 | Attempts | 0 |
 | Created | 2026-11-10 |
 | Claimed by | — |
