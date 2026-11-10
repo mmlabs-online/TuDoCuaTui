@@ -93,7 +93,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
       "Allow" for your email only (one-time PIN). Check that an incognito window gets the Access login page, and that
       `/version.txt` is also behind it. Without this, anyone with the URL can read and change the wardrobe.
-- [ ] **PR #28 (T-009)** — paused by D23: do not merge; close it or convert to draft when convenient.
+- [x] (2026-11-10) **PR #28 (T-009)** — merged by Ming. Its Supabase parts (Edge Function, migration) are not deployed under D23; T-016 removes or ports them.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
