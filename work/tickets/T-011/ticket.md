@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-10T10:27:41Z |
 | PR | — |
 
 ## Goal
@@ -46,7 +46,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Runbook lists the exact deployment-repo steps.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-10). P1: option (a) — record D25 (no RLS while single-user/no-login on the D23 backend; user_id + ENABLE/FORCE RLS when auth or a second user arrives).
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
