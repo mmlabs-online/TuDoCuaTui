@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T03:02:03Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/26 |
 
 ## Goal
 Ming can see which release is running (e.g. "Phiên bản v0.1.1") in the app, the same way stoktok shows
@@ -69,3 +69,8 @@ Builds on T-007 (D20): releases are `vX.Y.Z` tags built by `.github/workflows/re
 - Done: plan.md READY — VITE_APP_VERSION build arg from the validated tag, footer line "Phiên bản vX.Y.Z" / "Phiên bản dev", dist/version.txt, check-image + CI coverage; assumptions 1–9 listed.
 - In progress / next: Ming approves the plan (and confirms or changes the assumptions); then /run implements.
 - Gotchas: touches Dockerfile, release.yml, ci.yml, nginx.conf (High tier) — security review at REVIEW.
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved; attempt 1 PASS (security review clean). Footer "Phiên bản vX.Y.Z"/"dev" via VITE_APP_VERSION build arg, dist/version.txt with no-cache, check-image + CI coverage. PR #26.
+- In progress / next: CI image job on PR #26 must be green before merge; next release must come from an unreleased main commit.
+- Gotchas: release/v0.1.1 points at the v0.1.0 commit (failed run 42745474701); deployment setup PR mmlabs-online/deployment#26 still open.
