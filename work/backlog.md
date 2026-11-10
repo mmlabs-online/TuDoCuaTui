@@ -39,5 +39,5 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-1002 | Camera capture on photo inputs | MERGED | P0 | S | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-601.3 | CSV import preview and import run | MERGED | P0 | M | ui, data | F-601.2, F-004.3 | none | 1 | 2026-11-09 |
 | F-602 | JSON backup and restore | BACKLOG | P0 | M | data, db | F-004.3 | none | 0 | 2026-11-07 |
-| T-001 | Hide mock AI controls until M3 | DONE | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
+| T-001 | Hide mock AI controls until M3 | MERGED | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
 | F-603 | Bulk photo import | BACKLOG | P0 | M | ui, data | F-601.3, F-202.1 | none | 0 | 2026-11-07 |
