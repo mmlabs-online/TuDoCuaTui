@@ -38,3 +38,16 @@ Limits: no shell (files read directly, no `git diff`); no `.env` read except the
 ### Open questions
 - Does stoktok set any `ANTHROPIC_*` Edge secrets on the shared project?
 - SDK 1.6.0 depends on `@opentelemetry/api`: confirm no tracer captures request headers.
+
+## Attempt 2 — 2026-11-10 (security-ai-generated-code-auditor, re-review of 388b655)
+
+**Verdict: no 🔴.** 🟡1 fixed and verified against the pinned SDK source; 🟡2 only partly fixed (new 🟡3).
+
+- 🟢 **🟡1 resolved** (`supabase/functions/_shared/deno/claude.ts:9-17`), checked in `/root/.cache/deno/npm/registry.npmjs.org/@anthropic-ai/sdk/1.6.0/`: explicit `baseURL` replaces `ANTHROPIC_BASE_URL` and blocks profile overrides (`client.js:104`, `:156`); `apiKey` + `authToken: null` passes the one-credential check (`client.js:123`) and skips env/profile/workload-identity credentials (`client.js:129-134`, `:209-211`); `webhookKey: null` (`client.js:104`); `logLevel: "off"` overrides `ANTHROPIC_LOG` (`client.js:162-163`). `maxRetries: 0`, `timeout: 10_000` kept; catch reads only `e.status` (`claude.ts:22`). No regression.
+- 🟡3 **(rest of 🟡2): the key was still in `jq`'s argv** (`work/ming-todo.md:82`, `jq -n --arg k "$K"`) — visible in `ps` / `/proc/<pid>/cmdline` while jq runs. History is fine (literal `$K`); the bearer via `-H @<(printf …)` is fine (builtin in a subshell). Fix: `printf '%s' "$K" | jq -Rs '{…, apiKey: .}' | curl … --data-binary @-`.
+- Other snippet checks OK: `read -rs`, body via pipe, nothing on disk, `unset K T`, anon key public by design.
+- 🟢 SDK still reads `ANTHROPIC_CUSTOM_HEADERS` (no opt-out, `client.js:178-188`, merged after auth headers `:981-982`): a project-wide custom `x-api-key` would override the user's key (wrong key tested; nothing leaves api.anthropic.com since the base URL is pinned). Cheapest fix: M-10 pre-check for no `ANTHROPIC_*` secrets; optional code fix `defaultHeaders: { "x-api-key": key, authorization: null }`.
+- 🟢 OpenTelemetry via `ANTHROPIC_OPEN_TELEMETRY*` (`client.d.ts:164-170`); no tracer registered in the function; `openTelemetry: false` optional.
+- 🟢 `claude.ts:7-8` comment "Pin everything" slightly overstated.
+
+**Orchestrator note (2026-11-10):** 🟡3 and the `ANTHROPIC_*` pre-check are fixed directly in Ming's runbook `work/ming-todo.md` M-10 (step 1 pre-check added; step 6 now `printf '%s' "$K" | jq -Rs '{…, apiKey: .}'`) — a Ming-item text change only, no code; recorded in ticket.md. The `defaultHeaders` / `openTelemetry: false` code hardening is a follow-up.

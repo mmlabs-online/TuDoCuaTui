@@ -61,6 +61,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       from the init migration. Dashboard only for SQL and secrets (D17); the one CLI step is D22.
       1. Pre-checks (read-only): SQL Editor `select to_regclass('public.tudo_ai_settings'), to_regclass('public.tudo_ai_calls');`
          gives two nulls; Edge Functions has no `tudo-ai-settings`; Secrets has no `TUDO_AI_KEK` / `TUDO_ALLOWED_ORIGINS`.
+         Also check Dashboard → Edge Functions → Secrets has no `ANTHROPIC_*` secret (e.g. `ANTHROPIC_CUSTOM_HEADERS`): the SDK still reads that one (T-009 security review).
       2. Migration: paste `supabase/migrations/20261110000000_tudo_ai_settings.sql` into the SQL Editor and run it once.
          If it fails, stop and report; do not re-run part of it.
       3. Verify (read-only): `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name in ('tudo_ai_settings','tudo_ai_calls') order by 1,2,3;`
@@ -79,7 +80,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          copy `access_token` (valid 1 h). Never put a token or key on a command line (it lands in shell history and `ps`):
          `read -rs T` (paste the token), `read -rs K` (paste the Claude key, only for `save`), then send the JSON body on stdin and the
          token via a header file on stdin too, e.g.
-         `jq -n --arg k "$K" '{action:"save",provider:"claude",model:"<model id>",apiKey:$k}' | curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H @<(printf 'Authorization: Bearer %s' "$T") -H "apikey: <anon key>" -H "Content-Type: application/json" --data-binary @-`
+         `printf '%s' "$K" | jq -Rs '{action:"save",provider:"claude",model:"<model id>",apiKey:.}' | curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H @<(printf 'Authorization: Bearer %s' "$T") -H "apikey: <anon key>" -H "Content-Type: application/json" --data-binary @-`
          Same for `get`
          (`jq -n '{action:"get"}' | curl ...`; shows `••••` + last 4), `test`, `deleteKey`. Finish with `unset K T`.
          Without the `Authorization` header expect 401. Gemini is not selectable yet (empty model list).
