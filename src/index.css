@@ -2366,3 +2366,9 @@ main {
   color: var(--muted);
   margin: 0 0 12px;
 }
+.app-version {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+}

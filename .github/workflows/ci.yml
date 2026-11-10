@@ -47,6 +47,7 @@ jobs:
           tags: tudocuatui:ci-local
           cache-from: type=gha,scope=image
           cache-to: type=gha,mode=max,scope=image
+      # T-008: VITE_APP_VERSION is a dummy version; the local-mode image above must show dev.
       - name: build (dummy Supabase build args)
         uses: docker/build-push-action@v6
         with:
@@ -57,6 +58,9 @@ jobs:
           build-args: |
             VITE_SUPABASE_URL=https://ci-dummy.invalid
             VITE_SUPABASE_ANON_KEY=sb_publishable_ci_dummy
+            VITE_APP_VERSION=v0.0.0
           cache-from: type=gha,scope=image
       - run: bash scripts/check-image.sh tudocuatui:ci-local
       - run: bash scripts/check-image.sh tudocuatui:ci-supabase https://ci-dummy.invalid
+        env:
+          EXPECTED_VERSION: v0.0.0

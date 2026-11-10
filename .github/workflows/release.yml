@@ -12,6 +12,7 @@
 #   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  optional, build args. Public values only (R3):
 #                                        the stoktok project URL and its anon/publishable key.
 #                                        Both empty = the release runs in local mode.
+# T-008: the validated tag is also passed as build arg VITE_APP_VERSION and shown in the app footer.
 
 name: release
 
@@ -106,6 +107,7 @@ jobs:
           build-args: |
             VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
             VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+            VITE_APP_VERSION=${{ steps.version.outputs.tag }}
           # No build-arg metadata in attestations.
           provenance: false
           sbom: false
@@ -117,6 +119,7 @@ jobs:
         env:
           DIGEST: ${{ steps.image.outputs.digest }}
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          EXPECTED_VERSION: ${{ steps.version.outputs.tag }}
         run: |
           ref="$NAMESPACE/tudocuatui@$DIGEST"
           docker pull "$ref"

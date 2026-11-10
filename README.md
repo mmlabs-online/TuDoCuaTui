@@ -64,7 +64,8 @@ This is M-4 in `work/ming-todo.md`. Write names, never values, into the repo.
 the commit is on `main`, the version is new and higher, and the secrets exist; tags it, builds and pushes the image,
 pulls the pushed digest back and smoke-tests it, then opens PR `release/tudocuatui-vX.Y.Z` on the deployment repo
 (it changes only `apps/tudocuatui/release.env`). Review and merge it; `deploy-tudocuatui` deploys and comments the
-result on the PR. Phone check: open the site; a deep URL such as `/x/y` also loads the app.
+result on the PR. Version check: `curl https://tudocuatui.mmlabs.online/version.txt` or the "Phiên bản" line at the
+bottom of the app. Phone check: open the site; a deep URL such as `/x/y` also loads the app.
 
 **Supabase values**: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are optional repo secrets passed as Docker
 build args, so they are baked in at build time. Without them the release runs in local mode (demo items, no login).

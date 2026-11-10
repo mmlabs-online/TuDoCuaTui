@@ -3,6 +3,7 @@
 # usage: check-image.sh <image-ref> [expected-supabase-url]
 #   With expected-supabase-url the bundle must contain it (build with VITE_* build args);
 #   without it the bundle must be in local mode (no Supabase URL baked in).
+#   EXPECTED_VERSION (env, default "dev") is the release tag the image must show (vX.Y.Z or dev).
 set -uo pipefail
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
@@ -12,6 +13,10 @@ fi
 IMAGE="$1"
 EXPECTED_URL="${2:-}"
 ROOT=/usr/share/nginx/html
+EXPECTED_VERSION="${EXPECTED_VERSION:-dev}"
+if ! [[ "$EXPECTED_VERSION" =~ ^(dev|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  echo "::error::EXPECTED_VERSION must be dev or vX.Y.Z" >&2; exit 2
+fi
 
 echo "== no secrets in image"
 if docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
@@ -45,6 +50,17 @@ else
   fi
 fi
 
+echo "== version"
+got=$(docker run --rm --entrypoint sh "$IMAGE" -c "cat $ROOT/version.txt")
+if [ "$got" != "$EXPECTED_VERSION" ]; then
+  echo "::error::version.txt is '$got', expected '$EXPECTED_VERSION'"; exit 1
+fi
+if [ "$EXPECTED_VERSION" != dev ]; then
+  if ! docker run --rm --entrypoint sh "$IMAGE" -c 'grep -rqF -- "$1" "$2"' _ "$EXPECTED_VERSION" "$ROOT/assets"; then
+    echo "::error::$EXPECTED_VERSION not found in the bundle"; exit 1
+  fi
+fi
+
 echo "== smoke"
 NAME="tudocuatui-smoke-$$"
 trap 'docker rm -f "$NAME" >/dev/null 2>&1' EXIT
@@ -63,5 +79,9 @@ if ! docker exec "$NAME" wget -q -O - http://127.0.0.1:3000/some/deep/path | gre
 fi
 if docker exec "$NAME" wget -q -O /dev/null http://127.0.0.1:3000/assets/does-not-exist.js 2>/dev/null; then
   echo "::error::smoke failed: a missing asset did not return 404"; exit 1
+fi
+served=$(docker exec "$NAME" wget -q -O - http://127.0.0.1:3000/version.txt)
+if [ "$served" != "$EXPECTED_VERSION" ]; then
+  echo "::error::smoke failed: served /version.txt is '$served', expected '$EXPECTED_VERSION'"; exit 1
 fi
 echo "image ok"
