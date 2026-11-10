@@ -36,6 +36,7 @@ export default defineConfig({
         "src/features/import-export/download.ts",
         "src/shared/ai/**",
         "supabase/functions/_shared/core/**",
+        "server/**/*.js",
       ],
       exclude: ["src/data/photos.ts", "**/*.test.*"],
       reporter: ["text", "html"],

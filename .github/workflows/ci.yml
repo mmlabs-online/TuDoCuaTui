@@ -16,6 +16,15 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # T-012: DB tests run against a real Postgres 17; they must not skip in CI (R8).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,6 +35,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test:coverage
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: migrate CLI smoke
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        shell: bash
+        run: |
+          node server/migrate.js
+          node server/migrate.js | tee /dev/stderr | grep -q "up to date"
       - run: pnpm format:check
       - run: pnpm build
       - run: bash scripts/check-public-supabase-env.test.sh
