@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-004 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/28 |
 
 ## Goal
 The server keeps, per user, the chosen AI provider (Claude or Gemini), model and an **encrypted** API key, so an
@@ -56,4 +56,18 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
+- 2026-11-10: Plan approved (2026-11-10) — Ming: "approve"; changes C1–C9 and assumptions A1–A12 accepted as the plan's defaults (D22 recorded for A2; F-701 renamed per A4).
+- 2026-11-10: Gemini model ids: Google's docs (ai.google.dev) are not reachable from the agent sandbox. Ming chose "Claude first, Gemini later": implement the full design including the Gemini adapter, but ship the Gemini model list EMPTY (Gemini not selectable yet); add verified Gemini ids later with a small /solo. Do not guess ids.
+- 2026-11-10: After review attempt 1 (PASS) Ming chose "fix both, then open the PR": (1) security-review 🟡1 — pin the Anthropic client so project-wide `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` can never apply (explicit baseURL, authToken null); (2) 🟡2 — M-10 smoke test reads the key with `read -rs` and passes the body via stdin, never on the command line.
+
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: consults (database-optimizer, software-architect) saved; plan.md READY — both tables in `public`, no client grants, RLS deny-all, AES-256-GCM with TUDO_AI_KEK in the Edge Function `tudo-ai-settings`, rate-limit table, mirrored allowlist in src/shared/ai + supabase/functions/_shared/ai with an equality test. Changes C1–C9, defaults A1–A14.
+- In progress / next: Ming approves the plan (confirm or change A1–A12); then /run implements.
+- Gotchas: D17 amendment needed for `supabase functions deploy <name> --project-ref` (A2 → D22); Gemini model ids must come from Google's docs at implementation time.
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved; attempt 1 PASS (security 🟡1 Anthropic env pickup, 🟡2 key on command line); Ming asked for fixes; attempt 2 PASS (client pinned; runbook via read -rs); last bit of 🟡2 (jq argv) + `ANTHROPIC_*` pre-check fixed by the orchestrator in the M-10 runbook text. Gemini model list ships empty (Ming). PR #28.
+- In progress / next: Ming merges PR #28, then M-10 (after M-1); next T-010 (Settings UI).
+- Gotchas: Gemini endpoint/env names from memory — verify at M-10 / before enabling Gemini; KEK must be backed up.

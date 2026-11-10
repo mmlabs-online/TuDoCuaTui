@@ -57,6 +57,37 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Do not run it while `scripts/test-db-shared.sh` is mid-run.
 - [ ] **M-9 — Rotate the cloudflared tunnel token** that is committed in plaintext in `mmlabs-online/deployment`
       `proxy/compose.yml` (found in T-007): create a new token, move it out of the repo, revoke the old one.
+- [ ] **M-10 — Deploy the AI settings function (T-009)**, after M-1 and after T-009 is merged. Needs `tudo_set_updated_at`
+      from the init migration. Dashboard only for SQL and secrets (D17); the one CLI step is D22.
+      1. Pre-checks (read-only): SQL Editor `select to_regclass('public.tudo_ai_settings'), to_regclass('public.tudo_ai_calls');`
+         gives two nulls; Edge Functions has no `tudo-ai-settings`; Secrets has no `TUDO_AI_KEK` / `TUDO_ALLOWED_ORIGINS`.
+         Also check Dashboard → Edge Functions → Secrets has no `ANTHROPIC_*` secret (e.g. `ANTHROPIC_CUSTOM_HEADERS`): the SDK still reads that one (T-009 security review).
+      2. Migration: paste `supabase/migrations/20261110000000_tudo_ai_settings.sql` into the SQL Editor and run it once.
+         If it fails, stop and report; do not re-run part of it.
+      3. Verify (read-only): `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name in ('tudo_ai_settings','tudo_ai_calls') order by 1,2,3;`
+         only `service_role` (and owner) rows, no `anon` / `authenticated`.
+         `select relname, relrowsecurity from pg_class where relname in ('tudo_ai_settings','tudo_ai_calls');` both true.
+         `select count(*) from pg_policies where tablename in ('tudo_ai_settings','tudo_ai_calls');` gives 0.
+      4. Secrets (Dashboard → Edge Functions → Secrets; never `secrets set --env-file`):
+         `TUDO_AI_KEK` = output of `openssl rand -base64 32`; keep a copy in the password manager BEFORE saving it
+         (if lost, every user must re-enter their key). `TUDO_ALLOWED_ORIGINS` = `https://tudocuatui.mmlabs.online,http://localhost:8443`.
+      5. Deploy (D22): `npx --yes supabase@3.0.0 login`, then
+         `npx --yes supabase@3.0.0 functions deploy tudo-ai-settings --project-ref <stoktok ref>`.
+         Add `--use-api` if `functions deploy --help` lists it (no Docker); otherwise Docker Desktop must be running.
+         Always name the function. Never run `link`, `db ...`, or a deploy without a name.
+         Then Dashboard → Edge Functions → `tudo-ai-settings` → "Verify JWT" shows off.
+      6. Optional smoke test before T-010: log in to TuDo, DevTools → Application → Local Storage → `sb-<ref>-auth-token` →
+         copy `access_token` (valid 1 h). Never put a token or key on a command line (it lands in shell history and `ps`):
+         `read -rs T` (paste the token), `read -rs K` (paste the Claude key, only for `save`), then send the JSON body on stdin and the
+         token via a header file on stdin too, e.g.
+         `printf '%s' "$K" | jq -Rs '{action:"save",provider:"claude",model:"<model id>",apiKey:.}' | curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H @<(printf 'Authorization: Bearer %s' "$T") -H "apikey: <anon key>" -H "Content-Type: application/json" --data-binary @-`
+         Same for `get`
+         (`jq -n '{action:"get"}' | curl ...`; shows `••••` + last 4), `test`, `deleteKey`. Finish with `unset K T`.
+         Without the `Authorization` header expect 401. Gemini is not selectable yet (empty model list).
+      7. Local DB tests (needs Docker): `npx supabase db reset && npx supabase test db`, then `bash scripts/test-db-shared.sh`;
+         all files must pass, including `supabase/tests/rls_ai_settings.sql`.
+      8. Optional: regenerate types with M-8 (`src/types/database.ts` has the two new tables added by hand).
+      Rollback: the commented block at the top of the migration, plus Dashboard → delete function `tudo-ai-settings`.
 
 - [ ] **M-11 — Cloudflare Access for TuDo** (D23, before data goes on the new backend): Cloudflare Zero Trust →
       Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
@@ -66,6 +97,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-10) Approve plan for T-009 (branch `claude/loving-fermi-t90upb`): work/tickets/T-009/plan.md — AI settings storage + encrypted key + `tudo-ai-settings` function; confirm C1–C9 and A1–A12
 - [x] (2026-11-10) Approve plan for T-008 (branch `claude/loving-fermi-t90upb`): work/tickets/T-008/plan.md — release version in the UI footer + version.txt; confirm assumptions 1–9
 - [x] (2026-11-10) Approve plan for T-007 (branch `claude/loving-fermi-t90upb`): work/tickets/T-007/plan.md — self-host via Cloudflare Tunnel + stoktok-style release/deploy; confirm assumptions A1–A11
 - [x] (2026-11-09) Approve plan for T-006 (branch `claude/loving-fermi-t90upb`): work/tickets/T-006/plan.md — email + password login, magic link removed; confirm assumptions A1–A5

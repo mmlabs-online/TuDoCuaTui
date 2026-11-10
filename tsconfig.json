@@ -19,5 +19,11 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "supabase/functions/_shared/ai",
+    "supabase/functions/_shared/core",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

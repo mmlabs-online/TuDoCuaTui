@@ -23,6 +23,62 @@ export type Database = {
   };
   public: {
     Tables: {
+      tudo_ai_calls: {
+        Row: {
+          created_at: string;
+          id: string;
+          kind: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          kind: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      tudo_ai_settings: {
+        Row: {
+          created_at: string;
+          key_ciphertext: string | null;
+          key_hint: string | null;
+          key_updated_at: string | null;
+          model: string;
+          provider: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          key_ciphertext?: string | null;
+          key_hint?: string | null;
+          key_updated_at?: string | null;
+          model: string;
+          provider: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          key_ciphertext?: string | null;
+          key_hint?: string | null;
+          key_updated_at?: string | null;
+          model?: string;
+          provider?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       tudo_item_photos: {
         Row: {
           created_at: string;
