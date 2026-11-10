@@ -9,7 +9,7 @@
 | Epic | E0 — Foundation & DevEx |
 | Areas | ui, data |
 | Gate | none |
-| Depends on | T-013 |
+| Depends on | T-013.2 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
