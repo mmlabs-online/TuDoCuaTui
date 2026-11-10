@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T07:47:42Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/28 |
 
 ## Goal
 The server keeps, per user, the chosen AI provider (Claude or Gemini), model and an **encrypted** API key, so an
@@ -66,3 +66,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - Done: consults (database-optimizer, software-architect) saved; plan.md READY — both tables in `public`, no client grants, RLS deny-all, AES-256-GCM with TUDO_AI_KEK in the Edge Function `tudo-ai-settings`, rate-limit table, mirrored allowlist in src/shared/ai + supabase/functions/_shared/ai with an equality test. Changes C1–C9, defaults A1–A14.
 - In progress / next: Ming approves the plan (confirm or change A1–A12); then /run implements.
 - Gotchas: D17 amendment needed for `supabase functions deploy <name> --project-ref` (A2 → D22); Gemini model ids must come from Google's docs at implementation time.
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved; attempt 1 PASS (security 🟡1 Anthropic env pickup, 🟡2 key on command line); Ming asked for fixes; attempt 2 PASS (client pinned; runbook via read -rs); last bit of 🟡2 (jq argv) + `ANTHROPIC_*` pre-check fixed by the orchestrator in the M-10 runbook text. Gemini model list ships empty (Ming). PR #28.
+- In progress / next: Ming merges PR #28, then M-10 (after M-1); next T-010 (Settings UI).
+- Gotchas: Gemini endpoint/env names from memory — verify at M-10 / before enabling Gemini; KEK must be backed up.
