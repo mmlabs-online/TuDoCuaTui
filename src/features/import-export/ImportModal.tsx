@@ -18,6 +18,7 @@ export function ImportModal({
   locations,
   importMany,
   onImported,
+  showMockAi,
 }: {
   onClose: () => void;
   locations: string[];
@@ -26,6 +27,7 @@ export function ImportModal({
     opts: { onProgress: (done: number, total: number) => void; signal: AbortSignal },
   ) => Promise<ImportResult[]>;
   onImported: (count: number) => void;
+  showMockAi: boolean;
 }) {
   const [tab, setTab] = useState(0);
   const [text, setText] = useState("");
@@ -99,7 +101,7 @@ export function ImportModal({
         ))}
       </div>
       <div className="import-content">
-        {tab === 0 && <ImportPhotosTab />}
+        {tab === 0 && <ImportPhotosTab showMockAi={showMockAi} />}
         {tab === 1 && (
           <ImportCsvTab
             text={text}

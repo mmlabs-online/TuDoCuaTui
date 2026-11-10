@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ImportResult } from "@/data/useWardrobe";
 import type { Item } from "@/types/item";
 import { CSV_TEMPLATE } from "./csv/template";
+import { IMPORT_EXPORT_COPY } from "./copy";
 import { ImportModal } from "./ImportModal";
 
 afterEach(cleanup);
@@ -15,7 +16,10 @@ function deferred() {
   return { promise, resolve };
 }
 
-function setup(importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]>>()) {
+function setup(
+  importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]>>(),
+  showMockAi = true,
+) {
   const onClose = vi.fn();
   const onImported = vi.fn();
   const view = render(
@@ -24,6 +28,7 @@ function setup(importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]
       locations={[]}
       importMany={importMany}
       onImported={onImported}
+      showMockAi={showMockAi}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "CSV / Excel" }));
@@ -120,5 +125,28 @@ describe("ImportModal", () => {
     // failed result index 1 → itemRows[1] = data row 3 → shown as row 4
     expect(screen.getByText("Dòng 4: Dữ liệu bị trùng")).toBeTruthy();
     expect(onImported).toHaveBeenCalledWith(2);
+  });
+});
+
+describe("mock AI", () => {
+  const renderModal = (showMockAi: boolean) =>
+    render(
+      <ImportModal
+        onClose={vi.fn()}
+        locations={[]}
+        importMany={vi.fn()}
+        onImported={vi.fn()}
+        showMockAi={showMockAi}
+      />,
+    );
+
+  it("Photos tab hides the AI checkbox when showMockAi is false", () => {
+    renderModal(false);
+    expect(screen.queryByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeNull();
+  });
+
+  it("Photos tab shows the AI checkbox when showMockAi is true", () => {
+    renderModal(true);
+    expect(screen.getByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeTruthy();
   });
 });
