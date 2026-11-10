@@ -27,6 +27,10 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-006 | Replace magic-link login with email + password | MERGED | P0 | S | ui, security | F-101 | plan-approval | 2 | 2026-11-09 |
 | T-007 | Self-host via Cloudflare Tunnel with stoktok-style release/deploy CI/CD | MERGED | P0 | M | architecture, security | F-007 | plan-approval | 2 | 2026-11-10 |
 | T-008 | Show the release version in the UI | MERGED | P1 | S | ui | T-007 | plan-approval | 1 | 2026-11-10 |
+| T-009 | Store per-user AI provider settings and an encrypted API key | BACKLOG | P1 | M | db, security, architecture | T-004 | plan-approval | 0 | 2026-11-10 |
+| T-010 | Settings screen: AI provider, API key and model | BACKLOG | P1 | S | ui, security | T-009 | none | 0 | 2026-11-10 |
+| F-701 | Edge Function `tag-item-photo` using the user's AI settings | BACKLOG | P1 | M | architecture, security | T-009 | plan-approval | 0 | 2026-11-10 |
+| F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BACKLOG | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
 | T-005.1 | Connect Google Drive through a Supabase Edge Function | BLOCKED | P0 | M | architecture, security | T-004 | plan-approval | 0 | 2026-11-08 |
 | T-005.2 | Upload and delete item photos via Google Drive | BACKLOG | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-08 |
 | T-005.3 | Display item photos from Google Drive | BACKLOG | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-08 |

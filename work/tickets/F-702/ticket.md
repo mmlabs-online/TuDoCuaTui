@@ -1,0 +1,44 @@
+# F-702: "✨ Tự điền từ ảnh" in the editor (real AI)
+
+| Field | Value |
+|---|---|
+| State | BACKLOG |
+| Priority | P1 |
+| Size | S |
+| Milestone | M1 |
+| Epic | E7 — AI |
+| Areas | ui |
+| Gate | none |
+| Depends on | F-701, T-010 |
+| Needs Ming | — |
+| Attempts | 0 |
+| Created | 2026-11-10 |
+| Claimed by | — |
+| PR | — |
+
+## Goal
+The editor's "Tự điền từ ảnh" calls F-701 and fills only empty fields, never overwriting what Ming typed, with undo.
+
+## Feature reference
+`docs/feature-list.md` E7 — AI (F-701/F-702). **Changed by D21 (2026-11-10):** instead of one server-wide key in
+Supabase secrets, each user chooses the provider (**Claude** or **Gemini**), enters their own API key and picks a
+model in Settings; the key is stored **encrypted on the server** and never returned to the browser; AI exists in
+**Supabase mode only** (local mode / Figma Make preview unchanged). Ming asked for this on 2026-11-10
+("dùng Claude và Gemini. Cho lựa chọn ở setting và nhập key" / "cho tùy chọn model ở setting").
+Split of one L-size request into T-009 → T-010 → F-701 → F-702.
+
+## Scope
+- Replace the mock autofill in Supabase mode (T-001's `showMockAi`) with a call to `tag-item-photo`.
+- Fill empty fields only; one-tap undo; loading state; Vietnamese errors (incl. "chưa cài đặt AI" → link to Settings).
+- Local mode / Figma Make preview unchanged (D9).
+
+## Acceptance criteria
+- [ ] Only empty fields are filled; existing input is never overwritten; undo restores the previous values.
+- [ ] Without settings/key, the button explains how to set it up.
+- [ ] 390px and dark mode; tests pass.
+
+## Notes / answers from Ming
+- 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
+  encrypted (option chosen over browser storage); AI only in Supabase mode.
+
+## Handoff
