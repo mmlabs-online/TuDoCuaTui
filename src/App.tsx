@@ -166,6 +166,7 @@ function App() {
           saving={saving}
           update={update}
           onClose={() => setEditor(null)}
+          showMockAi={wardrobe.mode === "local"}
           onSave={save}
           onDelete={() => setConfirm(true)}
           onDuplicate={() => {
@@ -220,6 +221,7 @@ function App() {
           locations={wardrobe.locations}
           importMany={wardrobe.importMany}
           onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
+          showMockAi={wardrobe.mode === "local"}
         />
       )}
       {exportOpen && (

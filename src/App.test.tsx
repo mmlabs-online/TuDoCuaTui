@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 
 import App from "@/App";
 import { starter } from "@/data/demo";
+import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
 
 afterEach(cleanup);
@@ -417,6 +418,15 @@ describe("App import/export (local mode)", () => {
     fireEvent.click(primary("Kiểm tra & import"));
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(cards()).toHaveLength(16);
+  });
+
+  it("shows the mock AI controls in local mode", async () => {
+    await renderApp();
+    fireEvent.click(cards()[0]);
+    expect(screen.getByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    openImport();
+    expect(screen.getByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeTruthy();
   });
 
   it("export JSON and CSV download files and keep the modal open", async () => {

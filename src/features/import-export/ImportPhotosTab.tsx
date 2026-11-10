@@ -7,7 +7,7 @@ import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 const COPY = IMPORT_EXPORT_COPY.import;
 const PHOTOS = COPY.photos;
 
-export function ImportPhotosTab() {
+export function ImportPhotosTab({ showMockAi }: { showMockAi: boolean }) {
   return (
     <>
       <p className="coming-soon">{COPY.comingSoon}</p>
@@ -19,16 +19,18 @@ export function ImportPhotosTab() {
         <p>{PHOTOS.dropHint}</p>
         <Btn>{PHOTOS.pickPhotos}</Btn>
       </div>
-      <label className="check-row">
-        <input type="checkbox" defaultChecked />
-        <span>
-          <Icon name="sparkle" size={16} />
-        </span>
-        <div>
-          <b>{PHOTOS.aiTitle}</b>
-          <small>{PHOTOS.aiHint}</small>
-        </div>
-      </label>
+      {showMockAi && (
+        <label className="check-row">
+          <input type="checkbox" defaultChecked />
+          <span>
+            <Icon name="sparkle" size={16} />
+          </span>
+          <div>
+            <b>{PHOTOS.aiTitle}</b>
+            <small>{PHOTOS.aiHint}</small>
+          </div>
+        </label>
+      )}
       <div className="two-cols">
         <Field label={PHOTOS.locationLabel}>
           <input placeholder={PHOTOS.locationPlaceholder} />

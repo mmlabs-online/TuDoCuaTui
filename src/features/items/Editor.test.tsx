@@ -9,7 +9,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const renderEditor = (update = vi.fn()) => {
+const renderEditor = (update = vi.fn(), showMockAi = true) => {
   render(
     <Editor
       item={blankItem()}
@@ -22,6 +22,7 @@ const renderEditor = (update = vi.fn()) => {
       onDelete={vi.fn()}
       onDuplicate={vi.fn()}
       onWorn={vi.fn()}
+      showMockAi={showMockAi}
     />,
   );
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
@@ -67,5 +68,17 @@ describe("photo inputs", () => {
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith("photo", expect.stringMatching(/^data:image\/jpeg/)),
     );
+  });
+});
+
+describe("mock AI", () => {
+  test('hides "Tự điền từ ảnh" when showMockAi is false', () => {
+    renderEditor(vi.fn(), false);
+    expect(screen.queryByRole("button", { name: /Tự điền từ ảnh/ })).toBeNull();
+  });
+
+  test('shows "Tự điền từ ảnh" when showMockAi is true', () => {
+    renderEditor(vi.fn(), true);
+    expect(screen.getByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
   });
 });

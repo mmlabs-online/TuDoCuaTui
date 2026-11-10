@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-004.3 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/27 |
 
 ## Goal
 Real use in M1 never runs fake AI that overwrites what Ming typed.
@@ -45,3 +45,8 @@ Not in the feature list: comes from a mismatch in `docs/plan-M1.md` §4; accepte
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-10 — claude — DONE
+- Done: planned, implemented and reviewed in one attempt (PASS). `showMockAi` prop hides the mock "Tự điền từ ảnh" button and the "Dùng AI nhận diện…" checkbox in Supabase mode; local mode unchanged (D9). PR #27.
+- In progress / next: Ming merges PR #27, releases, and checks the controls are gone on the hosted build.
+- Gotchas: remove `showMockAi` + mock autofill when F-702/F-703 land.

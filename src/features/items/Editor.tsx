@@ -24,6 +24,7 @@ export function Editor({
   onDelete,
   onDuplicate,
   onWorn,
+  showMockAi,
 }: {
   item: Item;
   locations: string[];
@@ -35,6 +36,7 @@ export function Editor({
   onDelete: () => void;
   onDuplicate: () => void;
   onWorn: (n: number) => void;
+  showMockAi: boolean;
 }) {
   const file = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -133,18 +135,20 @@ export function Editor({
               hidden
               onChange={(e) => upload(e.target.files?.[0])}
             />
-            <Btn
-              className="ai-btn"
-              onClick={() => {
-                update("name", item.name || "Áo sơ mi dáng rộng");
-                update("category", "Áo");
-                update("colors", ["Kem"]);
-                update("seasons", ["Xuân", "Hạ"]);
-                update("tags", ["đi làm", "tối giản"]);
-              }}
-            >
-              <Icon name="sparkle" /> Tự điền từ ảnh
-            </Btn>
+            {showMockAi && (
+              <Btn
+                className="ai-btn"
+                onClick={() => {
+                  update("name", item.name || "Áo sơ mi dáng rộng");
+                  update("category", "Áo");
+                  update("colors", ["Kem"]);
+                  update("seasons", ["Xuân", "Hạ"]);
+                  update("tags", ["đi làm", "tối giản"]);
+                }}
+              >
+                <Icon name="sparkle" /> Tự điền từ ảnh
+              </Btn>
+            )}
             {item.photo && (
               <button className="remove-photo" onClick={() => update("photo", "")}>
                 Bỏ ảnh
