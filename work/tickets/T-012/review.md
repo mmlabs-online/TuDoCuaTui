@@ -42,3 +42,37 @@ No violations found. R1: `src/` untouched, local mode unaffected. R2: replaced b
 From security-review.md attempt 1 (🟡, not blocking, fixed before the PR at Ming's request):
 1. `server/migrator.js:163-171` — a transaction-control statement in a migration file (`end;`, `abort;`, `commit/rollback and chain`, a final `commit` without `;`) ends the runner's transaction and leaves a half-applied schema. Add the runtime guard (`set local tudo.migrating = 'on'` before the file; check `current_setting('tudo.migrating', true) = 'on'` after; throw if not), widen the lint in `server/migrator.test.ts:74`, add an `end;` fixture test.
 2. `.github/workflows/ci.yml:43-45` — the smoke step ignores migrate's exit code in the pipe. Use `shell: bash` (pipefail) or capture output then grep.
+
+## Attempt 2 — 2026-11-10
+Verdict: PASS
+
+### Checks (run by reviewer)
+Branch HEAD `0edab45`; fix commit `6fc94bf` (`git diff 6fc94bf~1 6fc94bf`: `.github/workflows/ci.yml` +1, `server/migrator.js` +7, `server/migrator.db.test.ts` +11, `server/migrator.test.ts` +3/−1, `impl-log.md`). `0edab45` only flips ticket State REWORK→REVIEW. Full `git diff origin/main...HEAD` file list unchanged from attempt 1 apart from these. Working tree clean.
+- typecheck: pass, exit 0.
+- format:check: pass, exit 0 (137 files).
+- test (no DB): 45 files; 498 passed, 25 skipped.
+- test (with DB): local PostgreSQL 16, initdb under `/tmp`, scram-sha-256 (local + host), port 55433. `pnpm test` → **45 files, 523/523 passed**; `vitest run server` verbose → 35/35, includes ✓ "rejects a migration that ends the transaction itself (end;)". `CI=true pnpm test:coverage` → exit 0, 523/523, `server/migrator.js` 97.72 % lines.
+- build: pass.
+- Postgres stopped, data dir and password file deleted.
+
+### Follow-up 1 — runtime transaction guard: fixed
+- `server/migrator.js:166` `set local tudo.migrating = 'on'` inside the per-file tx; `:170-173` checks `current_setting('tudo.migrating', true) = 'on'` after the file and throws → existing catch rolls back and raises `MigrationError` (exit 1); `schema_migrations` row is not written.
+- Test: `server/migrator.db.test.ts:76-85` writes a file with `end;` mid-file, expects `/ended the transaction/` and no recorded version. ✓
+- Reviewer extra probe (scratch script calling `runMigrations` against PG 16): `abort;`, `commit and chain;`, `rollback and chain;`, trailing `commit` without `;` → all rejected with "migration ended the transaction itself"; a plain file applies. 
+- Lint widened: `server/migrator.test.ts:74-76` now covers begin/commit/rollback/end/abort followed by `;`, end of text, `work`, `transaction`, `and`. No false positive on the real init's plpgsql `end $$;` (`db/migrations/20261110120000_init.sql:27`); test passes.
+
+### Follow-up 2 — CI smoke pipefail: fixed
+- `.github/workflows/ci.yml:43` `shell: bash` on the smoke step (GitHub runs it as `bash --noprofile --norc -eo pipefail`). Reproduced locally with that exact invocation: fresh DB → exit 0 ("up to date"); wrong password → `migrate failed: cannot connect to the database (DATABASE_URL not printed) [28P01]`, exit 1.
+
+### Scope
+Only the four files named in the follow-ups changed, plus impl-log/ticket bookkeeping. No `src/**`, `supabase/**`, `vite.config.ts`, `AGENTS.md`, `.figma/` changes. R1–R10: no new violations.
+
+### Issues
+None.
+
+### Nits (do not block)
+- The guard detects but cannot undo: statements before the `end;` (and any after it, run in autocommit) are already committed, so the DB is left partly migrated with no `schema_migrations` row; a rerun fails loudly (e.g. "relation already exists") rather than silently. Inherent to the approach; the lint is the first line of defence. Could be noted in `db/migrations/README.md`.
+- The lint would flag a future plpgsql body written as `... end;\n$$` (bare `end;` inside a dollar-quoted function). Conservative false positive, easy to adjust when it happens.
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1 (first `postgres:17` CI run, T-013/T-015/T-016 items, risk-tiers entries).
