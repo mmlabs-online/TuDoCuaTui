@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-09 |
-| Claimed by | claude@2026-11-10T00:56:23Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/25 |
 
 ## Goal
 TuDo runs at `https://tudocuatui.mmlabs.online` from the home server, deployed the same way as stoktok: a
@@ -95,3 +95,8 @@ In this repo:
 - Done: consult (software-architect) saved; plan.md READY with changes C1–C11 and assumptions A1–A11 (runner, Docker Hub visibility, release before M-1, Access, CI image job, risk-tiers, CLAUDE.md, no previews, versions, rollback, size).
 - In progress / next: Ming approves the plan (and confirms or changes A1–A11); then /run implements.
 - Gotchas: tunnel token in deployment/proxy/compose.yml is plaintext (M-9 proposed); CLAUDE.md Hosting line goes stale (Ming's call).
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved; attempt 1 REWORK (check-image.sh flagged supabase-js's own `sb_secret_` literal) + 4 security 🟡; attempt 2 PASS, security re-review clean. Dockerfile, nginx, release.yml, CI image job, guard scripts, deployment-repo drafts, README/D20/M-4/M-9. PR #25.
+- In progress / next: CI `image` job on PR #25 is the first real Docker proof; Ming merges, then does the one-time setup (Docker Hub repo, deployment setup PR, Cloudflare route http://tudocuatui:3000, release/v0.1.0).
+- Gotchas: deployment main branch protection unverified; CLAUDE.md Hosting line stale (A7).
