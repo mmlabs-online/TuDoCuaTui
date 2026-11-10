@@ -3,10 +3,18 @@
 These files mirror their target paths in the deployment repo. Copy them verbatim into a setup PR
 on `mmlabs-online/deployment` (not a `release/*` branch, so `pr-scope` does not restrict it).
 
-| Here | Goes to |
-|---|---|
-| `apps/tudocuatui/compose.yml` | `apps/tudocuatui/compose.yml` |
-| `.github/workflows/deploy-tudocuatui.yml` | `.github/workflows/deploy-tudocuatui.yml` |
+| Here | Goes to | When |
+|---|---|---|
+| `.github/workflows/deploy-tudocuatui.yml` | `.github/workflows/deploy-tudocuatui.yml` | Setup PR with the postgres registration (M-12) |
+| `apps/tudocuatui/compose.yml` | `apps/tudocuatui/compose.yml` | Inside the first Node release PR (T-015), not before |
+
+Why the split: the pinned nginx release has no `migrate` command and no database. The workflow only runs
+`backup` and `migrate` if the live `compose.yml` defines a `migrate` service, so it is safe to ship first; the
+new compose then lands with the first Node image in one merge (migrate, then replace the app).
+
+Postgres first: in the deployment repo, on a branch that does not start with `release/`, run
+`bash postgres/scripts/add-app-db.sh tudocuatui` and commit its two outputs with the workflow (see M-12 in
+`work/ming-todo.md`).
 
 Also add this line to the deployment repo's `.github/CODEOWNERS`:
 
@@ -21,8 +29,13 @@ it exists, deploy-tudocuatui skips, so merging the setup PR deploys nothing.
 
 No hostname or ingress rule belongs in either repo: cloudflared is remotely managed (Cloudflare
 dashboard). The published application `tudocuatui.mmlabs.online` must point to the service
-**`http://tudocuatui:3000`** (HTTP, not HTTPS). The app has no secrets on the server: the only values in the
-image are the public Supabase URL and anon key, baked in at build time.
+**`http://tudocuatui:3000`** (HTTP, not HTTPS). `DATABASE_URL` exists only in the host env file
+(`/Users/mingming/.config/tudocuatui/tudocuatui.env`), written by the deploy from the deployment repo's
+`postgres/secrets/apps/tudocuatui.password`; it is never in the TuDoCuaTui repo or the image. After a password
+rotation, run `deploy-tudocuatui` with `workflow_dispatch` from `main` to rewrite it.
+
+Migrations must be expand-then-contract: a rollback restores the previous image but never un-migrates. Never
+run `docker compose down -v` or remove volumes for this project's neighbours: all data is in the shared `pgdata`.
 
 Rollback: if the new container fails its health check, deploy-tudocuatui restores the previous release.
 If deployment `main` is protected and `github-actions` cannot bypass it, the revert cannot be pushed

@@ -1,13 +1,24 @@
 name: deploy-tudocuatui
 
-# T-007 draft. Mirrors deploy-site.yml: only the app name, runner label (macbook-runner, same host as
-# deploy-stoktok), image name and a strict vX.Y.Z image pattern differ.
-
-# Same flow as deploy-calechip.yml. A merge to main that touches apps/tudocuatui/ deploys TuDoCuaTui, and
-# only it, on the home server's self-hosted runner: pull the image pinned in release.env,
-# start it, wait for its health check. If it is not healthy, restore apps/tudocuatui/ as it was before
-# the push, redeploy that, and push the revert. A restored deploy is still a red run.
-# workflow_dispatch redeploys what main pins, e.g. after a manual `docker rm`.
+# T-007 draft, extended by T-011 (D23/D24). Same flow as deploy-org-admin-api.yml: only the app name,
+# runner label (macbook-runner), image name, a strict vX.Y.Z image pattern and the migrate guard differ.
+# A merge to main that touches apps/tudocuatui/ deploys TuDoCuaTui, and only it, on the home server's
+# self-hosted runner:
+#   1. check release.env pins one mingming21400/tudocuatui:vX.Y.Z@sha256:<digest>
+#   2. write the host env file (DATABASE_URL from postgres/secrets/apps/tudocuatui.password)
+#   3. pull the image
+#   4. dump the databases now (the pg-backup sidecar's /backup.sh), so a bad migration can be undone
+#   5. run the migrations (one-shot `migrate` service). If they fail, nothing is replaced.
+#   6. replace the app and wait for its health check (/readyz, which also checks the database)
+# Steps 4 and 5 run only if apps/tudocuatui/compose.yml defines a `migrate` service (the guard in `pull`).
+# The static nginx compose from T-007 has none, so it deploys exactly as before; once the Node compose is in
+# place the migrate path is always taken, whatever the image says.
+# If the new app is not healthy, restore apps/tudocuatui/ as it was before the push, start that (without
+# migrating) and push the revert. A restored deploy is still a red run. Migrations must therefore stay
+# compatible with the previous release's image (expand first, contract later).
+# workflow_dispatch from main redeploys what main pins and rewrites the env file.
+#
+# No GitHub secrets: the database password is the one committed in postgres/secrets/ (see README).
 
 on:
   push:
@@ -26,9 +37,12 @@ concurrency:
 env:
   APP_DIR: apps/tudocuatui
   PROJECT: tudocuatui
+  DB_APP: tudocuatui
+  ENV_FILE: /Users/mingming/.config/tudocuatui/tudocuatui.env
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, macbook-runner]
     timeout-minutes: 15
     steps:
@@ -68,15 +82,71 @@ jobs:
             echo "previous=$previous"
           } >> "$GITHUB_OUTPUT"
 
-      - name: deploy
-        id: deploy
+      # Writes DATABASE_URL to the host env file. The password is read from the checkout and never
+      # printed (no echo, no argv). If this fails, the old file stays and nothing is started.
+      - name: envfile
+        id: envfile
         if: steps.release.outputs.skip != 'true'
         run: |
-          compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
-          "${compose[@]}" config --quiet
-          "${compose[@]}" pull
-          "${compose[@]}" up -d --wait --wait-timeout 120
+          umask 077
+          [[ "$ENV_FILE" == "$HOME/"* ]] || { echo "::error::ENV_FILE $ENV_FILE is not under $HOME. Nothing was started."; exit 1; }
+          pwfile="postgres/secrets/apps/$DB_APP.password"
+          if ! grep -Eq '^[A-Za-z0-9_-]{16,}$' "$pwfile"; then
+            echo "::error::$pwfile is missing or malformed (see postgres/scripts/add-app-db.sh). Nothing was started."
+            exit 1
+          fi
+          read -r pw < "$pwfile"
+          dir="$(dirname "$ENV_FILE")"
+          install -d -m 700 "$dir"
+          tmp="$(mktemp "$dir/.env.XXXXXX")"
+          trap 'rm -f "$tmp"' EXIT
+          printf 'DATABASE_URL=postgres://%s:%s@postgres:5432/%s\n' "$DB_APP" "$pw" "$DB_APP" > "$tmp"
+          chmod 600 "$tmp"
+          mv -f "$tmp" "$ENV_FILE"
+          trap - EXIT
 
+      - name: pull
+        id: pull
+        if: steps.envfile.outcome == 'success'
+        run: |
+          compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
+          "${compose[@]}" --profile migrate config --quiet
+          "${compose[@]}" --profile migrate pull
+          if "${compose[@]}" --profile migrate config --services | grep -qx migrate; then
+            echo "migrate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migrate=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$APP_DIR/compose.yml has no migrate service (static release): backup and migrate skipped."
+          fi
+
+      # A dump right before the schema changes (same sidecar and folder as the nightly dumps).
+      - name: backup
+        id: backup
+        if: steps.pull.outputs.migrate == 'true'
+        run: |
+          if ! docker compose -p postgres -f "$HOME/srv/postgres/compose.yml" exec -T pg-backup /backup.sh; then
+            echo "::error::The pre-migration backup failed. Nothing was migrated or replaced; the old app is still running."
+            exit 1
+          fi
+
+      - name: migrate
+        id: migrate
+        if: steps.pull.outputs.migrate == 'true'
+        run: |
+          compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
+          if ! "${compose[@]}" run --rm migrate; then
+            echo "::error::Migrations failed. The app was not replaced; the old release is still running. Restore the database from the dump taken by the backup step if the migration left it half-applied (ops/backup/RESTORE.md)."
+            exit 1
+          fi
+
+      - name: deploy
+        id: deploy
+        if: steps.pull.outcome == 'success' && (steps.pull.outputs.migrate != 'true' || steps.migrate.outcome == 'success')
+        run: |
+          compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
+          "${compose[@]}" up -d --wait --wait-timeout 120 tudocuatui
+
+      # Only when the new app itself is unhealthy. Never migrates (or un-migrates) the database.
       - name: rollback
         id: rollback
         if: failure() && steps.deploy.outcome == 'failure'
@@ -92,7 +162,7 @@ jobs:
           fi
           git restore --source="$BEFORE" --staged --worktree -- "$APP_DIR"
           compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
-          if ! "${compose[@]}" pull || ! "${compose[@]}" up -d --wait --wait-timeout 120; then
+          if ! "${compose[@]}" pull tudocuatui || ! "${compose[@]}" up -d --wait --wait-timeout 120 tudocuatui; then
             echo "::error::$FAILED failed its health check, and restoring $PREVIOUS failed too. Nothing was pushed."
             echo "result=restore-failed" >> "$GITHUB_OUTPUT"
             exit 1
@@ -115,19 +185,21 @@ jobs:
         if: always() && steps.release.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          MIGRATE: ${{ steps.migrate.outcome }}
           DEPLOY: ${{ steps.deploy.outcome }}
           RESULT: ${{ steps.rollback.outputs.result }}
           IMAGE: ${{ steps.release.outputs.image }}
           PREVIOUS: ${{ steps.release.outputs.previous }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          case "$DEPLOY:$RESULT" in
-            success:)                  msg="deployed: \`$IMAGE\` is running and healthy." ;;
-            failure:restored)          msg="restored: \`$IMAGE\` failed its health check; \`$PREVIOUS\` is running again and the revert is on main." ;;
-            failure:restore-unpushed)  msg="restored, revert NOT pushed: \`$PREVIOUS\` is running, but main still pins \`$IMAGE\`." ;;
-            failure:no-previous)       msg="no-previous: \`$IMAGE\` failed its health check and there was no earlier release to restore." ;;
-            failure:restore-failed)    msg="restore-failed: \`$IMAGE\` failed its health check and so did \`$PREVIOUS\`. TuDoCuaTui needs a hand." ;;
-            *)                         msg="did-not-complete: the deploy did not run to the end (deploy: ${DEPLOY:-not run}, restore: ${RESULT:-not run})." ;;
+          case "$MIGRATE:$DEPLOY:$RESULT" in
+            success:success:|skipped:success:)  msg="deployed: \`$IMAGE\` is running and healthy." ;;
+            failure:*)                         msg="migrate-failed: migrations for \`$IMAGE\` failed; the old release is still running. Check the database (a dump was taken just before)." ;;
+            *:failure:restored)                msg="restored: \`$IMAGE\` failed its health check; \`$PREVIOUS\` is running again and the revert is on main. Migrations, if any, were kept." ;;
+            *:failure:restore-unpushed)        msg="restored, revert NOT pushed: \`$PREVIOUS\` is running, but main still pins \`$IMAGE\`." ;;
+            *:failure:no-previous)             msg="no-previous: \`$IMAGE\` failed its health check and there was no earlier release to restore." ;;
+            *:failure:restore-failed)          msg="restore-failed: \`$IMAGE\` failed its health check and so did \`$PREVIOUS\`. TuDoCuaTui needs a hand." ;;
+            *)                                 msg="did-not-complete: the deploy did not run to the end (migrate: ${MIGRATE:-not run}, deploy: ${DEPLOY:-not run}, restore: ${RESULT:-not run})." ;;
           esac
           {
             echo "### deploy-tudocuatui"

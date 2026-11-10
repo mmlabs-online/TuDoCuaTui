@@ -34,6 +34,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       7. After M-1: add repo secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon/publishable key only),
          release `v0.1.1`, merge its deployment PR, log in on the phone with your stoktok email + password (D19).
       8. If a Cloudflare Pages project `tudocuatui` exists from the old M-4, delete it.
+      Under D23 this flow continues in M-12 (database) and T-015 (first Node release).
 - [ ] **M-5 — Verify the migrations** (after M-1), read-only in SQL Editor:
       `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name like 'tudo\_%' and grantee in ('anon','authenticated') order by 1,2,3;`
       Expect SELECT, INSERT, UPDATE, DELETE for `authenticated` on the 4 tables, SELECT on the view
@@ -93,6 +94,28 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
       "Allow" for your email only (one-time PIN). Check that an incognito window gets the Access login page, and that
       `/version.txt` is also behind it. Without this, anyone with the URL can read and change the wardrobe.
+- [ ] **M-12 — Register the TuDo database** (T-011, D23/D24; after T-011 is merged). In a clone of
+      `mmlabs-online/deployment` on an up-to-date `main`:
+      1. `git switch -c postgres/add-tudocuatui`. The name must NOT start with `release/`, or `pr-scope` fails.
+      2. `bash postgres/scripts/add-app-db.sh tudocuatui`. Expect `generated …/tudocuatui.password` and
+         `added tudocuatui …`. Never `cat`, paste or print the password file.
+      3. Copy `deploy/deployment-repo/.github/workflows/deploy-tudocuatui.yml` from TuDo `main` over the deployment
+         repo's copy. Do NOT copy `apps/tudocuatui/compose.yml` yet: it goes in with the first Node release (T-015).
+      4. `git status` must show exactly `postgres/config/databases`, `postgres/secrets/apps/tudocuatui.password` and
+         `.github/workflows/deploy-tudocuatui.yml`. Then
+         `git add postgres/config/databases postgres/secrets/apps/tudocuatui.password .github/workflows/deploy-tudocuatui.yml`,
+         `git commit -m "postgres: add tudocuatui database; deploy-tudocuatui writes DATABASE_URL"`, push, open the PR.
+         The repo is private; committing the password file there is intended (deployment README, "Secrets").
+      5. Merge. Only `deploy-postgres` runs (nothing under `apps/tudocuatui/` changed). Wait for green and the log
+         line `role and database 'tudocuatui' ready`. If it fails in the `app databases` step, read which app failed.
+      6. Verify on the Mac (read-only, no password):
+         - `docker compose -p postgres -f ~/srv/postgres/compose.yml exec postgres psql -U postgres -tAc "select datname from pg_database where datname='tudocuatui'"` returns `tudocuatui`.
+         - same command with `-tAc "select rolname, rolsuper, rolcreaterole, rolbypassrls from pg_roles where rolname='tudocuatui'"` returns `tudocuatui|f|f|f`.
+         - `grep -x tudocuatui ~/srv/postgres/config/databases` matches.
+      7. Later (T-015): the first Node release PR also gets `apps/tudocuatui/compose.yml` from the draft (T-015 adds
+         its own M-item).
+      8. Password rotation: change the file in the deployment repo (a `postgres/**` merge), then run
+         `deploy-tudocuatui` with `workflow_dispatch` from `main` so the env file is rewritten.
 - [x] (2026-11-10) **PR #28 (T-009)** — merged by Ming. Its Supabase parts (Edge Function, migration) are not deployed under D23; T-016 removes or ports them.
 
 ## Plan approvals and escalations
