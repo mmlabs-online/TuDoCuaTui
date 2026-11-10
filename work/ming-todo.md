@@ -76,14 +76,17 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          Always name the function. Never run `link`, `db ...`, or a deploy without a name.
          Then Dashboard → Edge Functions → `tudo-ai-settings` → "Verify JWT" shows off.
       6. Optional smoke test before T-010: log in to TuDo, DevTools → Application → Local Storage → `sb-<ref>-auth-token` →
-         copy `access_token` (valid 1 h) into `T`, then
-         `curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H "Authorization: Bearer $T" -H "apikey: <anon key>" -H "Content-Type: application/json" -d '{"action":"get"}'`
-         and the same with `save` (Claude key), `test`, `get` (shows `••••` + last 4), `deleteKey`.
-         Without the `Authorization` header expect 401. Gemini is not selectable yet (empty model list). Clear shell history afterwards.
+         copy `access_token` (valid 1 h). Never put a token or key on a command line (it lands in shell history and `ps`):
+         `read -rs T` (paste the token), `read -rs K` (paste the Claude key, only for `save`), then send the JSON body on stdin and the
+         token via a header file on stdin too, e.g.
+         `jq -n --arg k "$K" '{action:"save",provider:"claude",model:"<model id>",apiKey:$k}' | curl -s -X POST https://<ref>.supabase.co/functions/v1/tudo-ai-settings -H @<(printf 'Authorization: Bearer %s' "$T") -H "apikey: <anon key>" -H "Content-Type: application/json" --data-binary @-`
+         Same for `get`
+         (`jq -n '{action:"get"}' | curl ...`; shows `••••` + last 4), `test`, `deleteKey`. Finish with `unset K T`.
+         Without the `Authorization` header expect 401. Gemini is not selectable yet (empty model list).
       7. Local DB tests (needs Docker): `npx supabase db reset && npx supabase test db`, then `bash scripts/test-db-shared.sh`;
          all files must pass, including `supabase/tests/rls_ai_settings.sql`.
       8. Optional: regenerate types with M-8 (`src/types/database.ts` has the two new tables added by hand).
-      Rollback: the commented block at the end of the migration, plus Dashboard → delete function `tudo-ai-settings`.
+      Rollback: the commented block at the top of the migration, plus Dashboard → delete function `tudo-ai-settings`.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->

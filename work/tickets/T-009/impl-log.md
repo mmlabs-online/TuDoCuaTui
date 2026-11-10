@@ -58,3 +58,28 @@ implemented as planned but unreachable: saving provider `gemini` returns `invali
 ### Scope self-check
 - Could the diff be smaller? No more than the plan's file list; most lines are tests.
 - Diff size: see `git show --stat`.
+
+## Attempt 2 (REWORK: Ming's two pre-PR fixes)
+
+### Files touched
+- `supabase/functions/_shared/deno/claude.ts` — required because the Anthropic client must ignore project-wide env vars. Options verified against the SDK 1.6.0 `client.d.ts`: `baseURL: "https://api.anthropic.com"` (otherwise reads `ANTHROPIC_BASE_URL`), `authToken: null` (otherwise reads `ANTHROPIC_AUTH_TOKEN`), `webhookKey: null` (otherwise reads `ANTHROPIC_WEBHOOK_SIGNING_KEY`), `logLevel: "off"` (valid `LogLevel`; otherwise `ANTHROPIC_LOG`). Kept `apiKey`, `maxRetries: 0`, `timeout: 10_000`.
+- `work/ming-todo.md` — M-10 step 6 rewritten: `read -rs` for token and key, JSON body via `jq -n --arg ... | curl --data-binary @-`, token via `-H @<(printf ...)`, `unset K T`; rollback block is "at the top" of the migration.
+
+### Tests added
+None. The adapter is Deno-only and has no pure part to unit-test; the constructor options are type-checked by `deno check`.
+
+### Check results
+- pnpm typecheck: pass. pnpm format:check: pass.
+- pnpm test: 41 files, 488 tests passed. pnpm test:coverage: 41 files, 488 tests passed.
+- pnpm build: built.
+- bash scripts/check-public-supabase-env.test.sh: 17/17 passed.
+- deno check (tudo-ai-settings/index.ts): exit 0, no errors.
+
+### Out-of-plan files
+Both files were requested by Ming in this rework.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only the two requested fixes; no other changes.

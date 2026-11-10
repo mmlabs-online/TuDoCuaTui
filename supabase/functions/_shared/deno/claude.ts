@@ -4,7 +4,17 @@ import { mapClaudeError, type TestResult } from "../core/providerErrors.ts";
 
 export async function testClaudeKey(key: string, model: string): Promise<TestResult> {
   try {
-    const client = new Anthropic({ apiKey: key, maxRetries: 0, timeout: 10_000 });
+    // Pin everything the SDK would otherwise read from project-wide env vars (base URL, auth token,
+    // webhook key, log level), so the user's key can only go to api.anthropic.com.
+    const client = new Anthropic({
+      apiKey: key,
+      authToken: null,
+      webhookKey: null,
+      baseURL: "https://api.anthropic.com",
+      maxRetries: 0,
+      timeout: 10_000,
+      logLevel: "off",
+    });
     await client.models.retrieve(model);
     return { ok: true };
   } catch (e) {
