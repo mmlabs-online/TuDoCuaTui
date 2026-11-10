@@ -22,8 +22,18 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [ ] **M-2 — Smoke test** (after F-001 is merged and M-1 is done): run `docs/qa/smoke-test.md` once in Supabase
       mode; fill in its results table; file each failure with `/ticket`.
 - [ ] **M-3 — Branch protection** (after F-003 is merged): GitHub → Settings → Branches → `main`: require the `ci` check.
-- [ ] **M-4 — Cloudflare Pages** (after F-007 is merged): follow README → "Deploy": connect the repo, set the
-      production-only env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, then log in on a phone with your stoktok email + password (D19).
+- [ ] **M-4 — Home-server deploy** (after T-007 is merged, D20): follow README → "Deploy".
+      1. Docker Hub: create repo `mingming21400/tudocuatui` (public by default); the token in `DOCKERHUB_TOKEN` needs
+         Read & Write on it.
+      2. Repo secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `DEPLOY_REPO_TOKEN`: done 2026-11-09.
+      3. Setup PR on `mmlabs-online/deployment` (not a `release/*` branch): copy the two files from
+         `deploy/deployment-repo/` and add the CODEOWNERS line (see its README). Merge it.
+      4. Cloudflare: the published application `tudocuatui.mmlabs.online` points to `http://tudocuatui:3000`.
+      5. `git push origin main:release/v0.1.0`, then review and merge the PR it opens on the deployment repo.
+      6. Open `https://tudocuatui.mmlabs.online` on a phone: local mode (demo items, no login); a deep URL also loads.
+      7. After M-1: add repo secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon/publishable key only),
+         release `v0.1.1`, merge its deployment PR, log in on the phone with your stoktok email + password (D19).
+      8. If a Cloudflare Pages project `tudocuatui` exists from the old M-4, delete it.
 - [ ] **M-5 — Verify the migrations** (after M-1), read-only in SQL Editor:
       `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name like 'tudo\_%' and grantee in ('anon','authenticated') order by 1,2,3;`
       Expect SELECT, INSERT, UPDATE, DELETE for `authenticated` on the 4 tables, SELECT on the view
@@ -45,6 +55,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Anything else (a `tudo_*` table/column/enum change) means the committed types had drifted: tell Annie.
       If there is a diff and the checks pass, commit it as `solo: regenerate DB types with pinned CLI` (or ask Annie to /solo it).
       Do not run it while `scripts/test-db-shared.sh` is mid-run.
+- [ ] **M-9 — Rotate the cloudflared tunnel token** that is committed in plaintext in `mmlabs-online/deployment`
+      `proxy/compose.yml` (found in T-007): create a new token, move it out of the repo, revoke the old one.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->

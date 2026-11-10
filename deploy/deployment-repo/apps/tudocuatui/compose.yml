@@ -1,0 +1,36 @@
+# TuDoCuaTui on the home server, project `tudocuatui`. The image comes only from release.env, which the
+# TuDoCuaTui repo's release workflow writes in a release/tudocuatui-vX.Y.Z pull request as
+#   TUDOCUATUI_IMAGE=mingming21400/tudocuatui:vX.Y.Z@sha256:<digest>
+# Merging it runs .github/workflows/deploy-tudocuatui.yml. By hand:
+#   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env up -d --wait
+#
+# Static nginx on :3000, no ports, no secrets: cloudflared reaches it as `tudocuatui` on the network
+# (Cloudflare published application tudocuatui.mmlabs.online -> http://tudocuatui:3000).
+
+name: tudocuatui
+
+services:
+  tudocuatui:
+    image: ${TUDOCUATUI_IMAGE:?TUDOCUATUI_IMAGE is unset - pass --env-file apps/tudocuatui/release.env}
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      # The SPA answers every path with index.html, so / is as good a probe as any.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
+      interval: 5s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks: [tunnel]
+
+networks:
+  tunnel:
+    external: true
+    # The network cloudflared is on — `web`, created by proxy/compose.yml.
+    name: web
