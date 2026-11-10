@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/29 |
 
 ## Goal
 The shared Postgres has a `tudocuatui` role + database, and the TuDo deploy gets a `DATABASE_URL` on the Mac
@@ -46,6 +46,17 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Runbook lists the exact deployment-repo steps.
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-10). P1: option (a) — record D25 (no RLS while single-user/no-login on the D23 backend; user_id + ENABLE/FORCE RLS when auth or a second user arrives).
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: database-optimizer consult; plan.md READY (drafts + M-12 runbook + D24; migrate guarded by compose `--profile migrate config --services`; new compose ships with T-015's first Node release).
+- In progress / next: Ming approves the plan (A1–A9) and decides P1 (R2/RLS wording, proposed D25 — needed before T-012 is planned). Then implement.
+- Gotchas: deployment repo already pins an nginx `release.env` (risk R-b); setup branch must not start with `release/`; never read `postgres/secrets/`. T-015 needs `Needs Ming: M-12`.
+
+### 2026-11-10 — claude — DONE
+- Done: plan approved (P1 = a → D25); attempt 1 PASS; security review no 🔴; PR #29 opened.
+- In progress / next: Ming merges PR #29, then runs M-12 in the deployment repo. Next ticket T-012 (needs D25, already recorded).
+- Gotchas: CLAUDE.md R2 row is Ming's edit; T-015 needs M-11 + M-12; security follow-ups added to T-012/T-013/T-015 notes on main.

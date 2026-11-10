@@ -2,16 +2,33 @@
 # TuDoCuaTui repo's release workflow writes in a release/tudocuatui-vX.Y.Z pull request as
 #   TUDOCUATUI_IMAGE=mingming21400/tudocuatui:vX.Y.Z@sha256:<digest>
 # Merging it runs .github/workflows/deploy-tudocuatui.yml. By hand:
-#   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env up -d --wait
+#   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env run --rm migrate
+#   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env up -d --wait tudocuatui
 #
-# Static nginx on :3000, no ports, no secrets: cloudflared reaches it as `tudocuatui` on the network
-# (Cloudflare published application tudocuatui.mmlabs.online -> http://tudocuatui:3000).
+# T-011 (D23/D24): copy this file with the FIRST NODE release (its release/tudocuatui-vX.Y.Z PR), not before.
+# The nginx image pinned today has no migrate command and no database.
+#
+# One Node server on :3000 serves the SPA and /api; no ports published: cloudflared reaches it as `tudocuatui`
+# on the network (Cloudflare published application tudocuatui.mmlabs.online -> http://tudocuatui:3000).
+#
+# Database: the shared Postgres (postgres/), database and role `tudocuatui`. DATABASE_URL is in
+# /Users/mingming/.config/tudocuatui/tudocuatui.env, written by deploy-tudocuatui from
+# postgres/secrets/apps/tudocuatui.password on every run. It sits outside the checkout because the runner's
+# checkout deletes untracked files. If it is missing, `config` fails and nothing starts.
+# No volumes here: all data lives in the shared `pgdata` volume.
+#
+# migrate: one-shot `node server/migrate.js` (profile `migrate`), run by the deploy before the app is
+# replaced, never by `up -d` and never on a restore. The app container itself never migrates.
 
 name: tudocuatui
 
+x-app: &app
+  image: ${TUDOCUATUI_IMAGE:?TUDOCUATUI_IMAGE is unset - pass --env-file apps/tudocuatui/release.env}
+  env_file: /Users/mingming/.config/tudocuatui/tudocuatui.env
+
 services:
   tudocuatui:
-    image: ${TUDOCUATUI_IMAGE:?TUDOCUATUI_IMAGE is unset - pass --env-file apps/tudocuatui/release.env}
+    <<: *app
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -21,16 +38,35 @@ services:
         max-size: 10m
         max-file: "3"
     healthcheck:
-      # The SPA answers every path with index.html, so / is as good a probe as any.
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
-      interval: 5s
-      timeout: 3s
-      start_period: 5s
+      # /readyz also checks the database connection. Node's fetch: no wget/curl needed in the image.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
       retries: 3
-    networks: [tunnel]
+    networks: [tunnel, db]
+
+  migrate:
+    <<: *app
+    restart: "no"
+    profiles: [migrate]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    command: ["node", "server/migrate.js"]
+    networks: [db]
 
 networks:
   tunnel:
     external: true
-    # The network cloudflared is on — `web`, created by proxy/compose.yml.
+    # The network cloudflared is on: `web`, created by proxy/compose.yml.
     name: web
+  db:
+    external: true
+    # The shared Postgres network, created by deploy-postgres (bootstrap).
+    name: db
