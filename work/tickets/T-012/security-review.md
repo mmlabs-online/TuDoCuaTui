@@ -21,3 +21,18 @@ No 🔴 blockers.
 ### Risks / open questions
 - Postgres 17 first exercised by CI (local run was 16.15).
 - 🟢5 fail-vs-warn when DB is ahead and files are pending is Ming's call under A5.
+
+## Attempt 2 (2026-11-10) — security-ai-generated-code-auditor
+
+No 🔴, no 🟡. Both attempt-1 🟡 items resolved (verified by reading code; nothing run).
+
+### 🟢 Notes
+1. **Item 1 fixed** — `server/migrator.js:163-183`: `set local tudo.migrating = 'on'` (:166) before the file, check (:170-173) before the `schema_migrations` insert (:174-177). `end;`, `commit;`, `abort;`, `rollback;`, `… and chain`, `prepare transaction` all drop the SET LOCAL value → throw; catch (:179-182) rolls back and rethrows `MigrationError` (exit 1); no ledger row. Pinned by `server/migrator.db.test.ts:76-85`. Fixed guard message; no DATABASE_URL leak. Limitation: statements before `end;` are already committed (loud failure, manual cleanup; the lint prevents it).
+2. **Deliberate bypass possible, not accidental** — a file can end the tx and re-set the flag (`commit; set tudo.migrating = 'on';`). Optional hardening: record `pg_current_xact_id()` before the file and compare `pg_current_xact_id_if_assigned()` after.
+3. **Lint widened** — `server/migrator.test.ts:69-76`. Gap: `prepare transaction` (caught at runtime; `max_prepared_transactions=0`). Possible false positives: `end;\n$$;` function-body style, `case … end and …`. Optional: strip `$tag$…$tag$` bodies and `/* */` comments before matching; add `prepare\s+transaction`.
+4. **Item 2 fixed** — `.github/workflows/ci.yml:43` `shell: bash` → `-eo pipefail`.
+
+### Risks / open questions
+- Partial DDL on a self-ending file needs manual cleanup.
+- Postgres 17 first exercised by CI (local 16.15).
+- Transaction-id hardening (🟢2): now or follow-up — low priority.
