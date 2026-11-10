@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | REWORK |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-004 |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-10 |
 | Claimed by | claude@2026-11-10T07:47:42Z |
 | PR | — |
@@ -58,6 +58,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 
 - 2026-11-10: Plan approved (2026-11-10) — Ming: "approve"; changes C1–C9 and assumptions A1–A12 accepted as the plan's defaults (D22 recorded for A2; F-701 renamed per A4).
 - 2026-11-10: Gemini model ids: Google's docs (ai.google.dev) are not reachable from the agent sandbox. Ming chose "Claude first, Gemini later": implement the full design including the Gemini adapter, but ship the Gemini model list EMPTY (Gemini not selectable yet); add verified Gemini ids later with a small /solo. Do not guess ids.
+- 2026-11-10: After review attempt 1 (PASS) Ming chose "fix both, then open the PR": (1) security-review 🟡1 — pin the Anthropic client so project-wide `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` can never apply (explicit baseURL, authToken null); (2) 🟡2 — M-10 smoke test reads the key with `read -rs` and passes the body via stdin, never on the command line.
 
 ## Handoff
 
