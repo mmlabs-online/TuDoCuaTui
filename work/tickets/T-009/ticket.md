@@ -57,6 +57,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
 - 2026-11-10: Plan approved (2026-11-10) — Ming: "approve"; changes C1–C9 and assumptions A1–A12 accepted as the plan's defaults (D22 recorded for A2; F-701 renamed per A4).
+- 2026-11-10: Gemini model ids: Google's docs (ai.google.dev) are not reachable from the agent sandbox. Ming chose "Claude first, Gemini later": implement the full design including the Gemini adapter, but ship the Gemini model list EMPTY (Gemini not selectable yet); add verified Gemini ids later with a small /solo. Do not guess ids.
 
 ## Handoff
 
