@@ -43,5 +43,6 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 ## Notes / answers from Ming
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
+- 2026-11-10: function renamed to `tudo-tag-item-photo` (T-009 plan approval, A4; D22 naming), to avoid colliding with stoktok's functions on the shared project.
 
 ## Handoff
