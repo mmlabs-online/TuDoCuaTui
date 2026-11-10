@@ -42,3 +42,20 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; every file is in the plan list (the unused `out-of-order/` and `tamper/` fixture dirs were not created, as the tests build them at runtime).
 - Diff size: modified files +143 / -1; new files about 900 lines (SQL ~100, runner+entry ~210, tests/helpers the rest).
+
+## Attempt 2 (REWORK: security follow-ups only)
+
+Files touched
+- `server/migrator.js`: `set local tudo.migrating = 'on'` before the file, check `current_setting('tudo.migrating', true) = 'on'` after it; throw (-> rollback, MigrationError) if the file ended the transaction. Required because: follow-up 1.
+- `server/migrator.test.ts`: lint regex widened to begin/commit/rollback/end/abort (with `;`, end of text, work/transaction/and). Required because: follow-up 1.
+- `server/migrator.db.test.ts`: added `end;` fixture test (created inline in a temp dir). Required because: follow-up 1.
+- `.github/workflows/ci.yml`: `shell: bash` on the smoke step (pipefail). Required because: follow-up 2.
+
+Checks (local PostgreSQL 16, TEST_DATABASE_URL set)
+- pnpm typecheck: pass
+- pnpm format:check: pass
+- pnpm test: 45 files, 523 tests passed
+- pnpm build: pass
+
+Out-of-plan files: none. Follow-ups: none.
+Scope self-check: only the two listed items changed.

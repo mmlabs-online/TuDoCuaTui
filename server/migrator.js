@@ -163,7 +163,14 @@ export async function runMigrations({ connectionString, dir, log = () => {}, loc
         await client.query("begin");
         await client.query("set local lock_timeout = '10s'");
         await client.query("set local statement_timeout = '5min'");
+        await client.query("set local tudo.migrating = 'on'");
         await client.query(file.sql);
+        // A transaction-control statement in the file (end, abort, commit ... and chain) would have
+        // dropped the transaction-local setting.
+        const guard = await client.query(
+          "select current_setting('tudo.migrating', true) = 'on' as ok",
+        );
+        if (!guard.rows[0].ok) throw new Error("migration ended the transaction itself");
         await client.query(
           "insert into schema_migrations (version, name, checksum) values ($1, $2, $3)",
           [file.version, file.name, file.checksum],

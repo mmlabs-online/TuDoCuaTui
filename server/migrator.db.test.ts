@@ -73,6 +73,17 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     expect(rows[0]).toEqual({ one: "t_one", two: null, three: null });
   });
 
+  it("rejects a migration that ends the transaction itself (end;)", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+    tmpDirs.push(dir);
+    await writeFile(
+      path.join(dir, "20260101000000_end.sql"),
+      "create table t_end (id int);\nend;\ncreate table t_after (id int);\n",
+    );
+    await expect(run(dir)).rejects.toThrow(/ended the transaction/);
+    expect(await versions()).toEqual([]);
+  });
+
   it("checksum mismatch fails and applies nothing", async () => {
     const dir = await tempCopy("ok");
     tmpDirs.push(dir);

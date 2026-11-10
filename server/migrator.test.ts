@@ -71,7 +71,9 @@ describe("real db/migrations files", () => {
         .filter((l) => !l.trim().startsWith("--"))
         .join("\n")
         .toLowerCase();
-      expect(sql, f).not.toMatch(/\b(begin|commit|rollback)\s*;|start\s+transaction|concurrently/);
+      expect(sql, f).not.toMatch(
+        /\b(begin|commit|rollback|end|abort)\b\s*(;|$|work\b|transaction\b|and\b)|start\s+transaction|concurrently/,
+      );
       expect(sql, f).not.toMatch(/create\s+extension|\bgrant\b|create\s+role/);
     }
   });

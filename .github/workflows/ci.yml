@@ -40,6 +40,7 @@ jobs:
       - name: migrate CLI smoke
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        shell: bash
         run: |
           node server/migrate.js
           node server/migrate.js | tee /dev/stderr | grep -q "up to date"
