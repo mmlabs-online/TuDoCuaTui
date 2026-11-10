@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-10T07:47:42Z |
 | PR | — |
 
 ## Goal
@@ -56,7 +56,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
-Waiting for Ming: plan approval (High tier)
+- 2026-11-10: Plan approved (2026-11-10) — Ming: "approve"; changes C1–C9 and assumptions A1–A12 accepted as the plan's defaults (D22 recorded for A2; F-701 renamed per A4).
 
 ## Handoff
 
