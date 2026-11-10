@@ -14,9 +14,17 @@ high:
   - "src/lib/supabase.ts"
   # Production deploy workflows
   - ".github/workflows/deploy*"
-  # Cloudflare Pages redirects
+  # Self-hosted image and release pipeline (T-007, D20)
+  - "Dockerfile"
+  - ".dockerignore"
+  - "docker/**"
+  - ".github/workflows/release.yml"
+  - "deploy/**"
+  - "scripts/check-public-supabase-env*.sh"
+  - "scripts/check-image.sh"
+  # Cloudflare Pages redirects (legacy: D5, superseded by D20)
   - "public/_redirects"
-  # Cloudflare Pages config
+  # Cloudflare Pages config (legacy: D5, superseded by D20)
   - "wrangler.toml"
   # This file sets the merge rules for every later PR
   - ".github/risk-tiers.yml"

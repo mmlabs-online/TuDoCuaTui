@@ -1,0 +1,21 @@
+# T-007: keep the build context small and never let a local .env* reach the image (R3).
+node_modules
+dist
+coverage
+.git
+.github
+.claude
+work
+docs
+supabase
+deploy
+scripts
+.env*
+**/.env*
+*.log
+.plugins
+.opencode-skills
+# vite.config.ts imports .figma/make/site.json (R10: read-only); the rest of .figma is not needed.
+.figma/README.md
+.figma/make/*
+!.figma/make/site.json

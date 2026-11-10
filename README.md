@@ -39,40 +39,50 @@ object is prefixed `tudo_`. Setup is dashboard-only; the steps are M-1 in `work/
    migration change gives stale types. Do not run it while `scripts/test-db-shared.sh` is running.
    The CLI is pinned to `3.0.0`; `--local` is deprecated and goes away in CLI v4, so bump the pin deliberately.
 
-## Deploy (Cloudflare Pages)
+## Deploy (home server, Cloudflare Tunnel)
 
-Production is Cloudflare Pages with Git integration (decision D5); every PR gets a preview deploy. This is M-4 in
-`work/ming-todo.md`. Dashboard only; write names, never values, into the repo.
+Production is `https://tudocuatui.mmlabs.online`, served from the home server (decision D20, replaces Cloudflare
+Pages). Same flow as stoktok: a `release/vX.Y.Z` push builds a Docker image on GitHub's runner, pushes it to Docker
+Hub (`mingming21400/tudocuatui`) and opens a PR on `mmlabs-online/deployment`; merging that PR runs
+`deploy-tudocuatui` on the home server, which waits for the health check and rolls back if it fails. The container
+is static nginx on port 3000 with no published ports; cloudflared reaches it as `tudocuatui:3000` on the `web`
+network. There are no per-PR preview deploys; the CI `image` job builds and smoke-tests the image on every PR.
+This is M-4 in `work/ming-todo.md`. Write names, never values, into the repo.
 
-1. Prerequisite: [Set up Supabase](#set-up-supabase-one-time) (M-1) is done on the stoktok project.
-2. Cloudflare dashboard → **Workers & Pages** → **Create** → the **Pages** tab (not Workers) → **Connect to Git** →
-   authorise GitHub → pick `mmlabs-online/TuDoCuaTui`.
-3. Project name `tudocuatui`, production branch `main`.
-4. Build settings:
-   - Framework preset **None**
-   - Build command `pnpm build`
-   - Build output directory `dist`
-   - Root directory `/`
-   - Pages installs dependencies from `pnpm-lock.yaml` itself. If the build log shows no install step, use
-     `pnpm install --frozen-lockfile && pnpm build`.
-5. Environment variables (plain text):
-   - **Production and Preview:** `NODE_VERSION` = `22`, `PNPM_VERSION` = `10.34.3`. Keep them equal to `.node-version`,
-     `.mise.toml` and `package.json` → `packageManager` (Pages reads `.node-version`, not mise).
-   - **Production only:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, copied from the stoktok project (Supabase →
-     Project Settings → API). Use the anon/publishable key only, never the service role key (R3). Never add them to
-     Preview: previews must stay in local mode (demo items, no login).
-   - Never set `FIGMA_PUBLIC_URL`; it changes Vite's `base`.
-6. Save and deploy. `VITE_*` values are baked in at build time, so after changing them use Deployments → latest
-   production → **Retry deployment**. This also applies if they were added after the first build.
-7. Copy the real production URL from the project page (it may be `tudocuatui-xxx.pages.dev` if the name was taken).
-8. Password login needs no Redirect URL (Google sign-in, F-102, will). Do not change the Site URL (it stays
-   stoktok's; D17).
-9. Phone check: open the production URL, sign in with the stoktok email + password on the phone and confirm you are
-   logged in. Open a PR's preview URL and confirm local mode.
+**One-time setup**
+1. Docker Hub: create repo `mingming21400/tudocuatui` (public: the image holds only what the site serves). The token
+   in `DOCKERHUB_TOKEN` needs Read & Write on it.
+2. Repo secrets (Settings → Secrets → Actions): `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `DEPLOY_REPO_TOKEN`
+   (fine-grained PAT on `mmlabs-online/deployment` only: Contents and Pull requests read/write).
+3. Setup PR on `mmlabs-online/deployment`: copy the files in `deploy/deployment-repo/` to the same paths and add the
+   CODEOWNERS line (details in its README). Merge it; `deploy-tudocuatui` skips until a release exists.
+4. Cloudflare: the published application `tudocuatui.mmlabs.online` points to service `http://tudocuatui:3000`
+   (HTTP, not HTTPS).
+5. If an old Cloudflare Pages project `tudocuatui` exists, delete it.
 
-Why there is no `public/_redirects`: Pages serves `index.html` for unknown paths when the build has no top-level
-`404.html`, and the app has no client routes. Do not add a `404.html`, because it turns this fallback off.
-Not used: a custom domain, a separate staging Supabase project, `wrangler.toml`.
+**Release**: from an up-to-date `main`, `git push origin main:release/vX.Y.Z`. The `release` workflow checks that
+the commit is on `main`, the version is new and higher, and the secrets exist; tags it, builds and pushes the image,
+pulls the pushed digest back and smoke-tests it, then opens PR `release/tudocuatui-vX.Y.Z` on the deployment repo
+(it changes only `apps/tudocuatui/release.env`). Review and merge it; `deploy-tudocuatui` deploys and comments the
+result on the PR. Phone check: open the site; a deep URL such as `/x/y` also loads the app.
+
+**Supabase values**: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are optional repo secrets passed as Docker
+build args, so they are baked in at build time. Without them the release runs in local mode (demo items, no login).
+After M-1 add both (stoktok Project URL and the anon/publishable key only, never the service role key, R3) and cut a
+new release; changing them needs a new release. `release.yml` refuses a half-set pair, a non-https URL and a
+secret or non-anon key. Never set `FIGMA_PUBLIC_URL`; it changes Vite's `base`.
+
+**Rollback**: if the new container is unhealthy, `deploy-tudocuatui` restores the previous release and tries to push
+the revert. If deployment `main` blocks that push the run ends `restore-unpushed`: the server is fine, revert the
+release PR by hand. To go back later, release a new version; do not reuse a tag.
+
+**Run the image locally** (needs Docker): `docker build -t tudo . && docker run --rm -p 3000:3000 tudo`, then open
+`http://localhost:3000`. Add `--build-arg VITE_SUPABASE_URL=... --build-arg VITE_SUPABASE_ANON_KEY=...` for Supabase
+mode.
+
+**Troubleshooting**: `release` fails at "guards" with the reason in the log. 502 from Cloudflare means the route is
+not `http://tudocuatui:3000` or the container is not on the `web` network. Unhealthy container: `docker logs` on the
+server. A `.env*` file never enters the image (`.dockerignore`).
 
 ## Running DB tests
 
@@ -113,3 +123,8 @@ npx supabase stop               # when done
 | `supabase/migrations/` | Schema, RLS, storage bucket and policies |
 | `supabase/tests/` | pgTAP RLS and storage policy tests |
 | `docs/data-model.md` | ERD and design decisions |
+| `Dockerfile`, `.dockerignore`, `docker/nginx.conf` | Production image: Vite build served by non-root nginx on :3000 |
+| `scripts/check-image.sh` | Image checks (health, SPA fallback, no secrets) used by CI and `release.yml` |
+| `scripts/check-public-supabase-env.sh` (+ `.test.sh`) | Release guard: only the public URL and anon key may be baked in (R3) |
+| `.github/workflows/release.yml` | `release/vX.Y.Z` push: tag, build, push image, open the deployment PR |
+| `deploy/deployment-repo/` | Drafts to copy into `mmlabs-online/deployment` (compose + deploy workflow) |
