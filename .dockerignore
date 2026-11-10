@@ -11,6 +11,7 @@ supabase
 deploy
 scripts
 .env*
+**/.env*
 *.log
 .plugins
 .opencode-skills

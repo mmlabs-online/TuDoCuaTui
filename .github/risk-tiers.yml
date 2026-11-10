@@ -20,6 +20,8 @@ high:
   - "docker/**"
   - ".github/workflows/release.yml"
   - "deploy/**"
+  - "scripts/check-public-supabase-env*.sh"
+  - "scripts/check-image.sh"
   # Cloudflare Pages redirects (legacy: D5, superseded by D20)
   - "public/_redirects"
   # Cloudflare Pages config (legacy: D5, superseded by D20)

@@ -28,8 +28,8 @@ user="$(docker image inspect "$IMAGE" --format '{{.Config.User}}')"
 case "$user" in ""|0|root|0:*|root:*) echo "::error::image runs as root (user '$user')"; exit 1 ;; esac
 found=$(docker run --rm --user 0 --entrypoint sh "$IMAGE" -c "find / -xdev -name '.env*' -not -path '/proc/*' 2>/dev/null; true")
 if [ -n "$found" ]; then echo "::error::.env files in image: $found"; exit 1; fi
-if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqF sb_secret_ $ROOT"; then
-  echo "::error::sb_secret_ found in the served files"; exit 1
+if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqE 'sb_secret_[A-Za-z0-9_-]{8,}' $ROOT"; then
+  echo "::error::a secret key value (sb_secret_...) found in the served files"; exit 1
 fi
 maps=$(docker run --rm --entrypoint sh "$IMAGE" -c "find $ROOT -name '*.map'")
 if [ -n "$maps" ]; then echo "::error::source maps in image: $maps"; exit 1; fi

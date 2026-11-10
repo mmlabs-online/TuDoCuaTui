@@ -52,3 +52,27 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No: mostly copies of stoktok/deployment files.
 - Diff size: ~+850 lines across 17 files (mostly new files).
+
+## Attempt 2 (REWORK)
+
+### Fixes
+- A (review 🔴): `scripts/check-image.sh` now greps `sb_secret_[A-Za-z0-9_-]{8,}` (a key value) instead of the prefix `sb_secret_`. Required because supabase-js contains the literal prefix, so every Supabase-mode image failed.
+- B1: `scripts/check-public-supabase-env.sh` checks `sb_publishable_*` keys against `^sb_publishable_[A-Za-z0-9_-]+$`; `scripts/check-public-supabase-env.test.sh` has a new case with an embedded newline (exit 1, value not printed).
+- B2: `.dockerignore` adds `**/.env*` (root `.env*` and the `site.json` re-include kept).
+- B3: `docker/nginx.conf` sends `X-Frame-Options DENY always` in the server block and in both locations with their own `add_header`.
+- B4: `.github/risk-tiers.yml` High tier gains `scripts/check-public-supabase-env*.sh` and `scripts/check-image.sh`.
+
+### Correction to Attempt 1
+Attempt 1 claimed "no `sb_secret_` in dist". That was only true for a build without VITE args (local mode). With `VITE_SUPABASE_URL` set, supabase-js code is bundled and `grep -F sb_secret_ dist` matches (confirmed this attempt), which is why the old check failed Supabase-mode images.
+
+### Checks
+- Build with `VITE_SUPABASE_URL=https://ci-dummy.invalid` + dummy `sb_publishable_` key: `grep -rE 'sb_secret_[A-Za-z0-9_-]{8,}' dist` finds nothing (rc 1); the old prefix grep does match. Then rebuilt without args: no `ci-dummy.invalid` in dist.
+- typecheck clean; format:check ok; test ok; test:coverage statements 99.82%, branches 99.08%, functions 100%, lines 99.79%; build ok.
+- `bash scripts/check-public-supabase-env.test.sh`: 17/17 passed. `bash -n` on both scripts ok; risk-tiers.yml parses with PyYAML.
+- Not run (no Docker): check-image.sh end to end, nginx header live, `.dockerignore` under real Docker.
+
+### Out-of-plan files
+None.
+
+### Scope self-check
+Only the listed review items were changed.

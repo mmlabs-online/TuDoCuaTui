@@ -22,7 +22,11 @@ fi
 
 case "$key" in
   sb_secret_*) fail "VITE_SUPABASE_ANON_KEY is a secret key: use the anon/publishable key only" ;;
-  sb_publishable_*) ;;
+  sb_publishable_*)
+    if ! [[ "$key" =~ ^sb_publishable_[A-Za-z0-9_-]+$ ]]; then
+      fail "VITE_SUPABASE_ANON_KEY is an sb_publishable_ key with unexpected characters"
+    fi
+    ;;
   sb_*) fail "VITE_SUPABASE_ANON_KEY is an sb_ key that is not sb_publishable_..." ;;
   *)
     if ! [[ "$key" =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
