@@ -42,3 +42,27 @@
 
 ### Open questions
 - Is deployment `main` protected so the PAT cannot push to it directly? Not verifiable here.
+
+## Attempt 2 — 2026-11-10 (security-ai-generated-code-auditor, re-review of 93384e5)
+
+**Verdict: no 🔴 and no 🟡.** All four attempt-1 🟡 items and the review 🔴 are fixed; no regressions or new issues. Read-only; runtime claims rest on code reading until the CI `image` job runs.
+
+### Fixes confirmed
+- 🟢 Review 🔴 — `scripts/check-image.sh:31` now greps `sb_secret_[A-Za-z0-9_-]{8,}`: still catches a real key (Vite inlines whole strings), no longer flags supabase-js's bare prefix literal; quoting safe; BusyBox `grep -rqE` supports `{8,}`; the CI dummy key `sb_publishable_ci_dummy` (`ci.yml:59`) does not match.
+- 🟢 B1 — `scripts/check-public-supabase-env.sh:25-29` requires `^sb_publishable_[A-Za-z0-9_-]+$`; embedded/trailing newline or `=` fail, closing the extra-line override in `release.yml:106-108`. The guard runs at `release.yml:77`, before the tag push (`:82-88`) and the build (`:97`), under `-e`.
+- 🟢 B1 test — `scripts/check-public-supabase-env.test.sh:50-51` expects exit 1 and that neither checked string is printed; CI runs the test (`ci.yml:31`).
+- 🟢 B2 — `.dockerignore:13-14` adds `**/.env*` (also matches the root); `!.figma/make/site.json` (`:19-21`) unaffected; `check-image.sh:29-30` still checks for `.env*` at runtime.
+- 🟢 B3 — `X-Frame-Options DENY always` in the server block and both locations with their own `add_header` (`docker/nginx.conf:16, 27, 36`); `location /` inherits it; deep paths go through `location = /index.html`.
+- 🟢 B4 — `.github/risk-tiers.yml:23-24` adds `scripts/check-public-supabase-env*.sh` and `scripts/check-image.sh` to `high:`.
+
+### No regressions
+- 🟢 `case` order unchanged (`check-public-supabase-env.sh:23-41`); all earlier tests still assert values are never printed (`.test.sh:44-59`).
+- 🟢 Dockerfile unchanged; `provenance`/`sbom` off (`release.yml:110-111`).
+
+### Risks (unchanged)
+- The pushed-image check (`release.yml:116-123`) runs after the push to the public repo; the guard at `:77` is the real gate, `check-image.sh` a second net.
+- `check-image.sh` only looks for `sb_secret_` values; a legacy `service_role` JWT is caught only by the guard (High tier now).
+- `DEPLOY_REPO_TOKEN` / deployment-repo branch protection risks from attempt 1.
+
+### Still to prove in CI
+- `check-image.sh` end to end under real Docker: live nginx headers and `.dockerignore` behaviour.
