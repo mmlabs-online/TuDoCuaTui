@@ -101,3 +101,64 @@ Verdict: REWORK
   feature-list F-007 text; CSP header; compose `read_only`; `dist/version.txt`.
 - Consider moving `create version tag` after `verify pushed digest` in a later ticket so a failed verify does not
   burn a version (stoktok has the same order on purpose: "a failed run never reuses it").
+
+## Attempt 2 — 2026-11-10
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `pnpm typecheck` (tsc --noEmit) exit 0.
+- format:check: "All matched files use the correct format." (92 files).
+- test: 25 files, 385 tests passed.
+- test:coverage: statements 99.82%, branches 99.08%, functions 100%, lines 99.79% (matches impl-log).
+- build: `pnpm build` ok (local mode, `dist/assets/index-*.js` 242 kB).
+- `bash scripts/check-public-supabase-env.test.sh`: 17/17 passed (was 16; +1 newline case).
+- Issue 1 reproduction: `VITE_SUPABASE_URL=https://ci-dummy.invalid VITE_SUPABASE_ANON_KEY=sb_publishable_ci_dummy`
+  (the `ci.yml:58-59` args) `vite build --outDir <scratch>`: old `grep -rF sb_secret_` still matches
+  (``sb_secret_`),Ma=`sb_…`` — supabase-js); new `grep -rqE 'sb_secret_[A-Za-z0-9_-]{8,}'` exit 1 (no match);
+  `ci-dummy.invalid` is in the bundle (Supabase mode really built). Synthetic file with
+  `sb_secret_abcdefghijklmnopqrst` → new pattern exit 0 (match). impl-log Attempt 2 matches these results.
+- Not run (no Docker daemon): `docker build`, `check-image.sh` end to end, live nginx headers, `.dockerignore`
+  under real Docker — to be confirmed by CI on the PR (`image` job).
+
+### Rework items
+- [x] Review Issue 1 🔴 — `scripts/check-image.sh:31` now `grep -rqE 'sb_secret_[A-Za-z0-9_-]{8,}' $ROOT`,
+  `:32` error text updated. Runs in `nginx-unprivileged:1.30-alpine` (`Dockerfile:19`); busybox grep supports
+  `-E` and `{n,}`. Reproduced above. impl-log's Attempt-1 "no `sb_secret_` in dist" claim is corrected.
+- [x] Security 🟡 publishable-key charset — `scripts/check-public-supabase-env.sh:25-29`
+  `^sb_publishable_[A-Za-z0-9_-]+$`; test `check-public-supabase-env.test.sh:50-51` (embedded newline → exit 1,
+  neither line echoed). Reviewer also ran the guard directly with a newline key and with `sb_publishable_a b`:
+  both exit 1 "unexpected characters".
+- [x] Security 🟡 recursive `.env*` — `.dockerignore:14` `**/.env*` (root `:13` kept; `site.json` re-include
+  unaffected).
+- [x] Security 🟡 anti-framing — `docker/nginx.conf:16`, `:27`, `:36` `X-Frame-Options DENY always` in the server
+  block and both locations that have their own `add_header` (no location left without it).
+- [x] Security 🟡 risk tiers — `.github/risk-tiers.yml:23-24` adds `scripts/check-public-supabase-env*.sh` and
+  `scripts/check-image.sh` under `high:`.
+
+### Acceptance criteria
+- [x] AC1 image builds/serves on :3000 as non-root — unchanged from Attempt 1 except the extra header; docker
+  steps to be confirmed by CI on the PR.
+- [x] AC2 `VITE_*` build args only, nothing secret baked in — Issue 1 fixed (reproduced); guard stricter.
+  Image-level run to be confirmed by CI on the PR.
+- [x] AC3 release.yml mirrors stoktok — untouched since Attempt 1 (`git diff 40519f9..HEAD` lists no workflow file).
+- [x] AC4 deployment drafts — untouched since Attempt 1.
+- [x] AC5 README + D20 — untouched since Attempt 1.
+- [x] AC6 local checks green (above); CI `image` job no longer blocked by Issue 1 — to be confirmed by CI on the PR.
+
+### Scope
+`git diff 40519f9..HEAD --stat`: exactly `.dockerignore`, `.github/risk-tiers.yml`, `docker/nginx.conf`,
+`scripts/check-image.sh`, `scripts/check-public-supabase-env.sh`, `scripts/check-public-supabase-env.test.sh`,
+`impl-log.md`, plus the orchestrator's `ticket.md` state change. Each maps to one rework item; no other change.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R3 strengthened (guard charset, recursive `.env*`, working secret-value scan). R7: only the
+five rework items changed. R10: `AGENTS.md`, `.figma/`, `vite.config.ts` untouched.
+
+### Nits (do not block)
+- Attempt-1 nits still open (`check-image.sh:29` ignores a failing `docker run`; `ci.yml` second build cache).
+
+### Follow-ups (out of scope)
+- As in Attempt 1 (CSP header incl. `frame-ancestors`, compose `read_only`, tag-after-verify ordering, M-9, etc.).
