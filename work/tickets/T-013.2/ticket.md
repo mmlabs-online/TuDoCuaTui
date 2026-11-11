@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-11T03:32:24Z |
 | PR | — |
 
 ## Goal
@@ -40,7 +40,7 @@ extra length caps; reason codes from `validate.ts`.
 - [ ] Invalid input → 400 with a code; DB errors never leak SQL or internals.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-11): A15–A27 as written.
 - (2026-11-11, from T-013 security review) Route only from the same raw `pathname` computed in `server/app.js`, inside the guarded `/api` branch (`server/README.md:20`); percent-decode individual segments (ids) only after the access check — never decode-then-route.
 
 ## Handoff
