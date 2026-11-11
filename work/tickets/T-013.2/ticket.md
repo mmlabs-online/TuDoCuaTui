@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-11T03:20:43Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -40,6 +40,12 @@ extra length caps; reason codes from `validate.ts`.
 - [ ] Invalid input → 400 with a code; DB errors never leak SQL or internals.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - (2026-11-11, from T-013 security review) Route only from the same raw `pathname` computed in `server/app.js`, inside the guarded `/api` branch (`server/README.md:20`); percent-decode individual segments (ids) only after the access check — never decode-then-route.
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: consult reused from T-013 (contract A8–A14 already approved); plan.md READY — five `/api` endpoints, validation, CSRF, DB error mapping, Postgres API tests; ~400 lines, no new deps.
+- In progress / next: Ming approves new assumptions A15–A27. Then implement.
+- Gotchas: route only from the raw `pathname` inside the guarded branch; ids never decoded; tests must not skip in CI.
