@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-11 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-11T13:13:41Z |
 | PR | — |
 
 ## Goal
@@ -45,7 +45,7 @@ D27 (photos on Google Drive via the Node server). Design: `work/tickets/T-005.1/
 - [ ] M-15 lists the exact steps, including recovery.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-11): A1–A14 as written.
 
 ## Handoff
 
