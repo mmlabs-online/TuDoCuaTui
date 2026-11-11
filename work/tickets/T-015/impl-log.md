@@ -49,4 +49,4 @@ A12: live deployment files not compared (not read).
 
 ### Scope self-check
 - Could the diff be smaller? No.
-- Diff size: about +330 / -95 lines (see `git diff --stat`).
+- Diff size: +266 / -90 (13 files, incl. impl-log) lines (see `git diff --stat`).
