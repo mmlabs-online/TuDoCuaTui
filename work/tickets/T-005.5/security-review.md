@@ -21,3 +21,20 @@ Sound: loopback on 127.0.0.1, one request, `done()` cleanup (`scripts/drive-conn
 - `--out` pointing at a directory fails late with "unexpected failure" (cosmetic).
 
 Open: always `--force-recreate` on `workflow_dispatch`? Is a re-created OAuth client always in Ricotdin's project?
+
+## Attempt 2 (2026-11-11) — security-ai-generated-code-auditor (commit f1554b8)
+
+No 🔴, no 🟡. All three attempt-1 🟡 and follow-ups 1–5 fixed. Static, read-only.
+
+- Leaked-secret path `work/ming-todo.md:196-199` (revoke at Google, reset client secret, redo steps 4–6 + dispatch, delete copies); turn-off revocation note `:194-195`; Recovery "In production" reminder `:187-188`.
+- No `~`, absolute macOS/Windows paths; only the file path on argv; hidden-prompt fallback `:166-173`; "Never print the env file" `:179`.
+- `--force-recreate` on dispatch `deploy-tudocuatui.yml:184-193`: `github.event_name` and `changed` via step `env:` (`EVENT`, `CHANGED`), quoted comparisons, bash-3.2-safe array expansion, only `tudocuatui` recreated; no new injection surface.
+- Static test `scripts/deploy-envfile.test.ts:213-236` (deploy in the no-`${{` list, exact env mappings/condition, `secrets.` still exactly 4).
+- README `:36-37,46` and workflow header `:23-24` match.
+- Symlink tests `scripts/drive-connect.test.ts:295-308,337-355` (skipped on win32; nothing written; existing file untouched).
+
+### 🟢 Notes
+- `ming-todo.md:189-190` wording could say "a manual run always recreates the app".
+- Every dispatch restarts the app (few seconds; fine).
+- Leak path (d): one line that history rewrite is optional once (a)+(b) are done.
+- Attempt-1 notes still open by design: same-Cloud-project folder assumption, no y/N confirm, no fetch timeouts.
