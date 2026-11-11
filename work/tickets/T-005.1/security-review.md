@@ -20,3 +20,17 @@ No 🔴. Two 🟡 (one-two lines each, `server/drive.js`), rest 🟢. No .env re
 11. Fixtures are obviously fake; no `GOCSPX-`/`1//0`/`ya29.` in the repo.
 
 Open: does Drive v3 `alt=media` ever redirect?
+
+## Attempt 2 (2026-11-11) — security-ai-generated-code-auditor (commit 094c220)
+
+Both attempt-1 🟡 fixed. No 🔴/🟡. Read-only.
+
+1. Redirects `manual` on token/meta/create/delete (`server/drive.js:137,144,179,260`; only `getMedia` follows, `:364`); token 3xx → `drive_bad_response`, no retry (`:204-207`); `request()` 3xx falls to `drive_bad_response`, not retried (`:290-300`). Tests `drive.test.ts:300-313,425-430`.
+2. 3xx body/Location never exposed: Location unread; body only feeds allowlisted `reasonOf()` (`:71-82`), skipped for token 3xx; `DriveError` = code/status; `note()` fixed fields.
+3. `getMedia` following is acceptable (GET, no body; undici strips Authorization cross-origin). Optional: `manual` for media too if `alt=media` never redirects.
+4. `drive_invalid_id` from `fileUrl()` (`:305-308`), thrown before any request in `getMedia`/`deleteFile` (`:359,380`); `deleteFile` swallows only real-404 `drive_not_found` (`:385,292`). Tests `drive.test.ts:284-298` (zero calls).
+5. `createFile` validates the returned id (`:344-347`), tests `:411-423`.
+6. `server/README.md:24` in sync.
+7. Carry to T-005.3: document the per-request signal-with-deadline rule for `getMedia` in server/README.md; remove the caller abort listener on the streaming path (`drive.js:153`).
+
+Risk: undici `manual` / Authorization stripping relied on, not tested with real fetch (acceptable).
