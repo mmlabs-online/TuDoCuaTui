@@ -94,7 +94,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
       "Allow" for your email only (one-time PIN). Check that an incognito window gets the Access login page, and that
       `/version.txt` is also behind it. Without this, anyone with the URL can read and change the wardrobe.
-- [ ] **M-12 — Register the TuDo database** (T-011, D23/D24; after T-011 is merged). In a clone of
+- [x] (2026-11-11, mmlabs-online/deployment#38 merged; deploy-postgres run 42960617315 green) **M-12 — Register the TuDo database** (T-011, D23/D24; after T-011 is merged). In a clone of
       `mmlabs-online/deployment` on an up-to-date `main`:
       1. `git switch -c postgres/add-tudocuatui`. The name must NOT start with `release/`, or `pr-scope` fails.
       2. `bash postgres/scripts/add-app-db.sh tudocuatui`. Expect `generated …/tudocuatui.password` and
