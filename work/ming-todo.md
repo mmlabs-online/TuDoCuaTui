@@ -145,14 +145,47 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          Read `docker logs`, tell Annie, and do not retry by hand. A deliberate rollback later is a non-`release/` PR
          on the deployment repo that reverts both files in `apps/tudocuatui/`.
 
-- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27, after T-005.1 **and T-005.5** are merged): follow the
-  runbook T-005.5 adds. Create the OAuth client "TuDoCuaTui" (type **Desktop app**) in Ricotdin's Google Cloud
-  project (published "In production"). Create the GitHub environment `tudocuatui` in `mmlabs-online/deployment`,
-  restricted to `main`. Run the connect script locally: it signs in as Ricotdin's account and **creates the
-  `TuDoCuaTui` folder itself**. Do not create the folder by hand in Drive, because the app cannot see a folder it did not
-  create (`drive.file`). Store the four values as the environment secrets the runbook names (never in chat or the TuDo
-  repo). Delete the downloaded client JSON and the token file. Run `deploy-tudocuatui` (workflow_dispatch from `main`),
-  then run the smoke command.
+- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27; after T-005.1 and T-005.5 are merged). Never paste a
+      client secret or token into chat, a ticket, the TuDo repo or a command line.
+      1. Google Cloud console, Ricotdin's project: APIs & Services → enable **Google Drive API** (if not on).
+         OAuth consent screen → Publishing status **In production** (in "Testing" the token dies after 7 days).
+         Credentials → Create credentials → OAuth client ID → type **Desktop app**, name `TuDoCuaTui` →
+         Download JSON (`client_secret_….json`).
+      2. GitHub → `mmlabs-online/deployment` → Settings → Environments → New environment `tudocuatui`.
+         Deployment branches and tags → **Selected branches and tags** → add `main`. No required reviewers, no wait
+         timer (release merges deploy unattended). No secrets yet. Do this before step 3.
+      3. Merge the setup PR the orchestrator opened (`setup/tudocuatui-drive-secrets`, two files). Its merge runs
+         `deploy-tudocuatui` once: expect `deployed`, environment `tudocuatui` on the run page, and the app not
+         restarted (no secrets yet, photos stay off).
+      4. On your computer (Node 22, Mac or Windows), in an up-to-date TuDo checkout:
+         `node scripts/drive-connect.mjs --client-file <path to client_secret_….json>`.
+         Open the printed URL, sign in with **Ricotdin's** Google account, allow. Check the printed account email.
+         The script finds or creates the `TuDoCuaTui` folder (do not create it by hand), prints its id, and writes
+         `~/.config/tudocuatui/drive-secrets.env` (mode 600; outside any git folder).
+      5. `gh auth status` (an account with admin on `mmlabs-online/deployment`), then run the command the script
+         printed: `gh secret set -f ~/.config/tudocuatui/drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`.
+         Check `gh secret list --env tudocuatui -R mmlabs-online/deployment` shows exactly
+         `TUDOCUATUI_DRIVE_FOLDER_ID`, `TUDOCUATUI_GOOGLE_CLIENT_ID`, `TUDOCUATUI_GOOGLE_CLIENT_SECRET`,
+         `TUDOCUATUI_GOOGLE_REFRESH_TOKEN`. If `gh` rejects `-f` with `--env`, set each one with
+         `gh secret set <NAME> --env tudocuatui -R mmlabs-online/deployment` and paste the value at the hidden prompt.
+      6. Delete `~/.config/tudocuatui/drive-secrets.env` and the downloaded `client_secret_….json`
+         (Windows: also empty the Recycle Bin).
+      7. Deploy. Check `https://tudocuatui.mmlabs.online/version.txt`. If that release is older than the first release
+         that contains T-005.1, cut one: `git push origin main:release/vX.Y.Z`, then merge its deployment PR. Otherwise:
+         Actions → `deploy-tudocuatui` → Run workflow from `main`. Expect `deployed`. On the Mac:
+         `docker compose -p tudocuatui logs --tail 20 tudocuatui` shows `drive configured`. Never print the env file.
+      8. Smoke, on the Mac in a clone of `mmlabs-online/deployment` on an up-to-date `main`:
+         `docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env exec tudocuatui node server/drive-smoke.js`.
+         Expect every step `ok` and exit 0. Exit 2 = not configured (secrets missing, or the image predates T-005.1).
+         `FAIL drive_auth` → Recovery. `FAIL drive_folder_not_found` → the folder id is wrong: re-run steps 4–7.
+      9. In Ricotdin's Drive: the folder `TuDoCuaTui` exists and holds no `tudo-smoke-…` file.
+      Recovery (photos fail with `drive_auth`: token revoked, 6 months unused, consent screen back in Testing, client
+      secret reset or client deleted): if the client is gone or its secret was reset, do step 1's Credentials part again.
+      Then steps 4, 5 (overwrites all four), 6, then Run workflow `deploy-tudocuatui` from `main` (the changed env file
+      restarts the app), then step 8. The script finds the same folder, so the id does not change.
+      Turn photos off (or undo a bad deploy): `gh secret delete <NAME> --env tudocuatui -R mmlabs-online/deployment`
+      for all four names, then Run workflow from `main`: the env file goes back to `DATABASE_URL` only and the app
+      restarts with `drive not configured`. A manual run has no automatic restore, so this is the way back.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
