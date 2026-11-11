@@ -145,7 +145,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          Read `docker logs`, tell Annie, and do not retry by hand. A deliberate rollback later is a non-`release/` PR
          on the deployment repo that reverts both files in `apps/tudocuatui/`.
 
-- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27, after T-005.1 is merged): follow the runbook T-005.1 adds — create the OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project (published "In production"), create the `TuDoCuaTui/` folder, run the connect script locally, store the four values where the runbook says (never in chat or the TuDo repo), redeploy, run the smoke command.
+- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27, after T-005.1 and T-005.5 are merged): follow the runbook T-005.1 adds — create the OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project (published "In production"), create the `TuDoCuaTui/` folder, run the connect script locally, store the four values where the runbook says (never in chat or the TuDo repo), redeploy, run the smoke command.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
