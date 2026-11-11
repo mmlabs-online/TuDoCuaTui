@@ -29,8 +29,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-008 | Show the release version in the UI | MERGED | P1 | S | ui | T-007 | plan-approval | 1 | 2026-11-10 |
 | T-011 | Register a `tudocuatui` database on the shared Postgres | MERGED | P0 | S | db, security | T-007 | plan-approval | 0 | 2026-11-10 |
 | T-012 | Postgres schema and migration runner for the self-hosted database | MERGED | P0 | M | db, architecture | T-011 | plan-approval | 1 | 2026-11-10 |
-| T-013 | Node API server serving the SPA and `/api` | DONE | P0 | L | architecture, security, data | T-012 | plan-approval | 1 | 2026-11-11 |
-| T-013.2 | `/api` endpoints for every WardrobeRepo operation | BACKLOG | P0 | M | architecture, security, data | T-013 | plan-approval | 0 | 2026-11-10 |
+| T-013 | Node API server serving the SPA and `/api` | MERGED | P0 | L | architecture, security, data | T-012 | plan-approval | 1 | 2026-11-11 |
+| T-013.2 | `/api` endpoints for every WardrobeRepo operation | PLANNING | P0 | M | architecture, security, data | T-013 | plan-approval | 0 | 2026-11-10 |
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | BACKLOG | P0 | M | ui, data | T-013.2 | none | 0 | 2026-11-10 |
 | T-015 | Switch the image and deploy from nginx to the Node server | BACKLOG | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-10 |
 | T-016 | Remove Supabase from the app | BACKLOG | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-10 |
