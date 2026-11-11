@@ -100,3 +100,57 @@ untouched.
 From security-review.md attempt 1 (🟡, not blocking, fixed before the PR at Ming's request):
 1. `server/drive.js:143,168-178` — no redirect following on the token exchange (`redirect: "error"`, or `"manual"` mapped to `drive_bad_response`); same for meta/create/delete. Leave `getMedia` on follow unless sure Drive `alt=media` never redirects. Test: a 307 from the token URL fails and makes no second request.
 2. `server/drive.js:298-300,376-378` — `deleteFile` must not report success for an id that fails `FILE_ID_RE`: give invalid ids their own code (e.g. `drive_invalid_id`) or swallow `drive_not_found` only when `status === 404`. Also validate the id returned by `createFile` (`:337-341`) against `FILE_ID_RE`. Tests for both.
+
+## Attempt 2 — 2026-11-11
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `pnpm typecheck` → clean (tsc app + tsconfig.server.json).
+- format: `pnpm format:check` → "All matched files use the correct format." (171 files).
+- tests: `pnpm test` → Test Files 58 passed | 4 skipped (62); Tests 670 passed | 42 skipped (712). Matches impl-log.
+- coverage: `CI=true pnpm test:coverage` with a throwaway local PostgreSQL 16.15 (data dir under /tmp, scram password
+  auth, `TEST_DATABASE_URL` set; stopped and deleted afterwards) → exit 0, 62 files, 712 passed; `drive.js` 99.48 lines /
+  98.7 branches / 100 funcs; thresholds met. Matches impl-log.
+- build: `pnpm build` → built OK.
+- Real-fetch probe (reviewer, scratch script, not committed): local HTTP server answering 307 to everything,
+  `createDriveClient({ tokenUrl/apiBase/uploadBase: local })`, `deleteFile("abcdefghij12")` → `DriveError
+  drive_bad_response 307`, server saw exactly one request (`POST /token`). Confirms Node's fetch returns the 3xx
+  unfollowed with `redirect: "manual"`.
+
+### Scope
+`git show 094c220 --stat`: `server/drive.js`, `server/drive.test.ts`, `server/README.md` (error-code list + redirect
+note), `impl-log.md`. `git diff 19fc4ac..HEAD` adds only orchestrator bookkeeping (`ticket.md` state). Nothing else
+changed since attempt 1.
+
+### Security follow-up 1 — no redirect following (except getMedia)
+- `once()` takes the mode and passes it to fetch (`server/drive.js:134,137,144`).
+- Token exchange: `"manual"` (`drive.js:179`); a 3xx throws `drive_bad_response` with no retry (`drive.js:204-207`).
+- Meta/create/delete (`request()`): `"manual"` unless `follow` (`drive.js:260`); a 3xx is not 401/429/403-rate/5xx so it
+  falls through to `drive_bad_response` with no retry (`drive.js:288-297`). Only `getMedia` sets `follow: true`
+  (`drive.js:364`).
+- Tests: `drive.test.ts:300` (307 from token → 1 request; 307 on delete → 2 requests, `redirect:"manual"`; getMedia
+  token call manual, media call follow); `drive.test.ts:425` (307 on create → no second upload, manual).
+
+### Security follow-up 2 — invalid ids
+- `fileUrl` throws new code `drive_invalid_id` (`drive.js:306`; typedef `:9`); `deleteFile` swallows only
+  `drive_not_found` (`drive.js:385`), so a malformed id now rejects. Test `drive.test.ts:284`: six bad ids, getMedia and
+  deleteFile both → `drive_invalid_id`, `calls` length 0.
+- `createFile` validates the returned id with `FILE_ID_RE` (`drive.js:344`). Test `drive.test.ts:418` (short, path-like,
+  `../etc/passwd`, 201 chars → `drive_bad_response`). Existing fake ids lengthened to pass the check.
+- README error list includes `drive_invalid_id` and the redirect rule (`server/README.md:24`).
+
+### Issues
+None.
+
+### Rules R1–R10
+No change from attempt 1; the rework touches only `server/drive.js`, its tests and README. R3/R4: secrets still not
+logged (3xx path logs status + fixed code only, `drive.js:205`). R7: in scope. R8: checks green, new behaviour tested.
+R10: untouched.
+
+### Nits (do not block)
+- 💭 No test sends a 3xx to `checkFolder` specifically; it shares `request()` with delete, which is tested, so coverage of
+  the behaviour is adequate.
+- 💭 Attempt 1 nits still stand (token 429 log code, stale abort listeners, `size` NaN, smoke readability, grep exit 2).
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1 (T-005.2 orphan handling on create timeout; T-005.5 deploy config + security review).
