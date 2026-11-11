@@ -10,7 +10,7 @@
 | Areas | architecture, security |
 | Gate | plan-approval |
 | Depends on | T-013, T-011 |
-| Needs Ming | M-11, M-12 |
+| Needs Ming | M-11, M-12, M-13 |
 | Attempts | 0 |
 | Created | 2026-11-10 |
 | Claimed by | — |
@@ -41,6 +41,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Image has no secrets; DB URL only at runtime from the env file.
 
 ## Notes / answers from Ming
+- (2026-11-11, from T-013) Set exactly `NODE_ENV=production`, never `TUDO_ACCESS_DISABLED`; `check-image.sh` passes dummy `CF_ACCESS_*` and asserts `/api` → 401; container needs egress to `<team>.cloudflareaccess.com`; healthcheck via `node -e fetch`; start command `node server/index.js`. Needs M-13 (AUD + team domain).
 - (2026-11-10, from T-011) Needs M-11 (Cloudflare Access live) before the first Node release; image runs as a non-root `USER`; must honour `node server/migrate.js` + `/readyz` on :3000; add a Ming step to copy the draft `compose.yml` into the first `release/tudocuatui-v*` PR.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
