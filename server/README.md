@@ -8,10 +8,26 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | `CF_ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com` (not secret) |
 | `CF_ACCESS_AUD` | Access application AUD tag (not secret) |
 | `TUDO_ACCESS_DISABLED` | `1` turns the `/api` JWT check off. Dev only; refused when `NODE_ENV=production`. |
+| `GOOGLE_CLIENT_ID` | OAuth client id of "TuDoCuaTui" (ends `.apps.googleusercontent.com`). Photos (D27). |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
+| `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token (scope `drive.file`). Secret: runtime env only. |
+| `DRIVE_FOLDER_ID` | Id of the `TuDoCuaTui` Drive folder the connect script created |
 | `NODE_ENV` | With `production`, missing `CF_ACCESS_*` exits 2. |
 | `PORT` | Default 3000 |
 
 Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints below), everything else is the SPA.
+
+The four Google variables are all-or-nothing: none set means photos are off (`drive not configured`, the server still starts); a partial or malformed set exits 2 with a message that names variables, never values. An empty string counts as unset.
+
+## Google Drive (T-005.1)
+
+`server/drive.js` is the Drive v3 client (plain `fetch`, scope `drive.file`, no dependency). It is not wired into `createApp` yet (T-005.2) and is not part of `/readyz`; nothing calls Google at startup. Errors are `DriveError` with a fixed `code` only: `drive_not_configured`, `drive_auth`, `drive_not_found`, `drive_forbidden`, `drive_rate_limited`, `drive_unavailable`, `drive_too_large` (over 5 MB), `drive_bad_response`, `drive_folder_not_found`. Creates are never retried (not idempotent); other calls retry up to 3 attempts. Deletes are permanent and a missing file counts as success.
+
+Smoke (creates, reads and deletes a tiny file in the folder; exit 0 ok, 1 failed, 2 not configured):
+
+```
+docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env exec tudocuatui node server/drive-smoke.js
+```
 
 ## API (T-013.2)
 

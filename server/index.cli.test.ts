@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { fakeEnv } from "./test/fake-drive.js";
 
 const entry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "index.js");
 
@@ -79,5 +80,36 @@ describe("entry point", () => {
     } finally {
       child.kill("SIGTERM");
     }
+  });
+
+  it("starts with no Google env and logs 'drive not configured'", async () => {
+    const { child, output } = await start({ TUDO_ACCESS_DISABLED: "1" });
+    try {
+      expect(output()).toContain("drive not configured");
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("with all four fake values: logs 'drive configured', /healthz 200, /readyz unaffected, no value printed", async () => {
+    const { child, port, output } = await start({ TUDO_ACCESS_DISABLED: "1", ...fakeEnv });
+    try {
+      expect((await fetch(`http://127.0.0.1:${port}/healthz`)).status).toBe(200);
+      expect((await fetch(`http://127.0.0.1:${port}/readyz`)).status).toBe(503);
+      expect(output()).toContain("drive configured");
+      for (const v of Object.values(fakeEnv)) expect(output()).not.toContain(v);
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("partial Google config exits 2 with 'config error: ...' and no values", () => {
+    const r = run({
+      TUDO_ACCESS_DISABLED: "1",
+      GOOGLE_CLIENT_SECRET: fakeEnv.GOOGLE_CLIENT_SECRET,
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("config error: Google Drive config is incomplete");
+    expect(r.stderr + r.stdout).not.toContain(fakeEnv.GOOGLE_CLIENT_SECRET);
   });
 });
