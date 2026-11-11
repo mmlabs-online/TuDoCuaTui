@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-10T17:57:31Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/31 |
 
 ## Goal
 One Node/TypeScript server in the TuDo image serves the built SPA and a JSON `/api` backed by Postgres, covering
@@ -55,3 +55,8 @@ Plan approved (Ming, 2026-11-10): A1–A14 as written (A8–A14 also bind T-013.
 - Done: software-architect consult; plan.md READY for slice T-013.1 (node:http server, static SPA, /healthz + /readyz, pool max 5, Cloudflare Access JWT via jose on /api/*, fail closed). T-013.2 created for the /api endpoints.
 - In progress / next: Ming approves A1–A14 (A8–A14 fix the T-013.2 contract) and supplies the Access AUD + team domain via M-13 before T-015.
 - Gotchas: never log DATABASE_URL/token; server must start without DATABASE_URL (T-015 smoke test); JWKS fetch needs container egress.
+
+### 2026-11-11 — claude — DONE (slice T-013.1)
+- Done: plan approved (A1–A14); attempt 1 PASS; attempt 2 fixed two 🟡 security items at Ming's request (pipeline fd leak, 400 for non-origin-form URLs); re-review PASS, security no 🔴/🟡; PR #31 opened.
+- In progress / next: Ming merges PR #31 and does M-13. Next: T-013.2 (`/api` endpoints) and T-015 (image switch) can both start.
+- Gotchas: T-013.2 must route from the same raw `pathname` inside the guarded branch and decode ids only after the access check; T-015 must set `NODE_ENV=production`, pass dummy CF_ACCESS_* in check-image.sh, and allow egress to `<team>.cloudflareaccess.com`.
