@@ -18,3 +18,17 @@ No 🔴. One 🟡, six 🟢. Code read only; no .env read.
 ### Risks / open questions
 - Until T-016 a failed probe on the Node host shows the Supabase login; a sign-in writes to the legacy store (integrity/UX).
 - Confirm no Cloudflare Cache Rule overrides `no-store` on `/healthz`.
+
+## Attempt 2 (2026-11-11) — security-ai-generated-code-auditor (commit e4d31e6)
+
+Attempt-1 🟡 fixed. No 🔴, no new 🟡. Code read only.
+
+- Fix: `src/data/mode.ts:18-22` `redirect: "manual"` (keeps `no-store` + abort); `:23` opaqueredirect → `"yes"` → API mode even with Supabase env, no retry. `/api` maps opaqueredirect to 401 `unauthorized` (`repo.http.ts:32`, copy `apiErrors.ts:9`). Tests `mode.test.ts:39,42-46`; negative cases unchanged (`:48-57`).
+
+### 🟢 Notes
+1. No data exposure: API mode builds only `createHttpRepo()` (`useWardrobe.ts:32-33`), same-origin `/api` only; AuthGate skip (`Root.tsx:7`) is UX-only; RLS and the server JWT check enforce.
+2. A non-Node host that redirects `/healthz` (Pages redirect rule, `healthz.html`/trailing-slash 308, Pages behind its own Access app) would load API mode with an empty UI and an error banner; nothing written anywhere. Node server never redirects `/healthz` (`server/app.js:45-48`); plain Pages SPA fallback (200 HTML) still → `"no"`. Optional: document "`/healthz` must never redirect on the SPA host" (server/README.md / D5).
+3. Not attacker-steerable: same-origin relative probe; `Location` never read; dev builds skip the probe (`mode.ts:48`).
+4. Leftover for T-016 (unchanged): live Supabase client with `persistSession`/`autoRefreshToken`, no sign-out in API mode; `getAiSettingsRepo()` has no caller.
+
+Open: confirm no Cloudflare Cache Rule overrides `no-store` on `/healthz`.
