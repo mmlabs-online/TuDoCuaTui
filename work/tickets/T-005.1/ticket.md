@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
-| Claimed by | — |
+| Claimed by | claude@2026-11-11T08:00:17Z |
 | PR | — |
 
 ## Goal
@@ -52,7 +52,7 @@ The TuDo Node server can create, read and delete files in Ming's Drive folder `T
 - Touches secrets and the deploy draft: security review.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-11): A1–A17 as written (permanent delete, shared Ricotdin project, GitHub environment secrets, Mac+Windows connect script).
 - (2026-11-11, orchestrator) Split per plan.md: this ticket = server side (drive.js, smoke, startup config, check-image, M-15 wording); connect script + deploy workflow secrets + full runbook moved to T-005.5.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 

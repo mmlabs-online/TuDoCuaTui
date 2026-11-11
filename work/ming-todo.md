@@ -149,7 +149,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
-- [ ] (2026-11-11) Approve plan for T-005.1 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.1/plan.md — Node server ↔ Google Drive; confirm A1–A17 (A2, A4, A5, A6 are the real choices)
+- [x] (2026-11-11) Approve plan for T-005.1 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.1/plan.md — Node server ↔ Google Drive; confirm A1–A17 (A2, A4, A5, A6 are the real choices)
 - [ ] (2026-11-11) Approve plan for T-016 (branch `claude/loving-fermi-t90upb`): work/tickets/T-016/plan.md — remove Supabase; confirm A1–A6
 - [x] (2026-11-11) Approve plan for T-015 (branch `claude/loving-fermi-t90upb`): work/tickets/T-015/plan.md — Node image + deploy switch; confirm A1–A15 (A1: keep or drop `VITE_SUPABASE_*` build args)
 - [x] (2026-11-11) Approve plan for T-013.2 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013.2/plan.md — `/api` endpoints; confirm new assumptions A15–A27 (A8–A14 already approved)
