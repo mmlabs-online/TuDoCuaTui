@@ -135,3 +135,102 @@ No violations found.
 From security-review.md attempt 1 (🟡, not blocking, fixed before the PR at Ming's request):
 1. NUL (`\u0000`) in any string field → 500. Reject it in validation (`server/validate.js` `optString` / `stringArray` / `name` / `location_name`) with reason `invalidValue` and the field name; also add `22021` to `BAD_INPUT` in `server/errors.js:4` as a backstop. Tests in `validate.test.ts` and `errors.test.ts`.
 2. Streamed (chunked) body over the cap: make the 413 reliable (`server/http.js:54-56`, `server/api.js:60-61`) — stop collecting but keep draining, or pause `req`, send the 413 with `Connection: close`, and destroy the socket on `res` `finish`. Test: chunked upload in several delayed writes still receives the JSON 413.
+
+## Attempt 2 — 2026-11-11
+Verdict: PASS
+
+Scope of this attempt: the two "Security follow-ups to fix" items only (commit `b87d67b`).
+
+### Checks (run by reviewer)
+DB tests ran against a temporary local PostgreSQL 16 cluster (`/usr/lib/postgresql/16`, scram auth, data dir under
+`/tmp`, `TEST_DATABASE_URL` set). The cluster was stopped and deleted afterwards. No `.env` file was read.
+- typecheck: pass (`tsc --noEmit && tsc -p tsconfig.server.json`, exit 0).
+- format:check: pass (exit 0, 157 files).
+- test: 55 files, 627 tests passed, 0 skipped. This matches impl-log.md.
+- `CI=true pnpm test:coverage`: exit 0. Totals: statements 95.24%, branches 95.43%, functions 93.08%, lines 95.19%.
+  `http.js` is at 96.77% statements and 100% lines.
+- build: pass.
+
+### Scope
+- `git show b87d67b --stat` lists only `server/{api,http,errors,validate}.js`, their three test files, and
+  `impl-log.md`.
+- Commit `9982f5c` changes only the State line in `ticket.md`.
+- In the full `git diff origin/main...HEAD`, no file is new compared with attempt 1. Nothing under `src/**`,
+  `vite.config.ts`, `package.json`, the lockfile or the migrations changed.
+
+### Fix 1: NUL rejected in validation, with `22021` as a backstop
+- [x] `server/validate.js:26` adds `hasNul`. It is checked in these places, and each returns `invalidValue` with the
+  field name:
+  - `optString` at `:55`, which covers brand, size, material and notes.
+  - `stringArray` at `:72`, which covers colors, tags and seasons.
+  - `name` at `:84`, after the required check.
+  - `location_name` at `:129`.
+- [x] Every user string goes through one of those paths. Other inputs are enums, UUIDs, dates or numbers, which are
+  matched by regex or allow-list, so a NUL there already fails.
+- [x] `server/errors.js:4`: `22021` is in `BAD_INPUT`.
+- [x] Tests:
+  - `server/validate.test.ts:26-42` covers all 9 fields.
+  - `server/errors.test.ts:9` maps `22021` to 400.
+- [x] Smoke test on a live server:
+  - `{"name":"a\u0000b"}` → `400 {"code":"invalid_input","field":"name","reason":"invalidValue"}`.
+  - `tags:["x\u0000"]` → 400 with field `tags`.
+
+### Fix 2: reliable JSON 413 for chunked bodies over the cap
+- [x] `server/http.js:55-66`: `readJson` now reads through `data`/`end`/`error` events. On overflow it removes the
+  `data` listener, pauses `req` and resolves. It no longer leaves a `for await`, which destroyed the socket.
+- [x] `server/api.js:61-62`: the 413 is sent with `Connection: close`, and `res.once("finish")` destroys the socket
+  after the response is flushed. Nothing is drained without limit, and memory stays bounded by the cap.
+- [x] Test: `server/api.test.ts:190-207` sends 20 × 64 KB chunked writes 20 ms apart and expects the 413 status line
+  and `payload_too_large`.
+- [x] Smoke test, slower than the unit test: 40 × 16 KB chunked writes, 150 ms apart.
+  - The client got `413` with `{"error":{"code":"payload_too_large"}}`.
+  - The server closed the socket about 2.56 s in, right after it passed 256 KiB. The client had more data queued.
+  - The access log shows status 413.
+- [x] readJson regression checks on a live server:
+  - Normal body → passes validation, then 503 `db_unavailable` (`pool: null`).
+  - Keep-alive with two requests on one socket: both answered.
+  - `Content-Length: 300000` → 413 JSON before any read.
+  - Invalid UTF-8 (`0xFF 0xFE`) → 400 `invalid_json`.
+  - Client aborts mid-body (chunked and Content-Length): the `error` listener settles readJson in about 70 ms, and
+    the server then has 0 open connections.
+
+### Issues
+#### Issue 1 — 🟡 should-fix (not blocking) — readJson never settles if `req` was destroyed before it is called
+- **Where**: `server/http.js:55-66`.
+- **Expected**: readJson always settles, including when the client disconnected earlier.
+- **Actual**: the client can disconnect while the request is awaiting something before `readJson`, for example
+  `await access.verify(req)` at `server/app.js:62`. In that case `req` has already emitted `error`/`close`, and no
+  `end`/`error` event fires after the listeners are attached. The promise then stays pending forever.
+  - Reproduced with a 150 ms await before `readJson`, for chunked-partial, Content-Length-partial and
+    Content-Length-complete bodies: all three were still pending after 2 s.
+  - The attempt-1 `for await` rejected with `ECONNRESET` in this case.
+- **Impact, measured**: none that a user can see, and no leak.
+  - The socket is already gone, and no DB client is held, because readJson runs before any query.
+  - In 1000 such requests, all 1000 `req` objects were garbage-collected (FinalizationRegistry), and the heap
+    stayed at 7.2 MB.
+  - The only effect is that no access-log line is written for that request. That was already true for aborted
+    requests, since the log runs on `finish`.
+- **Fix instruction** (now or as a follow-up): in `server/http.js`, check before attaching the listeners:
+  `if (req.destroyed) return { ok: false, status: 400, code: "invalid_json" };`
+  Also add `req.on("close", () => resolve(false));` inside the promise as a backstop. Add one test that destroys
+  `req` before calling `readJson` and asserts that it settles.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found.
+- No `src/` change, so local mode (R1) and UI rules (R6, R9) are unaffected.
+- No schema change (R2), and no secrets in code or logs (R3).
+- The diff stays within the two requested items (R7).
+- Checks are green, and the new pure logic is tested (R8).
+- `vite.config.ts`, `AGENTS.md` and `.figma/` are untouched (R10).
+
+### Nits (do not block)
+- `server/http.js:65`: on a mid-body abort, readJson returns `invalid_json`, and api.js writes a 400 to a dead
+  socket. This is harmless. A distinct internal result would make the intent clearer.
+- `stringArray` reports a NUL as `invalidValue` before `tooLong`. That order is fine but is not documented in the plan.
+
+### Follow-ups (out of scope)
+- Issue 1, if it is not fixed in this ticket.
+- Carried from attempt 1 and security-review.md note 10:
+  - `server.requestTimeout` and `maxConnections` in `index.js`.
+  - `Connection: close` on early returns that have an unread body.
+  - Add `server/api.js` and `server/items.js` to `.github/risk-tiers.yml`.
