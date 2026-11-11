@@ -90,7 +90,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       8. Optional: regenerate types with M-8 (`src/types/database.ts` has the two new tables added by hand).
       Rollback: the commented block at the top of the migration, plus Dashboard → delete function `tudo-ai-settings`.
 
-- [ ] **M-11 — Cloudflare Access for TuDo** (D23, before data goes on the new backend): Cloudflare Zero Trust →
+- [x] (2026-11-11, confirmed by Ming) **M-11 — Cloudflare Access for TuDo** (D23, before data goes on the new backend): Cloudflare Zero Trust →
       Access → Applications → Add a self-hosted application for `tudocuatui.mmlabs.online` (same as stoktok), policy
       "Allow" for your email only (one-time PIN). Check that an incognito window gets the Access login page, and that
       `/version.txt` is also behind it. Without this, anyone with the URL can read and change the wardrobe.

@@ -32,7 +32,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-013 | Node API server serving the SPA and `/api` | MERGED | P0 | L | architecture, security, data | T-012 | plan-approval | 1 | 2026-11-11 |
 | T-013.2 | `/api` endpoints for every WardrobeRepo operation | MERGED | P0 | M | architecture, security, data | T-013 | plan-approval | 1 | 2026-11-11 |
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | BACKLOG | P0 | M | ui, data | T-013.2 | none | 0 | 2026-11-10 |
-| T-015 | Switch the image and deploy from nginx to the Node server | BACKLOG | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-10 |
+| T-015 | Switch the image and deploy from nginx to the Node server | PLANNING | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-10 |
 | T-016 | Remove Supabase from the app | BACKLOG | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-10 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-009 | none | 0 | 2026-11-10 |
