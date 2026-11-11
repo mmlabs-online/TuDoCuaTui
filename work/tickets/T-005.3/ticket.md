@@ -2,66 +2,50 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | BACKLOG |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
-| Epic | E2 — Items core |
+| Epic | E2 — Photos |
 | Areas | data, security |
 | Gate | none |
 | Depends on | T-005.2 |
 | Needs Ming | — |
 | Attempts | 0 |
-| Created | 2026-11-08 |
+| Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
 | PR | — |
 
 ## Goal
-In Supabase mode, the grid and the item editor show photos stored in Drive. They are loaded through the Edge Function, without exposing Drive credentials or other users' photos.
+In API mode, the grid and the editor show photos stored in Drive, streamed by the server.
 
 ## Feature reference
-- Not in `docs/feature-list.md` as written. Ming's decision on 2026-11-08 (chat with Annie): store photos in Google Drive
-  the way Ricotdin does, using approach **A** (a Supabase Edge Function holds the Drive credentials). Defaults accepted:
-  - Split into T-005.1 to T-005.4.
-  - A new OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project, published "In production".
-  - Ricotdin's Google account, folder `TuDoCuaTui/`.
-  - Secret names `TUDO_GOOGLE_CLIENT_ID`, `TUDO_GOOGLE_CLIENT_SECRET`, `TUDO_GOOGLE_REFRESH_TOKEN` and
-    `TUDO_DRIVE_FOLDER_ID`, in Edge Function secrets of the shared stoktok project.
-- Replaces the Storage part of F-202 and of rule R4. Ricotdin's reference design is in `projects/ricotdin/CLAUDE.md`
-  (Storage = Google Drive) and `app/web/src/lib/upload/upload.ts`. Ricotdin has a Python backend; TuDo uses an Edge
-  Function instead.
+- Ming 2026-11-08: store photos in Google Drive the way Ricotdin does. OAuth client "TuDoCuaTui" in Ricotdin's
+  Google Cloud project (published "In production"), Ricotdin's Google account, folder `TuDoCuaTui/`, scope `drive.file`.
+- **Re-planned 2026-11-11 on the Node backend (D23, D27):** the Drive credentials live only in the TuDo server's
+  runtime env (never in the image, never `VITE_*`, R3); there is no Supabase Edge Function. Ming confirmed Google Drive
+  with the account above ("Như đã chốt"). Ricotdin reference: `projects/ricotdin/CLAUDE.md` (Storage = Google Drive),
+  `app/web/src/lib/upload/upload.ts`.
 
 ## Scope
-- A `tudo-drive` action that serves an image:
-  - An `<img>` tag cannot send an Authorization header, so the URL carries a short-lived signed token. It is an HMAC
-    made with a function secret and tied to the user, the photo and an expiry time.
-  - The function checks ownership, then streams the image from Drive with cache headers.
-- The repo returns these URLs in place of Storage signed URLs and gets new ones before the old ones expire.
+- `GET /api/photos/:id` streams the image from Drive with caching headers (immutable per Drive file id / ETag).
+  It sits behind the same Cloudflare Access JWT check: an `<img>` request to the same origin carries the Access
+  cookie and Cloudflare adds `Cf-Access-Jwt-Assertion`, so no HMAC URL tokens are needed (simpler than the old plan).
+- The API row returns a photo URL (or id) instead of `primary_photo_path: null`; `rowToItem` maps it; lazy loading
+  (`loading="lazy"`, `decoding="async"`) on grid images.
 
 ## Out of scope
-- Lazy loading and refresh polish. These stay in F-202.2, which is re-scoped to these URLs.
+- Thumbnails/transforms (F-1102).
 
 ## Acceptance criteria
-- [ ] A photo URL works only for its owner and only until it expires. Tests cover an expired token, a token for
-      another photo and a tampered token.
-- [ ] No Google token, and no Drive file id that gives direct access, reaches the browser.
-- [ ] The grid and the editor show photos in Supabase mode. Local mode is unchanged (R1). Works at 390px (R9).
-- [ ] Checks are green.
+- [ ] Photos show in the grid and editor in API mode; no Google token or direct Drive link reaches the browser.
+- [ ] `/api/photos/:id` returns 401 without a valid Access JWT and 404 for unknown ids; tests cover both.
+- [ ] Local mode unchanged (R1); works at 390px and in dark mode (R9).
 
 ## Technical notes
-- Touches Edge Function secrets and/or migrations, so it needs a security review.
-- Risks:
-  - The refresh token expires if it goes unused for 6 months, or if the OAuth app is left in "Testing".
-  - Images load more slowly because they go through the Edge Function.
-  - Drive API quotas.
-
-## Test plan
-- Unit: fake fetch for the Google and Drive calls; the repo paths.
-- Manual (Ming, after merge): run M-7 smoke, then add, view and delete a photo in Supabase mode on a phone.
+- Replaces F-202.2's signed-URL refresh (no expiring URLs any more).
 
 ## Notes / answers from Ming
-- 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
-
-- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
+- 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff

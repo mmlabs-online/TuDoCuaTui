@@ -1,80 +1,57 @@
-# T-005.1: Connect Google Drive through a Supabase Edge Function
+# T-005.1: Connect the Node server to Google Drive
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | BACKLOG |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
-| Epic | E2 — Items core |
+| Epic | E2 — Photos |
 | Areas | architecture, security |
 | Gate | plan-approval |
-| Depends on | T-004 |
+| Depends on | T-013.2, T-015 |
 | Needs Ming | — |
 | Attempts | 0 |
-| Created | 2026-11-08 |
+| Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
 | PR | — |
 
 ## Goal
-The Edge Function `tudo-drive` can use Ming's Google Drive folder `TuDoCuaTui/`, only for a logged-in TuDo user. Its credentials never leave Edge Function secrets.
+The TuDo Node server can create, read and delete files in Ming's Drive folder `TuDoCuaTui/` with a long-lived OAuth refresh token that only the server sees.
 
 ## Feature reference
-- Not in `docs/feature-list.md` as written. Ming's decision on 2026-11-08 (chat with Annie): store photos in Google Drive
-  the way Ricotdin does, using approach **A** (a Supabase Edge Function holds the Drive credentials). Defaults accepted:
-  - Split into T-005.1 to T-005.4.
-  - A new OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project, published "In production".
-  - Ricotdin's Google account, folder `TuDoCuaTui/`.
-  - Secret names `TUDO_GOOGLE_CLIENT_ID`, `TUDO_GOOGLE_CLIENT_SECRET`, `TUDO_GOOGLE_REFRESH_TOKEN` and
-    `TUDO_DRIVE_FOLDER_ID`, in Edge Function secrets of the shared stoktok project.
-- Replaces the Storage part of F-202 and of rule R4. Ricotdin's reference design is in `projects/ricotdin/CLAUDE.md`
-  (Storage = Google Drive) and `app/web/src/lib/upload/upload.ts`. Ricotdin has a Python backend; TuDo uses an Edge
-  Function instead.
+- Ming 2026-11-08: store photos in Google Drive the way Ricotdin does. OAuth client "TuDoCuaTui" in Ricotdin's
+  Google Cloud project (published "In production"), Ricotdin's Google account, folder `TuDoCuaTui/`, scope `drive.file`.
+- **Re-planned 2026-11-11 on the Node backend (D23, D27):** the Drive credentials live only in the TuDo server's
+  runtime env (never in the image, never `VITE_*`, R3); there is no Supabase Edge Function. Ming confirmed Google Drive
+  with the account above ("Như đã chốt"). Ricotdin reference: `projects/ricotdin/CLAUDE.md` (Storage = Google Drive),
+  `app/web/src/lib/upload/upload.ts`.
 
 ## Scope
-- `supabase/functions/tudo-drive/`:
-  - Verifies the caller's Supabase JWT.
-  - Gets a Google access token from the `TUDO_GOOGLE_*` secrets, scope `drive.file`.
-  - Has a `smoke` action that creates, reads and deletes a tiny file in `TUDO_DRIVE_FOLDER_ID`.
-- A one-time connect script that Ming runs locally. It uses Desktop-app OAuth with loopback and PKCE. It shows only the
-  steps for putting the refresh token into the dashboard secrets. Agents never see or handle the value.
-- Add the secret names to `.env.example` (names only). Add them to the workspace `secrets.refs.yaml` if needed.
-- Add D18 to `work/decisions.md`.
-- Add M-7 to `work/ming-todo.md`:
-  1. Create the OAuth client and publish it "In production".
-  2. Create the folder.
-  3. Run the connect script.
-  4. Set the four secrets.
-  5. Deploy the function.
-  6. Run smoke.
+- `server/drive.js`: refresh-token → access-token exchange (cached until expiry), minimal Drive v3 calls
+  (create multipart upload, get media, delete) with `fetch`; scope `drive.file`; timeouts; errors mapped to safe codes.
+- Config from runtime env only (names decided in the plan, e.g. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_REFRESH_TOKEN`, `DRIVE_FOLDER_ID`); the server starts without them (photos then report "not configured").
+- How the secrets reach the Mac: the deploy draft (`deploy/deployment-repo/`) writes them into the env file next to
+  `DATABASE_URL`, from a source the plan picks (deployment-repo secret file like the DB password, or GitHub
+  environment secrets). Never in the image, never logged.
+- One-time connect script Ming runs locally (desktop OAuth, loopback + PKCE) that prints only where to put the token.
+- A smoke command (create, read, delete a tiny file) runnable inside the container.
+- New Ming item: create the OAuth client, the folder, run the connect script, store the secrets, run smoke.
 
 ## Out of scope
-- Uploading, showing and deleting item photos (T-005.2, T-005.3).
-- Removing Supabase Storage (T-005.4).
+- Upload/delete endpoints (T-005.2). Serving photos (T-005.3). Any UI change.
 
 ## Acceptance criteria
-- [ ] The function rejects a request without a valid Supabase JWT with 401. A test proves it.
-- [ ] No `TUDO_GOOGLE_*` value or Google token appears in client code, a `VITE_*` variable, a log line or a response
-      body (R3).
-- [ ] Token refresh and the Drive calls sit behind a small interface with unit tests (fake fetch).
-- [ ] The README explains setup, smoke, and how to reconnect after a token is revoked or expires. M-7 lists every
-      step Ming has to do.
-- [ ] Checks are green. Local mode is unaffected (R1).
+- [ ] With the env set, smoke creates, reads and deletes a file in `TuDoCuaTui/`; with it unset the server still starts.
+- [ ] No token or client secret appears in logs, responses, the image or the repo (R3); tests cover the token exchange and error mapping with a fake Drive.
+- [ ] The Ming runbook lists the exact steps.
 
 ## Technical notes
-- Touches Edge Function secrets and/or migrations, so it needs a security review.
-- Risks:
-  - The refresh token expires if it goes unused for 6 months, or if the OAuth app is left in "Testing".
-  - Images load more slowly because they go through the Edge Function.
-  - Drive API quotas.
-
-## Test plan
-- Unit: fake fetch for the Google and Drive calls; the repo paths.
-- Manual (Ming, after merge): run M-7 smoke, then add, view and delete a photo in Supabase mode on a phone.
+- Container egress to `oauth2.googleapis.com` and `www.googleapis.com` goes through the `web` network.
+- Touches secrets and the deploy draft: security review.
 
 ## Notes / answers from Ming
-- 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
-
-- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
+- 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff

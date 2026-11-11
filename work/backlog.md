@@ -33,19 +33,19 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-013.2 | `/api` endpoints for every WardrobeRepo operation | MERGED | P0 | M | architecture, security, data | T-013 | plan-approval | 1 | 2026-11-11 |
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | MERGED | P0 | M | ui, data | T-013.2 | none | 1 | 2026-11-11 |
 | T-015 | Switch the image and deploy from nginx to the Node server | MERGED | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-11 |
-| T-016 | Remove Supabase from the app | PLANNING | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-11 |
+| T-016 | Remove Supabase from the app | BLOCKED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-11 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-009 | none | 0 | 2026-11-10 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | BLOCKED | P1 | M | architecture, security | T-009 | plan-approval | 0 | 2026-11-10 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
-| T-005.1 | Connect Google Drive through a Supabase Edge Function | BLOCKED | P0 | M | architecture, security | T-004 | plan-approval | 0 | 2026-11-10 |
-| T-005.2 | Upload and delete item photos via Google Drive | BLOCKED | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-10 |
-| T-005.3 | Display item photos from Google Drive | BLOCKED | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-10 |
-| T-005.4 | Remove Supabase Storage for photos | BLOCKED | P0 | S | db, security | T-005.3 | plan-approval | 0 | 2026-11-10 |
+| T-005.1 | Connect the Node server to Google Drive | BACKLOG | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 0 | 2026-11-11 |
+| T-005.2 | Upload and delete item photos via Google Drive (API mode) | BACKLOG | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-11 |
+| T-005.3 | Display item photos from Google Drive | BACKLOG | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-11 |
+| T-005.4 | Remove Supabase Storage for photos | SUPERSEDED | P0 | S | db, security | T-005.3 | plan-approval | 0 | 2026-11-10 |
 | F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-201 | Harden the item editor | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-202.2 | Lazy-load grid images and refresh expired signed URLs | BACKLOG | P0 | S | data | F-004.2, T-005.3 | none | 0 | 2026-11-07 |
-| F-202.1 | Accept phone photo formats with size check and progress | BACKLOG | P0 | M | ui, data | F-004.2, T-005.3 | none | 0 | 2026-11-07 |
+| F-202.1 | Accept phone photo formats with size check and progress | BACKLOG | P0 | M | ui, data | F-004.2, T-005.2 | none | 0 | 2026-11-07 |
 | T-002 | Fix date-only wear math and align local wear rules | MERGED | P0 | S | data | F-005, F-004.2 | none | 1 | 2026-11-09 |
 | F-1002 | Camera capture on photo inputs | MERGED | P0 | S | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-601.3 | CSV import preview and import run | MERGED | P0 | M | ui, data | F-601.2, F-004.3 | none | 1 | 2026-11-09 |

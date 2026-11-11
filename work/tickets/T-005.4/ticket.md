@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | SUPERSEDED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -17,6 +17,8 @@
 | PR | — |
 
 ## Goal
+**Superseded 2026-11-11 (D27):** photos never used Supabase Storage in production; removing the bucket code is part of T-016.
+
 Photos live only in Google Drive. The `wardrobe` bucket, its policies and their tests are removed, and the rules and docs say so.
 
 ## Feature reference
