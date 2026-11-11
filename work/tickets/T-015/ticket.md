@@ -13,8 +13,8 @@
 | Needs Ming | M-11, M-12, M-13 |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-11T04:54:10Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/33 |
 
 ## Goal
 The release image runs the Node server on :3000 (non-root), passes `check-image.sh`, and deploys with the DB
@@ -54,3 +54,8 @@ Plan approved (Ming, 2026-11-11): A1 = option A (keep `VITE_SUPABASE_*` build ar
 - Done: software-architect consult (with orchestrator correction: production was built in Supabase mode); plan.md READY — Node runtime image, check-image.sh rewrite, CI image job with DB smoke, compose draft env, M-14 runbook for the first Node release.
 - In progress / next: Ming approves A1–A15; A1 (keep/drop `VITE_SUPABASE_*`) changes what production shows.
 - Gotchas: the first Node release must carry compose.yml in the same merge (M-14); egress to figen.cloudflareaccess.com is only checkable in M-14.
+
+### 2026-11-11 — claude — DONE
+- Done: plan approved (A1 = A, A2–A4 defaults); attempt 1 PASS; security no 🔴/🟡; image built and checked locally (local + Supabase-mode variants, DB smoke); PR #33 opened.
+- In progress / next: Ming merges PR #33 (first CI build of the Node image), then runs M-14 (first Node release v0.2.0+, compose.yml merged together with release.env). Next ticket: T-014.
+- Gotchas: production stays in Supabase mode until T-014/T-016; only M-14 step 6 verifies JWKS egress and the AUD.
