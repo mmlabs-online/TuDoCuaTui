@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-11 |
-| Claimed by | claude@2026-11-11T13:06:01Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -45,5 +45,11 @@ D27 (photos on Google Drive via the Node server). Design: `work/tickets/T-005.1/
 - [ ] M-15 lists the exact steps, including recovery.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: plan.md READY (no consult: area security only; reuses T-005.1 consult) — connect script, workflow draft (environment `tudocuatui`, all-or-none, charset check, force-recreate on change), tests incl. running the real envfile block in bash, full M-15 runbook, setup PR plan for the deployment repo.
+- In progress / next: Ming approves A1–A14 (real choices A2, A3, A7). Then implement.
+- Gotchas: the local deployment clone is stale — fetch and verify live main matches the drafts before opening the setup PR; create the GitHub environment (restricted to main) before merging it.
