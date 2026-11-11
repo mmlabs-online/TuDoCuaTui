@@ -6,7 +6,7 @@ const e = (code: string) => Object.assign(new Error("secret SQL"), { code });
 
 describe("mapDbError", () => {
   it("data errors and not-null/check violations -> 400 invalid_input", () => {
-    for (const c of ["22P02", "22001", "22003", "22007", "22008", "23502", "23514"]) {
+    for (const c of ["22P02", "22001", "22003", "22021", "22007", "22008", "23502", "23514"]) {
       expect(mapDbError(e(c))).toEqual({ status: 400, code: "invalid_input" });
     }
   });

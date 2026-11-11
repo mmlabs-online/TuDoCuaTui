@@ -1,7 +1,7 @@
 // @ts-check
 // Maps database/driver errors to a safe HTTP status and code. Never reads message text (except one exact match).
 
-const BAD_INPUT = new Set(["22P02", "22001", "22003", "22007", "22008", "23502", "23514"]);
+const BAD_INPUT = new Set(["22P02", "22001", "22003", "22021", "22007", "22008", "23502", "23514"]);
 const CONFLICT = new Set(["23505", "40001", "40P01"]);
 const UNAVAILABLE = new Set([
   "53300",

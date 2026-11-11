@@ -39,3 +39,31 @@ None.
 ### Scope self-check
 - Could the diff be smaller? Not without dropping planned behaviour. Production JS is 440 lines in the four new files (`api.js` 96, `items.js` 127, `validate.js` 173, `errors.js` 44), plus `http.js` +29 and `app.js` +14, about 483 in total. That is over the ~450 mark in A27 (oxfmt line wrapping inflates it); recorded here as A27 requires.
 - Diff size: modified files +88 / -11; new files not counted.
+
+## Attempt 2 (REWORK: security follow-ups from review.md)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `server/validate.js` | Reject NUL in name, brand, size, material, notes, location_name, colors, tags, seasons (`invalidValue` + field) |
+| `server/errors.js` | `22021` added to `BAD_INPUT` as backstop |
+| `server/http.js` | `readJson` reads via `data`/`end` events; on overflow it removes the listener and pauses `req` instead of destroying it through the async iterator |
+| `server/api.js` | On 413, destroy the socket on `res` `finish` (with `Connection: close`) so the JSON 413 is flushed first |
+| `server/validate.test.ts`, `server/errors.test.ts`, `server/api.test.ts` | NUL cases for each field; 22021 -> 400; chunked upload in 20 delayed 64 KB writes still gets the JSON 413 |
+
+### Checks
+- typecheck: pass
+- format:check: all matched files use the correct format
+- test (local PostgreSQL 16, scram auth): 627 passed
+- `CI=true pnpm test:coverage` (with DB): exit 0, thresholds met
+- build: pass
+- DB cluster stopped and deleted.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only the two listed items; about 25 production lines changed.

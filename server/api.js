@@ -58,6 +58,8 @@ export async function handleApi(req, res, { pool, pathname, id, log, now, setRou
     if (!body.ok) {
       /** @type {Record<string, string>} */
       const headers = body.status === 413 ? { Connection: "close" } : {};
+      // The rest of an over-cap upload is never read: close the socket once the 413 is flushed.
+      if (body.status === 413) res.once("finish", () => req.socket.destroy());
       return sendError(res, body.status, body.code, {}, headers);
     }
     const parsed =

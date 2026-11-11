@@ -51,11 +51,20 @@ export async function readJson(req, { limit = 262144 } = {}) {
   /** @type {Buffer[]} */
   const chunks = [];
   let total = 0;
-  for await (const chunk of req) {
-    total += chunk.length;
-    if (total > limit) return tooBig;
-    chunks.push(chunk);
-  }
+  // Events instead of `for await`: breaking out of the iterator would destroy the socket and lose the 413.
+  const overflow = await new Promise((resolve) => {
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > limit) {
+        req.removeAllListeners("data");
+        req.pause();
+        resolve(true);
+      } else chunks.push(chunk);
+    });
+    req.on("end", () => resolve(false));
+    req.on("error", () => resolve(false));
+  });
+  if (overflow) return tooBig;
   try {
     const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
     return { ok: true, value: JSON.parse(text) };

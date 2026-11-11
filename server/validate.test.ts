@@ -23,6 +23,24 @@ const good = (body: unknown) => {
 };
 
 describe("parseItemInput", () => {
+  it("NUL in any string field -> invalidValue with the field name", () => {
+    const nul = "a\u0000b";
+    const cases: [string, unknown][] = [
+      ["name", { name: nul }],
+      ["brand", { name: "a", brand: nul }],
+      ["size", { name: "a", size: nul }],
+      ["material", { name: "a", material: nul }],
+      ["notes", { name: "a", notes: nul }],
+      ["location_name", { name: "a", location_name: nul }],
+      ["colors", { name: "a", colors: [nul] }],
+      ["tags", { name: "a", tags: ["ok", nul] }],
+      ["seasons", { name: "a", seasons: [nul] }],
+    ];
+    for (const [field, body] of cases) {
+      expect(bad(body)).toEqual({ field, reason: "invalidValue" });
+    }
+  });
+
   it("name: trims; '' / whitespace / non-string -> nameRequired; 120 code points ok, 121 -> nameTooLong", () => {
     expect(good({ name: "  Áo  " }).name).toBe("Áo");
     for (const name of ["", "   ", 5, undefined, null]) {

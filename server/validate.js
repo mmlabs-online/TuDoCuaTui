@@ -22,6 +22,8 @@ const DAY_MS = 86400000;
 
 /** @param {string} s */
 const cpLen = (s) => [...s].length;
+/** @param {string} s */
+const hasNul = (s) => s.includes("\u0000");
 /** @param {unknown} s */
 export const isUuid = (s) => typeof s === "string" && UUID.test(s);
 
@@ -50,6 +52,7 @@ const isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
 function optString(v, max, field) {
   if (v === undefined || v === null) return { value: null };
   if (typeof v !== "string") return fail(field, "invalidType");
+  if (hasNul(v)) return fail(field, "invalidValue");
   const t = v.trim();
   if (cpLen(t) > max) return fail(field, "tooLong");
   return { value: t === "" ? null : t };
@@ -66,7 +69,7 @@ function stringArray(v, field, maxLen, allowed) {
   if (v.length > 50) return fail(field, "tooMany");
   for (const e of v) {
     if (typeof e !== "string") return fail(field, "invalidType");
-    if (allowed && !allowed.includes(e)) return fail(field, "invalidValue");
+    if (hasNul(e) || (allowed && !allowed.includes(e))) return fail(field, "invalidValue");
     if (cpLen(e) > maxLen) return fail(field, "tooLong");
   }
   return { value: [...v] };
@@ -78,6 +81,7 @@ export function parseItemInput(body) {
   const b = /** @type {Record<string, unknown>} */ (body);
 
   if (typeof b.name !== "string" || b.name.trim() === "") return fail("name", "nameRequired");
+  if (hasNul(b.name)) return fail("name", "invalidValue");
   const name = b.name.trim();
   if (cpLen(name) > 120) return fail("name", "nameTooLong");
 
@@ -122,6 +126,7 @@ export function parseItemInput(body) {
   const ln = b.location_name;
   if (ln !== undefined && ln !== null) {
     if (typeof ln !== "string") return fail("location_name", "invalidType");
+    if (hasNul(ln)) return fail("location_name", "invalidValue");
     const t = ln.normalize("NFC").trim();
     if (cpLen(t) > 80) return fail("location_name", "tooLong");
     locationName = t === "" ? null : t;

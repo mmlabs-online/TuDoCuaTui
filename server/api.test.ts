@@ -187,6 +187,25 @@ describe("body handling", () => {
     );
     expect(chunked.split("\r\n")[0]).toBe("HTTP/1.1 413 Payload Too Large");
 
+    // Several delayed writes: the 413 must still arrive as JSON even though the upload is not finished.
+    const slow = await new Promise<string>((resolve) => {
+      const sock = net.connect(Number(new URL(base).port), "127.0.0.1");
+      let out = "";
+      sock.on("data", (d) => (out += d));
+      sock.on("error", () => {});
+      sock.on("close", () => resolve(out));
+      sock.write(
+        `PUT /api/items/${ID} HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n`,
+      );
+      let n = 0;
+      const timer = setInterval(() => {
+        if (sock.destroyed || ++n > 20) return clearInterval(timer);
+        sock.write(`${(65536).toString(16)}\r\n${"a".repeat(65536)}\r\n`);
+      }, 20);
+    });
+    expect(slow.split("\r\n")[0]).toBe("HTTP/1.1 413 Payload Too Large");
+    expect(slow).toContain("payload_too_large");
+
     const pad = 262144 - JSON.stringify({ name: "a", notes: "" }).length;
     const exact = JSON.stringify({ name: "a", notes: "n".repeat(pad) });
     expect(Buffer.byteLength(exact)).toBe(262144);
