@@ -1,16 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import { AuthGate } from "./features/auth/AuthGate";
+import { Root } from "./Root";
+import { detectMode } from "./data/mode";
 import { applySavedTheme } from "./lib/theme";
 import "./index.css";
 
 applySavedTheme();
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <AuthGate>
-      <App />
-    </AuthGate>
-  </React.StrictMode>,
+void detectMode().then((mode) =>
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <Root mode={mode} />
+    </React.StrictMode>,
+  ),
 );

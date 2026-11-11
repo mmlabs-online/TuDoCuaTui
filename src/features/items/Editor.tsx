@@ -25,6 +25,7 @@ export function Editor({
   onDuplicate,
   onWorn,
   showMockAi,
+  photoUpload = true,
 }: {
   item: Item;
   locations: string[];
@@ -37,6 +38,8 @@ export function Editor({
   onDuplicate: () => void;
   onWorn: (n: number) => void;
   showMockAi: boolean;
+  /** false while photos are not supported (API mode): shows a "Sắp có" block instead. */
+  photoUpload?: boolean;
 }) {
   const file = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -80,39 +83,51 @@ export function Editor({
         </div>
         <div className="editor-body">
           <div className="photo-column">
-            <button
-              className={`upload-zone ${item.photo ? "has-photo" : ""}`}
-              onClick={() => file.current?.click()}
-              onDrop={(e) => {
-                e.preventDefault();
-                upload(e.dataTransfer.files[0]);
-              }}
-              onDragOver={(e) => e.preventDefault()}
-            >
-              {item.photo ? (
-                <img src={item.photo} alt="Ảnh món đồ" />
-              ) : (
-                <>
-                  <span className="upload-icon">
-                    <Icon name="image" size={25} />
-                  </span>
-                  <b>Thêm ảnh món đồ</b>
-                  <small>
-                    Nhấp hoặc kéo ảnh vào đây
-                    <br />
-                    JPG, PNG · tối đa 10MB
-                  </small>
-                </>
-              )}
-            </button>
-            <div className="photo-source-actions">
-              <Btn type="button" onClick={() => camera.current?.click()}>
-                {EDITOR_COPY.photo.takePhoto}
-              </Btn>
-              <Btn type="button" onClick={() => file.current?.click()}>
-                {EDITOR_COPY.photo.pickFromLibrary}
-              </Btn>
-            </div>
+            {photoUpload ? (
+              <>
+                <button
+                  className={`upload-zone ${item.photo ? "has-photo" : ""}`}
+                  onClick={() => file.current?.click()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    upload(e.dataTransfer.files[0]);
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                >
+                  {item.photo ? (
+                    <img src={item.photo} alt="Ảnh món đồ" />
+                  ) : (
+                    <>
+                      <span className="upload-icon">
+                        <Icon name="image" size={25} />
+                      </span>
+                      <b>Thêm ảnh món đồ</b>
+                      <small>
+                        Nhấp hoặc kéo ảnh vào đây
+                        <br />
+                        JPG, PNG · tối đa 10MB
+                      </small>
+                    </>
+                  )}
+                </button>
+                <div className="photo-source-actions">
+                  <Btn type="button" onClick={() => camera.current?.click()}>
+                    {EDITOR_COPY.photo.takePhoto}
+                  </Btn>
+                  <Btn type="button" onClick={() => file.current?.click()}>
+                    {EDITOR_COPY.photo.pickFromLibrary}
+                  </Btn>
+                </div>
+              </>
+            ) : (
+              <div className="upload-zone" aria-disabled="true">
+                <span className="upload-icon">
+                  <Icon name="image" size={25} />
+                </span>
+                <b>{EDITOR_COPY.photo.comingSoon}</b>
+                <small>{EDITOR_COPY.photo.comingSoonHint}</small>
+              </div>
+            )}
             <div className="photo-caption">
               <div>
                 <small>MÓN ĐỒ CỦA BẠN</small>
@@ -120,21 +135,25 @@ export function Editor({
               </div>
               <span>↗</span>
             </div>
-            <input
-              ref={file}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => upload(e.target.files?.[0])}
-            />
-            <input
-              ref={camera}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              hidden
-              onChange={(e) => upload(e.target.files?.[0])}
-            />
+            {photoUpload && (
+              <>
+                <input
+                  ref={file}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => upload(e.target.files?.[0])}
+                />
+                <input
+                  ref={camera}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={(e) => upload(e.target.files?.[0])}
+                />
+              </>
+            )}
             {showMockAi && (
               <Btn
                 className="ai-btn"
@@ -149,7 +168,7 @@ export function Editor({
                 <Icon name="sparkle" /> Tự điền từ ảnh
               </Btn>
             )}
-            {item.photo && (
+            {photoUpload && item.photo && (
               <button className="remove-photo" onClick={() => update("photo", "")}>
                 Bỏ ảnh
               </button>

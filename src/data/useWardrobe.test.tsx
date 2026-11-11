@@ -282,4 +282,28 @@ describe("useWardrobe", () => {
       expect(fake.calls.filter((c) => c.method === "upsert")).toHaveLength(3);
     });
   });
+
+  describe("api mode", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    test("loads through the HTTP repo and reports mode api", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async (url: string) =>
+            new Response(
+              JSON.stringify(url.endsWith("/locations") ? { locations: ["L"] } : { items: [] }),
+              {
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+        ),
+      );
+      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.mode).toBe("api");
+      expect(result.current.items).toEqual([]);
+      expect(result.current.locations).toEqual(["L"]);
+    });
+  });
 });
