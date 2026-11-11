@@ -47,6 +47,7 @@ The grid loads fast, and photos still show after the app has been open for more 
 - Manual: set a 60-second TTL in dev, wait, scroll; check the Network tab.
 
 ## Notes / answers from Ming
+- 2026-11-11 (D27): photos are served by `/api/photos/:id` behind Cloudflare Access, with no expiring URLs; lazy loading moved into T-005.3. This ticket is likely obsolete — re-check after T-005.3.
 - 2026-11-08: photos move to Google Drive (T-005.x). Re-scope this ticket to Drive photos served through `tudo-drive` URLs. Refresh those short-lived URLs, not Storage signed URLs. It starts after T-005.3.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 

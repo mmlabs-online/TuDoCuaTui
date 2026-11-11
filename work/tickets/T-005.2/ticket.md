@@ -1,73 +1,52 @@
-# T-005.2: Upload and delete item photos via Google Drive
+# T-005.2: Upload and delete item photos via Google Drive (API mode)
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | BACKLOG |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
-| Epic | E2 — Items core |
+| Epic | E2 — Photos |
 | Areas | data, db, security |
 | Gate | plan-approval |
 | Depends on | T-005.1 |
-| Needs Ming | M-7 |
+| Needs Ming | M-15 |
 | Attempts | 0 |
-| Created | 2026-11-08 |
+| Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
 | PR | — |
 
 ## Goal
-In Supabase mode, adding, replacing or deleting an item's photo stores the file in Drive and records its Drive file id. It never leaves orphaned files.
+In API mode, adding, replacing or removing an item's photo stores the resized JPEG in Drive and records its Drive file id; no orphaned files.
 
 ## Feature reference
-- Not in `docs/feature-list.md` as written. Ming's decision on 2026-11-08 (chat with Annie): store photos in Google Drive
-  the way Ricotdin does, using approach **A** (a Supabase Edge Function holds the Drive credentials). Defaults accepted:
-  - Split into T-005.1 to T-005.4.
-  - A new OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project, published "In production".
-  - Ricotdin's Google account, folder `TuDoCuaTui/`.
-  - Secret names `TUDO_GOOGLE_CLIENT_ID`, `TUDO_GOOGLE_CLIENT_SECRET`, `TUDO_GOOGLE_REFRESH_TOKEN` and
-    `TUDO_DRIVE_FOLDER_ID`, in Edge Function secrets of the shared stoktok project.
-- Replaces the Storage part of F-202 and of rule R4. Ricotdin's reference design is in `projects/ricotdin/CLAUDE.md`
-  (Storage = Google Drive) and `app/web/src/lib/upload/upload.ts`. Ricotdin has a Python backend; TuDo uses an Edge
-  Function instead.
+- Ming 2026-11-08: store photos in Google Drive the way Ricotdin does. OAuth client "TuDoCuaTui" in Ricotdin's
+  Google Cloud project (published "In production"), Ricotdin's Google account, folder `TuDoCuaTui/`, scope `drive.file`.
+- **Re-planned 2026-11-11 on the Node backend (D23, D27):** the Drive credentials live only in the TuDo server's
+  runtime env (never in the image, never `VITE_*`, R3); there is no Supabase Edge Function. Ming confirmed Google Drive
+  with the account above ("Như đã chốt"). Ricotdin reference: `projects/ricotdin/CLAUDE.md` (Storage = Google Drive),
+  `app/web/src/lib/upload/upload.ts`.
 
 ## Scope
-- New `tudo-drive` actions:
-  - Upload. The photo is already resized client-side to a 1200px JPEG.
-  - Delete. Deletion is permanent and never goes to the trash.
-  - The function checks that the caller owns the item.
-- Migration: `tudo_item_photos` stores `drive_file_id` instead of `storage_path`, with RLS in the same migration.
-  Regenerate the types.
-- `src/data/repo.ts` (Supabase repo): upload and delete through the function, keeping the current rule of leaving no
-  orphans. Local mode is unchanged.
+- Migration (new file, D25): `item_photos` gains `drive_file_id` (expand-only; `storage_path` stays nullable or is
+  replaced per the plan); the view exposes what the client needs.
+- Endpoints under the guarded `/api`: upload a photo for an item (binary JPEG body, size cap, content-type check),
+  delete/replace; ownership is the item id (single user, D25). Drive file deleted when the photo or item is deleted.
+- Client: `repo.http.ts` uploads the photo the editor already resizes; the "Sắp có" placeholder is replaced by the
+  real picker in API mode; local mode unchanged (R1).
 
 ## Out of scope
-- Showing photos (T-005.3).
-- Removing the bucket (T-005.4).
-- Moving old Storage photos (the hosted project has none yet).
+- Showing photos from Drive (T-005.3). HEIC conversion / 10 MB pre-check (F-202.1).
 
 ## Acceptance criteria
-- [ ] Uploading a photo creates a Drive file in `TuDoCuaTui/` and a `tudo_item_photos` row with its file id. If the
-      row insert fails, the Drive file is deleted.
-- [ ] Deleting an item or a photo deletes the Drive file permanently.
-- [ ] A user cannot attach, read or delete a photo of an item they do not own. pgTAP tests cover RLS and function
-      tests cover the function.
-- [ ] Unit tests cover the repo paths. Checks are green. `npx supabase test db` passes.
+- [ ] Uploading creates a Drive file and an `item_photos` row with its id; a failed Drive call leaves no row, a failed DB write deletes the Drive file.
+- [ ] Replacing or deleting removes the old Drive file; deleting an item removes its photos.
+- [ ] API tests run against real Postgres with a fake Drive; checks green; 390px + dark mode (R9).
 
 ## Technical notes
-- Touches Edge Function secrets and/or migrations, so it needs a security review.
-- Risks:
-  - The refresh token expires if it goes unused for 6 months, or if the OAuth app is left in "Testing".
-  - Images load more slowly because they go through the Edge Function.
-  - Drive API quotas.
-
-## Test plan
-- Unit: fake fetch for the Google and Drive calls; the repo paths.
-- Manual (Ming, after merge): run M-7 smoke, then add, view and delete a photo in Supabase mode on a phone.
+- Request body limit for photos is separate from the 256 KB JSON limit (T-013.2 A21).
 
 ## Notes / answers from Ming
-- 2026-11-08: approach A and the defaults accepted (questions 2–6, chat with Annie).
-
-- 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
+- 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff

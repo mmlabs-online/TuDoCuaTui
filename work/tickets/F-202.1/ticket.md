@@ -9,7 +9,7 @@
 | Epic | E2 — Items core |
 | Areas | ui, data |
 | Gate | none |
-| Depends on | F-004.2, T-005.3 |
+| Depends on | F-004.2, T-005.2 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
