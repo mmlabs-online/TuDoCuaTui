@@ -145,10 +145,19 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          Read `docker logs`, tell Annie, and do not retry by hand. A deliberate rollback later is a non-`release/` PR
          on the deployment repo that reverts both files in `apps/tudocuatui/`.
 
-- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27, after T-005.1 and T-005.5 are merged): follow the runbook T-005.1 adds — create the OAuth client "TuDoCuaTui" in Ricotdin's Google Cloud project (published "In production"), create the `TuDoCuaTui/` folder, run the connect script locally, store the four values where the runbook says (never in chat or the TuDo repo), redeploy, run the smoke command.
+- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27, after T-005.1 **and T-005.5** are merged): follow the
+  runbook T-005.5 adds. Create the OAuth client "TuDoCuaTui" (type **Desktop app**) in Ricotdin's Google Cloud
+  project (published "In production"). Create the GitHub environment `tudocuatui` in `mmlabs-online/deployment`,
+  restricted to `main`. Run the connect script locally: it signs in as Ricotdin's account and **creates the
+  `TuDoCuaTui` folder itself**. Do not create the folder by hand in Drive, because the app cannot see a folder it did not
+  create (`drive.file`). Store the four values as the environment secrets the runbook names (never in chat or the TuDo
+  repo). Delete the downloaded client JSON and the token file. Run `deploy-tudocuatui` (workflow_dispatch from `main`),
+  then run the smoke command.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-11) Approve plan for T-005.1 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.1/plan.md — Node server ↔ Google Drive; confirm A1–A17 (A2, A4, A5, A6 are the real choices)
+- [ ] (2026-11-11) Approve plan for T-016 (branch `claude/loving-fermi-t90upb`): work/tickets/T-016/plan.md — remove Supabase; confirm A1–A6
 - [x] (2026-11-11) Approve plan for T-015 (branch `claude/loving-fermi-t90upb`): work/tickets/T-015/plan.md — Node image + deploy switch; confirm A1–A15 (A1: keep or drop `VITE_SUPABASE_*` build args)
 - [x] (2026-11-11) Approve plan for T-013.2 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013.2/plan.md — `/api` endpoints; confirm new assumptions A15–A27 (A8–A14 already approved)
 - [x] (2026-11-10) Approve plan for T-013 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013/plan.md — slice T-013.1 (Node server shell, static SPA, health, Cloudflare Access guard); confirm A1–A14 (A8–A14 fix the T-013.2 `/api` contract)

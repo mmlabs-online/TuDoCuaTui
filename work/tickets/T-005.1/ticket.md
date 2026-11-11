@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-013.2, T-015 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/35 |
 
 ## Goal
 The TuDo Node server can create, read and delete files in Ming's Drive folder `TuDoCuaTui/` with a long-lived OAuth refresh token that only the server sees.
@@ -52,6 +52,18 @@ The TuDo Node server can create, read and delete files in Ming's Drive folder `T
 - Touches secrets and the deploy draft: security review.
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-11): A1–A17 as written (permanent delete, shared Ricotdin project, GitHub environment secrets, Mac+Windows connect script).
+- (2026-11-11, orchestrator) Split per plan.md: this ticket = server side (drive.js, smoke, startup config, check-image, M-15 wording); connect script + deploy workflow secrets + full runbook moved to T-005.5.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: software-architect consult; plan.md READY (slice ~380 lines, no new dependency; fake-Drive tests).
+- In progress / next: Ming approves A1–A17 (real choices A2 secrets in GitHub environment `tudocuatui`, A4 permanent delete, A5 shared Ricotdin project, A6 Mac+Windows connect script). Then implement. T-005.5 created for the connect script + workflow.
+- Gotchas: OAuth client must be "In production" (7-day refresh tokens otherwise); folder must be created by the app (drive.file).
+
+### 2026-11-11 — claude — DONE
+- Done: plan approved (A1–A17); attempt 1 PASS; attempt 2 fixed two 🟡 security items at Ming's request (no redirect following on token/meta/create/delete; drive_invalid_id + validated create id); re-review PASS, security no 🔴/🟡; PR #35 opened.
+- In progress / next: Ming merges PR #35. Next: T-005.5 (connect script + deploy secrets + full M-15 runbook), then M-15, then T-005.2.
+- Gotchas: T-005.3 must pass a per-request signal with a deadline to getMedia; T-005.2 handles create-timeout orphans and MIME allowlist.

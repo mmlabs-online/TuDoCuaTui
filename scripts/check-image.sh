@@ -43,6 +43,9 @@ if [ -n "$found" ]; then echo "::error::.env files in image: $found"; exit 1; fi
 if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqE 'sb_secret_[A-Za-z0-9_-]{8,}' $ROOT"; then
   echo "::error::a secret key value (sb_secret_...) found in the served files"; exit 1
 fi
+if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqE 'GOCSPX-[A-Za-z0-9_-]{10,}|1//0[A-Za-z0-9_-]{20,}' /app/server /app/dist /app/package.json"; then
+  echo "::error::a Google client secret or refresh token value found in the image"; exit 1
+fi
 maps=$(docker run --rm --entrypoint sh "$IMAGE" -c "find $ROOT -name '*.map'")
 if [ -n "$maps" ]; then echo "::error::source maps in image: $maps"; exit 1; fi
 
@@ -52,7 +55,7 @@ if [ "$cmd" != '["node","server/index.js"]' ]; then
   echo "::error::image Cmd is $cmd, expected [\"node\",\"server/index.js\"]"; exit 1
 fi
 envs=$(docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|TUDO_)' || true)
+  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|TUDO_|GOOGLE_|DRIVE_)' || true)
 if [ "$envs" != "NODE_ENV=production" ]; then
   echo "::error::image env must set exactly NODE_ENV=production among app variables, got: $envs"; exit 1
 fi
@@ -106,6 +109,8 @@ expect_exit() { # <expected> <description> <docker run args...>
 expect_exit 2 "server without Access values" "$IMAGE"
 expect_exit 2 "server with TUDO_ACCESS_DISABLED=1 (must be refused in production)" -e TUDO_ACCESS_DISABLED=1 "$IMAGE"
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
+expect_exit 2 "drive smoke without Google env" "$IMAGE" node server/drive-smoke.js
+expect_exit 2 "server with partial Google config" "${ACCESS[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"
 
 # probe <path>: prints the HTTP status, then the body, fetched from inside the container.
 probe() {

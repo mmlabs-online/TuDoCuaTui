@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
+import { DriveConfigError, loadDriveConfig } from "./drive.js";
 
 /** @param {Record<string, unknown>} entry */
 const log = (entry) => console.log(JSON.stringify(entry));
@@ -33,6 +34,16 @@ try {
 let access = null;
 if (accessConfig.mode === "on") access = createAccessVerifier(accessConfig);
 else console.log("access check OFF (dev)");
+
+// Validated only: no client is created and Drive is not part of /readyz (T-005.2 wires it into the app).
+try {
+  console.log(
+    loadDriveConfig(process.env).mode === "on" ? "drive configured" : "drive not configured",
+  );
+} catch (err) {
+  console.error(err instanceof DriveConfigError ? `config error: ${err.message}` : "config error");
+  process.exit(2);
+}
 
 const databaseUrl = process.env.DATABASE_URL;
 const pool = databaseUrl ? createPool(databaseUrl, log) : null;
