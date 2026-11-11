@@ -40,3 +40,18 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: about 280 lines non-test code plus tests.
+
+## Attempt 2 — 2026-11-11 (REWORK: security follow-up only)
+
+### Files touched
+- `src/data/mode.ts`: `/healthz` probe uses `redirect: "manual"`; `res.type === "opaqueredirect"` returns "yes" (API mode). Required by the review's security follow-up.
+- `src/data/mode.test.ts`: asserts `redirect: "manual"`; new opaqueredirect -> `api` case (with supabase set).
+
+### Checks
+- typecheck: clean; format:check: correct format; test: 55 files passed, 4 skipped; 621 passed, 42 skipped; build: built OK
+
+### Out-of-plan files
+None.
+
+### Scope self-check
+- Only the listed follow-up changed (about 8 lines of code plus one test).

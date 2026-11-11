@@ -36,6 +36,13 @@ describe("detectMode", () => {
     expect(await detect(fn, true)).toBe("api");
     expect(fn.mock.calls[0][0]).toBe("/healthz");
     expect(fn.mock.calls[0][1].cache).toBe("no-store");
+    expect(fn.mock.calls[0][1].redirect).toBe("manual");
+  });
+
+  test("opaqueredirect (expired Access session) -> api even with supabase", async () => {
+    const fn = mk(() => ({ type: "opaqueredirect", ok: false, status: 0 }) as unknown as Response);
+    expect(await detect(fn, true)).toBe("api");
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 
   test.each([

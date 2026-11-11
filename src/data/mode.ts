@@ -13,7 +13,14 @@ async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Prob
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetchFn("/healthz", { cache: "no-store", signal: ctrl.signal });
+    // manual: an expired Cloudflare Access session redirects to the Access login, which must not
+    // look like an SPA host (that would fall back to Supabase mode instead of API mode)
+    const res = await fetchFn("/healthz", {
+      cache: "no-store",
+      redirect: "manual",
+      signal: ctrl.signal,
+    });
+    if (res.type === "opaqueredirect") return "yes";
     if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("application/json")) {
       return "no";
     }
