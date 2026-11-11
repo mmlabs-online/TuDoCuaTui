@@ -51,3 +51,43 @@ From review attempt 1 and security-review.md attempt 1 (🟡, not blocking, fixe
 3. M-15 example command (`:166`): don't rely on `~` (PowerShell/cmd pass it unexpanded) — use the absolute path the script prints, or show both a macOS and a Windows example.
 4. Workflow draft (`deploy-tudocuatui.yml:142-145,185-191`): always add `--force-recreate` on `workflow_dispatch` (in addition to `changed == true`), so a dispatch after a failed run still applies new secrets; keep the README statement accurate; extend `scripts/deploy-envfile.test.ts` static checks accordingly.
 5. `scripts/drive-connect.test.ts` (`:282-293`): add symlink cases, skipped on win32 — `--out` under a directory symlinked into a git tree → refused; `--out` that is a symlink to a file inside a repo → refused.
+
+## Attempt 2 — 2026-11-11
+Verdict: PASS
+
+### Scope
+- `git show f1554b8 --stat`: 6 files, exactly the ones for follow-ups 1–5 plus `impl-log.md` (workflow draft, deployment README, `scripts/deploy-envfile.test.ts`, `scripts/drive-connect.test.ts`, `work/ming-todo.md`). `git diff bb69639 f1554b8 --stat` is identical, so nothing else moved since attempt 1. `1cc4425` only flips `ticket.md` State REWORK → REVIEW (orchestrator). No script, server or app code changed. Working tree clean before this review.
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` exit 0.
+- format:check: exit 0, 174 files.
+- test: 60 files passed / 4 skipped; 708 passed, 42 skipped (DB tests, no DB). `pnpm vitest run scripts`: 2 files, 38 tests (was 36; +2 symlink tests).
+- `CI=true pnpm test:coverage` with a throwaway PostgreSQL 16 (port 54329, data dir under /tmp, scram password auth, `TEST_DATABASE_URL` set; stopped and deleted afterwards): 64 files, 750/750 passed, no threshold errors; all files 95.72 % stmts / 94.99 % branches; `scripts/` 97.38 % / 92.98 %. Matches impl-log.md attempt 2 (750 tests).
+- build: `vite build` exit 0.
+
+### Follow-ups 1–5
+1. [x] Leak path + revoke on turn-off. `work/ming-todo.md:194-195`: deleting the GitHub secrets does not revoke the token; revoke at Google Account → Security → Third-party connections. `:196-199`: "If a secret leaked": (a) remove TuDoCuaTui under Third-party connections, (b) reset the client secret or delete/recreate the client, (c) steps 4, 5, 6 and then dispatch, (d) delete every copy.
+2. [x] Testing → In production. `work/ming-todo.md:187-188`: set it to **In production** again first, otherwise the new token dies in 7 days.
+3. [x] No `~`. `work/ming-todo.md:164-165` describes the path in words and says the script prints the full path. `:167-169` says "do not type `~`" and gives a macOS and a Windows absolute example. The Windows example matches the script default `os.homedir()/.config/tudocuatui/drive-secrets.env` (`scripts/drive-connect.mjs:321`). Step 6 (`:174`) points back to the step-4 path.
+4. [x] Force-recreate on dispatch. `deploy-tudocuatui.yml:186` `EVENT: ${{ github.event_name }}` (env only, still no `${{` in `run:`). `:192` checks `CHANGED == true || EVENT == workflow_dispatch`, and `--force-recreate` appears once. The header comment (`:23-24`) and `deploy/deployment-repo/README.md:46` are updated to match. The static test is at `scripts/deploy-envfile.test.ts:227-236`. I extracted the real `envfile` and `deploy` `run:` blocks and ran them with `bash --noprofile --norc -eo pipefail`, using a fake `docker` and a fake password file:
+   - envfile, none: `changed=true`, then `false`.
+   - envfile, all four: `changed=true`, then `false`. 5 keys, file 600 and dir 700.
+   - envfile, 3 of 4: exit 1, the error names only `TUDOCUATUI_DRIVE_FOLDER_ID`.
+   - envfile, newline injection in the secret: exit 1, the error names only the secret, no value printed.
+   - envfile, back to none: `changed=true`.
+   - deploy, push + `true`: `--force-recreate`.
+   - deploy, push + `false`/empty: no flag. This is the same as the live step, so ordinary release pushes behave as before.
+   - deploy, `workflow_dispatch` + `true`/`false`/empty: `--force-recreate` every time.
+
+   The triggers are only `push` and `workflow_dispatch` (`:26-30`).
+5. [x] Symlink tests, skipped on win32. `scripts/drive-connect.test.ts:295-308` (`isInsideGitWorkTree`) covers a dir symlink into a git tree with a non-existent nested target, and a file symlink into a repo, and expects `true` for both. `:337-355` (`writeSecretsFile`) checks that both cases throw `code: 2`, that nothing is created in the repo and that the target file still holds "keep". Both pass. They rely on `realpathSync` (`drive-connect.mjs:116`).
+
+### Rules R1–R10
+No new violations. R3: the new `EVENT` value is a non-secret context passed through `env:`. R7: only the five approved items changed. M-15 wording changes have Ming's approval (review.md "Follow-ups to fix"). R8: checks green and the changed behaviour is tested. R10: no Figma files touched.
+
+### Nits (do not block)
+- `work/ming-todo.md:189`: Recovery still says "(the changed env file restarts the app)". This is still true, but since attempt 2 every manual run recreates the app, so "the manual run restarts the app" would be more exact.
+- `deploy/deployment-repo/README.md:46` is now longer than the surrounding wrapped lines (cosmetic; format:check does not cover it).
+
+### Follow-ups (out of scope)
+Unchanged from attempt 1 (optional confirm prompt, fetch timeouts, env-file split for `migrate`).
