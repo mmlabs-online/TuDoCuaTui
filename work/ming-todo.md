@@ -123,7 +123,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       from Ming*. Neither is secret. The Node server refuses to start in production without them.
 - [x] (2026-11-10) **PR #28 (T-009)** — merged by Ming. Its Supabase parts (Edge Function, migration) are not deployed under D23; T-016 removes or ports them.
 
-- [ ] **M-14 — First Node release** (D26, after T-015 is merged and M-11, M-12, M-13 are done; with A1 option A the
+- [x] (2026-11-11, v0.2.0 live via mmlabs-online/deployment#40; deploy run 42981344358 green: backup → migrate → deploy) **M-14 — First Node release** (D26, after T-015 is merged and M-11, M-12, M-13 are done; with A1 option A the
       Supabase repo secrets stay as they are):
       1. From an up-to-date `main`: `git push origin main:release/vX.Y.Z` (next minor, for example `v0.2.0`). Wait for
          `release` to go green. It opens `release/tudocuatui-vX.Y.Z` on the deployment repo. Do not merge it yet.
