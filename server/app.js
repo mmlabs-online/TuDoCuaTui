@@ -1,19 +1,21 @@
 // @ts-check
 // Request router: health, readiness, /api guard, static SPA. Injectable for tests.
 import { randomUUID } from "node:crypto";
+import { handleApi } from "./api.js";
 import { ping } from "./db.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
 
 /**
  * @param {{
- *   pool: { query(sql: string): Promise<unknown> } | null,
+ *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
  *   access: { verify(req: import("node:http").IncomingMessage): Promise<{ ok: boolean, code?: string }> } | null,
  *   log: (entry: Record<string, unknown>) => void,
+ *   now?: () => number,
  * }} deps
  */
-export function createApp({ pool, distDir, access, log }) {
+export function createApp({ pool, distDir, access, log, now = () => Date.now() }) {
   return async function handler(
     /** @type {import("node:http").IncomingMessage} */ req,
     /** @type {import("node:http").ServerResponse} */ res,
@@ -63,7 +65,16 @@ export function createApp({ pool, distDir, access, log }) {
             return sendError(res, 401, "unauthorized");
           }
         }
-        return sendError(res, 404, "not_found"); // T-013.2 mounts the API router here.
+        return handleApi(req, res, {
+          pool,
+          pathname,
+          id,
+          log,
+          now,
+          setRoute: (t) => {
+            route = t;
+          },
+        });
       }
 
       if (!isRead) return sendError(res, 405, "method_not_allowed", {}, { Allow: "GET, HEAD" });

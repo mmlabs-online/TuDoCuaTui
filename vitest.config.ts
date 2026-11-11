@@ -57,6 +57,8 @@ export default defineConfig({
         "server/static.js": thresholds,
         "server/access.js": thresholds,
         "server/http.js": thresholds,
+        "server/validate.js": thresholds,
+        "server/errors.js": thresholds,
       },
     },
   },

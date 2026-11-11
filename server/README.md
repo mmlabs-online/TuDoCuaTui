@@ -11,7 +11,25 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | `NODE_ENV` | With `production`, missing `CF_ACCESS_*` exits 2. |
 | `PORT` | Default 3000 |
 
-Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints arrive in T-013.2), everything else is the SPA.
+Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints below), everything else is the SPA.
+
+## API (T-013.2)
+
+JSON only. Without `DATABASE_URL` every endpoint validates its input, then answers 503 `db_unavailable`. Ids are UUIDs, matched against the raw path segment (never decoded).
+
+| Endpoint | Success |
+|---|---|
+| `GET /api/items` | 200 `{ items: ItemRow[] }`, newest first |
+| `GET /api/locations` | 200 `{ locations: string[] }`, by `sort_order, name` |
+| `PUT /api/items/:id` | 200 `{ item: ItemRow }`; idempotent upsert, full replacement (omitted optional fields reset to defaults); body is `itemToRow` minus `id`/`location_id`, plus `location_name` (NFC, get-or-create); unknown keys ignored |
+| `DELETE /api/items/:id` | 204, also when the item is already gone |
+| `POST /api/items/:id/wear` `{ delta: 1 \| -1, today: "YYYY-MM-DD" }` | 200 `{ wear_count, last_worn, already }`; `-1` removes the latest log; `today` must be within one day of Asia/Ho_Chi_Minh today |
+
+`ItemRow` is a snake_case `items_with_stats` row: `price` is a number or null, dates are `YYYY-MM-DD`, `created_at`/`updated_at` are ISO strings, `primary_photo_path` is always null for now.
+
+Errors are `{ "error": { "code", ... } }`: 400 `invalid_input` (with `field` and `reason` for validation failures), 400 `invalid_json`, 403 `forbidden_origin`, 404 `not_found`, 405 `method_not_allowed`, 409 `conflict`, 413 `payload_too_large` (256 KB), 415 `unsupported_media_type`, 500 `internal` (with `requestId`), 503 `db_unavailable`. Reasons: `notObject`, `idInvalid`, `nameRequired`, `nameTooLong`, `priceNegative`, `priceInvalid`, `dateInvalid`, `invalidType`, `invalidValue`, `tooLong`, `tooMany`, `todayOutOfRange`.
+
+CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 
 Local run: `pnpm build && TUDO_ACCESS_DISABLED=1 DATABASE_URL=... pnpm start`.
 
