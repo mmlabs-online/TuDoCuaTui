@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/33 |
 
 ## Goal
 The release image runs the Node server on :3000 (non-root), passes `check-image.sh`, and deploys with the DB
@@ -41,6 +41,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Image has no secrets; DB URL only at runtime from the env file.
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-11): A1 = option A (keep `VITE_SUPABASE_*` build args in T-015; drop in T-016); A2 manual M-14; A3 T-014 may run in parallel within the stated limits; A4 DB-backed in-image CI smoke = yes; A5–A15 as written.
 - (2026-11-11, orchestrator) M-12 PR opened on Ming's request: https://github.com/mmlabs-online/deployment/pull/38 (tudocuatui DB + new deploy workflow; compose.yml not included).
 - (2026-11-11, Ming, M-13) Cloudflare Access values (not secret): `CF_ACCESS_TEAM_DOMAIN=figen.cloudflareaccess.com`, `CF_ACCESS_AUD=dc2cd11d34339393549e3d3325512e49d2f44f8ae2dd0403ccf701152d77cfa7`. Put them in the compose `environment:` (A5 of T-013).
 - (2026-11-11, from T-013) Set exactly `NODE_ENV=production`, never `TUDO_ACCESS_DISABLED`; `check-image.sh` passes dummy `CF_ACCESS_*` and asserts `/api` → 401; container needs egress to `<team>.cloudflareaccess.com`; healthcheck via `node -e fetch`; start command `node server/index.js`. Needs M-13 (AUD + team domain).
@@ -48,3 +49,13 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: software-architect consult (with orchestrator correction: production was built in Supabase mode); plan.md READY — Node runtime image, check-image.sh rewrite, CI image job with DB smoke, compose draft env, M-14 runbook for the first Node release.
+- In progress / next: Ming approves A1–A15; A1 (keep/drop `VITE_SUPABASE_*`) changes what production shows.
+- Gotchas: the first Node release must carry compose.yml in the same merge (M-14); egress to figen.cloudflareaccess.com is only checkable in M-14.
+
+### 2026-11-11 — claude — DONE
+- Done: plan approved (A1 = A, A2–A4 defaults); attempt 1 PASS; security no 🔴/🟡; image built and checked locally (local + Supabase-mode variants, DB smoke); PR #33 opened.
+- In progress / next: Ming merges PR #33 (first CI build of the Node image), then runs M-14 (first Node release v0.2.0+, compose.yml merged together with release.env). Next ticket: T-014.
+- Gotchas: production stays in Supabase mode until T-014/T-016; only M-14 step 6 verifies JWKS egress and the AUD.

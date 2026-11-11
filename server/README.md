@@ -31,6 +31,10 @@ Errors are `{ "error": { "code", ... } }`: 400 `invalid_input` (with `field` and
 
 CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 
+Image (T-015): `/app/{package.json,node_modules,dist,server,db/migrations}`, root-owned, `USER node`, `NODE_ENV=production`
+baked in, `CMD ["node","server/index.js"]`. The image `HEALTHCHECK` probes `/healthz`; the compose file overrides it with
+`/readyz`. `CF_ACCESS_*` come from the compose file, `DATABASE_URL` from the host env file; neither is in the image.
+
 Local run: `pnpm build && TUDO_ACCESS_DISABLED=1 DATABASE_URL=... pnpm start`.
 
 Logging: one JSON line per request (method, route template, status, ms, id). Never log `DATABASE_URL`, tokens, raw URLs or whole error objects; only `err.code`.

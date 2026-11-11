@@ -4,6 +4,8 @@
 # request release/tudocuatui-vX.Y.Z on mmlabs-online/deployment that changes only apps/tudocuatui/release.env
 # (image pinned by digest). Merging it runs deploy-tudocuatui on macbook-runner.
 # Copied from stoktok's release.yml (one image instead of two). Runbook: README.md, "Deploy".
+# T-015 (D26): the image is the Node server (server/); the deploy runs backup + migrate before replacing the app.
+# The VITE_SUPABASE_* build args stay until T-016 removes them.
 #
 # Secrets in this repo:
 #   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  push to mingming21400/tudocuatui
@@ -153,4 +155,4 @@ jobs:
           git push origin "$branch"
           gh pr create --repo mmlabs-online/deployment --base main --head "$branch" \
             --title "$APP $TAG" \
-            --body "Deploys \`$image_ref\` ($MODE build; $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Merging runs deploy-$APP on macbook-runner."
+            --body "Deploys \`$image_ref\` (Node server, $MODE build; deploy runs backup + migrate; $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Merging runs deploy-$APP on macbook-runner."
