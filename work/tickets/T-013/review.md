@@ -122,3 +122,66 @@ No violations found.
 From security-review.md attempt 1 (🟡, not blocking, fixed before the PR at Ming's request):
 1. `server/static.js:91-93` — fd leak on aborted downloads: replace `stream.pipe(res)` with `pipeline(fs.createReadStream(file), res, () => {})` from `node:stream` (cleans up both sides); add a test if practical.
 2. `server/app.js:38,55` — request URLs not in origin-form: return 400 `bad_request` when `req.url` does not start with `/` (absolute-form, `*`); add an app.test case for absolute-form. Keep one `pathname` variable as the single source for the `/api` guard (T-013.2 must dispatch from it inside the guarded branch — note this in `server/README.md`).
+
+## Attempt 2 — 2026-11-11 (slice T-013.1, security follow-ups)
+Verdict: PASS
+
+Scope: only the two "Security follow-ups to fix" from attempt 1 (security-review.md, attempt 1). Diff reviewed:
+`git show f047bd6` (server/README.md, server/app.js, server/app.test.ts, server/static.js, impl-log.md) and
+`dbb905e` (ticket.md State REWORK → REVIEW only). No other file changed since attempt 1.
+
+### Checks (run by reviewer)
+Run against local PostgreSQL 16 (`/usr/lib/postgresql/16`, scram auth, data dir under /tmp, `TEST_DATABASE_URL`
+set). The server was stopped and deleted afterwards.
+- typecheck: pass (exit 0; `tsc --noEmit && tsc -p tsconfig.server.json`).
+- format:check: "All matched files use the correct format."
+- test: 51 files, 571 tests passed. `server/app.db.test.ts`, `app.test.ts` and `static.test.ts` ran with PG
+  (26 passed, none skipped).
+- `CI=true pnpm test:coverage`: 51 files, 571 tests passed, no threshold errors.
+- build: ok.
+- These match impl-log attempt 2 (571/571).
+
+Manual probes on `TUDO_ACCESS_DISABLED=1 PORT=3917 node server/index.js`:
+- `GET http://evil.example/api/x HTTP/1.1` → `HTTP/1.1 400 Bad Request`, logged as status 400.
+- `GET /api/x` → 404, as before.
+- Aborted downloads: 20 curl downloads of a 50 MB temporary file in `dist/assets/` were aborted mid-stream
+  (`--max-time 0.05 --limit-rate 100k`).
+  - Before: 22 open fds.
+  - After: 22 open fds, and 0 fds pointing at the file.
+  - `/healthz` still returned 200.
+  - The temporary file was removed.
+
+### Acceptance criteria (security follow-ups)
+- [x] 1. The fd leak on aborted downloads is fixed.
+  - Evidence: `server/static.js:5` imports `pipeline` from `node:stream`. `server/static.js:92` is
+    `pipeline(fs.createReadStream(file), res, () => {})`, which replaces `pipe` plus the error handler, so both
+    streams are destroyed on error or close. HEAD still ends early (`:91`).
+  - No automated test was added; the impl-log justifies this. The manual fd probe above confirms the fix.
+- [x] 2. Non-origin-form targets get a 400.
+  - Evidence: `server/app.js:38-40`. When `req.url` does not start with `/`, the handler returns
+    `sendError(res, 400, "bad_request")` before any routing. `pathname` is computed once (`:40`) and is the only
+    input to the `/api` guard (`:57-67`).
+  - The security and request-id headers are set before this point (`:24-25`), and the finish log still records
+    the request.
+  - Test: `server/app.test.ts:101-117` sends raw `GET http://evil.example/api/x` and `GET *` over a socket and
+    asserts the `HTTP/1.1 400 Bad Request` status line and a `bad_request` body. It passed.
+- [x] 3. README note.
+  - Evidence: `server/README.md:20`. T-013.2 must dispatch from the same `pathname` inside the guarded `/api`
+    branch.
+- [x] Scope: nothing else changed.
+  - `git diff origin/main...HEAD --stat` adds only the four server files above plus the T-013 workflow files.
+  - Nothing under `src/`, `vite.config.ts`, `AGENTS.md`, `.figma/` or `work/backlog.md` changed.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R7: diff limited to the two requested fixes. R8: checks green with real PG. R10: untouched.
+
+### Nits (do not block)
+- `server/static.js:92`: the empty `pipeline` callback swallows read errors that happen after headers are sent.
+  That is fine (the socket gets destroyed), but a code-only log line could help debugging later.
+- Attempt-1 nits still stand (raw-path immutable rule, TOCTOU second `stat`, `PORT=""`).
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1 (T-013.2 router on the shared `pathname`; T-015 image env/egress; risk-tiers entries).
