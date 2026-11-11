@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Item } from "@/types/item";
+import type { DataMode } from "@/data/mode";
 import { useWardrobe } from "@/data/useWardrobe";
 import { download } from "@/features/import-export/download";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
@@ -23,8 +24,8 @@ import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
 
-function App() {
-  const wardrobe = useWardrobe(starter, locations);
+function App({ mode }: { mode?: DataMode } = {}) {
+  const wardrobe = useWardrobe(starter, locations, mode);
   const { items, loading } = wardrobe;
   const locationOptions = wardrobe.locations;
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === "dark");
@@ -167,6 +168,7 @@ function App() {
           update={update}
           onClose={() => setEditor(null)}
           showMockAi={wardrobe.mode === "local"}
+          photoUpload={wardrobe.mode !== "api"}
           onSave={save}
           onDelete={() => setConfirm(true)}
           onDuplicate={() => {

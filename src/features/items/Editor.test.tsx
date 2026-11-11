@@ -9,7 +9,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const renderEditor = (update = vi.fn(), showMockAi = true) => {
+const renderEditor = (update = vi.fn(), showMockAi = true, photoUpload?: boolean) => {
   render(
     <Editor
       item={blankItem()}
@@ -23,6 +23,7 @@ const renderEditor = (update = vi.fn(), showMockAi = true) => {
       onDuplicate={vi.fn()}
       onWorn={vi.fn()}
       showMockAi={showMockAi}
+      photoUpload={photoUpload}
     />,
   );
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
@@ -80,5 +81,24 @@ describe("mock AI", () => {
   test('shows "Tự điền từ ảnh" when showMockAi is true', () => {
     renderEditor(vi.fn(), true);
     expect(screen.getByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
+  });
+});
+
+describe("photoUpload off (API mode)", () => {
+  test('shows "Sắp có" and no camera/library buttons or file inputs', () => {
+    const { inputs } = renderEditor(vi.fn(), false, false);
+    expect(screen.getByText(EDITOR_COPY.photo.comingSoon)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.photo.takePhoto })).toBeNull();
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.photo.pickFromLibrary })).toBeNull();
+    expect(inputs).toHaveLength(0);
+  });
+
+  test("dropping a file does not call update", () => {
+    const update = vi.fn();
+    renderEditor(update, false, false);
+    const zone = screen.getByText(EDITOR_COPY.photo.comingSoon).closest(".upload-zone")!;
+    const file = new File(["x"], "a.png", { type: "image/png" });
+    fireEvent.drop(zone, { dataTransfer: { files: [file] } });
+    expect(update).not.toHaveBeenCalled();
   });
 });

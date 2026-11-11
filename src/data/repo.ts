@@ -12,7 +12,7 @@ export type WearOutcome = WearResult & { already: boolean };
 
 /** Persistence boundary. The UI only talks to this interface. */
 export interface WardrobeRepo {
-  mode: "local" | "supabase";
+  mode: "local" | "supabase" | "api";
   list(): Promise<Item[]>;
   locations(): Promise<string[]>;
   /** Create (when `id` is not persisted yet) or update. Returns the stored item. */

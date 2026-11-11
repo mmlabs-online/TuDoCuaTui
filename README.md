@@ -11,6 +11,7 @@ pnpm dev
 ```
 
 - **No env vars:** local mode. Data lives in localStorage and the demo items are loaded; no login. This keeps the Figma Make preview working.
+- **Served by the Node server** (`node server/index.js`): API mode. Data goes through `/api`, no login (Cloudflare Access protects the site). It wins over Supabase mode and is detected at startup via `/healthz`, no build flag.
 - **With env vars:** Supabase mode. You log in with email + password (the stoktok account), and each user only sees their own data (RLS).
 
 ## Set up Supabase (one time)

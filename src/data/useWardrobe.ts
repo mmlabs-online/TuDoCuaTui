@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Item } from "@/types/item";
 import { runImport } from "./importRunner";
+import type { DataMode } from "./mode";
 import { createLocalRepo, createSupabaseRepo } from "./repo";
+import { createHttpRepo } from "./repo.http";
 
 export type ImportResult =
   | { index: number; ok: true; item: Item }
@@ -17,11 +19,21 @@ const message = (e: unknown) => {
 
 /**
  * Single source of truth for wardrobe data.
- * Supabase when VITE_SUPABASE_* is set, otherwise localStorage + demo data.
+ * `mode` api → Node API; supabase (default when VITE_SUPABASE_* is set) → Supabase;
+ * otherwise localStorage + demo data.
  */
-export function useWardrobe(starter: Item[], defaultLocations: string[]) {
+export function useWardrobe(
+  starter: Item[],
+  defaultLocations: string[],
+  mode: DataMode = supabase ? "supabase" : "local",
+) {
   const repo = useMemo(
-    () => (supabase ? createSupabaseRepo(supabase) : createLocalRepo(starter, defaultLocations)),
+    () =>
+      mode === "api"
+        ? createHttpRepo()
+        : mode === "supabase" && supabase
+          ? createSupabaseRepo(supabase)
+          : createLocalRepo(starter, defaultLocations),
     [], // starter/defaultLocations are module constants
   );
   const [items, setItems] = useState<Item[]>([]);
