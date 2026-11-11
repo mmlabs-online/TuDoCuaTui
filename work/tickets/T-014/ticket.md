@@ -42,6 +42,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] No login screen in API mode; 390px and dark mode unchanged (R9).
 
 ## Notes / answers from Ming
+- (2026-11-11, from T-013.2) API contract: snake_case view-shaped rows (reuse `rowToItem`/`itemToRow`); `PUT /api/items/:id` replaces the whole item, so always send every field (A16); client generates the UUID when `item.id` isn't one; wear sends `{ delta, today: localToday() }`; validation errors are `{error:{code:'invalid_input', field, reason}}` with `validate.ts` reason codes. See `server/README.md`.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
