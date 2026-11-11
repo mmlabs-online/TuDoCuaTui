@@ -35,3 +35,21 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: about 1000 lines including tests (script ~330, tests ~700), plus about 110 changed lines in existing files.
+
+## Attempt 2 (REWORK: "Follow-ups to fix" 1-5 in review.md; Ming approved the M-15 wording changes)
+
+### Files touched
+- `work/ming-todo.md` (M-15): item 1 "If a secret leaked" paragraph; "Turn off" note that deleting secrets does not revoke the token (revoke at Google); item 2 Recovery reminder to set the consent screen to "In production" again; item 3 no `~` (steps 4-6 use the printed full path, Mac and Windows examples). Required because: follow-ups 1-3.
+- `deploy/deployment-repo/.github/workflows/deploy-tudocuatui.yml`: `deploy` step gets `EVENT: ${{ github.event_name }}` and adds `--force-recreate` when `CHANGED=true` or on `workflow_dispatch`; header comment adjusted. Required because: follow-up 4.
+- `deploy/deployment-repo/README.md`: "a manual run always recreates the app". Required because: README accuracy (follow-up 4).
+- `scripts/deploy-envfile.test.ts`: static check updated for the new condition and `EVENT` env. Required because: follow-up 4.
+- `scripts/drive-connect.test.ts`: two symlink tests (skipped on win32): dir symlink into a git tree and file symlink into a repo, for `isInsideGitWorkTree` and `writeSecretsFile` (refused, nothing written, target file untouched). Required because: follow-up 5.
+
+### Checks (local PostgreSQL 16 for TEST_DATABASE_URL, stopped and deleted afterwards)
+- pnpm typecheck: green. pnpm format:check: all matched files use the correct format.
+- pnpm test: 64 files passed, 750 tests passed. CI=true pnpm test:coverage: 64 files, 750 tests passed, thresholds met. pnpm build: built.
+
+### Out-of-plan files
+None. Follow-ups: none new.
+### Scope self-check
+Only the five listed items. No script or server code changed.

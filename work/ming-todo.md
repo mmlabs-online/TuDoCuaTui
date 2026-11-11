@@ -161,14 +161,17 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          `node scripts/drive-connect.mjs --client-file <path to client_secret_….json>`.
          Open the printed URL, sign in with **Ricotdin's** Google account, allow. Check the printed account email.
          The script finds or creates the `TuDoCuaTui` folder (do not create it by hand), prints its id, and writes
-         `~/.config/tudocuatui/drive-secrets.env` (mode 600; outside any git folder).
+         the file `drive-secrets.env` in the folder `.config/tudocuatui` of your home folder (mode 600; outside any git folder);
+         the script prints the full path, use that exact path in steps 5 and 6.
       5. `gh auth status` (an account with admin on `mmlabs-online/deployment`), then run the command the script
-         printed: `gh secret set -f ~/.config/tudocuatui/drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`.
+         printed (it has the full path; do not type `~`, PowerShell and cmd do not expand it), for example
+         `gh secret set -f /Users/<you>/.config/tudocuatui/drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`
+         or `gh secret set -f C:\Users\<you>\.config\tudocuatui\drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`.
          Check `gh secret list --env tudocuatui -R mmlabs-online/deployment` shows exactly
          `TUDOCUATUI_DRIVE_FOLDER_ID`, `TUDOCUATUI_GOOGLE_CLIENT_ID`, `TUDOCUATUI_GOOGLE_CLIENT_SECRET`,
          `TUDOCUATUI_GOOGLE_REFRESH_TOKEN`. If `gh` rejects `-f` with `--env`, set each one with
          `gh secret set <NAME> --env tudocuatui -R mmlabs-online/deployment` and paste the value at the hidden prompt.
-      6. Delete `~/.config/tudocuatui/drive-secrets.env` and the downloaded `client_secret_….json`
+      6. Delete `drive-secrets.env` (the path from step 4) and the downloaded `client_secret_….json`
          (Windows: also empty the Recycle Bin).
       7. Deploy. Check `https://tudocuatui.mmlabs.online/version.txt`. If that release is older than the first release
          that contains T-005.1, cut one: `git push origin main:release/vX.Y.Z`, then merge its deployment PR. Otherwise:
@@ -181,11 +184,19 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       9. In Ricotdin's Drive: the folder `TuDoCuaTui` exists and holds no `tudo-smoke-…` file.
       Recovery (photos fail with `drive_auth`: token revoked, 6 months unused, consent screen back in Testing, client
       secret reset or client deleted): if the client is gone or its secret was reset, do step 1's Credentials part again.
+      If the cause was the consent screen back in "Testing", set it to **In production** again first (step 1), otherwise
+      the new token dies in 7 days.
       Then steps 4, 5 (overwrites all four), 6, then Run workflow `deploy-tudocuatui` from `main` (the changed env file
       restarts the app), then step 8. The script finds the same folder, so the id does not change.
       Turn photos off (or undo a bad deploy): `gh secret delete <NAME> --env tudocuatui -R mmlabs-online/deployment`
       for all four names, then Run workflow from `main`: the env file goes back to `DATABASE_URL` only and the app
       restarts with `drive not configured`. A manual run has no automatic restore, so this is the way back.
+      Deleting the GitHub secrets does not revoke the token. When turning photos off for good, also revoke it at
+      Google: Google Account → Security → Third-party connections → TuDoCuaTui → Remove access.
+      If a secret leaked (file committed, pasted, shared): (a) Google Account → Security → Third-party connections →
+      remove TuDoCuaTui (revokes the refresh token); (b) Cloud console → Credentials → the `TuDoCuaTui` client →
+      reset the client secret (or delete the client and create a new one, step 1); (c) redo steps 4, 5, 6 and Run
+      workflow `deploy-tudocuatui` from `main`; (d) delete every copy of the leaked file.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->

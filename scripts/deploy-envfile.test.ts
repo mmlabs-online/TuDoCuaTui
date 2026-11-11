@@ -224,11 +224,14 @@ describe("deploy-tudocuatui.yml static checks", () => {
       expect(runBlock(name), name).not.toContain("${{");
     }
   });
-  it("deploy adds --force-recreate only from steps.envfile.outputs.changed", () => {
+  it("deploy adds --force-recreate only when the env file changed or on workflow_dispatch", () => {
     const s = stepLines("deploy").join("\n");
     expect(s).toContain("CHANGED: ${{ steps.envfile.outputs.changed }}");
+    expect(s).toContain("EVENT: ${{ github.event_name }}");
     expect(s.match(/--force-recreate/g)).toHaveLength(1);
-    expect(s).toContain('if [ "$CHANGED" = "true" ]; then recreate=(--force-recreate); fi');
+    expect(s).toContain(
+      'if [ "$CHANGED" = "true" ] || [ "$EVENT" = "workflow_dispatch" ]; then recreate=(--force-recreate); fi',
+    );
     expect(s).toContain('${recreate[@]+"${recreate[@]}"} tudocuatui');
   });
 });

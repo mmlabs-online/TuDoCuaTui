@@ -292,6 +292,20 @@ describe("isInsideGitWorkTree", () => {
     expect(isInsideGitWorkTree(c)).toBe(false);
     expect(isInsideGitWorkTree(path.join(c, "new", "f.env"))).toBe(false);
   });
+  it.skipIf(process.platform === "win32")(
+    "follows symlinks: dir link into a git tree, file link into a repo",
+    () => {
+      const repo = tmp();
+      fs.mkdirSync(path.join(repo, ".git"));
+      fs.mkdirSync(path.join(repo, "sub"));
+      fs.writeFileSync(path.join(repo, "sub", "real.env"), "x");
+      const outside = tmp();
+      fs.symlinkSync(path.join(repo, "sub"), path.join(outside, "dirlink"));
+      expect(isInsideGitWorkTree(path.join(outside, "dirlink", "new", "f.env"))).toBe(true);
+      fs.symlinkSync(path.join(repo, "sub", "real.env"), path.join(outside, "filelink.env"));
+      expect(isInsideGitWorkTree(path.join(outside, "filelink.env"))).toBe(true);
+    },
+  );
 });
 
 describe("writeSecretsFile", () => {
@@ -320,6 +334,25 @@ describe("writeSecretsFile", () => {
     );
     expect(fs.existsSync(path.join(d, "sub"))).toBe(false);
   });
+  it.skipIf(process.platform === "win32")(
+    "symlinked --out into a git tree -> refused, nothing written",
+    () => {
+      const repo = tmp();
+      fs.mkdirSync(path.join(repo, ".git"));
+      fs.writeFileSync(path.join(repo, "real.env"), "keep");
+      const outside = tmp();
+      fs.symlinkSync(repo, path.join(outside, "dirlink"));
+      expect(() => writeSecretsFile(path.join(outside, "dirlink", "x.env"), vals)).toThrowError(
+        expect.objectContaining({ code: 2 }),
+      );
+      expect(fs.existsSync(path.join(repo, "x.env"))).toBe(false);
+      fs.symlinkSync(path.join(repo, "real.env"), path.join(outside, "filelink.env"));
+      expect(() => writeSecretsFile(path.join(outside, "filelink.env"), vals)).toThrowError(
+        expect.objectContaining({ code: 2 }),
+      );
+      expect(fs.readFileSync(path.join(repo, "real.env"), "utf8")).toBe("keep");
+    },
+  );
   it("values outside the deploy charset -> error before writing", () => {
     const d = tmp();
     const f = path.join(d, "x.env");

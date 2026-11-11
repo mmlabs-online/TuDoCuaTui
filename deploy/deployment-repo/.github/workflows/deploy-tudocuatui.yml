@@ -20,8 +20,8 @@ name: deploy-tudocuatui
 #
 # Secrets: the Postgres password is still the one committed in postgres/secrets/ (see README). The four Google Drive
 # values for photos (T-005.5, D27) come from the GitHub environment `tudocuatui` (main only), all-or-none, and are
-# written only to the host env file, never printed. After changing them, run workflow_dispatch from main: a changed
-# env file recreates the app.
+# written only to the host env file, never printed. After changing them, run workflow_dispatch from main: a manual run
+# (or a changed env file) recreates the app.
 
 on:
   push:
@@ -183,11 +183,13 @@ jobs:
         if: steps.pull.outcome == 'success' && (steps.pull.outputs.migrate != 'true' || steps.migrate.outcome == 'success')
         env:
           CHANGED: ${{ steps.envfile.outputs.changed }}
+          EVENT: ${{ github.event_name }}
         run: |
           compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
           recreate=()
-          # A changed env file (new Drive secrets) is only read on container creation.
-          if [ "$CHANGED" = "true" ]; then recreate=(--force-recreate); fi
+          # The env file is only read on container creation. Recreate when it changed, and on every manual run, so a
+          # dispatch after a failed run (file already rewritten, container still old) still applies the new Drive values.
+          if [ "$CHANGED" = "true" ] || [ "$EVENT" = "workflow_dispatch" ]; then recreate=(--force-recreate); fi
           "${compose[@]}" up -d --wait --wait-timeout 120 ${recreate[@]+"${recreate[@]}"} tudocuatui
 
       # Only when the new app itself is unhealthy. Never migrates (or un-migrates) the database.

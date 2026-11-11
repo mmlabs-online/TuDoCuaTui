@@ -43,7 +43,7 @@ repo (deployment branches: `main` only), as secrets `TUDOCUATUI_GOOGLE_CLIENT_ID
 `TUDOCUATUI_GOOGLE_REFRESH_TOKEN` and `TUDOCUATUI_DRIVE_FOLDER_ID`. The `envfile` step writes them unprefixed after
 `DATABASE_URL`, only when all four are set (1 to 3 set fails the run; malformed values fail it; none set keeps today's
 file). Never printed. The script `scripts/drive-connect.mjs` in the TuDoCuaTui repo creates the values. Rotation:
-`gh secret set …` then `workflow_dispatch` (a changed env file recreates the app). The full runbook is M-15 in
+`gh secret set …` then `workflow_dispatch` (a manual run always recreates the app, so the new env file is read). The full runbook is M-15 in
 TuDoCuaTui `work/ming-todo.md`.
 
 Migrations must be expand-then-contract: a rollback restores the previous image but never un-migrates. Never
