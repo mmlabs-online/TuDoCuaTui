@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | L |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-012 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/31 |
 
 ## Goal
 One Node/TypeScript server in the TuDo image serves the built SPA and a JSON `/api` backed by Postgres, covering
@@ -44,7 +44,19 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Serves `dist/` with SPA fallback and correct caching (as nginx did in T-007).
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-10): A1–A14 as written (A8–A14 also bind T-013.2).
+- (2026-11-10, orchestrator) Split per plan.md `## Split proposal`: this ticket delivers slice T-013.1 (server shell, static SPA serving = AC3, health, Access guard); AC1 + AC2 move to T-013.2.
 - (2026-11-10, from T-011 security review) Validate the Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`: JWKS signature, `aud`, `iss`) — neighbours on the shared `web` network can reach the API directly. Provide `/readyz` with `select 1` on :3000, pg pool max 5, never log `DATABASE_URL`.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-10 — claude — BLOCKED
+- Done: software-architect consult; plan.md READY for slice T-013.1 (node:http server, static SPA, /healthz + /readyz, pool max 5, Cloudflare Access JWT via jose on /api/*, fail closed). T-013.2 created for the /api endpoints.
+- In progress / next: Ming approves A1–A14 (A8–A14 fix the T-013.2 contract) and supplies the Access AUD + team domain via M-13 before T-015.
+- Gotchas: never log DATABASE_URL/token; server must start without DATABASE_URL (T-015 smoke test); JWKS fetch needs container egress.
+
+### 2026-11-11 — claude — DONE (slice T-013.1)
+- Done: plan approved (A1–A14); attempt 1 PASS; attempt 2 fixed two 🟡 security items at Ming's request (pipeline fd leak, 400 for non-origin-form URLs); re-review PASS, security no 🔴/🟡; PR #31 opened.
+- In progress / next: Ming merges PR #31 and does M-13. Next: T-013.2 (`/api` endpoints) and T-015 (image switch) can both start.
+- Gotchas: T-013.2 must route from the same raw `pathname` inside the guarded branch and decode ids only after the access check; T-015 must set `NODE_ENV=production`, pass dummy CF_ACCESS_* in check-image.sh, and allow egress to `<team>.cloudflareaccess.com`.

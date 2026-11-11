@@ -116,10 +116,15 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          its own M-item).
       8. Password rotation: change the file in the deployment repo (a `postgres/**` merge), then run
          `deploy-tudocuatui` with `workflow_dispatch` from `main` so the env file is rewritten.
+- [ ] **M-13 — Cloudflare Access values for the Node server** (D23, after M-11, before T-015): in Zero Trust →
+      Access → Applications → TuDo → Overview, copy the **Application Audience (AUD) Tag**, and from Settings →
+      Custom Pages the **team domain** (`<team>.cloudflareaccess.com`). Paste both into T-015's *Notes / answers
+      from Ming*. Neither is secret. The Node server refuses to start in production without them.
 - [x] (2026-11-10) **PR #28 (T-009)** — merged by Ming. Its Supabase parts (Edge Function, migration) are not deployed under D23; T-016 removes or ports them.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-10) Approve plan for T-013 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013/plan.md — slice T-013.1 (Node server shell, static SPA, health, Cloudflare Access guard); confirm A1–A14 (A8–A14 fix the T-013.2 `/api` contract)
 - [x] (2026-11-10) Approve plan for T-012 (branch `claude/loving-fermi-t90upb`): work/tickets/T-012/plan.md — Postgres schema + `server/migrate.js` runner; confirm assumptions 1–10 (new `pg` dependency; is there real Supabase data to move?)
 - [x] (2026-11-10) Approve plan for T-011 (branch `claude/loving-fermi-t90upb`): work/tickets/T-011/plan.md — `tudocuatui` DB on shared Postgres + migrate-guarded deploy drafts; confirm A1–A9 and decide P1 (R2/RLS for the D23 backend)
 - [x] (2026-11-10) Approve plan for T-009 (branch `claude/loving-fermi-t90upb`): work/tickets/T-009/plan.md — AI settings storage + encrypted key + `tudo-ai-settings` function; confirm C1–C9 and A1–A12
