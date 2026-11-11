@@ -1,6 +1,7 @@
 // @vitest-environment node
 import fs from "node:fs";
 import http from "node:http";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
@@ -95,6 +96,24 @@ describe("app", () => {
     expect(head.status).toBe(200);
     expect(await head.text()).toBe("");
     expect((await fetch(base + "/healthz", { method: "POST" })).status).toBe(405);
+  });
+
+  it("non-origin-form request targets (absolute-form, *) -> 400 bad_request, not served", async () => {
+    const base = await start({ allow: false });
+    const port = Number(new URL(base).port);
+    for (const target of ["http://evil.example/api/x", "*"]) {
+      const raw = await new Promise<string>((resolve, reject) => {
+        const sock = net.connect(port, "127.0.0.1", () =>
+          sock.write(`GET ${target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`),
+        );
+        let out = "";
+        sock.on("data", (d) => (out += d));
+        sock.on("end", () => resolve(out));
+        sock.on("error", reject);
+      });
+      expect(raw.split("\r\n")[0]).toBe("HTTP/1.1 400 Bad Request");
+      expect(raw).toContain("bad_request");
+    }
   });
 
   it("every response has nosniff, Referrer-Policy, X-Frame-Options DENY and an X-Request-Id", async () => {

@@ -35,7 +35,9 @@ export function createApp({ pool, distDir, access, log }) {
     });
 
     try {
-      const pathname = (req.url ?? "/").split("?")[0].split("#")[0];
+      const url = req.url ?? "/";
+      if (!url.startsWith("/")) return sendError(res, 400, "bad_request"); // absolute-form, "*"
+      const pathname = url.split("?")[0].split("#")[0];
       const isRead = req.method === "GET" || req.method === "HEAD";
 
       if (pathname === "/healthz" || pathname === "/readyz") {

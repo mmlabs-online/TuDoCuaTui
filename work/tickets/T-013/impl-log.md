@@ -39,3 +39,29 @@ None.
 ### Scope self-check
 - Deviation: `access.verify` returns `{ ok, code? }` instead of `boolean`, so the caller can log the jose error code as the plan requires. `createPool` takes an optional `log` for the pool error handler.
 - Could the diff be smaller? No.
+
+## Attempt 2 — 2026-11-11
+
+Fixes only the two "Security follow-ups to fix" in review.md.
+
+### Files touched
+- `server/static.js` — required because: `stream.pipe(res)` leaked the file descriptor on aborted downloads; now `pipeline(fs.createReadStream(file), res, () => {})` cleans up both sides.
+- `server/app.js` — required because: request targets not starting with `/` (absolute-form, `*`) now get 400 `bad_request`; single `pathname` stays the source for the `/api` guard.
+- `server/app.test.ts` — required because: new test sends raw absolute-form and `*` requests and expects 400.
+- `server/README.md` — required because: note that T-013.2 must dispatch from the same `pathname` inside the guarded `/api` branch.
+
+### Tests added
+- app.test: non-origin-form targets -> 400 bad_request. No test for the pipeline change (an aborted-download fd leak is not practical to assert).
+
+### Check results (local PostgreSQL 16, TEST_DATABASE_URL set, then stopped and deleted)
+- typecheck: pass. format:check: all matched files correct.
+- test: 51 files, 571 tests passed. `CI=true pnpm test:coverage`: 51 files, 571 tests passed. build: ok.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None.
+
+### Scope self-check
+- Only the two listed items changed. Smaller diff not possible.

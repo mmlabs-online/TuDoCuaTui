@@ -2,6 +2,7 @@
 // Serves the built SPA from dist/ with the caching rules nginx used (docker/nginx.conf, T-007).
 import fs from "node:fs";
 import path from "node:path";
+import { pipeline } from "node:stream";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -88,9 +89,7 @@ export async function serveStatic(req, res, distDir, urlPath) {
   if (cc) headers["Cache-Control"] = cc;
   res.writeHead(200, headers);
   if (req.method === "HEAD") return void res.end();
-  const stream = fs.createReadStream(file);
-  stream.on("error", () => res.destroy());
-  stream.pipe(res);
+  pipeline(fs.createReadStream(file), res, () => {});
 }
 
 /** @param {import("node:http").ServerResponse} res */
