@@ -116,7 +116,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          its own M-item).
       8. Password rotation: change the file in the deployment repo (a `postgres/**` merge), then run
          `deploy-tudocuatui` with `workflow_dispatch` from `main` so the env file is rewritten.
-- [ ] **M-13 — Cloudflare Access values for the Node server** (D23, after M-11, before T-015): in Zero Trust →
+- [x] (2026-11-11) **M-13 — Cloudflare Access values for the Node server** (D23, after M-11, before T-015): in Zero Trust →
       Access → Applications → TuDo → Overview, copy the **Application Audience (AUD) Tag**, and from Settings →
       Custom Pages the **team domain** (`<team>.cloudflareaccess.com`). Paste both into T-015's *Notes / answers
       from Ming*. Neither is secret. The Node server refuses to start in production without them.
