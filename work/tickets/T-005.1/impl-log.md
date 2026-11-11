@@ -42,3 +42,26 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; every file is in the plan list.
 - Diff size: about +1,150 lines including tests (drive.js ~390, drive-smoke.js ~100 as formatted by oxfmt); no new dependency, no `createApp` change.
+
+## Attempt 2 (REWORK: the two security follow-ups from review.md)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `server/drive.js` | `once()` takes a redirect mode: `manual` for token, meta, create and delete (a 3xx maps to `drive_bad_response`, no retry, no second request); `follow` only for `getMedia`. New code `drive_invalid_id`: `fileUrl` throws it, so `deleteFile` no longer reports success for a malformed id. `createFile` checks the returned id against `FILE_ID_RE` |
+| `server/drive.test.ts` | 307 from the token URL and from create (one request each), `redirect` option per call, `deleteFile`/`getMedia` invalid id -> `drive_invalid_id`, bad returned ids; fake ids lengthened to pass the new check |
+| `server/README.md` | Error code list and redirect note |
+
+### Checks
+- typecheck clean; format:check clean; `pnpm test` 670 passed, 42 skipped (no DB).
+- `CI=true pnpm test:coverage` with local PostgreSQL 16 (stopped and deleted): 62 files, 712 tests passed; `drive.js` 99.48 lines / 98.7 branches.
+- build succeeded.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None. Note: `drive-smoke.js` still ignores `drive_not_found` on delete only; ids it deletes come from `createFile`, now validated.
+
+### Scope self-check
+Only the two listed items; no other changes.

@@ -281,7 +281,7 @@ describe("requests and error mapping", () => {
     expect((await fail(d.drive.deleteFile(ID))).code).toBe("drive_bad_response");
   });
 
-  it("file id validation: bad ids -> drive_not_found without any request", async () => {
+  it("file id validation: bad ids -> drive_invalid_id without any request (also for deleteFile)", async () => {
     const { drive, calls } = setup([]);
     for (const id of [
       "a/b0123456789",
@@ -291,10 +291,25 @@ describe("requests and error mapping", () => {
       "short",
       "x".repeat(201),
     ]) {
-      expect((await fail(drive.getMedia(id))).code).toBe("drive_not_found");
-      await drive.deleteFile(id); // nothing to delete
+      expect((await fail(drive.getMedia(id))).code).toBe("drive_invalid_id");
+      expect((await fail(drive.deleteFile(id))).code).toBe("drive_invalid_id");
     }
     expect(calls).toHaveLength(0);
+  });
+
+  it("redirects: manual on token/meta/create/delete (307 fails, one request), follow on media", async () => {
+    const t = setup([{ status: 307, headers: { location: "https://evil.example/" } }]);
+    expect((await fail(t.drive.deleteFile(ID))).code).toBe("drive_bad_response");
+    expect(t.calls).toHaveLength(1);
+    expect(t.calls[0].init.redirect).toBe("manual");
+    const d = setup([TOKEN_OK, { status: 307, headers: { location: "https://evil.example/" } }]);
+    expect((await fail(d.drive.deleteFile(ID))).code).toBe("drive_bad_response");
+    expect(d.calls).toHaveLength(2);
+    expect(d.calls[1].init.redirect).toBe("manual");
+    const m = setup([TOKEN_OK, { status: 200, body: "x" }]);
+    await m.drive.getMedia(ID);
+    expect(m.calls[0].init.redirect).toBe("manual");
+    expect(m.calls[1].init.redirect).toBe("follow");
   });
 
   it("getMedia returns the body stream, content type and length", async () => {
@@ -327,9 +342,16 @@ describe("createFile", () => {
   };
 
   it("multipart/related body: random boundary, JSON part with parents and appProperties, then the bytes", async () => {
-    const reply: Step = { status: 200, body: { id: "newid", size: "4", mimeType: "image/jpeg" } };
+    const reply: Step = {
+      status: 200,
+      body: { id: "newid0123456789", size: "4", mimeType: "image/jpeg" },
+    };
     const { drive, calls } = setup([TOKEN_OK, reply, reply]);
-    expect(await drive.createFile(f)).toEqual({ id: "newid", size: 4, mimeType: "image/jpeg" });
+    expect(await drive.createFile(f)).toEqual({
+      id: "newid0123456789",
+      size: 4,
+      mimeType: "image/jpeg",
+    });
     await drive.createFile(f);
     const c = calls[1];
     expect(c.url).toBe(
@@ -364,8 +386,13 @@ describe("createFile", () => {
     const b = setup([TOKEN_OK, new Error("reset")]);
     expect((await fail(b.drive.createFile(f))).code).toBe("drive_unavailable");
     expect(b.calls).toHaveLength(2);
-    const c = setup([TOKEN_OK, { status: 401 }, TOKEN_OK, { status: 200, body: { id: "newid" } }]);
-    expect((await c.drive.createFile(f)).id).toBe("newid");
+    const c = setup([
+      TOKEN_OK,
+      { status: 401 },
+      TOKEN_OK,
+      { status: 200, body: { id: "newid0123456789" } },
+    ]);
+    expect((await c.drive.createFile(f)).id).toBe("newid0123456789");
     const d = setup([TOKEN_OK, { status: 429 }]);
     expect((await fail(d.drive.createFile(f))).code).toBe("drive_rate_limited");
     expect(d.calls).toHaveLength(2);
@@ -386,6 +413,20 @@ describe("createFile", () => {
     expect((await fail(a.drive.createFile(f))).code).toBe("drive_bad_response");
     const b = setup([TOKEN_OK, { status: 200, body: { size: "1" } }]);
     expect((await fail(b.drive.createFile(f))).code).toBe("drive_bad_response");
+  });
+
+  it("an id that fails the file id check (short, path-like) -> drive_bad_response", async () => {
+    for (const id of ["short", "a/b0123456789", "../etc/passwd", "x".repeat(201)]) {
+      const a = setup([TOKEN_OK, { status: 200, body: { id } }]);
+      expect((await fail(a.drive.createFile(f))).code).toBe("drive_bad_response");
+    }
+  });
+
+  it("a 307 on create fails without a second upload request", async () => {
+    const a = setup([TOKEN_OK, { status: 307, headers: { location: "https://evil.example/" } }]);
+    expect((await fail(a.drive.createFile(f))).code).toBe("drive_bad_response");
+    expect(a.calls).toHaveLength(2);
+    expect(a.calls[1].init.redirect).toBe("manual");
   });
 });
 

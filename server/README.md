@@ -21,7 +21,7 @@ The four Google variables are all-or-nothing: none set means photos are off (`dr
 
 ## Google Drive (T-005.1)
 
-`server/drive.js` is the Drive v3 client (plain `fetch`, scope `drive.file`, no dependency). It is not wired into `createApp` yet (T-005.2) and is not part of `/readyz`; nothing calls Google at startup. Errors are `DriveError` with a fixed `code` only: `drive_not_configured`, `drive_auth`, `drive_not_found`, `drive_forbidden`, `drive_rate_limited`, `drive_unavailable`, `drive_too_large` (over 5 MB), `drive_bad_response`, `drive_folder_not_found`. Creates are never retried (not idempotent); other calls retry up to 3 attempts. Deletes are permanent and a missing file counts as success.
+`server/drive.js` is the Drive v3 client (plain `fetch`, scope `drive.file`, no dependency). It is not wired into `createApp` yet (T-005.2) and is not part of `/readyz`; nothing calls Google at startup. Errors are `DriveError` with a fixed `code` only: `drive_not_configured`, `drive_auth`, `drive_not_found`, `drive_forbidden`, `drive_rate_limited`, `drive_unavailable`, `drive_too_large` (over 5 MB), `drive_bad_response`, `drive_folder_not_found`, `drive_invalid_id` (malformed file id, no request made). Redirects are never followed, except for media reads. Creates are never retried (not idempotent); other calls retry up to 3 attempts. Deletes are permanent and a missing file counts as success.
 
 Smoke (creates, reads and deletes a tiny file in the folder; exit 0 ok, 1 failed, 2 not configured):
 

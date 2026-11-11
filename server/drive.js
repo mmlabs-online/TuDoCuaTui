@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 
 export class DriveConfigError extends Error {}
 
-/** @typedef {"drive_not_configured"|"drive_auth"|"drive_not_found"|"drive_forbidden"|"drive_rate_limited"|"drive_unavailable"|"drive_too_large"|"drive_bad_response"|"drive_folder_not_found"} DriveCode */
+/** @typedef {"drive_not_configured"|"drive_auth"|"drive_not_found"|"drive_forbidden"|"drive_rate_limited"|"drive_unavailable"|"drive_too_large"|"drive_bad_response"|"drive_folder_not_found"|"drive_invalid_id"} DriveCode */
 
 export class DriveError extends Error {
   /** @param {DriveCode} code @param {number} [status] */
@@ -131,16 +131,17 @@ export function createDriveClient({
    * One fetch with a timeout. `streaming`: the timer covers only the headers; the caller's signal then owns the body.
    * @param {string} url @param {RequestInit} init @param {number} ms @param {AbortSignal | undefined} signal
    * @param {boolean} streaming
+   * @param {"manual" | "follow"} redirect
    * @returns {Promise<{ res: Response, text: string }>}
    */
-  async function once(url, init, ms, signal, streaming) {
+  async function once(url, init, ms, signal, streaming, redirect) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), ms);
     const onAbort = () => ctl.abort();
     if (signal?.aborted) ctl.abort();
     else signal?.addEventListener("abort", onAbort, { once: true });
     try {
-      const res = await doFetch(url, { ...init, signal: ctl.signal });
+      const res = await doFetch(url, { ...init, redirect, signal: ctl.signal });
       if (streaming && res.ok) {
         clearTimeout(timer);
         return { res, text: "" };
@@ -175,6 +176,7 @@ export function createDriveClient({
           t.token,
           undefined,
           false,
+          "manual",
         );
       } catch {
         note("token", undefined, "drive_unavailable");
@@ -198,6 +200,10 @@ export function createDriveClient({
         const secs = typeof j.expires_in === "number" ? j.expires_in : 3600;
         cached = { token: j.access_token, expires: now() + Math.max(0, secs - 60) * 1000 };
         return j.access_token;
+      }
+      if (res.status >= 300 && res.status < 400) {
+        note("token", res.status, "drive_bad_response");
+        throw new DriveError("drive_bad_response", res.status);
       }
       const reason = reasonOf(text);
       if (res.status === 429 || res.status >= 500) {
@@ -231,7 +237,7 @@ export function createDriveClient({
   /**
    * @param {string} op
    * @param {{ method: string, url: string, headers?: Record<string, string>, body?: Uint8Array, timeoutMs: number,
-   *   retry: boolean, signal?: AbortSignal, streaming?: boolean }} o
+   *   retry: boolean, signal?: AbortSignal, streaming?: boolean, follow?: boolean }} o
    */
   async function request(op, o) {
     let authRetried = false;
@@ -251,6 +257,7 @@ export function createDriveClient({
           o.timeoutMs,
           o.signal,
           o.streaming === true,
+          o.follow === true ? "follow" : "manual",
         );
       } catch {
         note(op, undefined, "drive_unavailable");
@@ -296,7 +303,7 @@ export function createDriveClient({
 
   /** @param {string} id */
   const fileUrl = (id) => {
-    if (typeof id !== "string" || !FILE_ID_RE.test(id)) throw new DriveError("drive_not_found");
+    if (typeof id !== "string" || !FILE_ID_RE.test(id)) throw new DriveError("drive_invalid_id");
     return `${apiBase}/files/${encodeURIComponent(id)}`;
   };
 
@@ -334,7 +341,7 @@ export function createDriveClient({
       } catch {
         j = null;
       }
-      if (!j || typeof j.id !== "string" || !j.id) {
+      if (!j || typeof j.id !== "string" || !FILE_ID_RE.test(j.id)) {
         note("create", 200, "drive_bad_response");
         throw new DriveError("drive_bad_response");
       }
@@ -354,6 +361,7 @@ export function createDriveClient({
         retry: true,
         signal,
         streaming: true,
+        follow: true,
       });
       if (!res.body) throw new DriveError("drive_bad_response");
       const len = res.headers.get("content-length");
