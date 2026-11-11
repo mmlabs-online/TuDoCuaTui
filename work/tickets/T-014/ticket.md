@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-11T06:44:58Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/34 |
 
 ## Goal
 The deployed app reads and writes through `/api` with no login screen; local mode (Figma Make preview) is
@@ -46,3 +46,8 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-11 — claude — DONE
+- Done: plan (Gate none, A1–A11); attempt 1 PASS with browser smoke at 390px light/dark; attempt 2 fixed the 🟡 /healthz redirect at Ming's request; re-review PASS, security no 🔴/🟡; PR #34 opened.
+- In progress / next: Ming merges PR #34; after M-14 the bundle switches to API mode on its own. Next: T-016 (remove Supabase).
+- Gotchas: API mode starts empty (Supabase data not moved); old Supabase session keeps refreshing until T-016; existing 390px "+" clipping and dark "Tất cả" chip contrast are follow-ups.
