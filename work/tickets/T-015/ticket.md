@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | M-11, M-12, M-13 |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-11T04:54:10Z |
 | PR | — |
 
 ## Goal
@@ -41,7 +41,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] Image has no secrets; DB URL only at runtime from the env file.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (Ming, 2026-11-11): A1 = option A (keep `VITE_SUPABASE_*` build args in T-015; drop in T-016); A2 manual M-14; A3 T-014 may run in parallel within the stated limits; A4 DB-backed in-image CI smoke = yes; A5–A15 as written.
 - (2026-11-11, orchestrator) M-12 PR opened on Ming's request: https://github.com/mmlabs-online/deployment/pull/38 (tudocuatui DB + new deploy workflow; compose.yml not included).
 - (2026-11-11, Ming, M-13) Cloudflare Access values (not secret): `CF_ACCESS_TEAM_DOMAIN=figen.cloudflareaccess.com`, `CF_ACCESS_AUD=dc2cd11d34339393549e3d3325512e49d2f44f8ae2dd0403ccf701152d77cfa7`. Put them in the compose `environment:` (A5 of T-013).
 - (2026-11-11, from T-013) Set exactly `NODE_ENV=production`, never `TUDO_ACCESS_DISABLED`; `check-image.sh` passes dummy `CF_ACCESS_*` and asserts `/api` → 401; container needs egress to `<team>.cloudflareaccess.com`; healthcheck via `node -e fetch`; start command `node server/index.js`. Needs M-13 (AUD + team domain).
