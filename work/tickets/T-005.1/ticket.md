@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
-| Claimed by | claude@2026-11-11T07:47:43Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -52,6 +52,13 @@ The TuDo Node server can create, read and delete files in Ming's Drive folder `T
 - Touches secrets and the deploy draft: security review.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- (2026-11-11, orchestrator) Split per plan.md: this ticket = server side (drive.js, smoke, startup config, check-image, M-15 wording); connect script + deploy workflow secrets + full runbook moved to T-005.5.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: software-architect consult; plan.md READY (slice ~380 lines, no new dependency; fake-Drive tests).
+- In progress / next: Ming approves A1–A17 (real choices A2 secrets in GitHub environment `tudocuatui`, A4 permanent delete, A5 shared Ricotdin project, A6 Mac+Windows connect script). Then implement. T-005.5 created for the connect script + workflow.
+- Gotchas: OAuth client must be "In production" (7-day refresh tokens otherwise); folder must be created by the app (drive.file).
