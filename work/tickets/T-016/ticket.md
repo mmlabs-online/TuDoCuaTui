@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-11T07:33:30Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -41,7 +41,13 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] All checks pass; local mode and API mode work.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - (2026-11-11, Ming) No data migration from Supabase to Postgres is needed (answers T-012 A9 / T-014 A11). T-016 can remove the Supabase path without a data-export step. Ming cuts the M-14 release himself.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: software-architect consult (+ orchestrator note: Ming did sign in on the Supabase-mode production); plan.md READY — remove all Supabase code/deps/scripts/CI/release args, two modes (local | api), legacy `sb-*` key cleanup, hand-written row types; one ticket.
+- In progress / next: Ming approves A1–A6 (A3 lets T-016 edit .claude/commands/run.md + solo.md security triggers). Production is still nginx v0.1.4 until mmlabs-online/deployment#40 merges.
+- Gotchas: never clear `tu-do-items` / `tu-do-theme`; don't touch deploy/, server/, db/; keep the release.env-only guard.
