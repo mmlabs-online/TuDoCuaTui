@@ -25,3 +25,17 @@ No 🔴 blockers. Code read only; nothing run; no .env read.
 
 ### Risks / open questions
 - `TUDO_ACCESS_DISABLED=1` opens the API fully by design; must never be set in production (T-015).
+
+## Attempt 2 (2026-11-11) — security-ai-generated-code-auditor (commit b87d67b)
+
+Both attempt-1 🟡 fixed. No 🔴, nothing new above 🟢. Code read only.
+
+1. **NUL fixed** — `server/validate.js:26` `hasNul` in `optString` (:55), `stringArray` (:72), `name` (:84), `location_name` (:129), all before `trim()`; enum/regex fields can't carry NUL; backstop `server/errors.js:4` `22021` → 400. Tests `validate.test.ts:26-42` (9 fields + field name), `errors.test.ts:9`.
+2. **Chunked 413 fixed (best-effort)** — `server/http.js:55-66` data/end/error events, overflow removes data listener, pauses `req`, resolves; `server/api.js:60-63` 413 + `Connection: close`, `req.socket.destroy()` on `finish`. Test `api.test.ts:190-207` (64 KB every 20 ms). No memory growth, harmless double resolve, no unhandled `'error'`, no listener leak, paused `req` cannot outlive the response.
+
+### 🟢 Notes
+1. Promise can hang if `req` was already destroyed before listeners attach (`http.js:55-66`) — not a leak (GC'd), only a missing access-log line. Hardening: resolve on `'close'` and/or return early on `req.destroyed`.
+2. On `'error'` the partial body is still parsed (`http.js:65`) — truncated JSON → 400 in practice. Cleaner: an "aborted" state that skips all processing.
+3. 413 delivery is best-effort (`api.js:62`): destroy with unread bytes → TCP RST may lose the 413; fine on loopback/cloudflared normally. Full fix: lingering close. If `api.test.ts:190` flakes, this is why.
+4. Optional tests: mid-body client abort (handler finishes, no DB work); `req.listenerCount("data") === 0` after overflow.
+5. Attempt-1 follow-ups stand: `server.requestTimeout`, `maxConnections`, risk-tiers entries.
