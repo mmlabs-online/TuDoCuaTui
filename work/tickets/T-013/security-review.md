@@ -23,3 +23,15 @@ Sound: Access JWT (`server/access.js:48-53` RS256, issuer, audience, 30 s tolera
 ### Risks / open questions
 - Prod fail-closed depends on T-015's `NODE_ENV` and outbound HTTPS to `<team>.cloudflareaccess.com` (A6); blocked egress = every `/api` 401 (safe but outage).
 - Will T-015 set `NODE_ENV=production` in the Dockerfile or only in compose?
+
+## Attempt 2 (2026-11-11) — security-ai-generated-code-auditor (commit f047bd6)
+
+Both attempt-1 🟡 fixed. No 🔴, no new 🟡. Code read only.
+
+### 🟢 Notes
+1. **fd leak fixed** — `server/static.js:5,92` `pipeline(fs.createReadStream(file), res, () => {})`; read errors destroy `res`, no unhandled `'error'`; pre-header errors still reach `app.js:71-79`; headers unchanged (`:87-90`); HEAD returns before opening a stream (`:91`).
+2. **Non-origin-form URLs fixed** — `server/app.js:38-40,57`: URLs not starting with `/` → 400 `bad_request` before routing; one `pathname` drives health, `/api` guard and static. Checked `/API/x`, `//api/x`, `/api%2Fx`, `/%61pi/x`, `/api;x` → static fallback (nothing guarded reachable); `/api/../x` → guard then 404; `/api?q` → guarded. Test `server/app.test.ts:101-117` (raw socket); README note `server/README.md:20`.
+3. **Rule for the T-013.2 router** — match on the raw `pathname`; percent-decode individual segments (ids) only after the access check; never decode-then-route. Add to README.md:20 or the T-013.2 plan.
+4. Attempt-1 note #8 (`server/README.md:11` wording) still open — docs only.
+
+Other attempt-1 🟢 notes unchanged (optional). Risk unchanged: prod fail-closed relies on T-015 setting exactly `NODE_ENV=production` and never `TUDO_ACCESS_DISABLED`; T-013.2 reviewer must check the router note.
