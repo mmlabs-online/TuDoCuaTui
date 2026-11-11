@@ -1,7 +1,8 @@
-# T-007: static build of the app served by non-root nginx on :3000 (no published ports; cloudflared
-# reaches it as `tudocuatui` on the external `web` network).
-# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are build args, baked into the bundle at build time.
-# Both are public by design (R3). Without them the image runs in local mode (R1).
+# T-015 (D23/D26): the SPA build plus the Node server (server/) on :3000, non-root. The server serves dist/ and
+# /api; no ports published: cloudflared reaches it as `tudocuatui` on the external network.
+# Runtime config comes only from outside: DATABASE_URL from the host env file, CF_ACCESS_* from the compose file.
+# None of them (and never TUDO_ACCESS_DISABLED) is set here (R3).
+# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are still build args until T-016; both are public by design (R3).
 # VITE_APP_VERSION (T-008) is the release tag vX.Y.Z (public, not a secret); empty shows "dev".
 # Never set FIGMA_PUBLIC_URL: it changes Vite's `base`.
 
@@ -23,9 +24,26 @@ RUN v="$VITE_APP_VERSION"; \
     || { echo "VITE_APP_VERSION must be empty or vX.Y.Z" >&2; exit 1; }
 RUN pnpm build && printf '%s\n' "${VITE_APP_VERSION:-dev}" > dist/version.txt
 
-FROM nginxinc/nginx-unprivileged:1.30-alpine
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+# Production dependencies only (pure JS, so BUILDPLATFORM is safe).
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS prod-deps
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --ignore-scripts
+
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+# Files stay root-owned: the app cannot rewrite itself. .dockerignore drops server/test and *.test.ts.
+COPY package.json ./
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY server ./server
+COPY db/migrations ./db/migrations
+USER node
 EXPOSE 3000
-HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:3000/ || exit 1
+# Liveness only; the compose file overrides this with /readyz (database included).
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["node","-e","fetch('http://127.0.0.1:3000/healthz',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+CMD ["node","server/index.js"]

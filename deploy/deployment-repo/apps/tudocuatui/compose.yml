@@ -5,8 +5,11 @@
 #   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env run --rm migrate
 #   docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env up -d --wait tudocuatui
 #
-# T-011 (D23/D24): copy this file with the FIRST NODE release (its release/tudocuatui-vX.Y.Z PR), not before.
-# The nginx image pinned today has no migrate command and no database.
+# T-011/T-015 (D23/D24/D26): copy this file with the FIRST NODE release (its release/tudocuatui-vX.Y.Z PR): M-14
+# in TuDo work/ming-todo.md. The nginx image pinned before has no migrate command and no database.
+# NODE_ENV and CF_ACCESS_* below are not secret (M-13). Never add TUDO_ACCESS_DISABLED: production refuses it.
+# The server verifies Cloudflare Access JWTs; it fetches the keys from <team>.cloudflareaccess.com, so the
+# container needs egress through the `tunnel` (web) network. If that fails every /api call is 401.
 #
 # One Node server on :3000 serves the SPA and /api; no ports published: cloudflared reaches it as `tudocuatui`
 # on the network (Cloudflare published application tudocuatui.mmlabs.online -> http://tudocuatui:3000).
@@ -30,6 +33,10 @@ services:
   tudocuatui:
     <<: *app
     restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CF_ACCESS_TEAM_DOMAIN: figen.cloudflareaccess.com
+      CF_ACCESS_AUD: dc2cd11d34339393549e3d3325512e49d2f44f8ae2dd0403ccf701152d77cfa7
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     logging:
@@ -44,7 +51,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/readyz',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

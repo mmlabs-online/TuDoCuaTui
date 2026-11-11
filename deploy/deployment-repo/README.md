@@ -6,7 +6,7 @@ on `mmlabs-online/deployment` (not a `release/*` branch, so `pr-scope` does not 
 | Here | Goes to | When |
 |---|---|---|
 | `.github/workflows/deploy-tudocuatui.yml` | `.github/workflows/deploy-tudocuatui.yml` | Setup PR with the postgres registration (M-12) |
-| `apps/tudocuatui/compose.yml` | `apps/tudocuatui/compose.yml` | Inside the first Node release PR (T-015), not before |
+| `apps/tudocuatui/compose.yml` | `apps/tudocuatui/compose.yml` | Inside the first Node release PR, see M-14 in TuDo `work/ming-todo.md` |
 
 Why the split: the pinned nginx release has no `migrate` command and no database. The workflow only runs
 `backup` and `migrate` if the live `compose.yml` defines a `migrate` service, so it is safe to ship first; the
@@ -40,3 +40,8 @@ run `docker compose down -v` or remove volumes for this project's neighbours: al
 Rollback: if the new container fails its health check, deploy-tudocuatui restores the previous release.
 If deployment `main` is protected and `github-actions` cannot bypass it, the revert cannot be pushed
 (`restore-unpushed`): the server is back on the old release, so revert the release PR by hand.
+
+First Node release and rollback (T-015, D26): the compose and `release.env` of the first Node release go to
+`main` in one push (M-14), never separately. An automatic restore brings back the nginx compose and the nginx
+`release.env` together. A deliberate rollback later is a non-`release/` PR that reverts both files in
+`apps/tudocuatui/`; migrations stay.

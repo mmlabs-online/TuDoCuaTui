@@ -34,7 +34,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       7. After M-1: add repo secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon/publishable key only),
          release `v0.1.1`, merge its deployment PR, log in on the phone with your stoktok email + password (D19).
       8. If a Cloudflare Pages project `tudocuatui` exists from the old M-4, delete it.
-      Under D23 this flow continues in M-12 (database) and T-015 (first Node release).
+      Under D23 this flow continues in M-12 (database) and M-14 (first Node release). Steps 5-7 are superseded by
+      M-14 (D23/D26).
 - [ ] **M-5 — Verify the migrations** (after M-1), read-only in SQL Editor:
       `select table_name, grantee, privilege_type from information_schema.role_table_grants where table_name like 'tudo\_%' and grantee in ('anon','authenticated') order by 1,2,3;`
       Expect SELECT, INSERT, UPDATE, DELETE for `authenticated` on the 4 tables, SELECT on the view
@@ -58,7 +59,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Do not run it while `scripts/test-db-shared.sh` is mid-run.
 - [ ] **M-9 — Rotate the cloudflared tunnel token** that is committed in plaintext in `mmlabs-online/deployment`
       `proxy/compose.yml` (found in T-007): create a new token, move it out of the repo, revoke the old one.
-- [ ] **M-10 — Deploy the AI settings function (T-009)**, after M-1 and after T-009 is merged. Needs `tudo_set_updated_at`
+- [ ] **M-10 — Deploy the AI settings function (T-009)** (superseded by M-14: D23/D26, no Supabase function deploy), after M-1 and after T-009 is merged. Needs `tudo_set_updated_at`
       from the init migration. Dashboard only for SQL and secrets (D17); the one CLI step is D22.
       1. Pre-checks (read-only): SQL Editor `select to_regclass('public.tudo_ai_settings'), to_regclass('public.tudo_ai_calls');`
          gives two nulls; Edge Functions has no `tudo-ai-settings`; Secrets has no `TUDO_AI_KEK` / `TUDO_ALLOWED_ORIGINS`.
@@ -121,6 +122,28 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Custom Pages the **team domain** (`<team>.cloudflareaccess.com`). Paste both into T-015's *Notes / answers
       from Ming*. Neither is secret. The Node server refuses to start in production without them.
 - [x] (2026-11-10) **PR #28 (T-009)** — merged by Ming. Its Supabase parts (Edge Function, migration) are not deployed under D23; T-016 removes or ports them.
+
+- [ ] **M-14 — First Node release** (D26, after T-015 is merged and M-11, M-12, M-13 are done; with A1 option A the
+      Supabase repo secrets stay as they are):
+      1. From an up-to-date `main`: `git push origin main:release/vX.Y.Z` (next minor, for example `v0.2.0`). Wait for
+         `release` to go green. It opens `release/tudocuatui-vX.Y.Z` on the deployment repo. Do not merge it yet.
+      2. In a clone of `mmlabs-online/deployment`: `git fetch origin && git switch release/tudocuatui-vX.Y.Z`. Copy
+         `deploy/deployment-repo/apps/tudocuatui/compose.yml` from TuDo `main` over `apps/tudocuatui/compose.yml`,
+         verbatim.
+      3. `git diff --name-only origin/main...HEAD` plus the working tree must show exactly
+         `apps/tudocuatui/compose.yml` and `apps/tudocuatui/release.env`. Then
+         `git commit -am "tudocuatui: Node server compose (T-015)"` and `git push`. `pr-scope` must be green.
+      4. Merge the PR as one push to `main` (squash or merge commit). Never merge the two files separately: the
+         rollback pairs them.
+      5. Watch `deploy-tudocuatui`: `pull` reports `migrate=true`, then `backup`, `migrate` and `deploy` succeed, and
+         the PR comment says `deployed`.
+      6. Check: an incognito window gets the Access login page; signed in, `/version.txt` is `vX.Y.Z`;
+         `/api/locations` returns 200 JSON (`{"locations":[...]}`). A 401 means JWKS egress or the AUD/team domain is
+         wrong: check `docker compose -p tudocuatui logs --tail 50 tudocuatui` on the Mac (never print the env file).
+         The app on the phone looks as today (Supabase mode, A1 option A) until T-014.
+      7. If the comment says `restored`: nginx is running again with its own compose, migrations are kept (harmless).
+         Read `docker logs`, tell Annie, and do not retry by hand. A deliberate rollback later is a non-`release/` PR
+         on the deployment repo that reverts both files in `apps/tudocuatui/`.
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
