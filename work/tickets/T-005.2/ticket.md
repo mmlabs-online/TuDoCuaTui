@@ -47,6 +47,7 @@ In API mode, adding, replacing or removing an item's photo stores the resized JP
 - Request body limit for photos is separate from the 256 KB JSON limit (T-013.2 A21).
 
 ## Notes / answers from Ming
+- (2026-11-11, from T-005.1 review) Clean up a Drive file left behind when `createFile` times out after Google accepted it; check the photo MIME type against an allowlist before calling Drive.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff

@@ -38,7 +38,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-009 | none | 0 | 2026-11-10 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | BLOCKED | P1 | M | architecture, security | T-009 | plan-approval | 0 | 2026-11-10 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
-| T-005.1 | Connect the Node server to Google Drive | BLOCKED | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 0 | 2026-11-11 |
+| T-005.1 | Connect the Node server to Google Drive | DONE | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 1 | 2026-11-11 |
 | T-005.5 | Drive connect script and deploy secrets for TuDo photos | BACKLOG | P0 | S | security | T-005.1 | plan-approval | 0 | 2026-11-11 |
 | T-005.2 | Upload and delete item photos via Google Drive (API mode) | BACKLOG | P0 | M | data, db, security | T-005.1 | plan-approval | 0 | 2026-11-11 |
 | T-005.3 | Display item photos from Google Drive | BACKLOG | P0 | M | data, security | T-005.2 | none | 0 | 2026-11-11 |
