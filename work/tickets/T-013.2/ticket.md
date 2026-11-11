@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-013 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/32 |
 
 ## Goal
 Second slice of T-013 (split per `work/tickets/T-013/plan.md` `## Split proposal`): the JSON `/api` endpoints on the
@@ -40,6 +40,17 @@ extra length caps; reason codes from `validate.ts`.
 - [ ] Invalid input → 400 with a code; DB errors never leak SQL or internals.
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-11): A15–A27 as written.
 - (2026-11-11, from T-013 security review) Route only from the same raw `pathname` computed in `server/app.js`, inside the guarded `/api` branch (`server/README.md:20`); percent-decode individual segments (ids) only after the access check — never decode-then-route.
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: consult reused from T-013 (contract A8–A14 already approved); plan.md READY — five `/api` endpoints, validation, CSRF, DB error mapping, Postgres API tests; ~400 lines, no new deps.
+- In progress / next: Ming approves new assumptions A15–A27. Then implement.
+- Gotchas: route only from the raw `pathname` inside the guarded branch; ids never decoded; tests must not skip in CI.
+
+### 2026-11-11 — claude — DONE
+- Done: plan approved (A15–A27); attempt 1 PASS; attempt 2 fixed two 🟡 security items at Ming's request (NUL → 400, reliable chunked 413); re-review PASS, security no 🔴/🟡; PR #32 opened.
+- In progress / next: Ming merges PR #32. Next: T-014 (HTTP repo in the app). T-015 waits on M-11/M-12/M-13.
+- Gotchas: readJson never settles if the client disconnects before it is called (no leak; follow-up). T-014 must send every field on PUT (A16).

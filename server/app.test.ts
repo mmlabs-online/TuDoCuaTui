@@ -22,7 +22,7 @@ afterAll(async () => {
 });
 
 async function start(opts: {
-  pool?: { query(sql: string): Promise<unknown> } | null;
+  pool?: { query(sql: string): Promise<unknown>; connect?(): Promise<unknown> } | null;
   allow?: boolean | null;
 }) {
   const access =
@@ -82,7 +82,7 @@ describe("app", () => {
   });
 
   it("access off (dev) -> /api reaches the router (404 JSON)", async () => {
-    const res = await fetch((await start({ allow: null })) + "/api/items");
+    const res = await fetch((await start({ allow: null })) + "/api/nope");
     expect(res.status).toBe(404);
     expect(res.headers.get("content-type")).toContain("application/json");
   });
@@ -128,22 +128,39 @@ describe("app", () => {
     }
   });
 
-  it("log: one JSON line per request with method, route template, status, ms, id; never the URL, query, headers or token", async () => {
+  it("log: route template; never the raw URL, id, query, headers or token", async () => {
     logs.length = 0;
     const base = await start({ allow: true });
-    const res = await fetch(base + "/api/items?secret=qq", {
+    const uuid = "11111111-1111-4111-8111-111111111111";
+    const res = await fetch(`${base}/api/items/${uuid}?secret=qq`, {
       headers: { "Cf-Access-Jwt-Assertion": "tok-abc" },
     });
     await res.text();
     await new Promise((r) => setTimeout(r, 20));
-    const entry = logs.find((l) => l.route === "/api");
-    expect(entry).toMatchObject({ method: "GET", route: "/api", status: 404 });
+    const entry = logs.find((l) => l.route === "/api/items/:id");
+    expect(entry).toMatchObject({ method: "GET", route: "/api/items/:id", status: 405 });
     expect(typeof entry?.ms).toBe("number");
     expect(typeof entry?.id).toBe("string");
     const all = JSON.stringify(logs);
     expect(all).not.toContain("secret=qq");
     expect(all).not.toContain("tok-abc");
-    expect(all).not.toContain("/api/items");
+    expect(all).not.toContain(uuid);
+  });
+
+  it("/api routes are unreachable without a valid JWT: 401 before any handler or body read", async () => {
+    const calls: string[] = [];
+    const pool = {
+      query: async () => calls.push("query"),
+      connect: async () => calls.push("connect"),
+    };
+    const base = await start({ pool, allow: false });
+    const res = await fetch(`${base}/api/items/11111111-1111-4111-8111-111111111111`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "x" }),
+    });
+    expect(res.status).toBe(401);
+    expect(calls).toEqual([]);
   });
 
   it("unexpected errors -> 500 `internal` with requestId only", async () => {
