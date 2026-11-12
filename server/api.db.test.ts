@@ -11,7 +11,7 @@ import { saveItem } from "./items.js";
 import { runMigrations } from "./migrator.js";
 import { fakeConfig, startFakeDrive } from "./test/fake-drive.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
-import { CATEGORIES, SEASONS, STATUSES } from "./validate.js";
+import { CATEGORIES, DEPRECATED_CATEGORIES, SEASONS, STATUSES } from "./validate.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
 type Res = Omit<Response, "json"> & { json(): Promise<any> };
@@ -250,7 +250,7 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
     }
   });
 
-  it("server enum constants equal pg_enum (in order)", async () => {
+  it("server enum constants match pg_enum (item_category as a set)", async () => {
     const q = async (t: string) =>
       (
         await pool.query(
@@ -258,8 +258,28 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
           [t],
         )
       ).rows.map((r) => r.enumlabel);
-    expect(await q("item_category")).toEqual(CATEGORIES);
+    const cats = await q("item_category");
+    expect([...cats].sort()).toEqual([...CATEGORIES, ...DEPRECATED_CATEGORIES].sort());
+    for (const c of CATEGORIES) expect(cats).toContain(c);
     expect(await q("item_status")).toEqual(STATUSES);
+  });
+
+  it("PUT each of the 10 categories round-trips", async () => {
+    for (const [i, category] of CATEGORIES.entries()) {
+      const res = await put(uuid(i + 1), { name: "a", category });
+      expect(res.status).toBe(200);
+      expect((await list()).find((x) => x.id === uuid(i + 1))?.category).toBe(category);
+    }
+  });
+
+  it("PUT with category bag -> 400 invalid_input, field category, reason invalidValue", async () => {
+    const res = await put(uuid(1), { name: "a", category: "bag" });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error).toMatchObject({
+      code: "invalid_input",
+      field: "category",
+      reason: "invalidValue",
+    });
   });
 
   it("every SEASONS value passes the items.seasons check", async () => {

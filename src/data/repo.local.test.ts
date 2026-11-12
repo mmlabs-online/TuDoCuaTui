@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { Item } from "@/types/item";
+import { CATEGORY_TO_DB } from "./mappers";
 import { createLocalRepo } from "./repo";
 
 vi.mock("./photos", () => ({ resizeImage: vi.fn(), urlToBlob: vi.fn() }));
@@ -49,6 +50,25 @@ describe("createLocalRepo", () => {
     const seeded = [makeItem({ id: "x", name: "Stored" })];
     localStorage.setItem(LS_KEY, JSON.stringify(seeded));
     expect(await make().list()).toEqual(seeded);
+  });
+
+  test("list maps old category labels from localStorage", async () => {
+    const old = ["Túi", "Váy/Đầm", "Khác", "Đồ thể thao"];
+    localStorage.setItem(
+      LS_KEY,
+      JSON.stringify(old.map((category, i) => makeItem({ id: `o${i}`, category }))),
+    );
+    const got = await make().list();
+    expect(got.map((i) => i.category)).toEqual(["Phụ kiện", "Đầm", "Loại khác", "Loại khác"]);
+  });
+
+  test("every category saves and reloads", async () => {
+    const repo = make();
+    for (const category of Object.keys(CATEGORY_TO_DB))
+      await repo.save(makeItem({ id: `c-${category}`, category }));
+    const again = await make().list();
+    for (const category of Object.keys(CATEGORY_TO_DB))
+      expect(again.find((i) => i.id === `c-${category}`)?.category).toBe(category);
   });
 
   test("list falls back to starter on corrupt JSON", async () => {

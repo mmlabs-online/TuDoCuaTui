@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import App from "@/App";
+import { categoryNames } from "@/constants/wardrobe";
 import { starter } from "@/data/demo";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
@@ -64,14 +65,23 @@ describe("App (local mode)", () => {
 
   it("category chip filters and shows its count", async () => {
     await renderApp();
-    const quan = chip("Quần");
+    const quan = chip("Quần/váy");
     const shown = Number(quan.querySelector("span")!.textContent);
-    expect(shown).toBe(starter.filter((i) => i.category === "Quần").length);
+    expect(shown).toBe(starter.filter((i) => i.category === "Quần/váy").length);
     fireEvent.click(quan);
     expect(cards()).toHaveLength(shown);
-    expect(chip("Quần").className).toContain("active");
+    expect(chip("Quần/váy").className).toContain("active");
     fireEvent.click(chip("Tất cả"));
     expect(cards()).toHaveLength(16);
+  });
+
+  it('category chips are "Tất cả" + the 10 categories in order', async () => {
+    await renderApp();
+    const labels = Array.from(document.querySelectorAll<HTMLElement>(".categories button")).map(
+      (b) => b.childNodes[1]?.textContent,
+    );
+    expect(labels).toEqual(["Tất cả", ...categoryNames]);
+    expect(categoryNames).toHaveLength(10);
   });
 
   it("status select filters", async () => {
@@ -340,6 +350,13 @@ describe("App import/export (local mode)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
+  });
+
+  it("CSV tab lists the allowed category labels", async () => {
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("CSV / Excel"));
+    expect(screen.getByText(`Loại dùng được: ${categoryNames.join(", ")}`)).toBeTruthy();
   });
 
   it('"Copy mẫu" copies the CSV template', async () => {

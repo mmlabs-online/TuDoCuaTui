@@ -8,19 +8,59 @@ type ItemInsert = Database["public"]["Tables"]["tudo_items"]["Insert"];
 const invert = <K extends string, V extends string>(o: Record<K, V>) =>
   Object.fromEntries(Object.entries(o).map(([k, v]) => [v, k])) as Record<V, K>;
 
-export const CATEGORY_TO_DB: Record<string, Enums["tudo_item_category"]> = {
+export type CategoryId =
+  | "top"
+  | "bottom"
+  | "dress"
+  | "set"
+  | "shoes"
+  | "ao_dai"
+  | "outer"
+  | "bikini"
+  | "accessory"
+  | "other";
+
+/** D29: display order = key order. */
+export const CATEGORY_TO_DB: Record<string, CategoryId> = {
   Áo: "top",
-  Quần: "bottom",
-  "Váy/Đầm": "dress",
-  "Áo khoác": "outer",
-  "Giày dép": "shoes",
-  Túi: "bag",
+  "Quần/váy": "bottom",
+  Đầm: "dress",
+  "Set đồ": "set",
+  "Giày/dép": "shoes",
+  "Áo dài": "ao_dai",
+  Khoác: "outer",
+  Bikini: "bikini",
   "Phụ kiện": "accessory",
-  "Đồ thể thao": "sport",
-  "Đồ ngủ/ở nhà": "home",
-  Khác: "other",
+  "Loại khác": "other",
 };
 export const CATEGORY_FROM_DB = invert(CATEGORY_TO_DB);
+export const OTHER_CATEGORY = "Loại khác";
+
+/** Old labels and retired ids → current label. */
+export const CATEGORY_ALIASES: Record<string, string> = {
+  Quần: "Quần/váy",
+  "Váy/Đầm": "Đầm",
+  "Giày dép": "Giày/dép",
+  "Áo khoác": "Khoác",
+  Túi: "Phụ kiện",
+  bag: "Phụ kiện",
+  "Đồ thể thao": OTHER_CATEGORY,
+  "Đồ ngủ/ở nhà": OTHER_CATEGORY,
+  sport: OTHER_CATEGORY,
+  home: OTHER_CATEGORY,
+  Khác: OTHER_CATEGORY,
+};
+
+const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+
+/** Current label, id, or old label/retired id → current label; anything else → "Loại khác". */
+export function toCategoryLabel(v: string | null | undefined): string {
+  if (typeof v !== "string" || !v) return OTHER_CATEGORY;
+  if (own(CATEGORY_TO_DB, v)) return v;
+  if (own(CATEGORY_FROM_DB, v)) return CATEGORY_FROM_DB[v as CategoryId];
+  if (own(CATEGORY_ALIASES, v)) return CATEGORY_ALIASES[v];
+  return OTHER_CATEGORY;
+}
 
 export const STATUS_TO_DB: Record<Status, Enums["tudo_item_status"]> = {
   "Đang dùng": "active",
@@ -63,7 +103,7 @@ export function rowToItem(r: ItemRow, photoUrl = ""): Item {
   return {
     id: r.id ?? "",
     name: r.name ?? "",
-    category: (r.category && CATEGORY_FROM_DB[r.category]) || "Khác",
+    category: toCategoryLabel(r.category),
     status: (r.status && STATUS_FROM_DB[r.status]) || "Đang dùng",
     colors: (r.colors ?? []).map((c) => COLOR_FROM_DB[c] ?? c),
     seasons: (r.seasons ?? []).map((s) => SEASON_FROM_DB[s] ?? s),
@@ -93,7 +133,8 @@ export const apiPhotoUrl = (id: string | null | undefined, base = "/api"): strin
 export function itemToRow(it: Item, locationId: string | null): ItemInsert {
   const row: ItemInsert = {
     name: it.name.trim(),
-    category: CATEGORY_TO_DB[it.category] ?? "other",
+    // Supabase's generated enum type predates D29 (A4); the API path validates the id server-side.
+    category: CATEGORY_TO_DB[toCategoryLabel(it.category)] as ItemInsert["category"],
     status: STATUS_TO_DB[it.status] ?? "active",
     brand: it.brand.trim() || null,
     size: it.size.trim() || null,

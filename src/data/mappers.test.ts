@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
 import {
+  CATEGORY_ALIASES,
   CATEGORY_FROM_DB,
   CATEGORY_TO_DB,
   COLOR_FROM_DB,
@@ -14,6 +15,7 @@ import {
   isUuid,
   itemToRow,
   rowToItem,
+  toCategoryLabel,
 } from "./mappers";
 
 type ItemRow = Database["public"]["Views"]["tudo_items_with_stats"]["Row"];
@@ -111,11 +113,54 @@ describe("rowToItem / itemToRow", () => {
     }
   });
 
+  test("rowToItem maps bag→Phụ kiện, sport/home→Loại khác, unknown→Loại khác", () => {
+    const cat = (category: string) =>
+      rowToItem({ ...nullRow, category: category as ItemRow["category"] }).category;
+    expect(cat("bag")).toBe("Phụ kiện");
+    expect(cat("sport")).toBe("Loại khác");
+    expect(cat("home")).toBe("Loại khác");
+    expect(cat("nope")).toBe("Loại khác");
+    expect(cat("ao_dai")).toBe("Áo dài");
+  });
+
+  test("toCategoryLabel: every old label and every id → new label", () => {
+    for (const [label, id] of Object.entries(CATEGORY_TO_DB)) {
+      expect(toCategoryLabel(label)).toBe(label);
+      expect(toCategoryLabel(id)).toBe(label);
+    }
+    for (const [old, label] of Object.entries(CATEGORY_ALIASES))
+      expect(toCategoryLabel(old)).toBe(label);
+    expect(toCategoryLabel("Túi")).toBe("Phụ kiện");
+    expect(toCategoryLabel("Váy/Đầm")).toBe("Đầm");
+    expect(toCategoryLabel("")).toBe("Loại khác");
+    expect(toCategoryLabel(null)).toBe("Loại khác");
+  });
+
+  test("toCategoryLabel: prototype keys and non-strings → Loại khác", () => {
+    for (const k of ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"])
+      expect(toCategoryLabel(k)).toBe("Loại khác");
+    expect(toCategoryLabel(42 as unknown as string)).toBe("Loại khác");
+    expect(itemToRow(makeItem({ category: "constructor" }), null).category).toBe("other");
+  });
+
+  test("itemToRow: old label Túi → accessory, Váy/Đầm → dress, unknown → other", () => {
+    expect(itemToRow(makeItem({ category: "Túi" }), null).category).toBe("accessory");
+    expect(itemToRow(makeItem({ category: "Váy/Đầm" }), null).category).toBe("dress");
+    expect(itemToRow(makeItem({ category: "???" }), null).category).toBe("other");
+  });
+
+  test("aliases never shadow a current label or id", () => {
+    for (const key of Object.keys(CATEGORY_ALIASES)) {
+      expect(key in CATEGORY_TO_DB).toBe(false);
+      expect(key in CATEGORY_FROM_DB).toBe(false);
+    }
+  });
+
   test("rowToItem with all nullable fields null", () => {
     expect(rowToItem(nullRow)).toEqual({
       id: "",
       name: "",
-      category: "Khác",
+      category: "Loại khác",
       status: "Đang dùng",
       colors: [],
       seasons: [],

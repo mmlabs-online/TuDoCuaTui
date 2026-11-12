@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
 import { Editor } from "./Editor";
 import { blankItem } from "./blankItem";
@@ -139,5 +140,14 @@ describe("API mode photos", () => {
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).not.toHaveBeenCalledWith("photoPath", undefined);
     expect(update).not.toHaveBeenCalledWith("removedPhotoId", expect.anything());
+  });
+});
+
+describe("category select", () => {
+  test("lists the 10 categories in order", () => {
+    renderEditor();
+    const select = screen.getByDisplayValue("Áo") as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(categoryNames);
+    expect(categoryNames).toHaveLength(10);
   });
 });

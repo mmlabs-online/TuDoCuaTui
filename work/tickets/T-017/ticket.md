@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-12T08:40:10Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/41 |
 
 ## Goal
 Ming's category list replaces the current one, so items are grouped the way she actually sorts her wardrobe:
@@ -77,6 +77,17 @@ Touches F-201 (editor), F-301 (filters), F-601 (CSV import/template), F-701 (all
 - Manual: editor + filters at 390px, light and dark.
 
 ## Notes / answers from Ming
+- 2026-11-12: "Plan approved" (A1–A10 as written).
 - 2026-11-12: "thêm 1 task làm gấp bây giờ: Thay đổi category: Áo, quần/váy, đầm, set đồ, giày/dép, áo dài, khoác, bikini, Phụ kiện, loại khác"
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: consult (database-optimizer), plan READY with assumptions A1–A10.
+- In progress / next: Ming approves the plan (and A1–A10), then implement → review → PR.
+- Gotchas: `ALTER TYPE … ADD VALUE` runs inside the migrator transaction; the new values must not be used in the same file (55P04). `api.db.test.ts:261` enum drift test breaks on purpose. Session branch still carries open PR #40 (T-005.6).
+
+### 2026-11-12 — claude — DONE
+- Done: migration `20261112140000_item_category_v2.sql` (add set/ao_dai/bikini; bag→accessory, sport/home→other), server validation, mappers with aliases (own-property lookups), local mode, CSV aliases + hint, demo items, docs. 2 attempts (attempt 2: security 🟡 prototype-key lookups, Ming chose fix). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/41.
+- In progress / next: Ming merges, cuts a release (deploy backs up then migrates), re-tags skirts.
+- Gotchas: Supabase mode can't save the 3 new ids (A4). `ALTER TYPE ADD VALUE` values must not be used in the same migration file. `Object.hasOwn` fails typecheck with the current TS lib.

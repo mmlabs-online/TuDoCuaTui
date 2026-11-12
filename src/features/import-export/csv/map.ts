@@ -1,4 +1,11 @@
-import { CATEGORY_TO_DB, COLOR_TO_DB, SEASON_TO_DB, STATUS_TO_DB } from "@/data/mappers";
+import {
+  CATEGORY_ALIASES,
+  CATEGORY_TO_DB,
+  COLOR_TO_DB,
+  OTHER_CATEGORY,
+  SEASON_TO_DB,
+  STATUS_TO_DB,
+} from "@/data/mappers";
 import { normalize } from "@/lib/text";
 import type { Item, Status } from "@/types/item";
 import { CSV_MAP_COPY as COPY } from "../copy";
@@ -76,6 +83,7 @@ function lookup(table: Record<string, string>): Map<string, string> {
 }
 
 const CATEGORIES = lookup(CATEGORY_TO_DB);
+for (const [old, label] of Object.entries(CATEGORY_ALIASES)) CATEGORIES.set(normalize(old), label);
 const STATUSES = lookup(STATUS_TO_DB);
 const SEASONS = lookup(SEASON_TO_DB);
 const COLORS = lookup(COLOR_TO_DB);
@@ -157,7 +165,7 @@ export function mapRows(parsed: ParsedCsv, options: MapOptions = {}): MapResult 
     else if (ne === "nameTooLong") fail("name", COPY.nameTooLong(NAME_MAX));
 
     const rawCategory = cell("category");
-    let category = "Khác";
+    let category = OTHER_CATEGORY;
     if (rawCategory !== "") {
       const hit = CATEGORIES.get(normalize(rawCategory));
       if (hit) category = hit;

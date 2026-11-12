@@ -3,7 +3,7 @@ import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
 import { localToday, toLocalDate } from "@/lib/dates";
 import { PHOTO_BUCKET } from "@/lib/supabase";
-import { itemToRow, rowToItem } from "./mappers";
+import { itemToRow, rowToItem, toCategoryLabel } from "./mappers";
 import { resizeImage, urlToBlob } from "./photos";
 
 export type WearResult = Pick<Item, "wearCount" | "lastWorn">;
@@ -32,12 +32,14 @@ export function createLocalRepo(starter: Item[], defaultLocations: string[]): Wa
   const prevWorn = new Map<string, string>(); // lastWorn before today's wear, for undo (session only)
   const load = (): Item[] => {
     if (cache) return cache;
+    let items: Item[];
     try {
-      cache = JSON.parse(localStorage.getItem(LS_KEY) || "null") ?? starter;
+      items = JSON.parse(localStorage.getItem(LS_KEY) || "null") ?? starter;
     } catch {
-      cache = starter;
+      items = starter;
     }
-    return cache!;
+    cache = items.map((i) => ({ ...i, category: toCategoryLabel(i.category) }));
+    return cache;
   };
   const persist = (items: Item[]) => {
     cache = items;

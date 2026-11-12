@@ -6,6 +6,7 @@ import type { ImportResult } from "@/data/useWardrobe";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import type { CsvPreview } from "@/features/import-export/csv/preview";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
+import { categoryNames } from "@/constants/wardrobe";
 
 const COPY = IMPORT_EXPORT_COPY.import;
 const CSV = COPY.csv;
@@ -43,6 +44,7 @@ export function ImportCsvTab({
       <div className="instructions">
         <b>{CSV.title}</b>
         <p>{CSV.hint}</p>
+        <p>{CSV.categoriesHint(categoryNames)}</p>
       </div>
       <div className="code-head">
         <span>{CSV.sample}</span>
