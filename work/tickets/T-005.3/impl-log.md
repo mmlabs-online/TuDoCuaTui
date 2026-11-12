@@ -79,3 +79,30 @@ None new.
 
 ### Scope self-check
 - Smaller diff possible? No. `handlePhoto` was left without `await` (not in the review item).
+
+## Attempt 3 — 2026-11-12
+Scope: review Attempt 2, Issue 1 only (regression test did not exercise the fix).
+
+### Files touched
+- `server/api.test.ts` — required because: the test "a handler that rejects -> 500 and the server keeps serving" now uses a pool returning `{ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }` and `getMedia` resolving to `null`, so `media.contentLength` throws in `servePhoto` outside any try. The client fetch has `signal: AbortSignal.timeout(2000)`. It asserts 500, then `/healthz` 200.
+
+### Regression proof (local, reverted, not committed)
+- With the fix (`return await handleApi` at `server/app.js:69`): 1 passed.
+- With `await` removed at `app.js:69`: the test FAILED (unhandled rejection from `handleApi` at `api.js:64`; run exited with 1 failed, 1 error).
+- Restored with `git checkout server/app.js`; `app.js` has no diff.
+
+### Checks (local PostgreSQL 16, TEST_DATABASE_URL set, stopped and deleted afterwards)
+- typecheck: exit 0
+- format:check: all matched files use the correct format
+- test: 66 files, 809 tests passed
+- test:coverage (CI=true): 66 files, 809 passed; All files 95.4 stmts / 94.56 branches
+- build: built in 308ms
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None.
+
+### Scope self-check
+Only the listed test was rewritten. No other code changed.

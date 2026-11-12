@@ -47,13 +47,12 @@ function spyPool() {
 }
 
 it("a handler that rejects -> 500 and the server keeps serving", async () => {
+  // getMedia resolves to null, so media.contentLength throws inside servePhoto.
   const pool: Stub = {
-    query: async () => {
-      throw new Error("db down");
-    },
+    query: async () => ({ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }),
   };
-  const base = await start(pool, { getMedia: async () => ({}) });
-  const a = await fetch(`${base}/api/photos/${ID}`);
+  const base = await start(pool, { getMedia: async () => null });
+  const a = await fetch(`${base}/api/photos/${ID}`, { signal: AbortSignal.timeout(2000) });
   expect(a.status).toBe(500);
   expect((await fetch(`${base}/healthz`)).status).toBe(200);
 });
