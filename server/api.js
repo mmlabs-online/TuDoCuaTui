@@ -61,7 +61,7 @@ export async function handleApi(
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });
   }
   if (m.route === "/api/photos/:id") {
-    return servePhoto(req, res, {
+    return await servePhoto(req, res, {
       pool,
       drive,
       photoId: /** @type {string} */ (itemId),

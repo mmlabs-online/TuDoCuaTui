@@ -46,6 +46,18 @@ function spyPool() {
   return { pool, calls };
 }
 
+it("a handler that rejects -> 500 and the server keeps serving", async () => {
+  const pool: Stub = {
+    query: async () => {
+      throw new Error("db down");
+    },
+  };
+  const base = await start(pool, { getMedia: async () => ({}) });
+  const a = await fetch(`${base}/api/photos/${ID}`);
+  expect(a.status).toBe(500);
+  expect((await fetch(`${base}/healthz`)).status).toBe(200);
+});
+
 const JSON_H = { "Content-Type": "application/json" };
 const put = (base: string, id: string, body: unknown, headers: Record<string, string> = JSON_H) =>
   fetch(`${base}/api/items/${id}`, { method: "PUT", headers, body: JSON.stringify(body) });

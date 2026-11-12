@@ -360,6 +360,7 @@ export function createDriveClient({
       const { res } = await request("get", {
         method: "GET",
         url: `${fileUrl(id)}?alt=media`,
+        headers: { "accept-encoding": "identity" },
         timeoutMs: t.headers,
         retry: true,
         signal,

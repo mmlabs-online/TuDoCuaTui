@@ -66,7 +66,7 @@ export function createApp({ pool, distDir, drive = null, access, log, now = () =
             return sendError(res, 401, "unauthorized");
           }
         }
-        return handleApi(req, res, {
+        return await handleApi(req, res, {
           pool,
           drive,
           pathname,

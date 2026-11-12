@@ -52,3 +52,30 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; the `_type` destructure could become a second constant if preferred.
 - Diff size: see `git diff --shortstat` in the commit.
+
+## Attempt 2 — 2026-11-12
+
+Fixes only the two "Security follow-ups to fix" items in review.md.
+
+### Files touched
+- `server/drive.js`: `getMedia` sends `accept-encoding: identity`, so Drive's `Content-Length` matches the bytes streamed. Required by follow-up 1.
+- `server/app.js`, `server/api.js`: `return await handleApi(...)` / `return await servePhoto(...)`, so a handler rejection reaches the existing catch (500) instead of an unhandled rejection. Required by follow-up 2.
+- `server/drive.test.ts`: getMedia request carries `accept-encoding: identity`.
+- `server/api.test.ts`: a rejecting handler (DB down on `GET /api/photos/:id`) returns 500 and `/healthz` still answers.
+
+### Checks (actual output summary)
+Local PostgreSQL 16 (data dir under /tmp, password auth, `TEST_DATABASE_URL` set), stopped and deleted afterwards.
+- typecheck: clean.
+- format:check: "All matched files use the correct format."
+- test: 66 files, 809 tests passed.
+- test:coverage (`CI=true`): 66 files, 809 passed; All files 95.59 stmts / 94.63 branches.
+- build: `✓ built in 342ms`.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+- Smaller diff possible? No. `handlePhoto` was left without `await` (not in the review item).

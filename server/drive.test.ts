@@ -342,6 +342,12 @@ describe("requests and error mapping", () => {
     expect(await new Response(m.body).text()).toBe("abc");
   });
 
+  it("getMedia asks Drive for an identity encoding so Content-Length matches the bytes", async () => {
+    const m = setup([TOKEN_OK, { status: 200, body: "abc", headers: { "content-length": "3" } }]);
+    await m.drive.getMedia(ID);
+    expect(new Headers(m.calls[1].init.headers).get("accept-encoding")).toBe("identity");
+  });
+
   it("getMedia without a body is drive_bad_response", async () => {
     const { drive } = setup([TOKEN_OK, { status: 204 }]);
     expect((await fail(drive.getMedia(ID))).code).toBe("drive_bad_response");
