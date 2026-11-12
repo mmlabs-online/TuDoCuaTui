@@ -42,7 +42,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-005.5 | Drive connect script and deploy secrets for TuDo photos | MERGED | P0 | S | security | T-005.1 | plan-approval | 1 | 2026-11-11 |
 | T-005.2 | Upload and delete item photos via Google Drive (API mode) | MERGED | P0 | M | data, db, security | T-005.1 | plan-approval | 1 | 2026-11-12 |
 | T-005.3 | Display item photos from Google Drive | MERGED | P0 | M | data, security | T-005.2 | none | 2 | 2026-11-12 |
-| T-005.6 | Orphan sweep for Drive photos | PLANNING | P1 | S | data, security | T-005.2 | none | 0 | 2026-11-12 |
+| T-005.6 | Orphan sweep for Drive photos | DONE | P1 | S | data, security | T-005.2 | none | 2 | 2026-11-12 |
+| T-017 | Replace the item category list | PLANNING | P0 | M | ui, data, db | — | plan-approval | 0 | 2026-11-12 |
 | T-005.4 | Remove Supabase Storage for photos | SUPERSEDED | P0 | S | db, security | T-005.3 | plan-approval | 0 | 2026-11-10 |
 | F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-201 | Harden the item editor | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
