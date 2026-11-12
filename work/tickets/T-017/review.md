@@ -72,3 +72,43 @@ No violations found.
 - 🟡 `src/data/mappers.ts:57-58` — `toCategoryLabel` uses `in` on plain objects, so prototype keys (`constructor`, `toString`, `__proto__`) are treated as matches instead of falling back to "Loại khác" (A9). Fix: own-property lookups (`Object.hasOwn`, or `Object.create(null)`/`Map`) for `CATEGORY_TO_DB`, `CATEGORY_FROM_DB`, `CATEGORY_ALIASES`, plus a `typeof v !== "string"` guard; test that `constructor`, `__proto__`, `toString` → "Loại khác" (also fix the `in` use in `mappers.test.ts:146-148`). Details: security-review.md Attempt 1.
 
 → Attempt 1 goes to **REWORK** for this item only (orchestrator, per Ming's choice).
+
+## Attempt 2 — 2026-11-12
+Verdict: PASS
+
+Scope: the "Security should-fix" item from Attempt 1, fixed in commit `0e6fc03` ("T-017: own-property category lookups"). The code diff since `58316d9` touches only `src/data/mappers.ts` and `src/data/mappers.test.ts`; the other changed files are ticket docs (`impl-log.md`, `security-review.md`, `ticket.md`).
+
+### Checks (run by reviewer)
+- typecheck: `pnpm typecheck` exit 0.
+- format:check: `pnpm format:check` exit 0 (181 files).
+- test: `pnpm test` with `TEST_DATABASE_URL` set (scratch PostgreSQL 16 under /tmp, scram-sha-256 auth): Test Files 68 passed (68), Tests 857 passed (857). That is 856 from Attempt 1 plus the new test, so nothing regressed.
+- test:coverage: `CI=true pnpm test:coverage`: 68 files / 857 tests passed; All files 95.1% stmts / 94.14% branch / 92.89% funcs / 95.36% lines.
+- build: `pnpm build` exit 0 (`dist/assets/index-*.js` 249.81 kB).
+- These numbers match impl-log.md Attempt 2. The scratch cluster was stopped and deleted afterwards.
+- Fails without the fix: in a scratch copy of HEAD where `src/data/mappers.ts` was swapped for its `0e6fc03^` version, `vitest run src/data/mappers.test.ts` gave 1 failed | 22 passed. The failure was `toCategoryLabel: prototype keys and non-strings → Loại khác` with `expected 'constructor' to be 'Loại khác'`. With the fix the test passes. The scratch copy was deleted and the working tree was not touched.
+
+### Rework item
+- [x] Prototype keys and non-strings fall back to "Loại khác". Evidence:
+  - `src/data/mappers.ts:54` adds an own-property helper (`Object.prototype.hasOwnProperty.call`).
+  - `src/data/mappers.ts:58` adds a `typeof v !== "string" || !v` guard.
+  - `src/data/mappers.ts:59-61` uses own-property lookups for `CATEGORY_TO_DB`, `CATEGORY_FROM_DB` and `CATEGORY_ALIASES`.
+  - `src/data/mappers.ts:62` falls back to `OTHER_CATEGORY`.
+  - `__proto__` is not an own key of these object literals, so it falls back too.
+- [x] `itemToRow` gives `other`. Evidence: `src/data/mappers.ts:137` (`CATEGORY_TO_DB[toCategoryLabel(...)]`), tested at `src/data/mappers.test.ts:143` (`constructor` → `"other"`).
+- [x] Test. Evidence: `src/data/mappers.test.ts:139-144` covers `constructor`, `__proto__`, `toString`, `hasOwnProperty`, `valueOf` and `42`.
+- [x] No other `in`/indexed lookups on these maps with untrusted keys remain in app code. Evidence:
+  - `grep` finds only `mappers.ts:60,61` (both guarded) and `:137` (a key that is always valid).
+  - CSV uses a `Map` (`csv/map.ts:85-86`).
+  - `repo.ts:41` goes through `toCategoryLabel`.
+
+### Issues
+None.
+
+### Rules R1–R10
+No new violations. R7: the code changes are limited to the rework item. R8: checks are green and the changed pure logic has a test that fails without the fix.
+
+### Nits (do not block)
+- `src/data/mappers.test.ts:154-155`: the "aliases never shadow" test still uses `key in CATEGORY_TO_DB` / `key in CATEGORY_FROM_DB`. Attempt 1 asked for this to be fixed too, and impl-log Attempt 2 does not mention it. It does not block because this `in` can only give false failures (a prototype-named alias would trip it), never a false pass. The new test at `:139` covers the prototype-key behaviour directly. If the file is touched again, switch to `Object.hasOwn`/`hasOwnProperty.call`.
+
+### Follow-ups (out of scope)
+Unchanged from Attempt 1.
