@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { Readable } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
-import { createDriveClient, DriveError } from "./drive.js";
+import { createDriveClient, DriveError, taggedFilesQuery } from "./drive.js";
 import { fakeConfig, startFakeDrive } from "./test/fake-drive.js";
 
 let fake: Awaited<ReturnType<typeof startFakeDrive>>;
@@ -80,5 +80,35 @@ describe("against a fake Drive over real fetch", () => {
       ),
     ).toBe("drive_unavailable");
     expect(fake.requests.filter((r) => r.url.startsWith("/upload"))).toHaveLength(1);
+  });
+
+  it("listFiles paginates against the fake and returns only tagged, non-trashed files in the folder", async () => {
+    const drive = await client();
+    fake.config.listPageSize = 2;
+    const meta = (extra: Record<string, unknown>) => ({
+      bytes: Buffer.from("x"),
+      meta: { parents: [fakeConfig.folderId], createdTime: "2026-03-04T05:00:00.000Z", ...extra },
+    });
+    for (let i = 1; i <= 5; i++)
+      fake.files.set(`fakefile0000000${i}`, meta({ appProperties: { app: "tudo" } }));
+    fake.files.set("fakefile00000006", meta({ appProperties: { app: "tudo" }, trashed: true }));
+    fake.files.set("fakefile00000007", meta({ appProperties: { tudo: "smoke" } }));
+    fake.files.set("fakefile00000008", meta({}));
+    fake.files.set("fakefile00000009", {
+      bytes: Buffer.from("x"),
+      meta: { parents: ["otherfolder0123456"], appProperties: { app: "tudo" } },
+    });
+    const q = taggedFilesQuery(fakeConfig.folderId);
+    const ids: string[] = [];
+    let pageToken: string | undefined;
+    let pages = 0;
+    do {
+      const r = await drive.listFiles({ q, pageToken });
+      ids.push(...r.files.map((f) => f.id));
+      pageToken = r.nextPageToken;
+      pages++;
+    } while (pageToken);
+    expect(pages).toBe(3);
+    expect(ids).toEqual([1, 2, 3, 4, 5].map((i) => `fakefile0000000${i}`));
   });
 });

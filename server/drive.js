@@ -67,6 +67,17 @@ export function loadDriveConfig(env) {
   return { mode: "on", clientId, clientSecret, refreshToken, folderId };
 }
 
+/**
+ * The only query the sweep lists with: files of the configured folder tagged app=tudo, not trashed.
+ * @param {string} folderId
+ */
+export function taggedFilesQuery(folderId) {
+  if (typeof folderId !== "string" || !FOLDER_RE.test(folderId)) {
+    throw new DriveError("drive_invalid_id");
+  }
+  return `'${folderId}' in parents and trashed = false and appProperties has { key='app' and value='tudo' }`;
+}
+
 /** @param {string} text @returns {string | undefined} an allowlisted reason */
 function reasonOf(text) {
   /** @type {any} */
@@ -389,6 +400,61 @@ export function createDriveClient({
         if (err instanceof DriveError && err.code === "drive_not_found") return;
         throw err;
       }
+    },
+
+    /**
+     * One page of files. `createdTime` is epoch ms or null; a malformed answer is drive_bad_response.
+     * @param {{ q: string, pageToken?: string }} o
+     * @returns {Promise<{ files: { id: string, createdTime: number | null, appProperties: Record<string, string> }[], nextPageToken: string | undefined }>}
+     */
+    async listFiles({ q, pageToken }) {
+      const params = new URLSearchParams({
+        q,
+        fields: "nextPageToken,files(id,createdTime,appProperties)",
+        pageSize: "1000",
+        spaces: "drive",
+      });
+      if (pageToken !== undefined) params.set("pageToken", pageToken);
+      const { text } = await request("list", {
+        method: "GET",
+        url: `${apiBase}/files?${params}`,
+        timeoutMs: t.meta,
+        retry: true,
+      });
+      /** @type {any} */
+      let j;
+      try {
+        j = JSON.parse(text);
+      } catch {
+        j = null;
+      }
+      const next = j?.nextPageToken;
+      if (
+        !j ||
+        !Array.isArray(j.files) ||
+        (next !== undefined && (typeof next !== "string" || !next || next.length > 4096)) ||
+        j.files.some((/** @type {any} */ f) => typeof f?.id !== "string" || !FILE_ID_RE.test(f.id))
+      ) {
+        note("list", 200, "drive_bad_response");
+        throw new DriveError("drive_bad_response");
+      }
+      return {
+        files: j.files.map((/** @type {any} */ f) => {
+          const ms = typeof f.createdTime === "string" ? Date.parse(f.createdTime) : NaN;
+          const props = f.appProperties;
+          const plain =
+            props !== null &&
+            typeof props === "object" &&
+            !Array.isArray(props) &&
+            Object.values(props).every((v) => typeof v === "string");
+          return {
+            id: f.id,
+            createdTime: Number.isFinite(ms) ? ms : null,
+            appProperties: plain ? props : {},
+          };
+        }),
+        nextPageToken: next,
+      };
     },
 
     /** The configured folder must exist, be a folder and not be trashed. */
