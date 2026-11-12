@@ -33,3 +33,9 @@ Both attempt-1 🟡 fixed. No 🔴, no new 🟡. Read-only.
 3. 🟢 **The new regression test passes without the fix** — `server/api.test.ts:49-59`: the throwing `pool.query` is caught inside `servePhoto` (`photos.js:264-272`, `errors.js:31`) so 500 comes from its own handling. Make it real: pool resolves `{ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }`, `getMedia` returns `{}` → `res.writeHead` at `photos.js:304-308` throws (invalid Content-Length) outside any try → with the fix 500 + `/healthz` still answers; without it an unhandled rejection fails the run (R8).
 
 Risks: Google `alt=media` behaviour only verifiable in the M-15 smoke (compare sizes). Open: one-year `immutable` browser cache on shared devices.
+
+## Attempt 3 (2026-11-12) — security-ai-generated-code-auditor (f2f7a7a..93f73f8)
+
+No 🔴, no 🟡 (the scope 🟡 was a tooling gap — the orchestrator ran `git diff f2f7a7a 93f73f8 --stat`: only `server/api.test.ts` and `work/tickets/T-005.3/impl-log.md`).
+- 🟢 The test now exercises the unawaited-rejection path: pool returns a row (`api.test.ts:49-58`), `getMedia` → `null`, `media.contentLength` throws at `photos.js:307` outside any try in `servePhoto`, so the 500 can only come from the catch at `app.js:85-93` reached via `return await` at `app.js:69`; asserts 500 then `/healthz` 200 with a 2 s timeout. 30 s photo timer cleared on `res` close.
+- 🟢 Fixtures are obviously fake (uuid, fixed date, `"abcdefghij"`, loopback); no env reads.
