@@ -33,3 +33,10 @@ The reference set comes only from `item_photos` in whatever `DATABASE_URL` point
 - 🟢 N12 Legitimate lockout when all rows are gone; fails safe, no override flag; README line or follow-up.
 - 🟢 N13 Dry-run prints "refusing:" but exits 0 — say `warning:` in dry-run or exit non-zero (cosmetic).
 - Still open from attempt 1: N1 (trash vs permanent delete), N9 (failure lines on stdout vs A10 stderr).
+
+## Attempt 3 — security-ai-generated-code-auditor (read-only)
+
+**Verdict:** no 🔴 / 🟡. Test-only change, no new surface.
+- 🟢 Redaction test (`server/photo-sweep.db.test.ts:296-323`) now reaches the delete-failure leg: `anchor()` lifts the B1 guard, 3 candidates < cap, every DELETE gets the 500 with `GOOGLE_TEXT_SENTINEL`, `deletes().length > 0` (:305) proves they were sent; FAIL lines are checked against tokens, client secret, sentinel, `fakefile` ids and page tokens.
+- 🟢 Optional: `toBe(3)` and assert a `delete <uuid>: FAIL drive_unavailable` line is present.
+- Still open (follow-ups): N1, N9, N11, N12, N13.
