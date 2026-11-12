@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -77,7 +79,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(await stats(id)).toMatchObject({ wear_count: 0, last_worn: null });
   });
 
-  it("items_with_stats column list and order", async () => {
+  it("items_with_stats columns: existing order kept, primary_photo_id last", async () => {
     const r = await pool.query(
       "select column_name from information_schema.columns where table_name = 'items_with_stats' order by ordinal_position",
     );
@@ -102,6 +104,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       "last_worn",
       "location_name",
       "primary_photo_path",
+      "primary_photo_id",
     ]);
   });
 
@@ -220,5 +223,74 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       "select table_name from information_schema.columns where table_schema = 'public' and column_name = 'user_id'",
     );
     expect(cols.rows).toEqual([]);
+  });
+
+  it("migration applies over init data; a storage_path row survives", async () => {
+    const tmp = await createTestDb();
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tudo-mig-"));
+    try {
+      const init = "20261110120000_init.sql";
+      await copyFile(path.join(realDir, init), path.join(dir, init));
+      await runMigrations({ connectionString: tmp.url, dir });
+      const c = new pg.Client({ connectionString: tmp.url });
+      await c.connect();
+      const item = (await c.query("insert into items (name) values ('x') returning id")).rows[0].id;
+      await c.query("insert into item_photos (item_id, storage_path) values ($1, 'u/i/a.jpg')", [
+        item,
+      ]);
+      await runMigrations({ connectionString: tmp.url, dir: realDir });
+      const row = (await c.query("select * from items_with_stats")).rows[0];
+      expect(row).toMatchObject({ primary_photo_path: "u/i/a.jpg" });
+      expect(row.primary_photo_id).toMatch(/^[0-9a-f-]{36}$/);
+      await c.end();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await tmp.drop();
+    }
+  });
+
+  it("storage_path nullable; both references null rejected; drive_file_id format and uniqueness", async () => {
+    const id = await newItem();
+    const ins = (path: string | null, drive: string | null) =>
+      pool.query(
+        "insert into item_photos (item_id, storage_path, drive_file_id) values ($1, $2, $3)",
+        [id, path, drive],
+      );
+    await ins(null, "fakefile0000000001");
+    await expect(ins(null, null)).rejects.toMatchObject({ code: "23514" });
+    await expect(ins(null, "short")).rejects.toMatchObject({ code: "23514" });
+    await expect(ins(null, "bad id with spaces!")).rejects.toMatchObject({ code: "23514" });
+    await expect(ins(null, "fakefile0000000001")).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("one primary per item; several non-primary photos allowed", async () => {
+    const id = await newItem();
+    const ins = (drive: string, primary: boolean) =>
+      pool.query(
+        "insert into item_photos (item_id, drive_file_id, is_primary) values ($1, $2, $3)",
+        [id, drive, primary],
+      );
+    await ins("fakefile0000000001", true);
+    await expect(ins("fakefile0000000002", true)).rejects.toMatchObject({ code: "23505" });
+    await ins("fakefile0000000003", false);
+    await ins("fakefile0000000004", false);
+  });
+
+  it("primary_photo_id: null without photo; primary beats older non-primary; cascades on item delete", async () => {
+    const id = await newItem();
+    expect((await stats(id)).primary_photo_id).toBeNull();
+    await pool.query(
+      "insert into item_photos (item_id, drive_file_id, created_at) values ($1, 'fakefile0000000001', now() - interval '2 day')",
+      [id],
+    );
+    const prim = (
+      await pool.query(
+        "insert into item_photos (item_id, drive_file_id, is_primary) values ($1, 'fakefile0000000002', true) returning id",
+        [id],
+      )
+    ).rows[0].id;
+    expect((await stats(id)).primary_photo_id).toBe(prim);
+    await pool.query("delete from items where id = $1", [id]);
+    expect((await pool.query("select count(*)::int as n from item_photos")).rows[0].n).toBe(0);
   });
 });

@@ -29,7 +29,8 @@ export type Recorded = { method: string; url: string; auth: string | undefined; 
 export async function startFakeDrive() {
   const files = new Map<string, { bytes: Buffer; meta: Record<string, unknown> }>();
   const requests: Recorded[] = [];
-  const hang = new Set<"upload" | "media">();
+  const hang = new Set<"upload" | "upload-after-store" | "media">();
+  const fail = new Set<"upload" | "delete">();
   let next = 0;
 
   const server = http.createServer((req, res) => {
@@ -47,6 +48,8 @@ export async function startFakeDrive() {
       if (req.headers.authorization !== `Bearer ${FAKE.accessToken}`) return json(401, {});
       if (req.method === "POST" && url.startsWith("/upload/drive/v3/files")) {
         if (hang.has("upload")) return;
+        if (fail.has("upload"))
+          return json(500, { error: { errors: [{ reason: "backendError" }] } });
         const boundary = /boundary=(.+)$/.exec(String(req.headers["content-type"]))?.[1] ?? "";
         const metaStart = body.indexOf("\r\n\r\n") + 4;
         const metaEnd = body.indexOf(`\r\n--${boundary}`, metaStart);
@@ -56,6 +59,7 @@ export async function startFakeDrive() {
         const id = `fakefile${String(++next).padStart(8, "0")}`;
         const meta = JSON.parse(metaPart);
         files.set(id, { bytes, meta });
+        if (hang.has("upload-after-store")) return; // stored, but the client never gets the answer
         return json(200, { id, size: String(bytes.length), mimeType: meta.mimeType });
       }
       const m = /^\/drive\/v3\/files\/([^?]+)(\?.*)?$/.exec(url);
@@ -67,6 +71,8 @@ export async function startFakeDrive() {
         const f = files.get(id);
         if (!f) return json(404, { error: { errors: [{ reason: "notFound" }] } });
         if (req.method === "DELETE") {
+          if (fail.has("delete"))
+            return json(500, { error: { errors: [{ reason: "backendError" }] } });
           files.delete(id);
           res.writeHead(204).end();
           return;
@@ -88,6 +94,7 @@ export async function startFakeDrive() {
     files,
     requests,
     hang,
+    fail,
     urls: {
       tokenUrl: `${base}/token`,
       apiBase: `${base}/drive/v3`,

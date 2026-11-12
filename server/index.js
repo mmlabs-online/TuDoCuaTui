@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
-import { DriveConfigError, loadDriveConfig } from "./drive.js";
+import { createDriveClient, DriveConfigError, loadDriveConfig } from "./drive.js";
 
 /** @param {Record<string, unknown>} entry */
 const log = (entry) => console.log(JSON.stringify(entry));
@@ -35,11 +35,13 @@ let access = null;
 if (accessConfig.mode === "on") access = createAccessVerifier(accessConfig);
 else console.log("access check OFF (dev)");
 
-// Validated only: no client is created and Drive is not part of /readyz (T-005.2 wires it into the app).
+// Drive is not part of /readyz: a Drive outage must not take the whole app out of rotation.
+/** @type {ReturnType<typeof createDriveClient> | null} */
+let drive = null;
 try {
-  console.log(
-    loadDriveConfig(process.env).mode === "on" ? "drive configured" : "drive not configured",
-  );
+  const driveConfig = loadDriveConfig(process.env);
+  if (driveConfig.mode === "on") drive = createDriveClient({ config: driveConfig, log });
+  console.log(drive ? "drive configured" : "drive not configured");
 } catch (err) {
   console.error(err instanceof DriveConfigError ? `config error: ${err.message}` : "config error");
   process.exit(2);
@@ -52,7 +54,7 @@ if (!pool) console.log("database not configured");
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 const port = Number(process.env.PORT ?? 3000);
 
-const server = http.createServer(createApp({ pool, distDir, access, log }));
+const server = http.createServer(createApp({ pool, distDir, drive, access, log }));
 server.listen(port, "0.0.0.0", () => {
   const addr = server.address();
   console.log(`listening on :${typeof addr === "object" && addr ? addr.port : port}`);

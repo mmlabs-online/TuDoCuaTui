@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Item } from "@/types/item";
+import { PhotoSaveError } from "./apiErrors";
 import { runImport } from "./importRunner";
 import type { DataMode } from "./mode";
 import { createLocalRepo, createSupabaseRepo } from "./repo";
@@ -71,9 +72,14 @@ export function useWardrobe(
 
   const save = useCallback(
     async (item: Item) => {
-      const saved = await repo.save(item);
-      upsertLocal(saved);
-      return saved;
+      try {
+        const saved = await repo.save(item);
+        upsertLocal(saved);
+        return saved;
+      } catch (e) {
+        if (e instanceof PhotoSaveError) upsertLocal(e.item);
+        throw e;
+      }
     },
     [repo],
   );

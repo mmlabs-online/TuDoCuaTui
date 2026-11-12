@@ -23,7 +23,7 @@ The four Google variables are all-or-nothing: none set means photos are off (`dr
 
 ## Google Drive (T-005.1)
 
-`server/drive.js` is the Drive v3 client (plain `fetch`, scope `drive.file`, no dependency). It is not wired into `createApp` yet (T-005.2) and is not part of `/readyz`; nothing calls Google at startup. Errors are `DriveError` with a fixed `code` only: `drive_not_configured`, `drive_auth`, `drive_not_found`, `drive_forbidden`, `drive_rate_limited`, `drive_unavailable`, `drive_too_large` (over 5 MB), `drive_bad_response`, `drive_folder_not_found`, `drive_invalid_id` (malformed file id, no request made). Redirects are never followed, except for media reads. Creates are never retried (not idempotent); other calls retry up to 3 attempts. Deletes are permanent and a missing file counts as success.
+`server/drive.js` is the Drive v3 client (plain `fetch`, scope `drive.file`, no dependency). It is wired into `createApp` (T-005.2) and is not part of `/readyz`; nothing calls Google at startup. Errors are `DriveError` with a fixed `code` only: `drive_not_configured`, `drive_auth`, `drive_not_found`, `drive_forbidden`, `drive_rate_limited`, `drive_unavailable`, `drive_too_large` (over 5 MB), `drive_bad_response`, `drive_folder_not_found`, `drive_invalid_id` (malformed file id, no request made). Redirects are never followed, except for media reads. Creates are never retried (not idempotent); other calls retry up to 3 attempts. Deletes are permanent and a missing file counts as success.
 
 Smoke (creates, reads and deletes a tiny file in the folder; exit 0 ok, 1 failed, 2 not configured):
 
@@ -41,11 +41,15 @@ JSON only. Without `DATABASE_URL` every endpoint validates its input, then answe
 | `GET /api/locations` | 200 `{ locations: string[] }`, by `sort_order, name` |
 | `PUT /api/items/:id` | 200 `{ item: ItemRow }`; idempotent upsert, full replacement (omitted optional fields reset to defaults); body is `itemToRow` minus `id`/`location_id`, plus `location_name` (NFC, get-or-create); unknown keys ignored |
 | `DELETE /api/items/:id` | 204, also when the item is already gone |
+| `PUT /api/items/:id/photo` (raw JPEG body, `Content-Type: image/jpeg`) | 200 `{ item: ItemRow }`; stores the file in Drive and replaces the item's single primary photo |
+| `DELETE /api/items/:id/photo` | 204, also when there is no photo or no item |
 | `POST /api/items/:id/wear` `{ delta: 1 \| -1, today: "YYYY-MM-DD" }` | 200 `{ wear_count, last_worn, already }`; `-1` removes the latest log; `today` must be within one day of Asia/Ho_Chi_Minh today |
 
-`ItemRow` is a snake_case `items_with_stats` row: `price` is a number or null, dates are `YYYY-MM-DD`, `created_at`/`updated_at` are ISO strings, `primary_photo_path` is always null for now.
+`ItemRow` is a snake_case `items_with_stats` row: `price` is a number or null, dates are `YYYY-MM-DD`, `created_at`/`updated_at` are ISO strings, `primary_photo_path` is always null; `primary_photo_id` is the `item_photos` id (uuid) or null. Drive file ids never reach the browser.
 
-Errors are `{ "error": { "code", ... } }`: 400 `invalid_input` (with `field` and `reason` for validation failures), 400 `invalid_json`, 403 `forbidden_origin`, 404 `not_found`, 405 `method_not_allowed`, 409 `conflict`, 413 `payload_too_large` (256 KB), 415 `unsupported_media_type`, 500 `internal` (with `requestId`), 503 `db_unavailable`. Reasons: `notObject`, `idInvalid`, `nameRequired`, `nameTooLong`, `priceNegative`, `priceInvalid`, `dateInvalid`, `invalidType`, `invalidValue`, `tooLong`, `tooMany`, `todayOutOfRange`.
+Errors are `{ "error": { "code", ... } }`: 400 `invalid_input` (with `field` and `reason` for validation failures), 400 `invalid_json`, 403 `forbidden_origin`, 404 `not_found`, 405 `method_not_allowed`, 409 `conflict`, 413 `payload_too_large` (256 KB), 415 `unsupported_media_type`, 500 `internal` (with `requestId`), 503 `db_unavailable`. Photos add 400 `invalid_photo` (empty, truncated, not starting `FF D8 FF`), 408 `request_timeout` (body not read in 30 s), 413 over 2 MiB, 415 unless `image/jpeg`, 502 `photo_upload_failed` (Drive failed or timed out), 503 `photos_unavailable` (Drive not configured, auth or folder problem, or 3 uploads already in flight; `Retry-After: 5`). Reasons: `notObject`, `idInvalid`, `nameRequired`, `nameTooLong`, `priceNegative`, `priceInvalid`, `dateInvalid`, `invalidType`, `invalidValue`, `tooLong`, `tooMany`, `todayOutOfRange`.
+
+Photos (T-005.2): the cap is 2 MiB, counted on the stream as well as `Content-Length`. Files are named `<photoId>.jpg` and tagged `appProperties {app:"tudo", photoId, itemId}`; a create is never retried. The row is written after Drive succeeds; if the write fails the new file is deleted. Replacing deletes the old file after commit. Deleting an item deletes its Drive files; a failed Drive delete is logged as `{event:"photo_orphan", photoId, code}` and leaves a tagged file behind (also when Drive is not configured; T-005.6 sweeps these). Lock rule: every writer of `item_photos` locks the `items` row first.
 
 CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 

@@ -26,6 +26,7 @@ export function toItemRow(r) {
     last_worn: r.last_worn,
     location_name: r.location_name,
     primary_photo_path: null,
+    primary_photo_id: r.primary_photo_id,
   };
 }
 
@@ -92,13 +93,39 @@ export async function saveItem(pool, id, v) {
     throw err;
   }
   client.release();
+  return getItem(pool, id);
+}
+
+/** @param {Pool} pool @param {string} id */
+export async function getItem(pool, id) {
   const r = await pool.query("select * from items_with_stats where id = $1", [id]);
   return r.rows[0] ? toItemRow(r.rows[0]) : null;
 }
 
-/** @param {Pool} pool @param {string} id */
+/**
+ * Locks the item row first (items -> item_photos, the order every photo writer uses, T-005.2), then deletes it.
+ * Returns the photo rows the cascade removed, so the caller can delete their Drive files.
+ * @param {Pool} pool @param {string} id @returns {Promise<{ id: string, drive_file_id: string | null }[]>}
+ */
 export async function removeItem(pool, id) {
-  await pool.query("delete from items where id = $1", [id]);
+  if (!pool.connect) throw new Error("pool has no connect()");
+  const client = await pool.connect();
+  let photos = [];
+  try {
+    await client.query("begin");
+    await client.query("select id from items where id = $1 for update", [id]);
+    photos = (
+      await client.query("select id, drive_file_id from item_photos where item_id = $1", [id])
+    ).rows;
+    await client.query("delete from items where id = $1", [id]);
+    await client.query("commit");
+  } catch (err) {
+    await client.query("rollback").catch(() => {});
+    client.release(/** @type {any} */ (err));
+    throw err;
+  }
+  client.release();
+  return photos;
 }
 
 /**

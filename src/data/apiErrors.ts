@@ -1,5 +1,6 @@
 import { EDITOR_COPY } from "@/features/items/copy";
 import { NAME_MAX, type ItemErrorCode } from "@/features/items/validate";
+import type { Item } from "@/types/item";
 
 const invalidInput = "Dữ liệu không hợp lệ";
 
@@ -14,8 +15,13 @@ export const API_ERROR_COPY = {
   invalid_input: invalidInput,
   invalid_json: invalidInput,
   unsupported_media_type: invalidInput,
+  invalid_photo: "Ảnh không hợp lệ",
+  photos_unavailable: "Chưa lưu được ảnh lúc này, thử lại sau",
+  photo_upload_failed: "Không tải ảnh lên được, thử lại nhé",
+  request_timeout: "Tải ảnh quá lâu, thử lại nhé",
   db_unavailable: "Máy chủ dữ liệu đang bận, thử lại sau",
   internal: (id?: string) => (id ? `Lỗi máy chủ (mã ${id})` : "Lỗi máy chủ"),
+  photoNotSaved: "Đã lưu món đồ nhưng chưa lưu được ảnh",
   unexpected: "Máy chủ phản hồi không hợp lệ, tải lại trang nhé",
   generic: "Có lỗi xảy ra, thử lại nhé",
 } as const;
@@ -49,5 +55,17 @@ export class ApiError extends Error {
   ) {
     super(apiErrorMessage(code, reason, requestId));
     this.name = "ApiError";
+  }
+}
+
+/** The item was saved but its photo step failed. `item` is the saved item, so the caller can retry the photo only. */
+export class PhotoSaveError extends Error {
+  constructor(
+    public item: Item,
+    cause: unknown,
+  ) {
+    const detail = (cause as Error | null)?.message;
+    super(detail ? `${API_ERROR_COPY.photoNotSaved} — ${detail}` : API_ERROR_COPY.photoNotSaved);
+    this.name = "PhotoSaveError";
   }
 }

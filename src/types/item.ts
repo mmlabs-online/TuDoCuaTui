@@ -18,7 +18,7 @@ export type Item = {
   notes: string;
   /** Displayable URL: signed Storage URL, data: URL of a fresh upload, or "" */
   photo: string;
-  /** Storage path of the current primary photo (Supabase mode only) */
+  /** Supabase: storage path; API: item_photos id. */
   photoPath?: string;
   wearCount: number;
   lastWorn: string;

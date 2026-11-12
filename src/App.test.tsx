@@ -6,6 +6,11 @@ import { starter } from "@/data/demo";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
 
+vi.mock("@/data/photos", () => ({
+  resizeImage: async () => ({ blob: new Blob(["jpeg"], { type: "image/jpeg" }) }),
+  urlToBlob: async () => new Blob(["raw"]),
+}));
+
 afterEach(cleanup);
 
 const cards = () => Array.from(document.querySelectorAll<HTMLElement>(".item-card"));
@@ -479,5 +484,66 @@ describe("App import/export (local mode)", () => {
     openImport();
     fireEvent.click(document.querySelector<HTMLElement>(".import-header .icon-btn")!);
     expect(screen.queryByText("THÊM NHIỀU MÓN")).toBeNull();
+  });
+});
+
+describe("App (API mode photos)", () => {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+  it("a failed photo step keeps the editor open and the retry PUTs the same item id", async () => {
+    const calls: { method: string; url: string }[] = [];
+    let photoAttempts = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        calls.push({ method, url });
+        if (method === "GET")
+          return json(url.endsWith("/items") ? { items: [] } : { locations: [] });
+        const id = /\/items\/([^/]+)/.exec(url)![1];
+        const row = {
+          id,
+          name: "Áo mới",
+          category: "top",
+          status: "active",
+          colors: [],
+          seasons: [],
+          tags: [],
+          created_at: "2026-01-01T00:00:00Z",
+          wear_count: 0,
+          last_worn: null,
+        };
+        if (!url.endsWith("/photo")) return json({ item: row });
+        return ++photoAttempts === 1
+          ? json({ error: { code: "photo_upload_failed" } }, 502)
+          : json({ item: { ...row, primary_photo_id: "22222222-2222-4222-8222-222222222222" } });
+      }),
+    );
+    try {
+      render(<App mode="api" />);
+      await screen.findByText("0 kết quả");
+      fireEvent.click(screen.getAllByRole("button", { name: "Thêm món đồ" })[0]);
+      fireEvent.change(screen.getByPlaceholderText("Ví dụ: Áo sơ mi linen trắng"), {
+        target: { value: "Áo mới" },
+      });
+      const input = document.querySelector<HTMLInputElement>("input[type=file]:not([capture])")!;
+      fireEvent.change(input, {
+        target: { files: [new File(["x"], "a.jpg", { type: "image/jpeg" })] },
+      });
+      await waitFor(() => expect(document.querySelector(".upload-zone img")).toBeTruthy());
+      const save = () => screen.getByRole("button", { name: /Lưu món đồ/ });
+      fireEvent.click(save());
+      await screen.findByText(/Đã lưu món đồ nhưng chưa lưu được ảnh/);
+      expect(screen.getByText("CHI TIẾT MÓN ĐỒ")).toBeTruthy();
+      await waitFor(() => expect((save() as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(save());
+      await screen.findByText("Đã lưu thay đổi");
+      const itemPuts = calls.filter((c) => c.method === "PUT" && !c.url.endsWith("/photo"));
+      expect(new Set(itemPuts.map((c) => c.url)).size).toBe(1);
+      expect(calls.filter((c) => c.url.endsWith("/photo"))).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

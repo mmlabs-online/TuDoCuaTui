@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { EDITOR_COPY } from "@/features/items/copy";
 import { NAME_MAX } from "@/features/items/validate";
-import { API_ERROR_COPY, ApiError, apiErrorMessage } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, apiErrorMessage, PhotoSaveError } from "./apiErrors";
 
 const SERVER_CODES = [
   "invalid_input",
@@ -15,6 +15,10 @@ const SERVER_CODES = [
   "internal",
   "db_unavailable",
   "unauthorized",
+  "invalid_photo",
+  "photos_unavailable",
+  "photo_upload_failed",
+  "request_timeout",
 ];
 
 describe("apiErrorMessage", () => {
@@ -44,5 +48,17 @@ describe("apiErrorMessage", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toBe(API_ERROR_COPY.not_found);
     expect(err.status).toBe(404);
+  });
+});
+
+describe("PhotoSaveError", () => {
+  test("message names the partial save and the cause; carries the saved item", () => {
+    const saved = { id: "x" } as never;
+    const e = new PhotoSaveError(saved, new ApiError(502, "photo_upload_failed"));
+    expect(e.item).toBe(saved);
+    expect(e.message).toBe(
+      `${API_ERROR_COPY.photoNotSaved} — ${API_ERROR_COPY.photo_upload_failed}`,
+    );
+    expect(new PhotoSaveError(saved, null).message).toBe(API_ERROR_COPY.photoNotSaved);
   });
 });

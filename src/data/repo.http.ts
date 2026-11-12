@@ -1,27 +1,40 @@
 import { localToday } from "@/lib/dates";
 import type { Item } from "@/types/item";
-import { ApiError } from "./apiErrors";
+import { ApiError, PhotoSaveError } from "./apiErrors";
 import { isUuid, itemToRow, rowToItem } from "./mappers";
+import { resizeImage, urlToBlob } from "./photos";
 import type { WardrobeRepo, WearOutcome } from "./repo";
 
-type ApiItemRow = Parameters<typeof rowToItem>[0];
+type ApiItemRow = Parameters<typeof rowToItem>[0] & { primary_photo_id?: string | null };
 type FetchFn = typeof fetch;
 
-/** Items through the Node API (`/api`), same origin. Photos are not supported yet. */
+/** `photo` stays "" until T-005.3 serves images; `photoPath` is the item_photos id. */
+const toItem = (row: ApiItemRow): Item => ({
+  ...rowToItem(row, ""),
+  photoPath: row.primary_photo_id ?? undefined,
+});
+
+/** Items and photos through the Node API (`/api`), same origin. */
 export function createHttpRepo(
   fetchFn: FetchFn = (...a) => fetch(...a),
   base = "/api",
+  resize: (src: Blob) => Promise<{ blob: Blob }> = resizeImage,
 ): WardrobeRepo {
-  const call = async <T>(method: string, path: string, body?: unknown): Promise<T | null> => {
+  const call = async <T>(
+    method: string,
+    path: string,
+    body?: unknown | Blob,
+  ): Promise<T | null> => {
+    const isBlob = body instanceof Blob;
     let res: Response;
     try {
       res = await fetchFn(base + path, {
         method,
         headers: {
           Accept: "application/json",
-          ...(body !== undefined && { "Content-Type": "application/json" }),
+          ...(body !== undefined && { "Content-Type": isBlob ? "image/jpeg" : "application/json" }),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : isBlob ? body : JSON.stringify(body),
         cache: "no-store",
         credentials: "same-origin",
         redirect: "manual",
@@ -49,7 +62,7 @@ export function createHttpRepo(
     mode: "api",
     async list() {
       const r = await call<{ items: ApiItemRow[] }>("GET", "/items");
-      return r!.items.map((row) => rowToItem(row, ""));
+      return r!.items.map(toItem);
     },
     async locations() {
       const r = await call<{ locations: string[] }>("GET", "/locations");
@@ -62,7 +75,19 @@ export function createHttpRepo(
         ...row,
         location_name: item.location.trim() || null,
       });
-      return rowToItem(r!.item, "");
+      let saved = r!.item;
+      try {
+        if (item.photo.startsWith("data:") || item.photo.startsWith("blob:")) {
+          const { blob } = await resize(await urlToBlob(item.photo));
+          saved = (await call<{ item: ApiItemRow }>("PUT", `/items/${id}/photo`, blob))!.item;
+        } else if (saved.primary_photo_id && !item.photoPath) {
+          await call("DELETE", `/items/${id}/photo`);
+          saved = { ...saved, primary_photo_id: null };
+        }
+      } catch (cause) {
+        throw new PhotoSaveError(toItem(saved), cause);
+      }
+      return toItem(saved);
     },
     async remove(item) {
       await call("DELETE", `/items/${item.id}`);
