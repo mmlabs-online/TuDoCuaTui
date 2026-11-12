@@ -29,12 +29,16 @@ function match(parts) {
  * @param {import("node:http").ServerResponse} res
  * @param {{
  *   pool: import("./items.js").Pool | null,
- *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, id: string,
+ *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
  *   setRoute: (template: string) => void,
  * }} ctx
  */
-export async function handleApi(req, res, { pool, drive, pathname, id, log, now, setRoute }) {
+export async function handleApi(
+  req,
+  res,
+  { pool, drive, pathname, query, id, log, now, setRoute },
+) {
   const parts = pathname.split("/");
   const m = match(parts);
   if (!m) {
@@ -56,7 +60,14 @@ export async function handleApi(req, res, { pool, drive, pathname, id, log, now,
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });
   }
   if (m.route === "/api/items/:id/photo") {
-    return handlePhoto(req, res, { pool, drive, itemId: /** @type {string} */ (itemId), id, log });
+    return handlePhoto(req, res, {
+      pool,
+      drive,
+      itemId: /** @type {string} */ (itemId),
+      query,
+      id,
+      log,
+    });
   }
 
   /** @type {unknown} */

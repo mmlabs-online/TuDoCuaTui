@@ -42,7 +42,7 @@ JSON only. Without `DATABASE_URL` every endpoint validates its input, then answe
 | `PUT /api/items/:id` | 200 `{ item: ItemRow }`; idempotent upsert, full replacement (omitted optional fields reset to defaults); body is `itemToRow` minus `id`/`location_id`, plus `location_name` (NFC, get-or-create); unknown keys ignored |
 | `DELETE /api/items/:id` | 204, also when the item is already gone |
 | `PUT /api/items/:id/photo` (raw JPEG body, `Content-Type: image/jpeg`) | 200 `{ item: ItemRow }`; stores the file in Drive and replaces the item's single primary photo |
-| `DELETE /api/items/:id/photo` | 204, also when there is no photo or no item |
+| `DELETE /api/items/:id/photo?photo=<uuid>` | 204. `photo` is required (exactly one uuid, else 400 `invalid_input` field `photo`). Deletes only if that id is still the item's photo, under the item lock; a stale id (already replaced or removed), no photo or no item is a 204 no-op, never 409 |
 | `POST /api/items/:id/wear` `{ delta: 1 \| -1, today: "YYYY-MM-DD" }` | 200 `{ wear_count, last_worn, already }`; `-1` removes the latest log; `today` must be within one day of Asia/Ho_Chi_Minh today |
 
 `ItemRow` is a snake_case `items_with_stats` row: `price` is a number or null, dates are `YYYY-MM-DD`, `created_at`/`updated_at` are ISO strings, `primary_photo_path` is always null; `primary_photo_id` is the `item_photos` id (uuid) or null. Drive file ids never reach the browser.

@@ -70,6 +70,7 @@ export function createApp({ pool, distDir, drive = null, access, log, now = () =
           pool,
           drive,
           pathname,
+          query: url.split("#")[0].split("?").slice(1).join("?"),
           id,
           log,
           now,

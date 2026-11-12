@@ -185,17 +185,38 @@ describe("createHttpRepo", () => {
     expect(saved.photo).toBe("");
   });
 
-  test("save after removing a stored photo (photoPath cleared) DELETEs the photo", async () => {
+  test("save after explicitly removing a stored photo DELETEs that photo id", async () => {
     let n = 0;
     const { repo, fetchFn } = setup(() =>
       ++n === 1
         ? json({ item: { ...row, primary_photo_id: PHOTO_ID } })
         : new Response(null, { status: 204 }),
     );
-    const saved = await repo.save(item({ photo: "", photoPath: undefined }));
-    expect(call(fetchFn, 1).url).toBe(`/api/items/${ID}/photo`);
+    const saved = await repo.save(
+      item({ photo: "", photoPath: undefined, removedPhotoId: PHOTO_ID }),
+    );
+    expect(call(fetchFn, 1).url).toBe(`/api/items/${ID}/photo?photo=${PHOTO_ID}`);
     expect(call(fetchFn, 1).init.method).toBe("DELETE");
     expect(saved.photoPath).toBeUndefined();
+  });
+
+  test("stale view: a row with a photo but no explicit removal sends no DELETE", async () => {
+    const { repo, fetchFn } = setup(() => json({ item: { ...row, primary_photo_id: PHOTO_ID } }));
+    const saved = await repo.save(item({ photo: "", photoPath: undefined }));
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(saved.photoPath).toBe(PHOTO_ID);
+  });
+
+  test("removing a stale photo id keeps the newer primary photo in the result", async () => {
+    const NEWER = "33333333-3333-4333-8333-333333333333";
+    let n = 0;
+    const { repo } = setup(() =>
+      ++n === 1
+        ? json({ item: { ...row, primary_photo_id: NEWER } })
+        : new Response(null, { status: 204 }),
+    );
+    const saved = await repo.save(item({ photo: "", removedPhotoId: PHOTO_ID }));
+    expect(saved.photoPath).toBe(NEWER);
   });
 
   test("save with an unchanged stored photo or an http(s) photo makes no photo request", async () => {

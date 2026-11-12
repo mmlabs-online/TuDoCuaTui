@@ -166,7 +166,10 @@ export function Editor({
                 className="remove-photo"
                 onClick={() => {
                   update("photo", "");
-                  if (photoById) update("photoPath", undefined);
+                  if (photoById) {
+                    update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
+                    update("photoPath", undefined);
+                  }
                 }}
               >
                 Bỏ ảnh

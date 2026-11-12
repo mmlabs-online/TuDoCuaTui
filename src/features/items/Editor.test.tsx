@@ -112,6 +112,7 @@ describe("API mode photos", () => {
     fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).toHaveBeenCalledWith("photoPath", undefined);
+    expect(update).toHaveBeenCalledWith("removedPhotoId", "photo-id");
   });
 
   test("local mode: Bỏ ảnh clears only photo", () => {
@@ -125,6 +126,7 @@ describe("API mode photos", () => {
     fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).not.toHaveBeenCalledWith("photoPath", undefined);
+    expect(update).not.toHaveBeenCalledWith("removedPhotoId", expect.anything());
     expect(screen.queryByText(EDITOR_COPY.photo.stored)).toBeNull();
   });
 });

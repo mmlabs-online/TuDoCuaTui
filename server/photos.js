@@ -6,6 +6,7 @@ import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { sendError, sendJson } from "./http.js";
 import { getItem } from "./items.js";
+import { isUuid } from "./validate.js";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const BODY_DEADLINE_MS = 30_000;
@@ -115,10 +116,10 @@ async function withLockedItem(pool, itemId, fn) {
  * @param {{
  *   pool: import("./items.js").Pool | null,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
- *   itemId: string, id: string, log: (entry: Record<string, unknown>) => void,
+ *   itemId: string, query: string, id: string, log: (entry: Record<string, unknown>) => void,
  * }} ctx
  */
-export async function handlePhoto(req, res, { pool, drive, itemId, id, log }) {
+export async function handlePhoto(req, res, { pool, drive, itemId, query, id, log }) {
   const put = req.method === "PUT";
   if (put) {
     const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
@@ -126,6 +127,16 @@ export async function handlePhoto(req, res, { pool, drive, itemId, id, log }) {
     if (Number(req.headers["content-length"]) > MAX_BYTES) {
       return rejectUnread(req, res, 413, "payload_too_large");
     }
+  }
+  /** @type {string | undefined} */
+  let expected;
+  if (!put) {
+    // Required: the photo id the caller saw, so a stale view cannot delete a newer photo.
+    const all = new URLSearchParams(query).getAll("photo");
+    if (all.length !== 1 || !isUuid(all[0])) {
+      return sendError(res, 400, "invalid_input", { field: "photo", reason: "idInvalid" });
+    }
+    expected = all[0];
   }
   if (!drive) return rejectUnread(req, res, 503, "photos_unavailable");
   if (!pool) return rejectUnread(req, res, 503, "db_unavailable");
@@ -139,9 +150,10 @@ export async function handlePhoto(req, res, { pool, drive, itemId, id, log }) {
       let old = [];
       await withLockedItem(pool, itemId, async (c) => {
         old = (
-          await c.query("delete from item_photos where item_id = $1 returning id, drive_file_id", [
-            itemId,
-          ])
+          await c.query(
+            "delete from item_photos where item_id = $1 and id = $2 returning id, drive_file_id",
+            [itemId, expected],
+          )
         ).rows;
       });
       await deleteDriveFiles(drive, old, log);

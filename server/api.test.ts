@@ -290,7 +290,7 @@ describe("no DB and DB errors", () => {
     });
     expect(put.status).toBe(503);
     expect((await err(put)).code).toBe("db_unavailable");
-    expect((await fetch(url, { method: "DELETE" })).status).toBe(503);
+    expect((await fetch(url + `?photo=${ID}`, { method: "DELETE" })).status).toBe(503);
   });
 
   it("a pg-like error -> 500 {code internal, requestId}; body and logs contain none of it", async () => {

@@ -295,8 +295,9 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
       headers: { "Content-Type": "image/jpeg", ...headers },
       body,
     });
-  const delPhoto = (id: string, b = base) =>
-    fetch(`${b}/api/items/${id}/photo`, { method: "DELETE" });
+  const delPhoto = (id: string, b = base, photo?: string) =>
+    fetch(`${b}/api/items/${id}/photo${photo ? `?photo=${photo}` : ""}`, { method: "DELETE" });
+  const primaryId = async () => (await rows())[0]?.id as string;
   const mkItem = (id: string) =>
     fetch(`${base}/api/items/${id}`, {
       method: "PUT",
@@ -503,13 +504,47 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
   it("DELETE photo removes row and file; second DELETE 204; missing item 204", async () => {
     await mkItem(uuid(1));
     await putPhoto(uuid(1));
-    expect((await delPhoto(uuid(1))).status).toBe(204);
+    const pid = await primaryId();
+    expect((await delPhoto(uuid(1), base, pid)).status).toBe(204);
     expect(await rows()).toEqual([]);
     expect(fake.files.size).toBe(0);
-    expect((await delPhoto(uuid(1))).status).toBe(204);
-    expect((await delPhoto(uuid(9))).status).toBe(204);
+    expect((await delPhoto(uuid(1), base, pid)).status).toBe(204);
+    expect((await delPhoto(uuid(9), base, pid)).status).toBe(204);
     const items = ((await (await fetch(`${base}/api/items`)).json()) as { items: any[] }).items;
     expect(items[0].primary_photo_id).toBeNull();
+  });
+
+  it("DELETE photo needs a single uuid ?photo= -> 400 invalid_input field photo", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const pid = await primaryId();
+    const url = `${base}/api/items/${uuid(1)}/photo`;
+    for (const q of ["", "?photo=", "?photo=nope", `?photo=${pid}&photo=${pid}`, `?x=${pid}`]) {
+      const res = await fetch(url + q, { method: "DELETE" });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as any).error).toMatchObject({
+        code: "invalid_input",
+        field: "photo",
+      });
+    }
+    expect(await rows()).toHaveLength(1);
+    expect(fake.files.size).toBe(1);
+  });
+
+  it("stale two-tab DELETE: tab A removes an id that tab B already replaced -> 204, newer photo kept", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const seenByA = await primaryId();
+    const second = Buffer.concat([JPEG, Buffer.from("2")]);
+    expect((await putPhoto(uuid(1), second)).status).toBe(200);
+    const newer = await primaryId();
+    expect(newer).not.toBe(seenByA);
+    expect((await delPhoto(uuid(1), base, seenByA)).status).toBe(204);
+    expect((await rows()).map((r) => r.id)).toEqual([newer]);
+    expect(fake.files.size).toBe(1);
+    expect([...fake.files.values()][0].bytes.equals(second)).toBe(true);
+    const items = ((await (await fetch(`${base}/api/items`)).json()) as { items: any[] }).items;
+    expect(items[0].primary_photo_id).toBe(newer);
   });
 
   it("DELETE item removes its Drive files; a failing Drive delete still 204; legacy rows skipped", async () => {
@@ -580,7 +615,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     });
     expect(off.status).toBe(503);
     expect((await off.json()).error.code).toBe("photos_unavailable");
-    expect((await delPhoto(uuid(1), noDriveBase)).status).toBe(503);
+    expect((await delPhoto(uuid(1), noDriveBase, uuid(5))).status).toBe(503);
     const get = await fetch(`${base}/api/items/${uuid(1)}/photo`);
     expect(get.status).toBe(405);
     expect(get.headers.get("allow")).toBe("PUT, DELETE");

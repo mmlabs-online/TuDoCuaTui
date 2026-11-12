@@ -20,6 +20,8 @@ export type Item = {
   photo: string;
   /** Supabase: storage path; API: item_photos id. */
   photoPath?: string;
+  /** API mode: id of the stored photo the user explicitly removed in the editor (sent with the DELETE) */
+  removedPhotoId?: string;
   wearCount: number;
   lastWorn: string;
   createdAt: string;

@@ -55,3 +55,35 @@ Plan approved by Ming (A1–A19 as written). Slice 1 only; the orphan sweep is T
 ### Scope self-check
 - Could the diff be smaller? No; Editor.tsx diff is mostly de-indentation after removing the ternary.
 - Diff size (production code, excluding tests and README): +463 / -96 lines, about 367 net (Editor.tsx accounts for +68 / -69 of re-indentation).
+
+## Attempt 2 (REWORK: security follow-up, stale-view photo deletion)
+
+Scope: only the "Security follow-up to fix" item of review.md.
+
+### Files touched
+- `src/types/item.ts`: new optional `removedPhotoId` (id of the stored photo the user explicitly removed). Required because the client must know which id it saw once `photoPath` is cleared.
+- `src/features/items/Editor.tsx`: "Bỏ ảnh" in API mode also sets `removedPhotoId`. Required for (a).
+- `src/data/repo.http.ts`: DELETE only when `removedPhotoId` is set and `photoPath` is cleared; sends `?photo=<id>`; only nulls `primary_photo_id` locally if it equals that id. Required for (a).
+- `server/app.js`, `server/api.js`: pass the query string (parsed separately from the raw pathname, which still drives routing) to the photo handler. Required for (b).
+- `server/photos.js`: DELETE requires exactly one uuid `photo` (400 `invalid_input`, field `photo`, checked before Drive/pool availability); deletes `where item_id and id` under the item lock. Stale id: 204 no-op (chosen over 409). Required for (b).
+- `server/README.md`: contract documented (204 no-op for stale id).
+- Tests: `src/data/repo.http.test.ts`, `src/features/items/Editor.test.tsx`, `server/api.db.test.ts`, `server/api.test.ts`.
+
+### Tests added
+Client: explicit removal sends `DELETE ...?photo=<id>`; stale view without removal sends no DELETE; stale removal keeps the newer primary id; Editor sets `removedPhotoId`. Server (DB): 400 for missing/empty/non-uuid/duplicate/wrong-name `photo`; stale two-tab scenario (tab B replaced the photo, tab A's DELETE with the old id is 204, newer row and Drive file kept); existing delete tests updated for the new param.
+
+### Checks (local PostgreSQL 16 for DB tests, stopped and deleted afterwards)
+- pnpm typecheck: pass
+- pnpm format:check: pass
+- pnpm test: 64 files, 785 tests passed
+- CI=true pnpm test:coverage: 64 files, 785 tests passed
+- pnpm build: pass
+
+### Out-of-plan files
+None beyond the review item.
+
+### Follow-ups
+- Removing a stored photo alone does not make the editor dirty (`photo` stays ""), pre-existing; not changed.
+
+### Scope self-check
+Only the review's security item was changed.

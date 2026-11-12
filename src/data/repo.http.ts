@@ -80,9 +80,12 @@ export function createHttpRepo(
         if (item.photo.startsWith("data:") || item.photo.startsWith("blob:")) {
           const { blob } = await resize(await urlToBlob(item.photo));
           saved = (await call<{ item: ApiItemRow }>("PUT", `/items/${id}/photo`, blob))!.item;
-        } else if (saved.primary_photo_id && !item.photoPath) {
-          await call("DELETE", `/items/${id}/photo`);
-          saved = { ...saved, primary_photo_id: null };
+        } else if (item.removedPhotoId && !item.photoPath) {
+          // Only an explicit removal in the editor; the server ignores the id if it is no longer the primary photo.
+          await call("DELETE", `/items/${id}/photo?photo=${item.removedPhotoId}`);
+          if (saved.primary_photo_id === item.removedPhotoId) {
+            saved = { ...saved, primary_photo_id: null };
+          }
         }
       } catch (cause) {
         throw new PhotoSaveError(toItem(saved), cause);
