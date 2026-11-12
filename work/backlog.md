@@ -35,7 +35,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-015 | Switch the image and deploy from nginx to the Node server | MERGED | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-11 |
 | T-016 | Remove Supabase from the app | BLOCKED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-11 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
-| T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-009 | none | 0 | 2026-11-12 |
+| T-018 | Store AI provider settings and an encrypted API key on the Node server | BACKLOG | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 0 | 2026-11-12 |
+| T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-018 | none | 0 | 2026-11-12 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | BLOCKED | P1 | M | architecture, security | T-009 | plan-approval | 0 | 2026-11-10 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
 | T-005.1 | Connect the Node server to Google Drive | MERGED | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 1 | 2026-11-11 |
