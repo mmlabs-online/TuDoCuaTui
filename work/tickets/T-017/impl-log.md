@@ -42,3 +42,29 @@ None.
 
 ### Scope self-check
 Only plan files touched; no Supabase migration, no `.env` read, no Figma files.
+
+## Attempt 2 (REWORK: security should-fix)
+
+### Files touched
+- `src/data/mappers.ts`: `toCategoryLabel` uses own-property lookups (`hasOwnProperty.call`; `Object.hasOwn` is not in the TS lib target) and a `typeof v !== "string"` guard. Required because `in` on plain objects let `constructor`/`__proto__`/`toString` through.
+- `src/data/mappers.test.ts`: new test for prototype keys and non-strings → "Loại khác", and `itemToRow` → `other`.
+
+### Tests
+New test fails without the fix (1 failed | 22 passed), passes with it.
+
+### Checks
+- `pnpm typecheck`: pass
+- `pnpm format:check`: All matched files use the correct format
+- `pnpm test` (scratch PG16, scram): Test Files 68 passed, Tests 857 passed
+- `CI=true pnpm test:coverage`: 857 passed; All files 95.1% statements
+- `pnpm build`: built OK
+- Scratch PostgreSQL stopped and deleted.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only the listed review issue fixed.

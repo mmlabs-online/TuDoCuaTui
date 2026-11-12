@@ -51,11 +51,15 @@ export const CATEGORY_ALIASES: Record<string, string> = {
   Khác: OTHER_CATEGORY,
 };
 
+const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+
 /** Current label, id, or old label/retired id → current label; anything else → "Loại khác". */
 export function toCategoryLabel(v: string | null | undefined): string {
-  if (!v) return OTHER_CATEGORY;
-  if (v in CATEGORY_TO_DB) return v;
-  return CATEGORY_FROM_DB[v as CategoryId] ?? CATEGORY_ALIASES[v] ?? OTHER_CATEGORY;
+  if (typeof v !== "string" || !v) return OTHER_CATEGORY;
+  if (own(CATEGORY_TO_DB, v)) return v;
+  if (own(CATEGORY_FROM_DB, v)) return CATEGORY_FROM_DB[v as CategoryId];
+  if (own(CATEGORY_ALIASES, v)) return CATEGORY_ALIASES[v];
+  return OTHER_CATEGORY;
 }
 
 export const STATUS_TO_DB: Record<Status, Enums["tudo_item_status"]> = {

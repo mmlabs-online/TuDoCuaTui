@@ -136,6 +136,13 @@ describe("rowToItem / itemToRow", () => {
     expect(toCategoryLabel(null)).toBe("Loại khác");
   });
 
+  test("toCategoryLabel: prototype keys and non-strings → Loại khác", () => {
+    for (const k of ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"])
+      expect(toCategoryLabel(k)).toBe("Loại khác");
+    expect(toCategoryLabel(42 as unknown as string)).toBe("Loại khác");
+    expect(itemToRow(makeItem({ category: "constructor" }), null).category).toBe("other");
+  });
+
   test("itemToRow: old label Túi → accessory, Váy/Đầm → dress, unknown → other", () => {
     expect(itemToRow(makeItem({ category: "Túi" }), null).category).toBe("accessory");
     expect(itemToRow(makeItem({ category: "Váy/Đầm" }), null).category).toBe("dress");
