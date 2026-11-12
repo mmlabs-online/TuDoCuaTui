@@ -89,3 +89,65 @@ No violations found.
 - 🔴 B1 — `server/photo-sweep.js:92-115`: in `--apply` mode the sweep must refuse (exit 1, delete nothing) when the reference set looks empty/foreign: `item_photos` has no rows while there are candidates, or no listed tagged file is referenced while there are candidates. The absolute `--max-delete` cap (50) does not protect a personal library of ≤ 50 photos against a wrong/empty `DATABASE_URL`. Needs DB tests for both conditions and one README sentence.
 
 → Verdict for attempt 1 becomes **REWORK** (orchestrator rule: a 🔴 security finding turns PASS into REWORK).
+
+## Attempt 2 — 2026-11-12
+Verdict: REWORK
+
+Scope: security blocker B1 (security-review.md attempt 1), fixed in 63f67aa "T-005.6: refuse sweep on empty or foreign reference set".
+
+### Checks (run by reviewer)
+Branch `claude/loving-fermi-t90upb`. Scratch PostgreSQL 16 (`/usr/lib/postgresql/16`, data dir under /tmp, scram-sha-256 password auth, `TEST_DATABASE_URL` set). The cluster was stopped and deleted afterwards.
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json`, exit 0, no output.
+- format:check: exit 0 (181 files).
+- test: `Test Files 68 passed (68)`, `Tests 842 passed (842)`. `photo-sweep.db.test.ts` ran (19 passed, not skipped).
+- test:coverage (`CI=true`): exit 0, 68 / 842 passed, no threshold failure. All files 95.06 % statements / 94.12 % branches; `photo-sweep.js` 87.93 % statements.
+- build: `vite build`, `✓ built in 326ms`.
+- These numbers match impl-log attempt 2 (68 files, 842 tests).
+
+**Manual check (reviewer).** I ran `runSweep` from a scratch test outside the repo against a fresh migrated DB and the fake Drive. Three old tagged files were listed.
+- Empty `item_photos`, `--apply`:
+  - exit 1, 0 DELETEs
+  - output: `refusing: no listed file is referenced (check DATABASE_URL)` and the summary line `referenced 0, candidates 3, deleted 0`
+  - The same result with `maxDelete: 100, graceMinutes: 15`, so a high cap does not bypass the refusal.
+- Only a non-matching row (its file is not listed), `--apply`:
+  - exit 1, 0 DELETEs
+  - output: the refusal line, `missing file for photo <row uuid>`, and the summary
+- After adding a row for file 1, `--apply`:
+  - exit 0
+  - `delete <uuid2>: ok` and `delete <uuid3>: ok`, 2 DELETEs
+  - only `fakefile00000001` (the referenced file) remained
+- Redaction: I grepped the refusal outputs for the access, refresh and client-secret values, `GOOGLE_TEXT_SENTINEL`, `fakefile`, `postgres://` and the DB password. Nothing matched. Only fixed text, row UUIDs and counts are printed.
+
+### Acceptance criteria (B1)
+- [x] With `--apply`, empty `item_photos` plus candidates gives exit 1 and nothing deleted. Evidence:
+  - code: `server/photo-sweep.js:110-116`. The refusal sets `failed`, the `apply && failed` branch skips both the cap and the delete loop, and `:160` returns 1.
+  - test: `server/photo-sweep.db.test.ts:247` (exit 1, refusal line, 0 DELETEs, 3 files remain; dry-run exits 0 with the same warning and the would-delete lines)
+  - the manual run above
+- [x] With `--apply`, only non-matching rows gives the same result. Evidence: `photo-sweep.db.test.ts:261` and the manual run. The guard condition `count.referenced === 0` (`photo-sweep.js:110`) covers both cases.
+- [x] Normal sweeps still delete. Evidence:
+  - `photo-sweep.db.test.ts:87`, `:107`, `:204` (6 listed, 3 pages, 1 file left), `:215`, `:236` and `:323`
+  - the manual run's final step
+- [x] The README has one sentence on the refusal. Evidence: `server/README.md:75`.
+- [x] Fixed log line, no ids or secrets. Evidence: `photo-sweep.js:112` and the manual grep.
+- [ ] Changed or affected existing tests still test what they did. **FAILED, see Issue 1.** The anchor added to `:87`, `:107`, `:172`, `:204`, `:215`, `:236` and `:323` keeps their intent. Their assertions were adjusted only for the extra referenced file (`size 1`, `listed 6`). The redaction test was not updated.
+
+### Issues
+#### Issue 1 — 🟡 should-fix — test regression (redaction test lost its delete-failure path)
+- **Where**: `server/photo-sweep.db.test.ts:296-321` ("output never contains tokens, secrets, Google error text, Drive file ids or page tokens").
+- **Expected**: The test still runs an `--apply` sweep in which Drive DELETEs fail. The fake answers those with an error body containing `GOOGLE_TEXT_SENTINEL`, so the test proves that a failed delete leaks no Google text. That was the evidence for the attempt-1 criterion "No token or Google text in logs".
+- **Actual**: The test seeds files 1–3 and only a row for file 4 (`:298-299`), so no listed file is referenced. Since 63f67aa, the `fake.fail.add("delete")` + `--apply` run (`:302-303`) is refused at `photo-sweep.js:110-113` and sends 0 DELETEs. I reproduced this: exit 1, output `refusing…`, `missing file for photo …004`, summary `deleted 0, failed 0`, 0 DELETE requests. The test still passes, but its delete-failure leg no longer runs. The impl-log says the existing apply tests that relied on an empty reference set were anchored, but this one was missed.
+- **Fix instruction**:
+  - In that test, call `await anchor();` before the files are seeded (before `:298`).
+  - After the failing apply run at `:303`, assert that DELETEs were actually attempted, e.g. `expect(deletes().length).toBeGreaterThan(0)`. This stops the leg from going silently dead again.
+  - Keep every other assertion. The anchor's `fakefile00000100` is covered by the existing `"fakefile"` check, and with `listPageSize` 2 there are still page tokens.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. Only `server/photo-sweep.js`, `server/photo-sweep.db.test.ts`, `server/README.md` and the impl-log changed, all inside the plan's files (R7). There is no client, env, migration or Figma change.
+
+### Nits (do not block)
+- `server/README.md:74` still says "rerun with the number it prints once you have checked it". The new bullet at `:75` covers the dangerous case, so this is acceptable.
+- In dry-run the warning line starts with `refusing:` even though nothing is being refused. A dry-run wording such as `warning: … --apply would refuse` would be clearer. Do not change it unless Ming asks.
+- The refusal goes to stdout, like the other failure lines (security note N9, unchanged).
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1: scheduling, `scripts/check-image.sh` `expect_exit 2` line, the stale README environment line, trash instead of permanent delete (security N1), and an optional ratio guard.
