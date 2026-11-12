@@ -46,6 +46,7 @@ In API mode, the grid and the editor show photos stored in Drive, streamed by th
 - Replaces F-202.2's signed-URL refresh (no expiring URLs any more).
 
 ## Notes / answers from Ming
+- (2026-11-12, from T-005.2 security review) `GET /api/photos/:id` must send a fixed `Content-Type: image/jpeg` (never Drive's mimeType), keep `X-Content-Type-Options: nosniff`, and add `Content-Security-Policy: default-src 'none'; sandbox` + `Content-Disposition: inline` (a JPEG/HTML polyglot passes the magic-byte check). Hand-made uploads may carry EXIF/GPS (the app's resize strips it) — note it. The photo id on the wire is `items_with_stats.primary_photo_id` (item_photos.id), never the Drive id.
 - (2026-11-11, from T-005.1 security review) Every `getMedia` caller passes a per-request signal with a deadline (document in server/README.md); remove the caller abort listener on the streaming path (`server/drive.js:153`).
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
