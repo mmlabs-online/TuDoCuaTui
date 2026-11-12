@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-12T08:50:36Z |
 | PR | — |
 
 ## Goal
@@ -76,9 +76,8 @@ Touches F-201 (editor), F-301 (filters), F-601 (CSV import/template), F-701 (all
 - DB: migration test on real Postgres (rows with `bag`/`sport`/`home` are moved; new values insertable).
 - Manual: editor + filters at 390px, light and dark.
 
-Waiting for Ming: plan approval (High tier)
-
 ## Notes / answers from Ming
+- 2026-11-12: "Plan approved" (A1–A10 as written).
 - 2026-11-12: "thêm 1 task làm gấp bây giờ: Thay đổi category: Áo, quần/váy, đầm, set đồ, giày/dép, áo dài, khoác, bikini, Phụ kiện, loại khác"
 
 ## Handoff
