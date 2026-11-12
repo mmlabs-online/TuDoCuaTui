@@ -1,18 +1,12 @@
 import { localToday } from "@/lib/dates";
 import type { Item } from "@/types/item";
 import { ApiError, PhotoSaveError } from "./apiErrors";
-import { isUuid, itemToRow, rowToItem } from "./mappers";
+import { apiPhotoUrl, isUuid, itemToRow, rowToItem } from "./mappers";
 import { resizeImage, urlToBlob } from "./photos";
 import type { WardrobeRepo, WearOutcome } from "./repo";
 
 type ApiItemRow = Parameters<typeof rowToItem>[0] & { primary_photo_id?: string | null };
 type FetchFn = typeof fetch;
-
-/** `photo` stays "" until T-005.3 serves images; `photoPath` is the item_photos id. */
-const toItem = (row: ApiItemRow): Item => ({
-  ...rowToItem(row, ""),
-  photoPath: row.primary_photo_id ?? undefined,
-});
 
 /** Items and photos through the Node API (`/api`), same origin. */
 export function createHttpRepo(
@@ -20,6 +14,11 @@ export function createHttpRepo(
   base = "/api",
   resize: (src: Blob) => Promise<{ blob: Blob }> = resizeImage,
 ): WardrobeRepo {
+  /** `photo` is the same-origin `/api/photos/<id>` URL; `photoPath` is the item_photos id. */
+  const toItem = (row: ApiItemRow): Item => ({
+    ...rowToItem(row, apiPhotoUrl(row.primary_photo_id, base)),
+    photoPath: row.primary_photo_id ?? undefined,
+  });
   const call = async <T>(
     method: string,
     path: string,

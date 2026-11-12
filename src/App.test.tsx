@@ -546,4 +546,39 @@ describe("App (API mode photos)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("duplicate in API mode clears the photo", async () => {
+    const PHOTO = "22222222-2222-4222-8222-222222222222";
+    const row = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Áo có ảnh",
+      category: "top",
+      status: "active",
+      colors: [],
+      seasons: [],
+      tags: [],
+      created_at: "2026-01-01T00:00:00Z",
+      wear_count: 1,
+      last_worn: null,
+      primary_photo_id: PHOTO,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        json(url.endsWith("/items") ? { items: [row] } : { locations: [] }),
+      ),
+    );
+    try {
+      render(<App mode="api" />);
+      fireEvent.click(await screen.findByRole("heading", { name: "Áo có ảnh" }));
+      expect(document.querySelector(".upload-zone img")?.getAttribute("src")).toBe(
+        `/api/photos/${PHOTO}`,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Nhân bản" }));
+      expect(document.querySelector(".upload-zone img")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Bỏ ảnh" })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

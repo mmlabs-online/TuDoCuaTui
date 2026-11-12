@@ -1,6 +1,7 @@
 import type { Item } from "@/types/item";
 import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
+import { ItemPhoto } from "@/components/ItemPhoto";
 import { isStale } from "@/features/items/filters";
 
 export function Hero({
@@ -30,7 +31,7 @@ export function Hero({
           .slice(0, 4)
           .map((item, index) => (
             <div className={`collage-card collage-${index + 1}`} key={item.id}>
-              <img src={item.photo} alt={item.name} />
+              <ItemPhoto src={item.photo} alt={item.name} fallback={null} />
               <span>{["Mới mua", "Yêu thích", "Mặc nhiều nhất", "Dễ phối"][index]}</span>
             </div>
           ))}

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | T-005.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/39 |
 
 ## Goal
 In API mode, the grid and the editor show photos stored in Drive, streamed by the server.
@@ -51,3 +51,8 @@ In API mode, the grid and the editor show photos stored in Drive, streamed by th
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff
+
+### 2026-11-12 — claude — DONE
+- Done: plan (Gate none, A1–A14); attempt 1 PASS; attempt 2 fixed two 🟡 at Ming's request (accept-encoding identity, `return await` in app.js); attempt 3 rewrote the regression test so it fails without the fix; PASS; security no 🔴/🟡; PR #39 opened.
+- In progress / next: Ming merges PR #39, finishes M-15 (refresh-token secret, dispatch deploy, smoke), then cuts a release (T-005.2 + T-005.3). Next tickets: T-005.6 (sweep), F-202.1, T-016 (on hold).
+- Gotchas: Google alt=media behaviour only verifiable in production (check Network sizes); one-year immutable browser cache (A2).

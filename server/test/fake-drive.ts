@@ -29,8 +29,8 @@ export type Recorded = { method: string; url: string; auth: string | undefined; 
 export async function startFakeDrive() {
   const files = new Map<string, { bytes: Buffer; meta: Record<string, unknown> }>();
   const requests: Recorded[] = [];
-  const hang = new Set<"upload" | "upload-after-store" | "media">();
-  const fail = new Set<"upload" | "delete">();
+  const hang = new Set<"upload" | "upload-after-store" | "media" | "stream-stall">();
+  const fail = new Set<"upload" | "delete" | "media">();
   let next = 0;
 
   const server = http.createServer((req, res) => {
@@ -78,6 +78,13 @@ export async function startFakeDrive() {
           return;
         }
         if (hang.has("media")) return;
+        if (fail.has("media"))
+          return json(500, { error: { errors: [{ reason: "backendError" }] } });
+        if (hang.has("stream-stall")) {
+          res.writeHead(200, { "content-type": "image/jpeg", "content-length": f.bytes.length });
+          res.write(f.bytes.subarray(0, 4)); // headers and part of the body, then silence
+          return;
+        }
         res.writeHead(200, {
           "content-type": String(f.meta.mimeType),
           "content-length": f.bytes.length,

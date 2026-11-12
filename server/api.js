@@ -2,7 +2,7 @@
 // /api router. Called by app.js only after the access check, with the raw pathname (never decoded).
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
-import { deleteDriveFiles, handlePhoto } from "./photos.js";
+import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
 import { listItems, listLocations, removeItem, saveItem, wearItem } from "./items.js";
 import { isUuid, parseItemInput, parseWearInput } from "./validate.js";
 
@@ -15,6 +15,7 @@ function match(parts) {
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
+  if (parts.length === 4 && a === "photos" && b) return { route: "/api/photos/:id", allow: "GET" };
   if (parts.length === 5 && a === "items" && b && c === "photo") {
     return { route: "/api/items/:id/photo", allow: "PUT, DELETE" };
   }
@@ -58,6 +59,15 @@ export async function handleApi(
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });
+  }
+  if (m.route === "/api/photos/:id") {
+    return await servePhoto(req, res, {
+      pool,
+      drive,
+      photoId: /** @type {string} */ (itemId),
+      id,
+      log,
+    });
   }
   if (m.route === "/api/items/:id/photo") {
     return handlePhoto(req, res, {

@@ -38,7 +38,7 @@ export function Editor({
   onDuplicate: () => void;
   onWorn: (n: number) => void;
   showMockAi: boolean;
-  /** API mode: a stored photo is known only by its id (`photoPath`) and is not displayed yet. */
+  /** API mode: a stored photo is known by its id (`photoPath`); `item.photo` is its `/api/photos/<id>` URL. */
   photoById?: boolean;
 }) {
   const file = useRef<HTMLInputElement>(null);
@@ -63,7 +63,8 @@ export function Editor({
   const requestClose = () => (isDirty(initial, item) ? setDiscardOpen(true) : onClose());
   const toggle = (key: "colors" | "seasons", v: string) =>
     update(key, item[key].includes(v) ? item[key].filter((x) => x !== v) : [...item[key], v]);
-  const storedOnly = photoById && !item.photo && !!item.photoPath && !isNew;
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
+  const loadFailed = !!item.photo && item.photo === brokenSrc;
   const upload = (f?: File) => {
     if (!f) return;
     const r = new FileReader();
@@ -85,7 +86,7 @@ export function Editor({
         <div className="editor-body">
           <div className="photo-column">
             <button
-              className={`upload-zone ${item.photo ? "has-photo" : ""}`}
+              className={`upload-zone ${item.photo && !loadFailed ? "has-photo" : ""}`}
               onClick={() => file.current?.click()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -93,15 +94,20 @@ export function Editor({
               }}
               onDragOver={(e) => e.preventDefault()}
             >
-              {item.photo ? (
-                <img src={item.photo} alt="Ảnh món đồ" />
-              ) : storedOnly ? (
+              {item.photo && !loadFailed ? (
+                <img
+                  src={item.photo}
+                  alt="Ảnh món đồ"
+                  decoding="async"
+                  onError={() => setBrokenSrc(item.photo)}
+                />
+              ) : loadFailed ? (
                 <>
                   <span className="upload-icon">
                     <Icon name="image" size={25} />
                   </span>
-                  <b>{EDITOR_COPY.photo.stored}</b>
-                  <small>{EDITOR_COPY.photo.storedHint}</small>
+                  <b>{EDITOR_COPY.photo.loadFailed}</b>
+                  <small>{EDITOR_COPY.photo.loadFailedHint}</small>
                 </>
               ) : (
                 <>

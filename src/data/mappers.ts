@@ -86,6 +86,10 @@ export function rowToItem(r: ItemRow, photoUrl = ""): Item {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (s: string) => UUID.test(s);
 
+/** API mode: the photo URL is built from the item_photos id (never a Drive id). */
+export const apiPhotoUrl = (id: string | null | undefined, base = "/api"): string =>
+  id && isUuid(id) ? `${base}/photos/${id}` : "";
+
 export function itemToRow(it: Item, locationId: string | null): ItemInsert {
   const row: ItemInsert = {
     name: it.name.trim(),

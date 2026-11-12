@@ -138,19 +138,21 @@ export function createDriveClient({
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), ms);
     const onAbort = () => ctl.abort();
+    let handedOver = false;
     if (signal?.aborted) ctl.abort();
     else signal?.addEventListener("abort", onAbort, { once: true });
     try {
       const res = await doFetch(url, { ...init, redirect, signal: ctl.signal });
       if (streaming && res.ok) {
         clearTimeout(timer);
+        handedOver = true;
         return { res, text: "" };
       }
       const text = await res.text();
       return { res, text };
     } finally {
       clearTimeout(timer);
-      if (!streaming) signal?.removeEventListener("abort", onAbort);
+      if (!handedOver) signal?.removeEventListener("abort", onAbort);
     }
   }
 
@@ -349,7 +351,8 @@ export function createDriveClient({
     },
 
     /**
-     * The body is a web stream owned by the caller; `signal` aborts it.
+     * The body is a web stream owned by the caller; `signal` aborts it. Every caller passes a per-request signal
+     * with a deadline: a handed-over stream keeps its abort listener until that signal goes away.
      * @param {string} id @param {{ signal?: AbortSignal }} [opts]
      * @returns {Promise<{ body: ReadableStream<Uint8Array>, contentType: string | null, contentLength: number | null }>}
      */
@@ -357,6 +360,7 @@ export function createDriveClient({
       const { res } = await request("get", {
         method: "GET",
         url: `${fileUrl(id)}?alt=media`,
+        headers: { "accept-encoding": "identity" },
         timeoutMs: t.headers,
         retry: true,
         signal,

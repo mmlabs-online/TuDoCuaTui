@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDriveClient, DriveConfigError, DriveError, loadDriveConfig } from "./drive.js";
 import { FAKE, fakeConfig, fakeEnv } from "./test/fake-drive.js";
 
@@ -312,6 +312,21 @@ describe("requests and error mapping", () => {
     expect(m.calls[1].init.redirect).toBe("follow");
   });
 
+  it("failed streaming attempts remove their abort listener; a handed-over stream keeps it", async () => {
+    const ctl = new AbortController();
+    const added = vi.spyOn(ctl.signal, "addEventListener");
+    const removed = vi.spyOn(ctl.signal, "removeEventListener");
+    const { drive } = setup([
+      TOKEN_OK,
+      { status: 500 },
+      { status: 200, body: "abc", headers: { "content-length": "3" } },
+    ]);
+    const m = await drive.getMedia(ID, { signal: ctl.signal });
+    expect(added).toHaveBeenCalledTimes(2);
+    expect(removed).toHaveBeenCalledTimes(1);
+    expect(await new Response(m.body).text()).toBe("abc");
+  });
+
   it("getMedia returns the body stream, content type and length", async () => {
     const { drive } = setup([
       TOKEN_OK,
@@ -325,6 +340,12 @@ describe("requests and error mapping", () => {
     expect(m.contentType).toBe("image/jpeg");
     expect(m.contentLength).toBe(3);
     expect(await new Response(m.body).text()).toBe("abc");
+  });
+
+  it("getMedia asks Drive for an identity encoding so Content-Length matches the bytes", async () => {
+    const m = setup([TOKEN_OK, { status: 200, body: "abc", headers: { "content-length": "3" } }]);
+    await m.drive.getMedia(ID);
+    expect(new Headers(m.calls[1].init.headers).get("accept-encoding")).toBe("identity");
   });
 
   it("getMedia without a body is drive_bad_response", async () => {

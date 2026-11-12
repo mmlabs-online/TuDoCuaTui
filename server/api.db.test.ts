@@ -280,6 +280,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
   let noDriveBase: string;
   let logs: Record<string, unknown>[] = [];
   let beforeCreate: (() => Promise<void>) | null = null;
+  let beforeMedia: (() => Promise<void>) | null = null;
 
   const JPEG = Buffer.concat([
     Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
@@ -332,10 +333,14 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
       config: fakeConfig,
       ...fake.urls,
       sleep: async () => {},
-      timeouts: { upload: 300 },
+      timeouts: { upload: 300, headers: 300 },
     });
     const drive = {
       ...real,
+      getMedia: async (...a: Parameters<typeof real.getMedia>) => {
+        await beforeMedia?.();
+        return real.getMedia(...a);
+      },
       createFile: async (f: Parameters<typeof real.createFile>[0]) => {
         await beforeCreate?.();
         return real.createFile(f);
@@ -367,6 +372,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     fake.fail.clear();
     logs = [];
     beforeCreate = null;
+    beforeMedia = null;
   });
 
   it("PUT photo creates one Drive file and one row", async () => {
@@ -640,5 +646,113 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     expect((await res.json()).item.primary_photo_id).toBe(before.id);
     expect(await rows()).toHaveLength(1);
     expect(fake.files.size).toBe(1);
+  });
+
+  const getPhoto = (id: string, headers: Record<string, string> = {}): Promise<Res> =>
+    fetch(`${base}/api/photos/${id}`, { headers });
+
+  it("GET photo streams the stored bytes with fixed headers", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    const [[driveId, file]] = [...fake.files];
+    file.meta.mimeType = "text/html";
+    logs = [];
+    const res = await getPhoto(photoId);
+    expect(res.status).toBe(200);
+    expect(Buffer.from(await res.arrayBuffer()).equals(JPEG)).toBe(true);
+    const h = Object.fromEntries(res.headers);
+    expect(h).toMatchObject({
+      "content-type": "image/jpeg",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; sandbox",
+      "content-disposition": "inline",
+      "cache-control": "private, max-age=31536000, immutable",
+      etag: `"${photoId}"`,
+      "cross-origin-resource-policy": "same-origin",
+      "content-length": String(JPEG.length),
+    });
+    const { etag, ...others } = h;
+    const wire = JSON.stringify(others) + JSON.stringify(logs);
+    for (const secret of [driveId, "googleapis", "fake-access-token", photoId]) {
+      expect(wire).not.toContain(secret);
+    }
+    expect(logs.some((l) => l.route === "/api/photos/:id")).toBe(true);
+    const items = JSON.stringify(await (await fetch(`${base}/api/items`)).json());
+    expect(items).not.toContain(driveId);
+  });
+
+  it("GET photo: If-None-Match -> 304 with ETag and Cache-Control, no Drive media request", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    fake.requests.length = 0;
+    const res = await getPhoto(photoId, { "If-None-Match": `"${photoId}"` });
+    expect(res.status).toBe(304);
+    expect(res.headers.get("etag")).toBe(`"${photoId}"`);
+    expect(res.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect(fake.requests).toEqual([]);
+  });
+
+  it("GET photo: unknown uuid -> 404 not_found, no Drive request", async () => {
+    const res = await getPhoto(uuid(9));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: { code: "not_found" } });
+    expect(fake.requests).toEqual([]);
+  });
+
+  it("GET photo: legacy storage_path-only row -> 404, no Drive request", async () => {
+    await mkItem(uuid(1));
+    const { rows: r } = await pool.query(
+      "insert into item_photos (item_id, storage_path) values ($1, 'a/b.jpg') returning id",
+      [uuid(1)],
+    );
+    expect((await getPhoto(r[0].id)).status).toBe(404);
+    expect(fake.requests).toEqual([]);
+  });
+
+  it("GET photo: Drive file gone -> 404 not_found", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    fake.files.clear();
+    const res = await getPhoto(photoId);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: { code: "not_found" } });
+  });
+
+  it("GET photo: Drive 500 on media -> 502 photo_fetch_failed, body exactly {error:{code}}", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    const [[driveId]] = [...fake.files];
+    fake.fail.add("media");
+    logs = [];
+    const res = await getPhoto(photoId);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: { code: "photo_fetch_failed" } });
+    expect(JSON.stringify(logs)).not.toContain(photoId);
+    expect(JSON.stringify(logs)).not.toContain(driveId);
+    expect(logs).toContainEqual({ event: "photo_read_failed", code: "drive_unavailable" });
+  });
+
+  it("GET photo: Drive auth failure -> 503 photos_unavailable", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    beforeMedia = async () => {
+      throw new DriveError("drive_auth", 401);
+    };
+    const res = await getPhoto(photoId);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: { code: "photos_unavailable" } });
+  });
+
+  it("GET photo: Drive headers timeout -> 502", async () => {
+    await mkItem(uuid(1));
+    await putPhoto(uuid(1));
+    const photoId = await primaryId();
+    fake.hang.add("media");
+    expect((await getPhoto(photoId)).status).toBe(502);
   });
 });
