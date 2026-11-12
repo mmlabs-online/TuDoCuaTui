@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | PLANNING |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
-| Claimed by | — |
+| Claimed by | claude@2026-11-12T06:52:39Z |
 | PR | — |
 
 ## Goal
