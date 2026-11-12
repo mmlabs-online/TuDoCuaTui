@@ -35,7 +35,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-015 | Switch the image and deploy from nginx to the Node server | MERGED | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-11 |
 | T-016 | Remove Supabase from the app | BLOCKED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 0 | 2026-11-11 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
-| T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | IN_PROGRESS | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 0 | 2026-11-12 |
+| T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | DONE | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-12 |
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | BACKLOG | P1 | M | security, architecture | T-018 | plan-approval | 0 | 2026-11-12 |
 | T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-018.2 | none | 0 | 2026-11-12 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | BLOCKED | P1 | M | architecture, security | T-018.2 | plan-approval | 0 | 2026-11-10 |

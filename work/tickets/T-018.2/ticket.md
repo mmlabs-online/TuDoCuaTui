@@ -81,6 +81,7 @@ server, so AI settings work on the real app.
 - Manual (Ming, after merge): run M-16, then save a key (`curl` or T-010) and press Test.
 
 ## Notes / answers from Ming
+- 2026-11-12 (from T-018.1 security review, carry into the plan): refuse AI or warn loudly when Cloudflare Access is off (Y1); `delete process.env.AI_KEK` after import (G1); map every `openKey` failure to one code, never log the error object (G2); add a `/test` sentinel case with a provider error body echoing the key.
 - 2026-11-12: created from the approved T-018 split ("Plan approved (T-018), chia 2").
 
 ## Handoff
