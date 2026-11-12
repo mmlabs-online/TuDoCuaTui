@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-12T10:41:28Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -84,6 +84,12 @@ screen (T-010) and photo tagging (F-701) can use them in API mode, and the key i
   behind Cloudflare Access.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-12 (chat with Annie): "ok" to T-010 plan questions Q1–Q3 (defaults).
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: consults (software-architect, database-optimizer) saved; plan.md READY: proposes split T-018.1 (migration, server/ai JS port + parity test, GET/PUT/DELETE, KEK loading) and T-018.2 (POST /test with Claude, deploy drafts, M-16); changes C1–C14, assumptions A1–A12.
+- In progress / next: Ming approves the plan and the split; then create T-018.2 and run T-018.1.
+- Gotchas: server image has no src/, so src/shared/ai is ported to server/ai/*.js with a parity test; hotspots with T-016 (boundary.test.ts, errors.ts header, vitest.config.ts).
