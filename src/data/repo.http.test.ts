@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { EDITOR_COPY } from "@/features/items/copy";
 import type { Item } from "@/types/item";
-import { API_ERROR_COPY, ApiError } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
 import { createHttpRepo } from "./repo.http";
 
 afterEach(() => {
+  resize.mockClear();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -12,9 +13,12 @@ afterEach(() => {
 const ID = "11111111-1111-4111-8111-111111111111";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const resize = vi.fn(async (_b: Blob) => ({
+  blob: new Blob(["jpeg-bytes"], { type: "image/jpeg" }),
+}));
 const setup = (res: () => Response | Promise<Response>) => {
   const fetchFn = vi.fn(async (..._a: Parameters<typeof fetch>) => res());
-  return { fetchFn, repo: createHttpRepo(fetchFn as unknown as typeof fetch) };
+  return { fetchFn, repo: createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize) };
 };
 const call = (fetchFn: ReturnType<typeof vi.fn>, n = 0) => {
   const [url, init] = fetchFn.mock.calls[n] as [string, RequestInit];
@@ -154,14 +158,85 @@ describe("createHttpRepo", () => {
     expect(JSON.parse(call(fetchFn).init.body as string).location_name).toBeNull();
   });
 
-  test("save ignores photos", async () => {
-    const { repo, fetchFn } = setup(() => json({ item: row }));
-    const saved = await repo.save(
-      item({ photo: "data:image/png;base64,xx", photoPath: "u/i/p.jpg" }),
+  const PHOTO_ID = "22222222-2222-4222-8222-222222222222";
+  const DATA_URL = "data:image/jpeg;base64,AAAA";
+
+  test("list maps primary_photo_id to photoPath and leaves photo empty", async () => {
+    const { repo } = setup(() => json({ items: [{ ...row, primary_photo_id: PHOTO_ID }] }));
+    const [it] = await repo.list();
+    expect(it.photoPath).toBe(PHOTO_ID);
+    expect(it.photo).toBe("");
+  });
+
+  test("save with a data: photo PUTs the item, then the resized JPEG to /items/<id>/photo", async () => {
+    let n = 0;
+    const { repo, fetchFn } = setup(() =>
+      json({ item: ++n === 1 ? row : { ...row, primary_photo_id: PHOTO_ID } }),
     );
+    const saved = await repo.save(item({ photo: DATA_URL }));
+    expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(call(fetchFn).init.body).not.toContain("data:image");
-    expect(call(fetchFn).init.body).not.toContain("photo");
+    const c = call(fetchFn, 1);
+    expect(c.url).toBe(`/api/items/${ID}/photo`);
+    expect(c.init.method).toBe("PUT");
+    expect(c.headers["Content-Type"]).toBe("image/jpeg");
+    expect(c.init.body).toBe((await resize.mock.results[0].value).blob);
+    expect(saved.photoPath).toBe(PHOTO_ID);
     expect(saved.photo).toBe("");
+  });
+
+  test("save after explicitly removing a stored photo DELETEs that photo id", async () => {
+    let n = 0;
+    const { repo, fetchFn } = setup(() =>
+      ++n === 1
+        ? json({ item: { ...row, primary_photo_id: PHOTO_ID } })
+        : new Response(null, { status: 204 }),
+    );
+    const saved = await repo.save(
+      item({ photo: "", photoPath: undefined, removedPhotoId: PHOTO_ID }),
+    );
+    expect(call(fetchFn, 1).url).toBe(`/api/items/${ID}/photo?photo=${PHOTO_ID}`);
+    expect(call(fetchFn, 1).init.method).toBe("DELETE");
+    expect(saved.photoPath).toBeUndefined();
+  });
+
+  test("stale view: a row with a photo but no explicit removal sends no DELETE", async () => {
+    const { repo, fetchFn } = setup(() => json({ item: { ...row, primary_photo_id: PHOTO_ID } }));
+    const saved = await repo.save(item({ photo: "", photoPath: undefined }));
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(saved.photoPath).toBe(PHOTO_ID);
+  });
+
+  test("removing a stale photo id keeps the newer primary photo in the result", async () => {
+    const NEWER = "33333333-3333-4333-8333-333333333333";
+    let n = 0;
+    const { repo } = setup(() =>
+      ++n === 1
+        ? json({ item: { ...row, primary_photo_id: NEWER } })
+        : new Response(null, { status: 204 }),
+    );
+    const saved = await repo.save(item({ photo: "", removedPhotoId: PHOTO_ID }));
+    expect(saved.photoPath).toBe(NEWER);
+  });
+
+  test("save with an unchanged stored photo or an http(s) photo makes no photo request", async () => {
+    const { repo, fetchFn } = setup(() => json({ item: { ...row, primary_photo_id: PHOTO_ID } }));
+    await repo.save(item({ photo: "", photoPath: PHOTO_ID }));
+    await repo.save(item({ photo: "https://example.test/a.jpg", photoPath: PHOTO_ID }));
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(resize).not.toHaveBeenCalled();
+  });
+
+  test("a failing photo step throws PhotoSaveError with the saved item and Vietnamese copy", async () => {
+    let n = 0;
+    const { repo } = setup(() =>
+      ++n === 1 ? json({ item: row }) : json({ error: { code: "photo_upload_failed" } }, 502),
+    );
+    const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
+    expect(err).toBeInstanceOf(PhotoSaveError);
+    expect(err.item.id).toBe(ID);
+    expect(err.message).toContain(API_ERROR_COPY.photoNotSaved);
+    expect(err.message).toContain(API_ERROR_COPY.photo_upload_failed);
   });
 
   test("remove DELETEs and resolves on 204", async () => {

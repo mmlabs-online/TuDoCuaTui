@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Item } from "@/types/item";
 import type { DataMode } from "@/data/mode";
+import { PhotoSaveError } from "@/data/apiErrors";
 import { useWardrobe } from "@/data/useWardrobe";
 import { download } from "@/features/import-export/download";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
@@ -71,6 +72,11 @@ function App({ mode }: { mode?: DataMode } = {}) {
       notify(isNew ? "Đã thêm vào tủ" : "Đã lưu thay đổi");
       setEditor(null);
     } catch (e) {
+      // The item exists now: a retry must update it, not create a second one.
+      if (e instanceof PhotoSaveError) {
+        setEditor((p) => (p ? { ...p, id: e.item.id } : p));
+        setIsNew(false);
+      }
       notify(wardrobe.message(e));
     } finally {
       savingRef.current = false;
@@ -168,7 +174,7 @@ function App({ mode }: { mode?: DataMode } = {}) {
           update={update}
           onClose={() => setEditor(null)}
           showMockAi={wardrobe.mode === "local"}
-          photoUpload={wardrobe.mode !== "api"}
+          photoById={wardrobe.mode === "api"}
           onSave={save}
           onDelete={() => setConfirm(true)}
           onDuplicate={() => {

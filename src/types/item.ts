@@ -18,8 +18,10 @@ export type Item = {
   notes: string;
   /** Displayable URL: signed Storage URL, data: URL of a fresh upload, or "" */
   photo: string;
-  /** Storage path of the current primary photo (Supabase mode only) */
+  /** Supabase: storage path; API: item_photos id. */
   photoPath?: string;
+  /** API mode: id of the stored photo the user explicitly removed in the editor (sent with the DELETE) */
+  removedPhotoId?: string;
   wearCount: number;
   lastWorn: string;
   createdAt: string;

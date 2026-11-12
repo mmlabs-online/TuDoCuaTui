@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-005.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/38 |
 
 ## Goal
 In API mode, adding, replacing or removing an item's photo stores the resized JPEG in Drive and records its Drive file id; no orphaned files.
@@ -47,8 +47,20 @@ In API mode, adding, replacing or removing an item's photo stores the resized JP
 - Request body limit for photos is separate from the 256 KB JSON limit (T-013.2 A21).
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-12): A1–A19 as written.
+- (2026-11-12, orchestrator) Split per plan.md: orphan sweep (drive.listFiles + server/photo-sweep.js) moved to T-005.6.
 - 2026-11-12 (Ming): run T-005.2 now; M-15 is no longer a prerequisite for the code (tests use a fake Drive). M-15 must be done before the release that ships photos.
 - (2026-11-11, from T-005.1 review) Clean up a Drive file left behind when `createFile` times out after Google accepted it; check the photo MIME type against an allowlist before calling Drive.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: database-optimizer consult; plan.md READY (slice 1, ~370 lines): migration (drive_file_id, primary_photo_id in view), server/photos.js PUT/DELETE /api/items/:id/photo, Drive-first then locked tx, cleanup on item delete, client upload + editor picker in API mode. T-005.6 created for the sweep.
+- In progress / next: Ming approves A1–A19. Then implement. T-005.2 + T-005.3 ship in one release.
+- Gotchas: uploaded photos don't display until T-005.3 (interim "Ảnh đã lưu" state); never retry createFile; lock the item row before touching item_photos.
+
+### 2026-11-12 — claude — DONE
+- Done: plan approved (A1–A19); attempt 1 PASS; attempt 2 fixed the 🟡 stale-view deletion at Ming's request (explicit removal + `DELETE ?photo=<uuid>`); re-review PASS, security no 🔴/🟡; PR #38 opened.
+- In progress / next: Ming merges PR #38. Next: T-005.3 (display photos) — must ship in the same release; then T-005.6 (sweep). M-15 before that release.
+- Gotchas: T-005.3 serving headers are in its ticket notes; "Bỏ ảnh" + close gives no discard prompt (follow-up).

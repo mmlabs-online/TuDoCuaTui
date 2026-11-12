@@ -15,10 +15,11 @@ afterAll(async () => {
 type Stub = { query: (...a: unknown[]) => Promise<unknown>; connect?: () => Promise<unknown> };
 const logs: Record<string, unknown>[] = [];
 
-async function start(pool: Stub | null) {
+async function start(pool: Stub | null, drive: object | null = null) {
   const server = http.createServer(
     createApp({
       pool,
+      drive: drive as never,
       distDir: "/nonexistent",
       access: null,
       log: (e) => logs.push(e),
@@ -275,6 +276,21 @@ describe("no DB and DB errors", () => {
       expect(res.status).toBe(503);
       expect((await err(res)).code).toBe("db_unavailable");
     }
+  });
+
+  it("photo PUT / DELETE without a pool -> 503 db_unavailable after the header checks", async () => {
+    const base = await start(null, {});
+    const url = `${base}/api/items/${ID}/photo`;
+    const png = await fetch(url, { method: "PUT", headers: { "Content-Type": "image/png" } });
+    expect(png.status).toBe(415);
+    const put = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "image/jpeg" },
+      body: "x",
+    });
+    expect(put.status).toBe(503);
+    expect((await err(put)).code).toBe("db_unavailable");
+    expect((await fetch(url + `?photo=${ID}`, { method: "DELETE" })).status).toBe(503);
   });
 
   it("a pg-like error -> 500 {code internal, requestId}; body and logs contain none of it", async () => {

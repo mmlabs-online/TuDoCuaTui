@@ -4,8 +4,8 @@ export const EDITOR_COPY = {
   photo: {
     takePhoto: "Chụp ảnh",
     pickFromLibrary: "Chọn từ thư viện",
-    comingSoon: "Ảnh món đồ — Sắp có",
-    comingSoonHint: "Tính năng lưu ảnh đang được hoàn thiện",
+    stored: "Ảnh đã lưu",
+    storedHint: "Ảnh sẽ hiển thị trong bản cập nhật tới · nhấp để đổi ảnh",
   },
   errors: {
     nameRequired: "Vui lòng nhập tên món đồ",

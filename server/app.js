@@ -10,12 +10,13 @@ import { serveStatic } from "./static.js";
  * @param {{
  *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
+ *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   access: { verify(req: import("node:http").IncomingMessage): Promise<{ ok: boolean, code?: string }> } | null,
  *   log: (entry: Record<string, unknown>) => void,
  *   now?: () => number,
  * }} deps
  */
-export function createApp({ pool, distDir, access, log, now = () => Date.now() }) {
+export function createApp({ pool, distDir, drive = null, access, log, now = () => Date.now() }) {
   return async function handler(
     /** @type {import("node:http").IncomingMessage} */ req,
     /** @type {import("node:http").ServerResponse} */ res,
@@ -67,7 +68,9 @@ export function createApp({ pool, distDir, access, log, now = () => Date.now() }
         }
         return handleApi(req, res, {
           pool,
+          drive,
           pathname,
+          query: url.split("#")[0].split("?").slice(1).join("?"),
           id,
           log,
           now,

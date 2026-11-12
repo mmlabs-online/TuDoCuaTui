@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import type { Item } from "@/types/item";
 import { Editor } from "./Editor";
 import { blankItem } from "./blankItem";
 import { EDITOR_COPY } from "./copy";
@@ -9,12 +10,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const renderEditor = (update = vi.fn(), showMockAi = true, photoUpload?: boolean) => {
+const renderEditor = (
+  update = vi.fn(),
+  showMockAi = true,
+  photoById?: boolean,
+  item: Item = blankItem(),
+  isNew = true,
+) => {
   render(
     <Editor
-      item={blankItem()}
+      item={item}
       locations={[]}
-      isNew
+      isNew={isNew}
       saving={false}
       update={update}
       onClose={vi.fn()}
@@ -23,7 +30,7 @@ const renderEditor = (update = vi.fn(), showMockAi = true, photoUpload?: boolean
       onDuplicate={vi.fn()}
       onWorn={vi.fn()}
       showMockAi={showMockAi}
-      photoUpload={photoUpload}
+      photoById={photoById}
     />,
   );
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
@@ -84,21 +91,42 @@ describe("mock AI", () => {
   });
 });
 
-describe("photoUpload off (API mode)", () => {
-  test('shows "Sắp có" and no camera/library buttons or file inputs', () => {
-    const { inputs } = renderEditor(vi.fn(), false, false);
-    expect(screen.getByText(EDITOR_COPY.photo.comingSoon)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: EDITOR_COPY.photo.takePhoto })).toBeNull();
-    expect(screen.queryByRole("button", { name: EDITOR_COPY.photo.pickFromLibrary })).toBeNull();
-    expect(inputs).toHaveLength(0);
+describe("API mode photos", () => {
+  const stored = { ...blankItem(), id: "x", name: "Áo", photoPath: "photo-id" };
+
+  test('shows the real picker and no "Sắp có"', () => {
+    const { inputs } = renderEditor(vi.fn(), false, true);
+    expect(screen.queryByText(/Sắp có/)).toBeNull();
+    expect(screen.getByRole("button", { name: EDITOR_COPY.photo.takePhoto })).toBeTruthy();
+    expect(inputs).toHaveLength(2);
   });
 
-  test("dropping a file does not call update", () => {
-    const update = vi.fn();
-    renderEditor(update, false, false);
-    const zone = screen.getByText(EDITOR_COPY.photo.comingSoon).closest(".upload-zone")!;
-    const file = new File(["x"], "a.png", { type: "image/png" });
-    fireEvent.drop(zone, { dataTransfer: { files: [file] } });
-    expect(update).not.toHaveBeenCalled();
+  test('a stored photo that is not displayed shows "Ảnh đã lưu" and "Bỏ ảnh"', () => {
+    renderEditor(vi.fn(), false, true, stored, false);
+    expect(screen.getByText(EDITOR_COPY.photo.stored)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bỏ ảnh" })).toBeTruthy();
+  });
+
+  test("Bỏ ảnh with photoById clears photo and photoPath", () => {
+    const { update } = renderEditor(vi.fn(), false, true, stored, false);
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
+    expect(update).toHaveBeenCalledWith("photo", "");
+    expect(update).toHaveBeenCalledWith("photoPath", undefined);
+    expect(update).toHaveBeenCalledWith("removedPhotoId", "photo-id");
+  });
+
+  test("local mode: Bỏ ảnh clears only photo", () => {
+    const { update } = renderEditor(
+      vi.fn(),
+      false,
+      false,
+      { ...stored, photo: "data:image/png;base64,xx" },
+      false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
+    expect(update).toHaveBeenCalledWith("photo", "");
+    expect(update).not.toHaveBeenCalledWith("photoPath", undefined);
+    expect(update).not.toHaveBeenCalledWith("removedPhotoId", expect.anything());
+    expect(screen.queryByText(EDITOR_COPY.photo.stored)).toBeNull();
   });
 });

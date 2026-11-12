@@ -2,6 +2,7 @@
 // /api router. Called by app.js only after the access check, with the raw pathname (never decoded).
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
+import { deleteDriveFiles, handlePhoto } from "./photos.js";
 import { listItems, listLocations, removeItem, saveItem, wearItem } from "./items.js";
 import { isUuid, parseItemInput, parseWearInput } from "./validate.js";
 
@@ -14,6 +15,9 @@ function match(parts) {
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
+  if (parts.length === 5 && a === "items" && b && c === "photo") {
+    return { route: "/api/items/:id/photo", allow: "PUT, DELETE" };
+  }
   if (parts.length === 5 && a === "items" && b && c === "wear") {
     return { route: "/api/items/:id/wear", allow: "POST" };
   }
@@ -24,12 +28,17 @@ function match(parts) {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  * @param {{
- *   pool: import("./items.js").Pool | null, pathname: string, id: string,
+ *   pool: import("./items.js").Pool | null,
+ *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
  *   setRoute: (template: string) => void,
  * }} ctx
  */
-export async function handleApi(req, res, { pool, pathname, id, log, now, setRoute }) {
+export async function handleApi(
+  req,
+  res,
+  { pool, drive, pathname, query, id, log, now, setRoute },
+) {
   const parts = pathname.split("/");
   const m = match(parts);
   if (!m) {
@@ -49,6 +58,16 @@ export async function handleApi(req, res, { pool, pathname, id, log, now, setRou
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });
+  }
+  if (m.route === "/api/items/:id/photo") {
+    return handlePhoto(req, res, {
+      pool,
+      drive,
+      itemId: /** @type {string} */ (itemId),
+      query,
+      id,
+      log,
+    });
   }
 
   /** @type {unknown} */
@@ -78,7 +97,8 @@ export async function handleApi(req, res, { pool, pathname, id, log, now, setRou
         : sendJson(res, 200, { locations: await listLocations(pool) });
     }
     if (method === "DELETE") {
-      await removeItem(pool, itemId);
+      const photos = await removeItem(pool, itemId);
+      await deleteDriveFiles(drive, photos, log);
       res.writeHead(204, { "Cache-Control": "no-store" });
       return res.end();
     }
