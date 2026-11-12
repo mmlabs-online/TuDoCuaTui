@@ -17,6 +17,8 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 
 Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints below), everything else is the SPA.
 
+In production the four Google values come from `deploy-tudocuatui` (GitHub environment `tudocuatui`), see M-15 in `work/ming-todo.md`.
+
 The four Google variables are all-or-nothing: none set means photos are off (`drive not configured`, the server still starts); a partial or malformed set exits 2 with a message that names variables, never values. An empty string counts as unset.
 
 ## Google Drive (T-005.1)

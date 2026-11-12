@@ -18,7 +18,10 @@ name: deploy-tudocuatui
 # compatible with the previous release's image (expand first, contract later).
 # workflow_dispatch from main redeploys what main pins and rewrites the env file.
 #
-# No GitHub secrets: the database password is the one committed in postgres/secrets/ (see README).
+# Secrets: the Postgres password is still the one committed in postgres/secrets/ (see README). The four Google Drive
+# values for photos (T-005.5, D27) come from the GitHub environment `tudocuatui` (main only), all-or-none, and are
+# written only to the host env file, never printed. After changing them, run workflow_dispatch from main: a manual run
+# (or a changed env file) recreates the app.
 
 on:
   push:
@@ -43,6 +46,7 @@ env:
 jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
+    environment: tudocuatui
     runs-on: [self-hosted, macbook-runner]
     timeout-minutes: 15
     steps:
@@ -82,11 +86,16 @@ jobs:
             echo "previous=$previous"
           } >> "$GITHUB_OUTPUT"
 
-      # Writes DATABASE_URL to the host env file. The password is read from the checkout and never
+      # Writes DATABASE_URL, and the four Drive values when all are set, to the host env file. Secrets are never
       # printed (no echo, no argv). If this fails, the old file stays and nothing is started.
       - name: envfile
         id: envfile
         if: steps.release.outputs.skip != 'true'
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.TUDOCUATUI_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.TUDOCUATUI_GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.TUDOCUATUI_GOOGLE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.TUDOCUATUI_DRIVE_FOLDER_ID }}
         run: |
           umask 077
           [[ "$ENV_FILE" == "$HOME/"* ]] || { echo "::error::ENV_FILE $ENV_FILE is not under $HOME. Nothing was started."; exit 1; }
@@ -96,14 +105,44 @@ jobs:
             exit 1
           fi
           read -r pw < "$pwfile"
+          set_count=0
+          missing=""
+          for n in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN DRIVE_FOLDER_ID; do
+            if [ -n "${!n}" ]; then set_count=$((set_count + 1)); else missing="$missing TUDOCUATUI_$n"; fi
+          done
+          if [ "$set_count" -ne 0 ] && [ "$set_count" -ne 4 ]; then
+            echo "::error::Google Drive secrets are all-or-none; missing:$missing. Nothing was started; $ENV_FILE was not changed."
+            exit 1
+          fi
+          if [ "$set_count" -eq 4 ]; then
+            re_id='^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$'
+            re_secret='^[A-Za-z0-9._-]+$'
+            re_token='^[A-Za-z0-9._/-]+$'
+            re_folder='^[A-Za-z0-9_-]{10,200}$'
+            bad=""
+            [[ "$GOOGLE_CLIENT_ID" =~ $re_id ]] || bad="$bad TUDOCUATUI_GOOGLE_CLIENT_ID"
+            [[ "$GOOGLE_CLIENT_SECRET" =~ $re_secret ]] || bad="$bad TUDOCUATUI_GOOGLE_CLIENT_SECRET"
+            [[ "$GOOGLE_REFRESH_TOKEN" =~ $re_token ]] || bad="$bad TUDOCUATUI_GOOGLE_REFRESH_TOKEN"
+            [[ "$DRIVE_FOLDER_ID" =~ $re_folder ]] || bad="$bad TUDOCUATUI_DRIVE_FOLDER_ID"
+            if [ -n "$bad" ]; then
+              echo "::error::Malformed Google Drive secret(s):$bad. Nothing was started; $ENV_FILE was not changed."
+              exit 1
+            fi
+          fi
           dir="$(dirname "$ENV_FILE")"
           install -d -m 700 "$dir"
           tmp="$(mktemp "$dir/.env.XXXXXX")"
           trap 'rm -f "$tmp"' EXIT
           printf 'DATABASE_URL=postgres://%s:%s@postgres:5432/%s\n' "$DB_APP" "$pw" "$DB_APP" > "$tmp"
+          if [ "$set_count" -eq 4 ]; then
+            printf 'GOOGLE_CLIENT_ID=%s\nGOOGLE_CLIENT_SECRET=%s\nGOOGLE_REFRESH_TOKEN=%s\nDRIVE_FOLDER_ID=%s\n' \
+              "$GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_SECRET" "$GOOGLE_REFRESH_TOKEN" "$DRIVE_FOLDER_ID" >> "$tmp"
+          fi
           chmod 600 "$tmp"
+          if cmp -s "$tmp" "$ENV_FILE"; then changed=false; else changed=true; fi
           mv -f "$tmp" "$ENV_FILE"
           trap - EXIT
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: pull
         id: pull
@@ -142,9 +181,16 @@ jobs:
       - name: deploy
         id: deploy
         if: steps.pull.outcome == 'success' && (steps.pull.outputs.migrate != 'true' || steps.migrate.outcome == 'success')
+        env:
+          CHANGED: ${{ steps.envfile.outputs.changed }}
+          EVENT: ${{ github.event_name }}
         run: |
           compose=(docker compose -p "$PROJECT" -f "$APP_DIR/compose.yml" --env-file "$APP_DIR/release.env")
-          "${compose[@]}" up -d --wait --wait-timeout 120 tudocuatui
+          recreate=()
+          # The env file is only read on container creation. Recreate when it changed, and on every manual run, so a
+          # dispatch after a failed run (file already rewritten, container still old) still applies the new Drive values.
+          if [ "$CHANGED" = "true" ] || [ "$EVENT" = "workflow_dispatch" ]; then recreate=(--force-recreate); fi
+          "${compose[@]}" up -d --wait --wait-timeout 120 ${recreate[@]+"${recreate[@]}"} tudocuatui
 
       # Only when the new app itself is unhealthy. Never migrates (or un-migrates) the database.
       - name: rollback

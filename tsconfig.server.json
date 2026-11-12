@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["server/**/*.js", "server/**/*.ts"]
+  "include": ["server/**/*.js", "server/**/*.ts", "scripts/drive-connect.mjs", "scripts/*.test.ts"]
 }

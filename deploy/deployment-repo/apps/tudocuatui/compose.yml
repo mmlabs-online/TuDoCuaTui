@@ -18,6 +18,9 @@
 # /Users/mingming/.config/tudocuatui/tudocuatui.env, written by deploy-tudocuatui from
 # postgres/secrets/apps/tudocuatui.password on every run. It sits outside the checkout because the runner's
 # checkout deletes untracked files. If it is missing, `config` fails and nothing starts.
+# The env file also holds the four Google Drive values (GOOGLE_*, DRIVE_FOLDER_ID) when the GitHub environment
+# `tudocuatui` has all four secrets (T-005.5). `migrate` shares the file but is only on the internal `db` network
+# (no egress) and never reads them.
 # No volumes here: all data lives in the shared `pgdata` volume.
 #
 # migrate: one-shot `node server/migrate.js` (profile `migrate`), run by the deploy before the app is

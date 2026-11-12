@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-005.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-11 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/36 |
 
 ## Goal
 Second slice of T-005.1 (split per `work/tickets/T-005.1/plan.md`): Ming can connect Google Drive once and the deploy
@@ -45,5 +45,16 @@ D27 (photos on Google Drive via the Node server). Design: `work/tickets/T-005.1/
 - [ ] M-15 lists the exact steps, including recovery.
 
 ## Notes / answers from Ming
+Plan approved (Ming, 2026-11-11): A1–A14 as written.
 
 ## Handoff
+
+### 2026-11-11 — claude — BLOCKED
+- Done: plan.md READY (no consult: area security only; reuses T-005.1 consult) — connect script, workflow draft (environment `tudocuatui`, all-or-none, charset check, force-recreate on change), tests incl. running the real envfile block in bash, full M-15 runbook, setup PR plan for the deployment repo.
+- In progress / next: Ming approves A1–A14 (real choices A2, A3, A7). Then implement.
+- Gotchas: the local deployment clone is stale — fetch and verify live main matches the drafts before opening the setup PR; create the GitHub environment (restricted to main) before merging it.
+
+### 2026-11-11 — claude — DONE
+- Done: plan approved (A1–A14); attempt 1 PASS; attempt 2 fixed five follow-ups at Ming's request (leak path, In-production reminder, no `~`, force-recreate on dispatch, symlink tests); re-review PASS, security no 🔴/🟡; PR #36 opened.
+- In progress / next: Ming merges PR #36, creates OAuth client + GitHub environment `tudocuatui` (main only); orchestrator then opens the deployment setup PR `setup/tudocuatui-drive-secrets`; then M-15 steps 4–8 (new release needed for drive-smoke.js). Next ticket: T-005.2 (needs M-15).
+- Gotchas: verify live deployment main still matches the drafts before the setup PR; never read the secrets file.
