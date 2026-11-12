@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-12T10:36:51Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -49,3 +49,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: re-planned after D23; plan.md Status BLOCKED: the Node server has no AI-settings backend (T-009 exists only as unused Supabase code).
+- In progress / next: Ming answers Q1–Q3 in plan.md (default: new T-018 ports the backend to the Node server first; D21 "Supabase mode only" → "API mode only"; keep in-app key entry with a new `TUDOCUATUI_AI_KEK` deployment secret). Then create T-018 and set T-010 Depends on T-018.
+- Gotchas: T-016 touches the same frontend files (aiSettings.ts, mode.ts, main.tsx, App.tsx); whichever lands second rebases.
