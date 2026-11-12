@@ -50,7 +50,7 @@ JSON only. Without `DATABASE_URL` every endpoint validates its input, then answe
 
 Errors are `{ "error": { "code", ... } }`: 400 `invalid_input` (with `field` and `reason` for validation failures), 400 `invalid_json`, 403 `forbidden_origin`, 404 `not_found`, 405 `method_not_allowed`, 409 `conflict`, 413 `payload_too_large` (256 KB), 415 `unsupported_media_type`, 500 `internal` (with `requestId`), 503 `db_unavailable`. Photos add 400 `invalid_photo` (empty, truncated, not starting `FF D8 FF`), 408 `request_timeout` (body not read in 30 s), 413 over 2 MiB, 415 unless `image/jpeg`, 502 `photo_upload_failed` (Drive failed or timed out), 503 `photos_unavailable` (Drive not configured, auth or folder problem, or 3 uploads already in flight; `Retry-After: 5`). Reasons: `notObject`, `idInvalid`, `nameRequired`, `nameTooLong`, `priceNegative`, `priceInvalid`, `dateInvalid`, `invalidType`, `invalidValue`, `tooLong`, `tooMany`, `todayOutOfRange`.
 
-Photos (T-005.2): the cap is 2 MiB, counted on the stream as well as `Content-Length`. Files are named `<photoId>.jpg` and tagged `appProperties {app:"tudo", photoId, itemId}`; a create is never retried. The row is written after Drive succeeds; if the write fails the new file is deleted. Replacing deletes the old file after commit. Deleting an item deletes its Drive files; a failed Drive delete is logged as `{event:"photo_orphan", photoId, code}` and leaves a tagged file behind (also when Drive is not configured; T-005.6 sweeps these). Lock rule: every writer of `item_photos` locks the `items` row first.
+Photos (T-005.2): the cap is 2 MiB, counted on the stream as well as `Content-Length`. Files are named `<photoId>.jpg` and tagged `appProperties {app:"tudo", photoId, itemId}`; a create is never retried. The row is written after Drive succeeds; if the write fails the new file is deleted. Replacing deletes the old file after commit. Deleting an item deletes its Drive files; a failed Drive delete is logged as `{event:"photo_orphan", photoId, code}` and leaves a tagged file behind (also when Drive is not configured; see Photo sweep). Lock rule: every writer of `item_photos` locks the `items` row first.
 
 CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 
@@ -65,3 +65,23 @@ Logging: one JSON line per request (method, route template, status, ms, id). Nev
 Router note for T-013.2: `server/app.js` computes one `pathname` (after rejecting non-origin-form targets with 400). Dispatch API endpoints from that same `pathname`, inside the guarded `/api` branch, so the access check cannot be bypassed by a second URL parse.
 
 Photo reads (T-005.3): every `getMedia` caller passes a per-request signal with a deadline (`servePhoto`: 30 s total, also aborted when the client disconnects); a handed-over stream keeps its abort listener until that signal goes away. The bytes are served unchanged: photos uploaded through the app are re-encoded by the canvas resize, which strips EXIF/GPS, but a hand-made `PUT /api/items/:id/photo` could store EXIF/GPS and it would be served back as is (only to access-authenticated users). Read errors are logged as `{event:"photo_read_failed", code}` with no ids.
+
+## Photo sweep (T-005.6)
+
+`node server/photo-sweep.js [--apply] [--grace-minutes N] [--max-delete N]` finds Drive files that no `item_photos` row references (a create that timed out after Google accepted it, a crash, a failed best-effort delete) and deletes them. Drive deletes are permanent, so it is dry-run by default: run it without `--apply` first and check the counts.
+
+- Touches only files in the configured folder tagged `appProperties app=tudo` (checked in the query and again in code), unreferenced, and older than the grace period (`--grace-minutes`, 15 to 43200, default 60). A file with no readable creation time is kept. The DB is re-checked right before each delete.
+- `--max-delete` (1 to 10000, default 50): with `--apply`, if more files qualify than this, nothing is deleted and the exit code is 1. This guards against a wrong `DATABASE_URL` making every photo look unreferenced; rerun with the number it prints once you have checked it.
+- With `--apply` it also refuses (exit 1, nothing deleted, prints `refusing: no listed file is referenced (check DATABASE_URL)`) when there are candidates but no listed tagged file is referenced by any `item_photos` row, which means `DATABASE_URL` probably points at an empty or wrong database; dry-run prints the same warning.
+- Rows whose Drive file is missing (and older than the grace period) are only reported, never deleted.
+- Needs the four Google variables and `DATABASE_URL` in the container env. Exit codes: 0 ok, 1 a step failed (folder check, list, DB, a delete, or too many candidates), 2 bad usage or not configured.
+- Output: `would delete <photoId>` (dry-run), `delete <photoId>: ok|FAIL <code>`, `keep <photoId>: referenced`, `missing file for photo <row id>`, then one summary line with the counts. `<photoId>` is the `photoId` tag (`-` if absent). Drive ids, page tokens, tokens and Google text are never printed.
+
+Runbook (dry-run first, then `--apply`):
+
+```
+docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env exec tudocuatui node server/photo-sweep.js
+docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudocuatui/release.env exec tudocuatui node server/photo-sweep.js --apply
+```
+
+Scheduling it is a deployment-repo follow-up.

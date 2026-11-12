@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { createDriveClient, DriveConfigError, DriveError, loadDriveConfig } from "./drive.js";
+import {
+  createDriveClient,
+  DriveConfigError,
+  DriveError,
+  loadDriveConfig,
+  taggedFilesQuery,
+} from "./drive.js";
 import { FAKE, fakeConfig, fakeEnv } from "./test/fake-drive.js";
 
 type Step = { status: number; body?: unknown; headers?: Record<string, string> } | Error;
@@ -542,5 +548,128 @@ describe("logging and redaction", () => {
       for (const secret of [FAKE.clientSecret, FAKE.refreshToken, "fake-access-A"])
         expect(all).not.toContain(secret);
     }
+  });
+});
+
+describe("listFiles and taggedFilesQuery", () => {
+  const Q = taggedFilesQuery(fakeConfig.folderId);
+  const FILE = {
+    id: "fakefile00000002",
+    createdTime: "2026-03-04T05:00:00.000Z",
+    appProperties: { app: "tudo", photoId: "p" },
+  };
+
+  it("taggedFilesQuery builds the folder + trashed + app=tudo query", () => {
+    expect(Q).toBe(
+      `'${fakeConfig.folderId}' in parents and trashed = false and appProperties has { key='app' and value='tudo' }`,
+    );
+    expect(() => taggedFilesQuery("bad'id")).toThrow(DriveError);
+  });
+
+  it("listFiles sends q, fields, pageSize=1000 and pageToken; returns files and nextPageToken", async () => {
+    const { drive, calls } = setup([
+      TOKEN_OK,
+      { status: 200, body: { files: [FILE, { id: "fakefile00000003" }], nextPageToken: "tok" } },
+    ]);
+    const r = await drive.listFiles({ q: Q, pageToken: "prev" });
+    const u = new URL(calls[1].url);
+    expect(u.origin + u.pathname).toBe("https://www.googleapis.com/drive/v3/files");
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      q: Q,
+      fields: "nextPageToken,files(id,createdTime,appProperties)",
+      pageSize: "1000",
+      spaces: "drive",
+      pageToken: "prev",
+    });
+    expect(calls[1].init.method).toBe("GET");
+    expect(r.nextPageToken).toBe("tok");
+    expect(r.files).toEqual([
+      { id: FILE.id, createdTime: Date.parse(FILE.createdTime), appProperties: FILE.appProperties },
+      { id: "fakefile00000003", createdTime: null, appProperties: {} },
+    ]);
+  });
+
+  it("listFiles without nextPageToken returns nextPageToken undefined; no pageToken param", async () => {
+    const { drive, calls } = setup([TOKEN_OK, { status: 200, body: { files: [] } }]);
+    const r = await drive.listFiles({ q: Q });
+    expect(r).toEqual({ files: [], nextPageToken: undefined });
+    expect(new URL(calls[1].url).searchParams.has("pageToken")).toBe(false);
+  });
+
+  it("listFiles keeps appProperties only when it is a plain object of strings; bad createdTime is null", async () => {
+    const { drive } = setup([
+      TOKEN_OK,
+      {
+        status: 200,
+        body: {
+          files: [
+            { id: "fakefile00000004", createdTime: "nope", appProperties: { a: 1 } },
+            { id: "fakefile00000005", createdTime: 5, appProperties: ["x"] },
+          ],
+        },
+      },
+    ]);
+    const r = await drive.listFiles({ q: Q });
+    expect(r.files.map((f) => [f.createdTime, f.appProperties])).toEqual([
+      [null, {}],
+      [null, {}],
+    ]);
+  });
+
+  it("listFiles retries 5xx up to 3 attempts, refreshes once on 401", async () => {
+    const a = setup([TOKEN_OK, { status: 500 }, { status: 503 }, { status: 502 }]);
+    expect((await fail(a.drive.listFiles({ q: Q }))).code).toBe("drive_unavailable");
+    expect(a.calls).toHaveLength(4);
+    const b = setup([TOKEN_OK, { status: 401 }, TOKEN_OK, { status: 200, body: { files: [] } }]);
+    await b.drive.listFiles({ q: Q });
+    expect(b.calls).toHaveLength(4);
+  });
+
+  it("listFiles 3xx -> drive_bad_response after one request (redirect manual)", async () => {
+    const d = setup([TOKEN_OK, { status: 307, headers: { location: "https://evil.example/" } }]);
+    expect((await fail(d.drive.listFiles({ q: Q }))).code).toBe("drive_bad_response");
+    expect(d.calls).toHaveLength(2);
+    expect(d.calls[1].init.redirect).toBe("manual");
+  });
+
+  it("listFiles 400 -> drive_bad_response; 403 -> drive_forbidden; 429 -> drive_rate_limited", async () => {
+    const a = setup([TOKEN_OK, { status: 400 }]);
+    expect((await fail(a.drive.listFiles({ q: Q }))).code).toBe("drive_bad_response");
+    const b = setup([TOKEN_OK, { status: 403 }]);
+    expect((await fail(b.drive.listFiles({ q: Q }))).code).toBe("drive_forbidden");
+    const c = setup([TOKEN_OK, { status: 429 }, { status: 429 }, { status: 429 }]);
+    expect((await fail(c.drive.listFiles({ q: Q }))).code).toBe("drive_rate_limited");
+  });
+
+  it("listFiles malformed body (not JSON, files not an array, bad file id, bad nextPageToken) -> drive_bad_response", async () => {
+    const bodies: unknown[] = [
+      "not json",
+      { files: {} },
+      {},
+      { files: [{ id: "a/b" }] },
+      { files: [{}] },
+      { files: [], nextPageToken: "" },
+      { files: [], nextPageToken: 7 },
+      { files: [], nextPageToken: "x".repeat(4097) },
+    ];
+    for (const body of bodies) {
+      const { drive } = setup([TOKEN_OK, { status: 200, body }]);
+      expect((await fail(drive.listFiles({ q: Q }))).code).toBe("drive_bad_response");
+    }
+  });
+
+  it("listFiles errors carry only a code and log only {event, op, status, code, reason}", async () => {
+    const { drive, logs } = setup([
+      TOKEN_OK,
+      {
+        status: 403,
+        body: { error: { errors: [{ reason: "tellMeSecrets-xyz" }], message: "leak-text" } },
+      },
+    ]);
+    const err = await fail(drive.listFiles({ q: Q }));
+    expect(JSON.stringify(err) + String(err)).not.toContain("leak-text");
+    expect(logs).toEqual([
+      { event: "drive", op: "list", status: 403, code: "drive_forbidden", reason: "other" },
+    ]);
   });
 });
