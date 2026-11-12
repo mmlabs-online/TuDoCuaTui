@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | ui, security |
 | Gate | none |
-| Depends on | T-009 |
+| Depends on | T-018 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
@@ -43,6 +43,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - [ ] Hidden in local mode; works at 390px and in dark mode; tests pass.
 
 ## Notes / answers from Ming
+- 2026-11-12 (chat with Annie): "ok" to plan.md Q1–Q3 defaults — T-018 ports the backend first (T-010 now depends on T-018 and stays UI-only); AI is "API mode only" (D21 amended in T-018); key entered in Settings, stored encrypted with `TUDOCUATUI_AI_KEK`. Re-plan T-010 after T-018 merges.
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
