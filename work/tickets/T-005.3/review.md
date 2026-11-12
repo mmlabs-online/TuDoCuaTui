@@ -179,3 +179,39 @@ So the code fix is correct, but the regression test does not guard it.
 
 ### Follow-ups (out of scope)
 - None new. The attempt 1 follow-ups still apply.
+
+## Attempt 3 — 2026-11-12
+Verdict: PASS
+
+Scope of this attempt: review Attempt 2, Issue 1 only (commit 93f73f8).
+
+### Checks (run by reviewer)
+Local PostgreSQL 16 (`/usr/lib/postgresql/16`, data dir under /tmp, scram password auth, `TEST_DATABASE_URL` set), stopped and deleted afterwards.
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` exit 0.
+- format:check: "All matched files use the correct format", exit 0.
+- test: 66 files, 809 tests passed (matches impl-log).
+- test:coverage (`CI=true`): 66 files, 809 passed; All files 95.4 stmts / 94.56 branches (matches impl-log).
+- build: `✓ built in 378ms`.
+
+### Scope
+- `git diff f2f7a7a 93f73f8 --stat`: `server/api.test.ts` (+4/-5) and `work/tickets/T-005.3/impl-log.md` (+27) only.
+- Later commits touch workflow files only: `ticket.md` state (361b077) and `security-review.md` attempt 3 (9eabbe7). No other code changed since attempt 2, so the attempt 1–2 evidence still holds.
+
+### Acceptance criteria (Attempt 2, Issue 1)
+- [x] **A test where a handler throws → 500 and the server keeps serving, and it fails without the fix.**
+  - Test: `server/api.test.ts:49-58`. The pool returns `{ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }`, and `getMedia` resolves to `null`. `media.contentLength` then throws in `servePhoto` (`photos.js:307`) outside any try. The fetch has `AbortSignal.timeout(2000)`. The test asserts 500, then `/healthz` 200.
+  - At HEAD: `vitest run server/api.test.ts` gives 20/20 passed.
+  - Revert experiment (local only): I removed `await` at `server/app.js:69` (`return handleApi(...)`). Result: `× a handler that rejects -> 500 and the server keeps serving 2018ms` with `TimeoutError`, plus 1 unhandled error `TypeError: Cannot read properties of null (reading 'contentLength')`. Summary: 1 failed | 19 passed, Errors 1. I restored the file with `git checkout server/app.js`, and `git status` is clean.
+- [x] The attempt 1–2 criteria are unchanged. The code fixes at `server/app.js:69` and `server/drive.js:363` are untouched since attempt 2.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R8: the regression test now guards the fix, and all checks are green.
+
+### Nits (do not block)
+- Carried from attempt 2: the `await` at `server/api.js:64` is redundant. The optional `content-encoding` hardening at `server/drive.js:371-375` remains open.
+
+### Follow-ups (out of scope)
+- None new. The attempt 1 follow-ups still apply.
