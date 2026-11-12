@@ -84,3 +84,38 @@ From security-review.md attempt 1, 🟡 1 (not blocking, fixed before the PR at 
 1. **Stale-view photo deletion** — `src/data/repo.http.ts:83`.
    - (a) Client: send the photo DELETE only when the user explicitly removed the photo in the editor (e.g. a `photoRemoved` flag, or the editor's opening `photoPath` was a stored photo and is now cleared) — never just because the saved row has a photo and the local item doesn't.
    - (b) Server: `DELETE /api/items/:id/photo?photo=<uuid>` — the `photo` query param is required and must be a uuid (400 otherwise); delete only if that id is still the item's primary photo, under the item lock; if it isn't (already replaced/removed), return 204 and change nothing (or 409 — choose, document in server/README.md). The client sends the id it saw. Tests for both sides incl. the stale two-tab scenario.
+
+## Attempt 2 — 2026-11-12
+Verdict: PASS
+
+Scope of this attempt: only the "Security follow-up to fix" item above (stale-view photo deletion, (a) + (b)). Reviewed `git diff d84988c 9e0bb68` (12 files: server/README.md, server/api.db.test.ts, server/api.js, server/api.test.ts, server/app.js, server/photos.js, src/data/repo.http.test.ts, src/data/repo.http.ts, src/features/items/Editor.test.tsx, src/features/items/Editor.tsx, src/types/item.ts, impl-log.md) and the commits after it (04ac5f4: ticket.md state REWORK -> REVIEW; security-review.md attempt-2 section). Nothing outside the follow-up changed.
+
+### Checks (run by reviewer)
+- typecheck: pass (`tsc --noEmit && tsc -p tsconfig.server.json`, no errors)
+- format:check: pass ("All matched files use the correct format", 175 files)
+- test: 64 files, 785 tests passed, 0 skipped (TEST_DATABASE_URL set to a temporary local PostgreSQL 16 with scram-sha-256 password auth; data dir under /tmp, stopped and deleted afterwards). `CI=true pnpm test:coverage`: 64 files, 785 passed; all files 95.53 % stmts / 94.63 % branches / 92.75 % funcs / 95.75 % lines, no threshold failure.
+- build: pass (`vite build`, index 248.92 kB / gzip 79.69 kB)
+- Matches impl-log attempt 2 (785 tests, all green).
+- Browser smoke: not re-run; behaviour is covered by the unit and real-Postgres tests below.
+
+### Acceptance criteria (security follow-up)
+- [x] (a) Client sends the photo DELETE only on explicit removal — evidence: `src/data/repo.http.ts:83-89` branches on `item.removedPhotoId && !item.photoPath` (no longer on `saved.primary_photo_id && !item.photoPath`); `removedPhotoId` is set only by "Bỏ ảnh" in API mode (`src/features/items/Editor.tsx:166-173`, keeps a previously removed id via `item.photoPath ?? item.removedPhotoId`); type `src/types/item.ts:23-24`. Tests: `repo.http.test.ts` "save after explicitly removing a stored photo DELETEs that photo id" (URL `/api/items/<id>/photo?photo=<PHOTO_ID>`), "stale view: a row with a photo but no explicit removal sends no DELETE" (1 fetch only, photoPath kept), "removing a stale photo id keeps the newer primary photo in the result"; `Editor.test.tsx:115` (API mode sets `removedPhotoId`) and `:129` (local mode does not). All pass.
+- [x] (b) `DELETE /api/items/:id/photo?photo=<uuid>`: required, exactly one uuid, else 400 `invalid_input` field `photo` — evidence: `server/photos.js:131-140` (`URLSearchParams(query).getAll("photo")`, `length !== 1 || !isUuid` -> 400, checked before Drive/pool 503s); test `api.db.test.ts:517-532` covers missing, empty, non-uuid, duplicate, wrong name, and asserts row and Drive file untouched.
+- [x] (b) Deletes only if still the item's photo, under the item lock — evidence: `server/photos.js:151-157` inside `withLockedItem` (`select ... for update`, `photos.js:91-103`), SQL `delete from item_photos where item_id = $1 and id = $2 returning ...`; Drive deletion only for returned rows. Not filtering on `is_primary` is equivalent today because PUT keeps a single photo per item (also noted by the security auditor).
+- [x] Stale id -> 204 no-op, documented — evidence: `server/README.md:45` ("a stale id ... is a 204 no-op, never 409"); test `api.db.test.ts` "stale two-tab DELETE: tab A removes an id that tab B already replaced -> 204, newer photo kept" (asserts remaining row id = newer, 1 Drive file with the second bytes, `primary_photo_id` = newer). Pass against real Postgres.
+- [x] Routing still on the raw pathname, query parsed separately — evidence: `server/app.js:43` `pathname = url.split("?")[0].split("#")[0]` is used for the `/api` guard (`:60`) and passed unchanged to `handleApi`; the query is derived separately at `server/app.js:73` and only consumed by `handlePhoto`; `server/api.js:42-43` still matches `pathname.split("/")`. Access check, 405 and uuid checks run before the query is read.
+- [x] Existing tests updated for the new contract: `api.db.test.ts:507-512`, `:618`; `api.test.ts:293` (no-DB 503 with `?photo=`).
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R1: all access still via the repo (`repo.http.ts`); local mode untouched (Editor only sets `removedPhotoId` when `photoById`, test `Editor.test.tsx:129`). R3: no secrets added. R6: no new UI copy. R7: diff limited to the follow-up. R8: new logic has client and server tests; checks green. R10: no Figma Make files touched.
+
+### Nits (do not block)
+- `src/data/repo.http.ts:85`: interpolate `encodeURIComponent(item.removedPhotoId)` for hygiene (value is a server-issued uuid and the server validates it, so cosmetic).
+
+### Follow-ups (out of scope)
+- "Bỏ ảnh" followed by close does not prompt to discard (`src/features/items/dirty.ts` ignores `photoPath`/`removedPhotoId`); the removal is silently dropped, no data loss. Pre-existing; noted by implementer and security auditor.
+- Optional app-level tests for `#`, `%3F` and an extra `?` on the photo route (security-review attempt 2, item 4).
+- If several photos per item arrive, add `is_primary` to the DELETE predicate.
