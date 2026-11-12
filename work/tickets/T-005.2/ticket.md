@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-08 (re-planned 2026-11-11) |
-| Claimed by | claude@2026-11-12T03:05:51Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -47,8 +47,15 @@ In API mode, adding, replacing or removing an item's photo stores the resized JP
 - Request body limit for photos is separate from the 256 KB JSON limit (T-013.2 A21).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- (2026-11-12, orchestrator) Split per plan.md: orphan sweep (drive.listFiles + server/photo-sweep.js) moved to T-005.6.
 - 2026-11-12 (Ming): run T-005.2 now; M-15 is no longer a prerequisite for the code (tests use a fake Drive). M-15 must be done before the release that ships photos.
 - (2026-11-11, from T-005.1 review) Clean up a Drive file left behind when `createFile` times out after Google accepted it; check the photo MIME type against an allowlist before calling Drive.
 - 2026-11-11: Ming put T-016 on hold and asked for photo upload first; Google Drive, account as decided (D27).
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: database-optimizer consult; plan.md READY (slice 1, ~370 lines): migration (drive_file_id, primary_photo_id in view), server/photos.js PUT/DELETE /api/items/:id/photo, Drive-first then locked tx, cleanup on item delete, client upload + editor picker in API mode. T-005.6 created for the sweep.
+- In progress / next: Ming approves A1–A19. Then implement. T-005.2 + T-005.3 ship in one release.
+- Gotchas: uploaded photos don't display until T-005.3 (interim "Ảnh đã lưu" state); never retry createFile; lock the item row before touching item_photos.
