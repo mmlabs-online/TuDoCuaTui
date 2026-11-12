@@ -151,3 +151,42 @@ No violations found. Only `server/photo-sweep.js`, `server/photo-sweep.db.test.t
 
 ### Follow-ups (out of scope)
 - Unchanged from attempt 1: scheduling, `scripts/check-image.sh` `expect_exit 2` line, the stale README environment line, trash instead of permanent delete (security N1), and an optional ratio guard.
+
+## Attempt 3 — 2026-11-12
+Verdict: PASS
+
+Scope: Issue 1 from attempt 2 (the redaction test had lost its delete-failure leg), fixed in de09cf9 "T-005.6: restore delete-failure redaction test". Later commits (aeced41, 298a357) touch only `work/` files.
+
+### Checks (run by reviewer)
+Branch `claude/loving-fermi-t90upb`. Scratch PostgreSQL 16.15 (`/usr/lib/postgresql/16`, data dir under /tmp, scram-sha-256 password auth, `TEST_DATABASE_URL` set). The cluster was stopped and deleted afterwards.
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json`, exit 0.
+- format:check: exit 0 (181 files).
+- test: `Test Files 68 passed (68)`, `Tests 842 passed (842)`. `photo-sweep.db.test.ts` ran 19 tests, none skipped.
+- test:coverage (`CI=true`): 68 / 842 passed, no threshold failure. All files 95.06 % statements / 94.12 % branches; `photo-sweep.js` 87.93 % statements.
+- build: `vite build`, `✓ built in 311ms`.
+- These numbers match impl-log attempt 3.
+
+### Issue 1 verification
+- The fix is at `server/photo-sweep.db.test.ts:297` (`await anchor();` before seeding) and `:305` (`expect(deletes().length).toBeGreaterThan(0)` after the failing `--apply` run). Every other assertion is unchanged (`:309-321`).
+- **Real failed DELETEs.** I ran the test in a disposable worktree with a debug print added. The failing apply run sent 9 DELETE requests: 3 candidates, each retried. Each request hit `server/test/fake-drive.ts:116`, which returns a 500 whose body includes `GOOGLE_TEXT_SENTINEL` (`:53-56`). The run printed:
+  - `delete <uuid1..3>: FAIL drive_unavailable`
+  - the summary `referenced 1, candidates 3, deleted 0, failed 3, missing 1, mode apply`
+- **No leaked Google text.** The test asserts that the combined output does not contain any of these:
+  - the access, refresh and client-secret values
+  - `GOOGLE_TEXT_SENTINEL`
+  - `fakefile`, which also covers the anchor's `fakefile00000100`
+  - the page tokens, which really occur (`:312`; `listPageSize` is 2, giving 2 pages)
+  - The printed lines above contain none of them.
+- **Fails without the anchor.** With only `await anchor();` removed from that test, it fails with `AssertionError: expected 0 to be greater than 0` (1 failed, 18 passed). So the new assertion guards against the leg going dead again.
+
+### Acceptance criteria
+- [x] Changed or affected existing tests still test what they did. This was the only item left open in attempt 2. Evidence is above. The B1 criteria checked in attempt 2 are unaffected, since `server/photo-sweep.js` did not change.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. The diff is 2 lines in a test file that is in the plan, plus the impl-log (R7). Checks are green (R8).
+
+### Nits (do not block)
+- Attempt-2 nits still stand (README `:74` wording, `refusing:` prefix in dry-run).
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 2.
