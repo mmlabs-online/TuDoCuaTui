@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | ui, security |
 | Gate | none |
-| Depends on | T-018 |
+| Depends on | T-018.2 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
