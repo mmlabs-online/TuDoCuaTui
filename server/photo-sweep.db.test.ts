@@ -46,6 +46,11 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
         [uuid(n), ITEM, fid(n), iso(agoMin)],
       )
     ).rows[0].id as string;
+  /** A referenced tagged file (id 100), so the sweep does not refuse for an empty reference set. */
+  const anchor = async () => {
+    putFile(100, 600);
+    await addRow(100);
+  };
   const run = async (
     o: Partial<Parameters<typeof runSweep>[0]> = {},
   ): Promise<{ code: number; lines: string[] }> => {
@@ -80,6 +85,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   afterEach(() => fake?.close());
 
   it("apply deletes an unreferenced tagged file older than the grace period", async () => {
+    await anchor();
     putFile(1, 120);
     const { code, lines } = await run({ apply: true });
     expect(code).toBe(0);
@@ -99,6 +105,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
 
   it("apply keeps an unreferenced file younger than the grace period", async () => {
+    await anchor();
     putFile(1, 59);
     expect((await run({ apply: true })).code).toBe(0);
     expect(fake.files.has(fid(1))).toBe(true);
@@ -163,6 +170,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
 
   it("a row inserted after the listing is not deleted (re-check)", async () => {
+    await anchor();
     putFile(1, 600);
     let loaded = false;
     const lateInsertPool = {
@@ -195,15 +203,17 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
 
   it("pagination: files on later pages are swept", async () => {
     fake.config.listPageSize = 2;
+    await anchor();
     for (let i = 1; i <= 5; i++) putFile(i, 600);
     const { code, lines } = await run({ apply: true });
     expect(code).toBe(0);
-    expect(fake.files.size).toBe(0);
+    expect(fake.files.size).toBe(1);
     expect(listCalls()).toHaveLength(3);
-    expect(lines.at(-1)).toContain("listed 5 (3 pages)");
+    expect(lines.at(-1)).toContain("listed 6 (3 pages)");
   });
 
   it("a failed delete is reported with its code, the sweep continues, exit 1", async () => {
+    await anchor();
     putFile(1, 600);
     putFile(2, 600);
     fake.fail.add("delete");
@@ -224,6 +234,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
 
   it("more candidates than --max-delete: apply deletes nothing, exit 1", async () => {
+    await anchor();
     for (let i = 1; i <= 3; i++) putFile(i, 600);
     const { code, lines } = await run({ apply: true, maxDelete: 2 });
     expect(code).toBe(1);
@@ -231,6 +242,30 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     expect(deletes()).toHaveLength(0);
     // dry-run is not capped
     expect((await run({ maxDelete: 2 })).code).toBe(0);
+  });
+
+  it("apply refuses and deletes nothing when item_photos is empty and old tagged files exist", async () => {
+    for (let i = 1; i <= 3; i++) putFile(i, 600);
+    const { code, lines } = await run({ apply: true });
+    expect(code).toBe(1);
+    expect(lines).toContain("refusing: no listed file is referenced (check DATABASE_URL)");
+    expect(deletes()).toHaveLength(0);
+    expect(fake.files.size).toBe(3);
+    // dry-run still reports, with the same warning
+    const dry = await run();
+    expect(dry.code).toBe(0);
+    expect(dry.lines).toContain("refusing: no listed file is referenced (check DATABASE_URL)");
+    expect(dry.lines).toContain(`would delete ${uuid(1)}`);
+  });
+
+  it("apply refuses when item_photos has only rows that match no listed file", async () => {
+    for (let i = 1; i <= 3; i++) putFile(i, 600);
+    await addRow(50); // its file is not in the listing
+    const { code, lines } = await run({ apply: true });
+    expect(code).toBe(1);
+    expect(lines).toContain("refusing: no listed file is referenced (check DATABASE_URL)");
+    expect(deletes()).toHaveLength(0);
+    expect(fake.files.size).toBe(3);
   });
 
   it("folder check fails -> exit 1, no list, nothing deleted", async () => {
@@ -286,6 +321,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
 
   it("main runs with env + injected client/pool factories and returns the exit code", async () => {
+    await anchor();
     putFile(1, 600);
     const lines: string[] = [];
     const errors: string[] = [];
@@ -300,7 +336,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     });
     expect(code).toBe(0);
     expect(errors).toEqual([]);
-    expect(fake.files.size).toBe(0);
+    expect(fake.files.size).toBe(1);
     expect(lines.at(-1)).toContain("mode apply");
   });
 

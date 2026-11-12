@@ -38,3 +38,24 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; the sweep is about 200 lines, `listFiles` about 55, fake about 40.
 - Diff size: new `server/photo-sweep.js` (~215 lines) plus edits in drive.js, fake-drive.ts, README and tests.
+
+## Attempt 2 (REWORK: security blocker B1)
+
+### Files touched
+- `server/photo-sweep.js`: before any delete, if there are candidates and no listed tagged file is referenced (covers empty `item_photos` and rows matching nothing listed), log the fixed line `refusing: no listed file is referenced (check DATABASE_URL)`; with `--apply` set exit 1 and delete nothing. Dry-run prints the same line, still reports, exit 0. Required because: B1. No ratio guard.
+- `server/README.md`: one bullet in the photo-sweep section describing the refusal.
+- `server/photo-sweep.db.test.ts`: new tests (a) empty `item_photos` + 3 old tagged files, apply exits 1 with 0 DELETEs (dry-run also checked); (b) only non-matching rows, same. Existing apply tests that deleted files with an empty reference set now first add a referenced "anchor" file (counts adjusted: pagination 6 listed, main test leaves 1 file). Required because the new guard would otherwise refuse them.
+
+### Checks (actual output summary)
+Scratch PostgreSQL 16 under /tmp (scram password auth, stopped and deleted afterwards), `TEST_DATABASE_URL` set.
+- typecheck: clean. format:check: all files correct.
+- test: 68 files, 842 tests passed. `CI=true pnpm test:coverage`: 68 files, 842 passed, no threshold failure. build: OK.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only B1 addressed; no other behavior changed.

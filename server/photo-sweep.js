@@ -107,7 +107,14 @@ export async function runSweep({
   let failed = false;
   let deleted = 0;
   let failedDeletes = 0;
-  if (apply && candidates.length > maxDelete) {
+  if (candidates.length > 0 && count.referenced === 0) {
+    // No listed file is referenced: likely a wrong or empty DATABASE_URL, so every file would look orphaned.
+    log("refusing: no listed file is referenced (check DATABASE_URL)");
+    if (apply) failed = true;
+  }
+  if (apply && failed) {
+    // refused above: delete nothing
+  } else if (apply && candidates.length > maxDelete) {
     log(
       `too many candidates: ${candidates.length} > ${maxDelete} (rerun with --max-delete ${candidates.length})`,
     );
