@@ -117,3 +117,65 @@ No violations found.
 From security-review.md attempt 1 (🟡, not blocking, fixed before the PR at Ming's request):
 1. `server/drive.js:370-374` / `server/photos.js:307` — Drive `Content-Length` may be the compressed length: send `accept-encoding: identity` on the `getMedia` request (preferred), and/or return `contentLength: null` when `content-encoding` is set and not `identity`; test with the fake Drive (e.g. a gzip/`content-encoding` response → no Content-Length mismatch).
 2. `server/app.js:69` and `server/api.js:64` — `return await handleApi(...)` / `return await servePhoto(...)` so a rejection reaches the existing catch (500) instead of an unhandled rejection that exits the process; add a test where a handler throws → 500 and the server keeps serving.
+
+## Attempt 2 — 2026-11-12
+Verdict: REWORK
+
+Scope of this attempt: the two "Security follow-ups to fix" items only (commit 1650386).
+
+### Checks (run by reviewer)
+Local PostgreSQL 16 (data dir under /tmp, scram password auth, `TEST_DATABASE_URL` set), stopped and deleted afterwards.
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` exit 0.
+- format:check: exit 0.
+- test: 66 files, 809 tests passed (matches impl-log).
+- test:coverage (`CI=true`): 66 files, 809 passed; All files 95.59 stmts / 94.63 branches; `api.js` 98.52, `app.js` 95.55, `drive.js` 99.49, `photos.js` 97.56.
+- build: `✓ built in 309ms`.
+
+### Scope
+- `git show 1650386 --stat`: `server/api.js` (+1/-1), `server/app.js` (+1/-1), `server/drive.js` (+1), `server/api.test.ts` (+12), `server/drive.test.ts` (+6), `impl-log.md`. Nothing else in code changed.
+- `git diff 2be4b8f HEAD --stat` adds only `ticket.md` (state, 77f8d4b) and `security-review.md` (attempt 2, 1cca8bc). The full `git diff origin/main...HEAD` is otherwise identical to attempt 1. No out-of-plan files.
+
+### Acceptance criteria (the two follow-ups)
+- [x] **getMedia sends `accept-encoding: identity`.**
+  - Code: `server/drive.js:363`. `request()` spreads `o.headers` before `authorization` (`drive.js:256`), so the header cannot override the token.
+  - Test: `drive.test.ts:345-349 › getMedia asks Drive for an identity encoding…` asserts the outgoing header.
+  - The optional `contentLength: null`-on-`content-encoding` hardening ("and/or") was not done. That is acceptable; see Nits.
+- [x] **Handler rejections become 500.**
+  - Code: `server/app.js:69` `return await handleApi(...)` sits inside the try, so a rejection reaches the catch at `app.js:85-93` and returns 500.
+  - `server/api.js:64` `return await servePhoto(...)` is not inside any try in `handleApi`, so this `await` is redundant but harmless. The fix that matters is `app.js:69`.
+- [ ] **A test where a handler throws → 500 and the server keeps serving.** FAILED, see Issue 1.
+
+### `handlePhoto` question
+`server/api.js:73` `return handlePhoto(...)` has the same unawaited shape. It is **safe** now: it is outside any try in `handleApi`, so a rejection is adopted by `handleApi`'s promise and caught by the awaited call at `app.js:69`. The same holds for `servePhoto`, which is why the `api.js:64` change makes no difference (proved below). Adding `await` at `:73` would only be cosmetic.
+
+### Revert experiment (local only, restored with `git checkout`, nothing committed)
+1. Both awaits removed (`app.js:69`, `api.js:64`), then `vitest run server/api.test.ts -t rejects`: **1 passed**. The committed test does not detect the missing fix.
+2. A scratch test (deleted afterwards): the pool returns a row and `getMedia` resolves to `null`. `media.contentLength` then throws at `photos.js:307`, which is outside any try.
+   - At HEAD: 500, 0 unhandled rejections. Passed.
+   - `app.js:69` await removed: the request hangs (client timeout) and there is 1 unhandledRejection. **Failed.**
+   - Only `api.js:64` await removed: passed. This confirms that the api.js `await` is not load-bearing and that `handlePhoto`/`servePhoto` are covered by `app.js:69`.
+
+So the code fix is correct, but the regression test does not guard it.
+
+### Issues
+#### Issue 1 — 🔴 blocker — test does not exercise the fix (R8)
+- **Where**: `server/api.test.ts:49-59` (`a handler that rejects -> 500 and the server keeps serving`).
+- **Expected**: a test that fails when `await` is removed from `server/app.js:69`.
+- **Actual**: the throwing `pool.query` is caught inside `servePhoto` (`photos.js:264-270`, mapped to 500 `internal` by `errors.js:31`). The test passes with both awaits removed (experiment 1 above). This matches security-review.md attempt 2, item 3.
+- **Fix instruction**: in that test:
+  1. Make the pool resolve `{ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }`.
+  2. Make `getMedia` resolve to `null` (or `{}`, which makes `res.writeHead` at `photos.js:304-308` throw on an invalid Content-Length). The failure then happens outside every try in `servePhoto`/`handleApi`.
+  3. Keep the asserts: status 500, then `/healthz` returns 200.
+  4. Give the fetch a timeout (e.g. `signal: AbortSignal.timeout(2000)`), so that without the fix the test fails fast instead of hanging.
+  5. Verify locally that it fails with `app.js:69`'s `await` removed, and record that in impl-log.md. Touch nothing else.
+
+### Rules R1–R10 (CLAUDE.md)
+- R8: the follow-up's required regression test is not effective (Issue 1).
+- No other violations. R3 holds: `accept-encoding` is not secret, and `authorization` is still set last.
+
+### Nits (do not block)
+- `server/api.js:64`: the `await` is redundant (see above). Keep or drop it; either way is fine.
+- `server/drive.js:371-375`: optional hardening, return `contentLength: null` when `content-encoding` is set and is not `identity`, in case Google ignores the request header.
+
+### Follow-ups (out of scope)
+- None new. The attempt 1 follow-ups still apply.
