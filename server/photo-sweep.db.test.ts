@@ -294,6 +294,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
 
   it("output never contains tokens, secrets, Google error text, Drive file ids or page tokens", async () => {
+    await anchor();
     fake.config.listPageSize = 2;
     for (let i = 1; i <= 3; i++) putFile(i, 600);
     await addRow(4); // a row whose file is missing
@@ -301,6 +302,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     all.push(...(await run()).lines);
     fake.fail.add("delete");
     all.push(...(await run({ apply: true })).lines);
+    expect(deletes().length).toBeGreaterThan(0);
     fake.fail.delete("delete");
     fake.fail.add("list");
     all.push(...(await run({ apply: true })).lines);

@@ -59,3 +59,22 @@ None new.
 
 ### Scope self-check
 Only B1 addressed; no other behavior changed.
+
+## Attempt 3 (REWORK: review attempt 2, Issue 1)
+
+### Files touched
+- `server/photo-sweep.db.test.ts`: in the redaction test, added `await anchor();` before seeding and `expect(deletes().length).toBeGreaterThan(0)` after the failing `--apply` run. Required because: Issue 1 (the delete-failure leg had gone dead after the B1 guard).
+
+### Checks
+Scratch PostgreSQL 16 under /tmp (scram password auth, `TEST_DATABASE_URL`, stopped and deleted afterwards).
+- Fixed test fails without the anchor (`expected 0 to be greater than 0`), passes with it (19 passed).
+- typecheck clean; format:check clean; test 68 files / 842 passed; `CI=true pnpm test:coverage` 68 / 842 passed, no threshold failure; build OK.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only Issue 1 addressed; two lines added to one test.
