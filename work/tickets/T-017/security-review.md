@@ -29,3 +29,13 @@
 1. 🟡 Own-property lookups in `toCategoryLabel` + prototype-key test (inside the file list).
 2. 🟢 Report moved row counts after the production migrate.
 3. 🟢 Follow-ups: `load()` guard for malformed localStorage; CHECK constraint for retired categories later.
+
+## Attempt 2 — security-ai-generated-code-auditor (read-only, commit 0e6fc03)
+
+**Verdict:** 🟡 resolved; no 🔴 / 🟡.
+- 🟢 `own()` (`src/data/mappers.ts:54`, `hasOwnProperty.call`) used for `CATEGORY_TO_DB` `:59`, `CATEGORY_FROM_DB` `:60`, `CATEGORY_ALIASES` `:61`; prototype keys fall to `OTHER_CATEGORY` `:62`.
+- 🟢 typeof guard `:58`.
+- 🟢 `itemToRow` (`:137`) can only get a valid id now.
+- 🟢 Tests `src/data/mappers.test.ts:139-144`.
+- 🟢 Nothing new; diff inside the two planned files.
+- Follow-up (pre-existing, R7): status/color/season tables still use bracket lookups (`mappers.ts:107-109, 138, 145-146`) — shared `own()` for every mapper table.
