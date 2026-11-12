@@ -26,3 +26,15 @@ No 🔴. Two 🟡, rest 🟢. No edits, no .env read, tests not run.
 
 Risks: orphans until T-005.6 (accepted, A5); 23505 → compensating delete (only harmful if Google reused an id).
 Open: should DELETE photo require the expected photo id (1b)?
+
+## Attempt 2 (2026-11-12) — security-ai-generated-code-auditor (d84988c..9e0bb68)
+
+Attempt-1 🟡 1 (stale-view photo deletion) fixed client + server. No 🔴/🟡. Static read only.
+
+1. Query split / routing: one `pathname` for guard and router, cut at first `?` then `#` (`server/app.js:42-43,60,73`, `server/api.js:42-61`); `…/photo#?photo=` → 400; `?photo=<u>?x` fails uuid → 400; `%3F` never decoded → 404/400; duplicates/empty/other names → 400 (`photos.js:135-138`, tests `api.db.test.ts:517-532`); absolute-form/`*` still 400 (`app.js:42`); query parsed only after access/405/Sec-Fetch-Site/uuid checks.
+2. Server DELETE (`server/photos.js:133-162`): required single uuid before the 503 checks; under `withLockedItem`; `delete … where item_id=$1 and id=$2`; stale/no photo/missing item → 204 no-op (README `:45`, "never 409"); Drive delete only after commit and only for `returning` rows. Note: SQL doesn't check `is_primary` — equivalent today (PUT replaces all rows); revisit if several photos per item arrive.
+3. Client (`src/types/item.ts:23-24`, `Editor.tsx:164-176`, `repo.http.ts:83-89`): DELETE only with `removedPhotoId`; stale view sends none (`repo.http.test.ts:203-208`); new photo wins; upload-then-remove still deletes; retry keeps `removedPhotoId`; result patch only clears the matching id (`:210-220`); `removedPhotoId` not in the PUT body (`mappers.ts:89-107`). Nit: `encodeURIComponent` at `repo.http.ts:85` (cosmetic).
+4. Tests cover 400 cases, two-tab stale case, repeated/unknown DELETE 204, Drive-off 503 (`api.test.ts:293`), client cases (`repo.http.test.ts:188-228`). Optional: app-level test for `#`, `%3F`, extra `?` on the photo route.
+5. Not security: "Bỏ ảnh" then close doesn't prompt (`src/features/items/dirty.ts:4-19` ignores photoPath/removedPhotoId) — removal silently dropped, no data loss; follow-up.
+
+Risks unchanged (orphans until T-005.6; ambiguous commit). T-005.3 serving notes still apply.
