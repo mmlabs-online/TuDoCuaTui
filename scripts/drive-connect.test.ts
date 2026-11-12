@@ -384,10 +384,8 @@ describe("full run (fake Google)", () => {
     expect(text).toContain("Signed in as: a@example.com");
     expect(text).toContain(`Drive folder id: ${FOLDER}`);
     expect(text).toContain(`Secrets file: ${r.outFile}`);
-    expect(text).toContain(
-      `gh secret set -f "${r.outFile}" --env tudocuatui -R mmlabs-online/deployment`,
-    );
-    expect(text).toContain("gh secret list --env tudocuatui -R mmlabs-online/deployment");
+    expect(text).toContain(`gh secret set -f "${r.outFile}" -R mmlabs-online/deployment`);
+    expect(text).toContain("gh secret list -R mmlabs-online/deployment");
     expect(fs.readFileSync(r.outFile, "utf8")).toContain(
       `TUDOCUATUI_GOOGLE_REFRESH_TOKEN=${RTOKEN}`,
     );
