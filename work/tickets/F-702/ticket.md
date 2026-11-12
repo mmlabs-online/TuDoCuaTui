@@ -43,4 +43,6 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
+- 2026-11-12: 'Supabase mode only' becomes 'API mode only' (D30).
+
 ## Handoff

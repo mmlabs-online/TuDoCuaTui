@@ -5,6 +5,8 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
+import { AiConfigError, loadAiConfig } from "./ai/config.js";
+import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
 import { createDriveClient, DriveConfigError, loadDriveConfig } from "./drive.js";
@@ -47,6 +49,17 @@ try {
   process.exit(2);
 }
 
+/** @type {{ kek: import("./ai/crypto.js").AiKek } | null} */
+let ai = null;
+try {
+  const aiConfig = loadAiConfig(process.env);
+  if (aiConfig.mode === "on") ai = { kek: await importKek(aiConfig.kekB64) };
+  console.log(ai ? "ai configured" : "ai not configured");
+} catch (err) {
+  console.error(err instanceof AiConfigError ? `config error: ${err.message}` : "config error");
+  process.exit(2);
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 const pool = databaseUrl ? createPool(databaseUrl, log) : null;
 if (!pool) console.log("database not configured");
@@ -54,7 +67,7 @@ if (!pool) console.log("database not configured");
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 const port = Number(process.env.PORT ?? 3000);
 
-const server = http.createServer(createApp({ pool, distDir, drive, access, log }));
+const server = http.createServer(createApp({ pool, distDir, ai, drive, access, log }));
 server.listen(port, "0.0.0.0", () => {
   const addr = server.address();
   console.log(`listening on :${typeof addr === "object" && addr ? addr.port : port}`);

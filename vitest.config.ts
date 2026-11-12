@@ -61,6 +61,7 @@ export default defineConfig({
         "server/validate.js": thresholds,
         "server/errors.js": thresholds,
         "server/drive.js": thresholds,
+        "server/ai/**": thresholds,
         "server/drive-smoke.js": thresholds,
         "scripts/drive-connect.mjs": thresholds,
       },

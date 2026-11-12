@@ -12,12 +12,13 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
 | `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token (scope `drive.file`). Secret: runtime env only. |
 | `DRIVE_FOLDER_ID` | Id of the `TuDoCuaTui` Drive folder the connect script created |
+| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset: AI routes answer 503; malformed: exit 2. |
 | `NODE_ENV` | With `production`, missing `CF_ACCESS_*` exits 2. |
 | `PORT` | Default 3000 |
 
 Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints below), everything else is the SPA.
 
-In production the four Google values come from `deploy-tudocuatui` (GitHub environment `tudocuatui`), see M-15 in `work/ming-todo.md`.
+In production the four Google values come from `deploy-tudocuatui` (repository secrets of `mmlabs-online/deployment`, D28), see M-15 in `work/ming-todo.md`.
 
 The four Google variables are all-or-nothing: none set means photos are off (`drive not configured`, the server still starts); a partial or malformed set exits 2 with a message that names variables, never values. An empty string counts as unset.
 
@@ -85,3 +86,11 @@ docker compose -p tudocuatui -f apps/tudocuatui/compose.yml --env-file apps/tudo
 ```
 
 Scheduling it is a deployment-repo follow-up.
+
+## AI settings (T-018)
+
+`GET /api/ai-settings` returns `{ settings: AiSettingsView | null }` (provider, model, masked `keyHint`, `hasKey`, `modelSupported`, `updatedAt`; never the key). `PUT /api/ai-settings` takes `{ provider, model, apiKey? }` (omit `apiKey` to keep the stored key; changing provider needs a new key). `DELETE /api/ai-settings/key` clears the key (idempotent). The key is sealed with AES-256-GCM (`server/ai/crypto.js`, KEK from `AI_KEK`) and stored in the single `ai_settings` row.
+
+Errors use the codes in `AI_ERROR_STATUS`: `invalid_provider`, `invalid_model`, `invalid_key_format`, `key_required`, `bad_request`, `invalid_json`, `unsupported_media_type`, `payload_too_large` (4096 bytes), `forbidden_origin`, `rate_limited` (30 saves/hour, in memory), `db_unavailable`, `server_misconfigured` (no `AI_KEK`: every AI route), `internal`.
+
+`server/ai/*.js` mirrors `src/shared/ai`; `server/ai/parity.test.ts` fails if they drift. The `/test` endpoint comes with T-018.2.

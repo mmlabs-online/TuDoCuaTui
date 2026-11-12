@@ -1,6 +1,8 @@
 // @ts-check
 // Request router: health, readiness, /api guard, static SPA. Injectable for tests.
 import { randomUUID } from "node:crypto";
+import { createAiStore } from "./ai/store.js";
+import { createLimiter } from "./ai/rateLimit.js";
 import { handleApi } from "./api.js";
 import { ping } from "./db.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
@@ -10,13 +12,27 @@ import { serveStatic } from "./static.js";
  * @param {{
  *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
+ *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore } | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   access: { verify(req: import("node:http").IncomingMessage): Promise<{ ok: boolean, code?: string }> } | null,
  *   log: (entry: Record<string, unknown>) => void,
  *   now?: () => number,
  * }} deps
  */
-export function createApp({ pool, distDir, drive = null, access, log, now = () => Date.now() }) {
+export function createApp({
+  pool,
+  distDir,
+  ai = null,
+  drive = null,
+  access,
+  log,
+  now = () => Date.now(),
+}) {
+  const aiContext = ai && {
+    kek: ai.kek,
+    store: ai.store ?? (pool ? createAiStore(pool) : null),
+    limiter: createLimiter({ now }),
+  };
   return async function handler(
     /** @type {import("node:http").IncomingMessage} */ req,
     /** @type {import("node:http").ServerResponse} */ res,
@@ -68,6 +84,7 @@ export function createApp({ pool, distDir, drive = null, access, log, now = () =
         }
         return await handleApi(req, res, {
           pool,
+          ai: aiContext,
           drive,
           pathname,
           query: url.split("#")[0].split("?").slice(1).join("?"),

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -101,6 +102,34 @@ describe("entry point", () => {
     } finally {
       child.kill("SIGTERM");
     }
+  });
+
+  it("no AI_KEK: logs 'ai not configured'", async () => {
+    const { child, output } = await start({ TUDO_ACCESS_DISABLED: "1" });
+    try {
+      expect(output()).toContain("ai not configured");
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("valid AI_KEK: logs 'ai configured', value not printed", async () => {
+    const kek = randomBytes(32).toString("base64");
+    const { child, port, output } = await start({ TUDO_ACCESS_DISABLED: "1", AI_KEK: kek });
+    try {
+      expect((await fetch(`http://127.0.0.1:${port}/healthz`)).status).toBe(200);
+      expect(output()).toContain("ai configured");
+      expect(output()).not.toContain(kek);
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("malformed AI_KEK exits 2 with 'config error: ...AI_KEK...' and no value", () => {
+    const r = run({ TUDO_ACCESS_DISABLED: "1", AI_KEK: "not-a-kek-value" });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/config error: .*AI_KEK/);
+    expect(r.stderr + r.stdout).not.toContain("not-a-kek-value");
   });
 
   it("partial Google config exits 2 with 'config error: ...' and no values", () => {
