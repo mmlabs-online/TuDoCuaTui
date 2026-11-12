@@ -219,3 +219,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] (2026-11-08) Approve plan for T-004 (branch `ticket/T-004`): work/tickets/T-004/plan.md — shared stoktok DB, `tudo_` prefix, explicit grants; changes vs ticket C1–C13
 - [x] (2026-11-08) Approve plan for F-007 (branch `ticket/F-007`): work/tickets/F-007/plan.md — drops `_redirects`, see "Changes vs ticket scope"
 - [x] (2026-11-07) Approve plan for F-101 (branch `ticket/F-101`): work/tickets/F-101/plan.md
+- [ ] (2026-11-12) Approve plan for T-017 (branch `claude/loving-fermi-t90upb`): work/tickets/T-017/plan.md — new category list; confirm A1–A10 (A1 mapping bag→Phụ kiện, sport/home→Loại khác; A2 ids; A4 Supabase left as-is)

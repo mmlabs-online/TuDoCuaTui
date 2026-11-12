@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-12T08:40:10Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -76,7 +76,14 @@ Touches F-201 (editor), F-301 (filters), F-601 (CSV import/template), F-701 (all
 - DB: migration test on real Postgres (rows with `bag`/`sport`/`home` are moved; new values insertable).
 - Manual: editor + filters at 390px, light and dark.
 
+Waiting for Ming: plan approval (High tier)
+
 ## Notes / answers from Ming
 - 2026-11-12: "thêm 1 task làm gấp bây giờ: Thay đổi category: Áo, quần/váy, đầm, set đồ, giày/dép, áo dài, khoác, bikini, Phụ kiện, loại khác"
 
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: consult (database-optimizer), plan READY with assumptions A1–A10.
+- In progress / next: Ming approves the plan (and A1–A10), then implement → review → PR.
+- Gotchas: `ALTER TYPE … ADD VALUE` runs inside the migrator transaction; the new values must not be used in the same file (55P04). `api.db.test.ts:261` enum drift test breaks on purpose. Session branch still carries open PR #40 (T-005.6).
