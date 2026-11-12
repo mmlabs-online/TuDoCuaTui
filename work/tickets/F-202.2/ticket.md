@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | SUPERSEDED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
@@ -47,8 +47,14 @@ The grid loads fast, and photos still show after the app has been open for more 
 - Manual: set a 60-second TTL in dev, wait, scroll; check the Network tab.
 
 ## Notes / answers from Ming
+- 2026-11-12 (Annie, /run F-202.2): closed as SUPERSEDED by T-005.3, as the D27 note predicted. Evidence: `src/components/ItemPhoto.tsx:16` already has `loading="lazy"`, `decoding="async"` and an `onError` fallback; API mode serves `/api/photos/:id` with no expiring URLs; the T-005.3 ticket says it replaces this ticket's signed-URL refresh. The remaining `createSignedUrls` in `src/data/repo.ts` is the Supabase-mode code that T-016 removes. The hero image in `Editor.tsx` is above the fold, so it stays eager. Reopen if Ming disagrees.
 - 2026-11-11 (D27): photos are served by `/api/photos/:id` behind Cloudflare Access, with no expiring URLs; lazy loading moved into T-005.3. This ticket is likely obsolete — re-check after T-005.3.
 - 2026-11-08: photos move to Google Drive (T-005.x). Re-scope this ticket to Drive photos served through `tudo-drive` URLs. Refresh those short-lived URLs, not Storage signed URLs. It starts after T-005.3.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-12 — claude — SUPERSEDED
+- Done: checked the scope against `main` after T-005.3; nothing left to build. No branch, plan or PR.
+- In progress / next: none. Supabase signed-URL code goes away with T-016.
+- Gotchas: none.
