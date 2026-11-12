@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-12T12:39:09Z |
 | PR | — |
 
 ## Goal
@@ -84,7 +84,7 @@ screen (T-010) and photo tagging (F-701) can use them in API mode, and the key i
   behind Cloudflare Access.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-12: Plan approved, split in two (Ming, in chat with Annie: "Plan approved (T-018), chia 2"; recorded by Annie). This ticket implements slice T-018.1; T-018.2 is a separate ticket. Assumptions A1–A12 accepted as defaults.
 - 2026-11-12 (chat with Annie): "ok" to T-010 plan questions Q1–Q3 (defaults).
 
 ## Handoff
