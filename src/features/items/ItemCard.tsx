@@ -1,5 +1,6 @@
 import type { Item } from "@/types/item";
 import { Icon } from "@/components/Icon";
+import { ItemPhoto } from "@/components/ItemPhoto";
 import { colorMap, frameColors } from "@/constants/wardrobe";
 
 export function ItemCard({
@@ -13,6 +14,12 @@ export function ItemCard({
 }) {
   const days = age(item.lastWorn);
   const frameIndex = Number.parseInt(item.id.replace(/\D/g, "").slice(-2) || "0", 10);
+  const placeholder = (
+    <div className="photo-placeholder">
+      <Icon name="shirt" size={42} />
+      <span>Chưa có ảnh</span>
+    </div>
+  );
   return (
     <button className="item-card" onClick={onClick}>
       <div
@@ -20,12 +27,9 @@ export function ItemCard({
         style={{ "--frame": frameColors[frameIndex % frameColors.length] } as React.CSSProperties}
       >
         {item.photo ? (
-          <img src={item.photo} alt={item.name} />
+          <ItemPhoto src={item.photo} alt={item.name} fallback={placeholder} />
         ) : (
-          <div className="photo-placeholder">
-            <Icon name="shirt" size={42} />
-            <span>Chưa có ảnh</span>
-          </div>
+          placeholder
         )}
         {item.status !== "Đang dùng" && (
           <span className={`badge badge-${item.status.replaceAll(" ", "-")}`}>{item.status}</span>

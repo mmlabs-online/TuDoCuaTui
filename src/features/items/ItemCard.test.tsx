@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { Item } from "@/types/item";
 import { ItemCard } from "./ItemCard";
@@ -47,5 +47,25 @@ describe("ItemCard wear pill", () => {
   test('shows "1 ngày" at 00:30 UTC+7 for an item worn yesterday', () => {
     renderAt("2026-11-07T00:30:00+07:00", "2026-11-06");
     expect(screen.getByText(/1 ngày/)).toBeTruthy();
+  });
+});
+
+describe("ItemCard photo", () => {
+  test("renders the photo lazily", () => {
+    render(
+      <ItemCard item={makeItem({ photo: "/api/photos/p" })} age={ageInDays} onClick={() => {}} />,
+    );
+    const img = screen.getByAltText("Áo");
+    expect(img.getAttribute("src")).toBe("/api/photos/p");
+    expect(img.getAttribute("loading")).toBe("lazy");
+  });
+
+  test('img error shows the "Chưa có ảnh" placeholder', () => {
+    render(
+      <ItemCard item={makeItem({ photo: "/api/photos/p" })} age={ageInDays} onClick={() => {}} />,
+    );
+    expect(screen.queryByText("Chưa có ảnh")).toBeNull();
+    fireEvent.error(screen.getByAltText("Áo"));
+    expect(screen.getByText("Chưa có ảnh")).toBeTruthy();
   });
 });

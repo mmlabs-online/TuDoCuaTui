@@ -163,6 +163,28 @@ describe("app", () => {
     expect(calls).toEqual([]);
   });
 
+  it("GET /api/photos/:id without a valid JWT -> 401, no DB query, no Drive call", async () => {
+    const calls: string[] = [];
+    const pool = { query: async () => calls.push("query") };
+    const drive = { getMedia: async () => calls.push("drive") };
+    const server = http.createServer(
+      createApp({
+        pool,
+        drive: drive as never,
+        distDir: dir,
+        access: { verify: async () => ({ ok: false, code: "ERR_X" }) },
+        log: () => {},
+      }),
+    );
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    servers.push(server);
+    const res = await fetch(
+      `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/photos/11111111-1111-4111-8111-111111111111`,
+    );
+    expect(res.status).toBe(401);
+    expect(calls).toEqual([]);
+  });
+
   it("unexpected errors -> 500 `internal` with requestId only", async () => {
     const server = http.createServer(
       createApp({

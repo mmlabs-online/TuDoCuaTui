@@ -161,11 +161,18 @@ describe("createHttpRepo", () => {
   const PHOTO_ID = "22222222-2222-4222-8222-222222222222";
   const DATA_URL = "data:image/jpeg;base64,AAAA";
 
-  test("list maps primary_photo_id to photoPath and leaves photo empty", async () => {
+  test('list maps primary_photo_id to photo "/api/photos/<id>" and photoPath', async () => {
     const { repo } = setup(() => json({ items: [{ ...row, primary_photo_id: PHOTO_ID }] }));
     const [it] = await repo.list();
     expect(it.photoPath).toBe(PHOTO_ID);
+    expect(it.photo).toBe(`/api/photos/${PHOTO_ID}`);
+  });
+
+  test('row without a photo maps to photo ""', async () => {
+    const { repo } = setup(() => json({ items: [{ ...row, primary_photo_id: null }] }));
+    const [it] = await repo.list();
     expect(it.photo).toBe("");
+    expect(it.photoPath).toBeUndefined();
   });
 
   test("save with a data: photo PUTs the item, then the resized JPEG to /items/<id>/photo", async () => {
@@ -182,7 +189,7 @@ describe("createHttpRepo", () => {
     expect(c.headers["Content-Type"]).toBe("image/jpeg");
     expect(c.init.body).toBe((await resize.mock.results[0].value).blob);
     expect(saved.photoPath).toBe(PHOTO_ID);
-    expect(saved.photo).toBe("");
+    expect(saved.photo).toBe(`/api/photos/${PHOTO_ID}`);
   });
 
   test("save after explicitly removing a stored photo DELETEs that photo id", async () => {
@@ -223,7 +230,9 @@ describe("createHttpRepo", () => {
     const { repo, fetchFn } = setup(() => json({ item: { ...row, primary_photo_id: PHOTO_ID } }));
     await repo.save(item({ photo: "", photoPath: PHOTO_ID }));
     await repo.save(item({ photo: "https://example.test/a.jpg", photoPath: PHOTO_ID }));
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    await repo.save(item({ photo: `/api/photos/${PHOTO_ID}`, photoPath: PHOTO_ID }));
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(fetchFn.mock.calls.every((c) => !String(c[0]).includes("/photo"))).toBe(true);
     expect(resize).not.toHaveBeenCalled();
   });
 

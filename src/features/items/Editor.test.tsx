@@ -101,14 +101,26 @@ describe("API mode photos", () => {
     expect(inputs).toHaveLength(2);
   });
 
-  test('a stored photo that is not displayed shows "Ảnh đã lưu" and "Bỏ ảnh"', () => {
-    renderEditor(vi.fn(), false, true, stored, false);
-    expect(screen.getByText(EDITOR_COPY.photo.stored)).toBeTruthy();
+  const withPhoto = { ...stored, photo: "/api/photos/photo-id" };
+
+  test("API item with a photo URL shows the image and Bỏ ảnh", () => {
+    renderEditor(vi.fn(), false, true, withPhoto, false);
+    expect(document.querySelector(".upload-zone.has-photo img")?.getAttribute("src")).toBe(
+      "/api/photos/photo-id",
+    );
+    expect(screen.getByRole("button", { name: "Bỏ ảnh" })).toBeTruthy();
+  });
+
+  test("img error shows loadFailed copy, keeps Bỏ ảnh", () => {
+    renderEditor(vi.fn(), false, true, withPhoto, false);
+    fireEvent.error(document.querySelector(".upload-zone img")!);
+    expect(screen.getByText(EDITOR_COPY.photo.loadFailed)).toBeTruthy();
+    expect(document.querySelector(".upload-zone.has-photo")).toBeNull();
     expect(screen.getByRole("button", { name: "Bỏ ảnh" })).toBeTruthy();
   });
 
   test("Bỏ ảnh with photoById clears photo and photoPath", () => {
-    const { update } = renderEditor(vi.fn(), false, true, stored, false);
+    const { update } = renderEditor(vi.fn(), false, true, withPhoto, false);
     fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).toHaveBeenCalledWith("photoPath", undefined);
@@ -127,6 +139,5 @@ describe("API mode photos", () => {
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).not.toHaveBeenCalledWith("photoPath", undefined);
     expect(update).not.toHaveBeenCalledWith("removedPhotoId", expect.anything());
-    expect(screen.queryByText(EDITOR_COPY.photo.stored)).toBeNull();
   });
 });

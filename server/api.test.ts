@@ -293,6 +293,29 @@ describe("no DB and DB errors", () => {
     expect((await fetch(url + `?photo=${ID}`, { method: "DELETE" })).status).toBe(503);
   });
 
+  it("GET /api/photos/<uuid>: drive null -> 503 photos_unavailable; pool null with drive -> 503 db_unavailable", async () => {
+    const { pool, calls } = spyPool();
+    const off = await fetch(`${await start(pool)}/api/photos/${ID}`);
+    expect(off.status).toBe(503);
+    expect(await err(off)).toEqual({ code: "photos_unavailable" });
+    const noPool = await fetch(`${await start(null, {})}/api/photos/${ID}`);
+    expect(noPool.status).toBe(503);
+    expect(await err(noPool)).toEqual({ code: "db_unavailable" });
+    expect(calls).toEqual([]);
+  });
+
+  it("/api/photos routing: POST -> 405 Allow GET; bad id -> 400; /api/photos and /<uuid>/x -> 404", async () => {
+    const base = await start(null, {});
+    const post = await fetch(`${base}/api/photos/${ID}`, { method: "POST" });
+    expect(post.status).toBe(405);
+    expect(post.headers.get("allow")).toBe("GET");
+    const bad = await fetch(`${base}/api/photos/nope`);
+    expect(bad.status).toBe(400);
+    expect(await err(bad)).toMatchObject({ code: "invalid_input", field: "id" });
+    expect((await fetch(`${base}/api/photos`)).status).toBe(404);
+    expect((await fetch(`${base}/api/photos/${ID}/x`)).status).toBe(404);
+  });
+
   it("a pg-like error -> 500 {code internal, requestId}; body and logs contain none of it", async () => {
     logs.length = 0;
     const secret = Object.assign(new Error("select * from items password=hunter2"), {

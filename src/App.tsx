@@ -184,6 +184,11 @@ function App({ mode }: { mode?: DataMode } = {}) {
               name: `${editor.name} (bản sao)`,
               wearCount: 0,
               lastWorn: "",
+              ...(wardrobe.mode === "api" && {
+                photo: "",
+                photoPath: undefined,
+                removedPhotoId: undefined,
+              }),
             });
             setIsNew(true);
             notify("Đã tạo bản sao");

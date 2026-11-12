@@ -2,6 +2,8 @@
 // PUT / DELETE /api/items/:id/photo (D27). The browser sends the resized JPEG; Drive file ids never leave the server.
 // Lock rule: every writer of item_photos locks the items row first (items -> item_photos), so writers never deadlock.
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { sendError, sendJson } from "./http.js";
@@ -235,4 +237,80 @@ async function putPhoto(req, res, { pool, drive, itemId, log }) {
   await deleteDriveFiles(drive, old, log);
   const item = await getItem(pool, itemId);
   return item ? sendJson(res, 200, { item }) : sendError(res, 404, "not_found");
+}
+
+const PHOTO_HEADERS = {
+  "Content-Type": "image/jpeg",
+  "Cache-Control": "private, max-age=31536000, immutable",
+  "Content-Security-Policy": "default-src 'none'; sandbox",
+  "Content-Disposition": "inline",
+  "Cross-Origin-Resource-Policy": "same-origin",
+};
+
+/**
+ * GET /api/photos/:id: streams the stored JPEG. Headers are constants (never Drive's); errors and logs carry no ids.
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ * @param {{
+ *   pool: import("./items.js").Pool | null,
+ *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
+ *   photoId: string, id: string, log: (entry: Record<string, unknown>) => void, deadlineMs?: number,
+ * }} ctx
+ */
+export async function servePhoto(req, res, { pool, drive, photoId, id, log, deadlineMs = 30_000 }) {
+  if (!drive) return sendError(res, 503, "photos_unavailable");
+  if (!pool) return sendError(res, 503, "db_unavailable");
+  let driveFileId;
+  try {
+    const r = await pool.query("select drive_file_id from item_photos where id = $1", [photoId]);
+    driveFileId = r.rows[0]?.drive_file_id;
+  } catch (err) {
+    const mapped = mapDbError(err);
+    log({ event: "db_error", id, ...dbLogFields(err) });
+    const extra = mapped.code === "internal" ? { requestId: id } : {};
+    return sendError(res, mapped.status, mapped.code, extra);
+  }
+  if (!driveFileId) return sendError(res, 404, "not_found");
+
+  const etag = `"${photoId}"`;
+  const { "Content-Type": _type, ...cacheHeaders } = PHOTO_HEADERS;
+  const inm = String(req.headers["if-none-match"] ?? "");
+  if (inm.trim() === "*" || inm.split(",").some((t) => t.trim() === etag)) {
+    res.writeHead(304, { ...cacheHeaders, ETag: etag });
+    return res.end();
+  }
+
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), deadlineMs);
+  res.once("close", () => {
+    clearTimeout(timer);
+    ctl.abort();
+  });
+  /** @type {Awaited<ReturnType<NonNullable<typeof drive>["getMedia"]>>} */
+  let media;
+  try {
+    media = await drive.getMedia(driveFileId, { signal: ctl.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    const code = /** @type {DriveError} */ (err)?.code;
+    log({ event: "photo_read_failed", code });
+    if (res.headersSent || res.destroyed) return;
+    if (code === "drive_not_found") return sendError(res, 404, "not_found");
+    const config = ["drive_auth", "drive_forbidden", "drive_folder_not_found"];
+    return config.includes(code)
+      ? sendError(res, 503, "photos_unavailable")
+      : sendError(res, 502, "photo_fetch_failed");
+  }
+  res.writeHead(200, {
+    ...PHOTO_HEADERS,
+    ETag: etag,
+    ...(media.contentLength !== null && { "Content-Length": media.contentLength }),
+  });
+  try {
+    await pipeline(Readable.fromWeb(/** @type {any} */ (media.body)), res, { signal: ctl.signal });
+  } catch {
+    log({ event: "photo_read_failed", code: "stream" });
+  } finally {
+    clearTimeout(timer);
+  }
 }

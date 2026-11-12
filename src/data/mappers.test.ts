@@ -10,6 +10,7 @@ import {
   SEASON_TO_DB,
   STATUS_FROM_DB,
   STATUS_TO_DB,
+  apiPhotoUrl,
   isUuid,
   itemToRow,
   rowToItem,
@@ -213,4 +214,12 @@ test("isUuid accepts UUIDs and rejects other strings", () => {
   expect(isUuid("d1")).toBe(false);
   expect(isUuid("")).toBe(false);
   expect(isUuid(`${UUID}x`)).toBe(false);
+});
+
+test("apiPhotoUrl builds /api/photos/<id> for a uuid and is empty otherwise", () => {
+  expect(apiPhotoUrl(UUID)).toBe(`/api/photos/${UUID}`);
+  expect(apiPhotoUrl(UUID, "/x/api")).toBe(`/x/api/photos/${UUID}`);
+  expect(apiPhotoUrl(null)).toBe("");
+  expect(apiPhotoUrl(undefined)).toBe("");
+  expect(apiPhotoUrl("not-a-uuid")).toBe("");
 });
