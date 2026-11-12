@@ -23,3 +23,13 @@ No 🔴. Two 🟡, rest 🟢. Read-only; nothing run; no .env read.
 
 Risks: Google `alt=media` behaviour (compression, redirects, Content-Length) only verifiable in the M-15 smoke — check Network tab sizes. Expired Access session: uncached images fall back to the placeholder.
 Open: one-year `immutable` browser cache OK on shared devices?
+
+## Attempt 2 (2026-11-12) — security-ai-generated-code-auditor (commit 1650386)
+
+Both attempt-1 🟡 fixed. No 🔴, no new 🟡. Read-only.
+
+1. 🟢 Content-Length: `server/drive.js:363` sends `accept-encoding: identity` (undici keeps a caller-set Accept-Encoding and across redirects). Remaining path: if Google ignores it and gzips, `drive.js:371-375` still forwards the compressed length (`photos.js:307`) — unlikely, not a leak. Optional one-line hardening at `drive.js:375`: `contentLength: null` when `content-encoding` is set and not `identity` (+ test). Test `drive.test.ts:345-349` checks the outgoing header only.
+2. 🟢 Router rejections: `app.js:69` `return await handleApi(...)` in the try → catch `:85-93` → 500; `api.js:64` `return await servePhoto(...)`. `api.js:73` `return handlePhoto(...)` without await is safe (rejection propagates to the awaited `handleApi`); adding await is cosmetic. No other unawaited dispatch.
+3. 🟢 **The new regression test passes without the fix** — `server/api.test.ts:49-59`: the throwing `pool.query` is caught inside `servePhoto` (`photos.js:264-272`, `errors.js:31`) so 500 comes from its own handling. Make it real: pool resolves `{ rows: [{ drive_file_id: "abcdefghij" }], rowCount: 1 }`, `getMedia` returns `{}` → `res.writeHead` at `photos.js:304-308` throws (invalid Content-Length) outside any try → with the fix 500 + `/healthz` still answers; without it an unhandled rejection fails the run (R8).
+
+Risks: Google `alt=media` behaviour only verifiable in the M-15 smoke (compare sizes). Open: one-year `immutable` browser cache on shared devices.
