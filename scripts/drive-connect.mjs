@@ -13,7 +13,6 @@ import { pathToFileURL } from "node:url";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 const FOLDER_NAME = "TuDoCuaTui";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
-const ENV = "tudocuatui";
 const REPO = "mmlabs-online/deployment";
 export const ENDPOINTS = {
   auth: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -361,8 +360,8 @@ export async function run(opts) {
       );
     }
     out("Next, set the deploy secrets:");
-    out(`  gh secret set -f "${written}" --env ${ENV} -R ${REPO}`);
-    out(`Check: gh secret list --env ${ENV} -R ${REPO}`);
+    out(`  gh secret set -f "${written}" -R ${REPO}`);
+    out(`Check: gh secret list -R ${REPO}`);
     out("Then delete the secrets file and the client JSON.");
     return 0;
   } catch (e) {

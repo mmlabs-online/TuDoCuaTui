@@ -191,10 +191,9 @@ d("envfile step (real run block)", () => {
 });
 
 describe("deploy-tudocuatui.yml static checks", () => {
-  it("job deploy has environment: tudocuatui", () => {
-    expect(yml).toMatch(
-      /^ {2}deploy:\n {4}if: github\.ref == 'refs\/heads\/main'\n {4}environment: tudocuatui\n/m,
-    );
+  it("job deploy runs only on main and has no environment key", () => {
+    expect(yml).toMatch(/^ {2}deploy:\n {4}if: github\.ref == 'refs\/heads\/main'\n {4}runs-on:/m);
+    expect(yml).not.toMatch(/^\s*environment:/m);
   });
   it("envfile env maps exactly the four TUDOCUATUI_* secrets", () => {
     const s = stepLines("envfile").join("\n");

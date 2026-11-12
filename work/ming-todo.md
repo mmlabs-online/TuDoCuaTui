@@ -151,11 +151,12 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          OAuth consent screen → Publishing status **In production** (in "Testing" the token dies after 7 days).
          Credentials → Create credentials → OAuth client ID → type **Desktop app**, name `TuDoCuaTui` →
          Download JSON (`client_secret_….json`).
-      2. GitHub → `mmlabs-online/deployment` → Settings → Environments → New environment `tudocuatui`.
-         Deployment branches and tags → **Selected branches and tags** → add `main`. No required reviewers, no wait
-         timer (release merges deploy unattended). No secrets yet. Do this before step 3.
+      2. No GitHub environment (D28): the four values are **repository secrets** of `mmlabs-online/deployment`
+         (Settings → Secrets and variables → Actions), set in step 5. No secrets yet at this point.
+         The secrets were first added to the TuDoCuaTui repo by mistake: delete them there (Settings → Secrets →
+         Actions), nothing in TuDoCuaTui reads them.
       3. Merge the setup PR the orchestrator opened (`setup/tudocuatui-drive-secrets`, two files). Its merge runs
-         `deploy-tudocuatui` once: expect `deployed`, environment `tudocuatui` on the run page, and the app not
+         `deploy-tudocuatui` once: expect `deployed`, and the app not
          restarted (no secrets yet, photos stay off).
       4. On your computer (Node 22, Mac or Windows), in an up-to-date TuDo checkout:
          `node scripts/drive-connect.mjs --client-file <path to client_secret_….json>`.
@@ -165,12 +166,12 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          the script prints the full path, use that exact path in steps 5 and 6.
       5. `gh auth status` (an account with admin on `mmlabs-online/deployment`), then run the command the script
          printed (it has the full path; do not type `~`, PowerShell and cmd do not expand it), for example
-         `gh secret set -f /Users/<you>/.config/tudocuatui/drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`
-         or `gh secret set -f C:\Users\<you>\.config\tudocuatui\drive-secrets.env --env tudocuatui -R mmlabs-online/deployment`.
-         Check `gh secret list --env tudocuatui -R mmlabs-online/deployment` shows exactly
+         `gh secret set -f /Users/<you>/.config/tudocuatui/drive-secrets.env -R mmlabs-online/deployment`
+         or `gh secret set -f C:\Users\<you>\.config\tudocuatui\drive-secrets.env -R mmlabs-online/deployment`.
+         Check `gh secret list -R mmlabs-online/deployment` shows exactly
          `TUDOCUATUI_DRIVE_FOLDER_ID`, `TUDOCUATUI_GOOGLE_CLIENT_ID`, `TUDOCUATUI_GOOGLE_CLIENT_SECRET`,
-         `TUDOCUATUI_GOOGLE_REFRESH_TOKEN`. If `gh` rejects `-f` with `--env`, set each one with
-         `gh secret set <NAME> --env tudocuatui -R mmlabs-online/deployment` and paste the value at the hidden prompt.
+         `TUDOCUATUI_GOOGLE_REFRESH_TOKEN`. If `gh` rejects `-f`, set each one with
+         `gh secret set <NAME> -R mmlabs-online/deployment` and paste the value at the hidden prompt.
       6. Delete `drive-secrets.env` (the path from step 4) and the downloaded `client_secret_….json`
          (Windows: also empty the Recycle Bin).
       7. Deploy. Check `https://tudocuatui.mmlabs.online/version.txt`. If that release is older than the first release
@@ -188,7 +189,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       the new token dies in 7 days.
       Then steps 4, 5 (overwrites all four), 6, then Run workflow `deploy-tudocuatui` from `main` (the changed env file
       restarts the app), then step 8. The script finds the same folder, so the id does not change.
-      Turn photos off (or undo a bad deploy): `gh secret delete <NAME> --env tudocuatui -R mmlabs-online/deployment`
+      Turn photos off (or undo a bad deploy): `gh secret delete <NAME> -R mmlabs-online/deployment`
       for all four names, then Run workflow from `main`: the env file goes back to `DATABASE_URL` only and the app
       restarts with `drive not configured`. A manual run has no automatic restore, so this is the way back.
       Deleting the GitHub secrets does not revoke the token. When turning photos off for good, also revoke it at

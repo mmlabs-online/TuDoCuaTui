@@ -19,7 +19,7 @@ name: deploy-tudocuatui
 # workflow_dispatch from main redeploys what main pins and rewrites the env file.
 #
 # Secrets: the Postgres password is still the one committed in postgres/secrets/ (see README). The four Google Drive
-# values for photos (T-005.5, D27) come from the GitHub environment `tudocuatui` (main only), all-or-none, and are
+# values for photos (T-005.5, D27) come from repository secrets of this repo (D28; the job runs only on main via its `if:`), all-or-none, and are
 # written only to the host env file, never printed. After changing them, run workflow_dispatch from main: a manual run
 # (or a changed env file) recreates the app.
 
@@ -46,7 +46,6 @@ env:
 jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
-    environment: tudocuatui
     runs-on: [self-hosted, macbook-runner]
     timeout-minutes: 15
     steps:
