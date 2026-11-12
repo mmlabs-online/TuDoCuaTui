@@ -35,14 +35,14 @@ export const colorMap: Record<string, string> = {
 export const categoryIcons: Record<string, string> = {
   "Tất cả": "✦",
   Áo: "♧",
-  Quần: "♢",
-  "Váy/Đầm": "❀",
-  "Áo khoác": "♤",
-  "Giày dép": "◡",
-  Túi: "▢",
+  "Quần/váy": "♢",
+  Đầm: "❀",
+  "Set đồ": "◫",
+  "Giày/dép": "◡",
+  "Áo dài": "❦",
+  Khoác: "♤",
+  Bikini: "☼",
   "Phụ kiện": "✺",
-  "Đồ thể thao": "◌",
-  "Đồ ngủ/ở nhà": "☾",
-  Khác: "＋",
+  "Loại khác": "＋",
 };
 export const frameColors = ["#F9D86B", "#B08CF5", "#BFE3C5", "#F7C6C0", "#BFDDF5", "#FFC9A3"];

@@ -42,6 +42,7 @@ export const IMPORT_EXPORT_COPY = {
       pickFile: "Chọn file .csv",
       orPaste: "hoặc dán dữ liệu",
       pastePlaceholder: "Dán nội dung CSV tại đây…",
+      categoriesHint: (labels: string[]) => `Loại dùng được: ${labels.join(", ")}`,
       columnsHint: "Cột dùng được: name, category, colors, brand…",
       willImport: (n: number) => `Sẽ nhập ${n} món`,
       willSkip: (n: number) => `Bỏ qua ${n} dòng lỗi`,

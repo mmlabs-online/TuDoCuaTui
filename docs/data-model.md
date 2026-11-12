@@ -60,7 +60,7 @@ erDiagram
 | Filtering | Client-side over the full list | Hundreds of items load in one query; instant UI. Revisit at more than 2k items. |
 
 ## Status / category / season ids
-- category: `top, bottom, dress, outer, shoes, bag, accessory, sport, home, other`
+- category: `top, bottom, dress, set, shoes, ao_dai, outer, bikini, accessory, other` (D29; `bag`, `sport`, `home` retired, kept in the enum)
 - status: `active, stored, laundry, lent, out`
 - season: `spring, summer, autumn, winter`
 - colors: `den, trang, xam, kem, be, nau, do, hong, cam, vang, xanhla, reu, xanhduong, navy, tim, hoatiet`

@@ -132,7 +132,7 @@ describe("headers", () => {
   // [Vietnamese, English, Item property, cell text, expected value]
   const pairs: [string, string, string, string, unknown][] = [
     ["Tên", "name", "name", "N", "N"],
-    ["Loại", "category", "category", "Quần", "Quần"],
+    ["Loại", "category", "category", "Quần/váy", "Quần/váy"],
     ["Trạng thái", "status", "status", "Cất kho", "Cất kho"],
     ["Màu", "colors", "colors", "Đen", ["Đen"]],
     ["Mùa", "seasons", "seasons", "Hạ", ["Hạ"]],
@@ -203,12 +203,34 @@ describe("enums", () => {
 
   it('case and diacritics do not matter ("ao khoac", "AO KHOÁC", "outer")', () => {
     for (const v of ["ao khoac", "AO KHOÁC", "outer"])
-      expect(withName("category", v).valid[0].category).toBe("Áo khoác");
+      expect(withName("category", v).valid[0].category).toBe("Khoác");
   });
 
-  it('empty category → "Khác", empty status → "Đang dùng"', () => {
+  it("every old label and old id maps to its new label", () => {
+    const pairs: [string, string][] = [
+      ["Quần", "Quần/váy"],
+      ["Váy/Đầm", "Đầm"],
+      ["Áo khoác", "Khoác"],
+      ["Giày dép", "Giày/dép"],
+      ["Túi", "Phụ kiện"],
+      ["bag", "Phụ kiện"],
+      ["Đồ thể thao", "Loại khác"],
+      ["sport", "Loại khác"],
+      ["Đồ ngủ/ở nhà", "Loại khác"],
+      ["home", "Loại khác"],
+      ["Khác", "Loại khác"],
+      ["ĐỒ THỂ THAO", "Loại khác"],
+    ];
+    for (const [v, label] of pairs) {
+      const r = withName("category", v);
+      expect(r.errors, v).toEqual([]);
+      expect(r.valid[0].category, v).toBe(label);
+    }
+  });
+
+  it('empty category → "Loại khác", empty status → "Đang dùng"', () => {
     const r = run("name,category,status\nA,,");
-    expect(r.valid[0]).toMatchObject({ category: "Khác", status: "Đang dùng" });
+    expect(r.valid[0]).toMatchObject({ category: "Loại khác", status: "Đang dùng" });
   });
 
   it("unknown category / status / season / color → error on that field, message names the value", () => {

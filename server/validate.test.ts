@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CATEGORIES,
+  DEPRECATED_CATEGORIES,
   SEASONS,
   STATUSES,
   isCalendarDate,
@@ -61,6 +62,12 @@ describe("parseItemInput", () => {
     });
     expect(bad({ name: "a", status: null })).toEqual({ field: "status", reason: "invalidValue" });
     expect(good({ name: "a" })).toMatchObject({ category: "other", status: "active" });
+  });
+
+  it("removed categories bag/sport/home -> invalidValue", () => {
+    expect(CATEGORIES).toHaveLength(10);
+    for (const category of DEPRECATED_CATEGORIES)
+      expect(bad({ name: "a", category })).toEqual({ field: "category", reason: "invalidValue" });
   });
 
   it("brand/size/material: trim, '' -> null, 200 ok / 201 -> tooLong, number -> invalidType", () => {

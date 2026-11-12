@@ -35,7 +35,7 @@
   - Wear is limited to once per item per day (`unique(item_id, worn_on)`), always for today.
 
 ### Domain glossary
-- **Item (món đồ):** one piece of clothing or accessory. Categories: `top, bottom, dress, outer, shoes, bag, accessory, sport, home, other`.
+- **Item (món đồ):** one piece of clothing or accessory. Categories: `top, bottom, dress, set, shoes, ao_dai, outer, bikini, accessory, other` (D29; `bag`, `sport`, `home` retired).
 - **Status (trạng thái):** `active` (Đang dùng), `stored` (Cất kho), `laundry` (Đang giặt-sửa), `lent` (Cho mượn), `out` (Muốn thanh lý).
 - **Location (vị trí lưu trữ):** a closet, drawer or box. Can be nested (`parent_id`).
 - **Wear log (lần mặc):** one row per item per day worn. `wear_count` and `last_worn` are derived from these rows, never stored.

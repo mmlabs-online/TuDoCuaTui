@@ -37,7 +37,7 @@ export const starter: Item[] = [
   ],
   [
     "Quần jeans 501 xanh",
-    "Quần",
+    "Quần/váy",
     "Đang dùng",
     ["Xanh dương"],
     ["Xuân", "Thu"],
@@ -50,7 +50,7 @@ export const starter: Item[] = [
   ],
   [
     "Váy midi hoa nhí",
-    "Váy/Đầm",
+    "Đầm",
     "Đang dùng",
     ["Hoạ tiết", "Kem"],
     ["Xuân", "Hạ"],
@@ -63,7 +63,7 @@ export const starter: Item[] = [
   ],
   [
     "Blazer nâu cà phê",
-    "Áo khoác",
+    "Khoác",
     "Cất kho",
     ["Nâu"],
     ["Thu", "Đông"],
@@ -76,7 +76,7 @@ export const starter: Item[] = [
   ],
   [
     "Giày sneaker trắng",
-    "Giày dép",
+    "Giày/dép",
     "Đang dùng",
     ["Trắng"],
     ["Xuân", "Hạ", "Thu"],
@@ -89,7 +89,7 @@ export const starter: Item[] = [
   ],
   [
     "Túi đeo vai da đen",
-    "Túi",
+    "Phụ kiện",
     "Đang dùng",
     ["Đen"],
     ["Xuân", "Hạ", "Thu", "Đông"],
@@ -115,7 +115,7 @@ export const starter: Item[] = [
   ],
   [
     "Quần tây ống suông",
-    "Quần",
+    "Quần/váy",
     "Đang dùng",
     ["Đen"],
     ["Xuân", "Thu", "Đông"],
@@ -128,7 +128,7 @@ export const starter: Item[] = [
   ],
   [
     "Đầm lụa xanh navy",
-    "Váy/Đầm",
+    "Đầm",
     "Cho mượn",
     ["Navy"],
     ["Hạ", "Thu"],
@@ -141,7 +141,7 @@ export const starter: Item[] = [
   ],
   [
     "Áo cardigan kem",
-    "Áo khoác",
+    "Khoác",
     "Đang dùng",
     ["Kem"],
     ["Thu", "Đông"],
@@ -167,7 +167,7 @@ export const starter: Item[] = [
   ],
   [
     "Quần jogger xám",
-    "Đồ thể thao",
+    "Quần/váy",
     "Đang dùng",
     ["Xám"],
     ["Xuân", "Thu"],
@@ -180,7 +180,7 @@ export const starter: Item[] = [
   ],
   [
     "Bộ pyjama cotton",
-    "Đồ ngủ/ở nhà",
+    "Set đồ",
     "Đang dùng",
     ["Hồng"],
     ["Xuân", "Hạ"],
@@ -219,7 +219,7 @@ export const starter: Item[] = [
   ],
   [
     "Sandal quai mảnh",
-    "Giày dép",
+    "Giày/dép",
     "Cất kho",
     ["Nâu"],
     ["Hạ"],

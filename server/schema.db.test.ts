@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { CATEGORIES } from "./validate.js";
 import { runMigrations } from "./migrator.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
@@ -242,6 +243,48 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       const row = (await c.query("select * from items_with_stats")).rows[0];
       expect(row).toMatchObject({ primary_photo_path: "u/i/a.jpg" });
       expect(row.primary_photo_id).toMatch(/^[0-9a-f-]{36}$/);
+      await c.end();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await tmp.drop();
+    }
+  });
+
+  it("category v2 migration: bag->accessory, sport/home->other, rows kept, all 10 ids insertable", async () => {
+    const tmp = await createTestDb();
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tudo-mig-"));
+    try {
+      for (const f of ["20261110120000_init.sql", "20261112120000_item_photos_drive.sql"])
+        await copyFile(path.join(realDir, f), path.join(dir, f));
+      await runMigrations({ connectionString: tmp.url, dir });
+      const c = new pg.Client({ connectionString: tmp.url });
+      await c.connect();
+      const ids: Record<string, string> = {};
+      for (const cat of ["bag", "sport", "home", "top", "other"]) {
+        ids[cat] = (
+          await c.query("insert into items (name, category) values ($1, $2) returning id", [
+            cat,
+            cat,
+          ])
+        ).rows[0].id;
+      }
+      await c.query("insert into wear_logs (item_id, worn_on) values ($1, '2026-11-10')", [
+        ids.bag,
+      ]);
+      await runMigrations({ connectionString: tmp.url, dir: realDir });
+      const rows = (await c.query("select id, name, category, wear_count from items_with_stats"))
+        .rows;
+      expect(rows).toHaveLength(5);
+      const by = Object.fromEntries(rows.map((r) => [r.name, r]));
+      expect(by.bag).toMatchObject({ id: ids.bag, category: "accessory", wear_count: 1 });
+      expect(by.sport.category).toBe("other");
+      expect(by.home.category).toBe("other");
+      expect(by.top.category).toBe("top");
+      expect(by.other.category).toBe("other");
+      for (const cat of CATEGORIES)
+        await c.query("insert into items (name, category) values ('n', $1)", [cat]);
+      await runMigrations({ connectionString: tmp.url, dir: realDir }); // second run is a no-op
+      expect((await c.query("select 1 from items")).rowCount).toBe(15);
       await c.end();
     } finally {
       await rm(dir, { recursive: true, force: true });

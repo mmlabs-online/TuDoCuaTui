@@ -1,19 +1,22 @@
 // @ts-check
 // Pure input validation for the /api endpoints. Returns the first error in a fixed field order.
 
-// Copied from db/migrations/20261110120000_init.sql; api.db.test.ts guards against drift.
+// Copied from db/migrations/20261110120000_init.sql + 20261112140000_item_category_v2.sql; api.db.test.ts guards against drift.
+// Display order (D29).
 export const CATEGORIES = [
   "top",
   "bottom",
   "dress",
-  "outer",
+  "set",
   "shoes",
-  "bag",
+  "ao_dai",
+  "outer",
+  "bikini",
   "accessory",
-  "sport",
-  "home",
   "other",
 ];
+// Still in the Postgres enum (expand-only) but rejected by the API.
+export const DEPRECATED_CATEGORIES = ["bag", "sport", "home"];
 export const STATUSES = ["active", "stored", "laundry", "lent", "out"];
 export const SEASONS = ["spring", "summer", "autumn", "winter"];
 
