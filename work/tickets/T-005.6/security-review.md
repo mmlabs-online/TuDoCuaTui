@@ -23,3 +23,13 @@ The reference set comes only from `item_photos` in whatever `DATABASE_URL` point
 ### Open questions
 - Trash instead of permanent delete (sweep and best-effort deletes)?
 - Ratio guard on top of the zero-referenced guard?
+
+## Attempt 2 — security-ai-generated-code-auditor (read-only)
+
+**Verdict:** B1 resolved. No 🔴 / 🟡.
+
+- 🟢 B1 resolved: guard `candidates.length > 0 && count.referenced === 0` (`server/photo-sweep.js:110-117`) runs before the `--max-delete` branch and the delete loop; apply → exit 1, 0 deletes, fixed line. Tests `photo-sweep.db.test.ts:247-259` (empty table) and `:261-269` (non-matching rows); also closes N10. Existing tests use `anchor()` (:49-53) and stay meaningful. README `:75` documents it.
+- 🟢 N11 Partly stale DB that still matches ≥ 1 file passes the guard; only `--max-delete` limits it (optional ratio guard — open question for Ming; follow-up).
+- 🟢 N12 Legitimate lockout when all rows are gone; fails safe, no override flag; README line or follow-up.
+- 🟢 N13 Dry-run prints "refusing:" but exits 0 — say `warning:` in dry-run or exit non-zero (cosmetic).
+- Still open from attempt 1: N1 (trash vs permanent delete), N9 (failure lines on stdout vs A10 stderr).
