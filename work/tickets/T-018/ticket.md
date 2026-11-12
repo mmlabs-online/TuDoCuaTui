@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-12T12:39:09Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/42 |
 
 ## Goal
 The Node server keeps the AI provider, the model and an encrypted API key for the app's single user. The Settings
@@ -93,3 +93,8 @@ screen (T-010) and photo tagging (F-701) can use them in API mode, and the key i
 - Done: consults (software-architect, database-optimizer) saved; plan.md READY: proposes split T-018.1 (migration, server/ai JS port + parity test, GET/PUT/DELETE, KEK loading) and T-018.2 (POST /test with Claude, deploy drafts, M-16); changes C1–C14, assumptions A1–A12.
 - In progress / next: Ming approves the plan and the split; then create T-018.2 and run T-018.1.
 - Gotchas: server image has no src/, so src/shared/ai is ported to server/ai/*.js with a parity test; hotspots with T-016 (boundary.test.ts, errors.ts header, vitest.config.ts).
+
+### 2026-11-12 — claude — DONE
+- Done: slice T-018.1 implemented (attempt 1); review PASS; security review no 🔴. PR opened.
+- In progress / next: Ming merges the PR; then T-018.2 (plan-approval) — carry security Y1/G1/G2 into its plan.
+- Gotchas: 3 tests fail on Windows on main too (413 ECONNRESET ×2, SIGTERM); CI on Linux is authoritative.
