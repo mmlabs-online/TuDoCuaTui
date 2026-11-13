@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | L (planner proposes a split) |
 | Milestone | M1 |
@@ -79,6 +79,7 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 - Manual: sign in / out on a phone and desktop against production Identity, after Ming registers the app.
 
 ## Notes / answers from Ming
+- 2026-11-13: **Plan approved** (Ming, in session: "duyệt plan T-019, giữ mặc định A1–A20"). T-019 is now an umbrella: work runs in sub-tickets T-019.1–T-019.10 (each gets its own plan; High-tier slices still stop for plan approval). Ming items renumbered M-17–M-22 (plan M-16–M-21; M-16 is reserved by T-018.2).
 - 2026-11-13: Ming asked for a plan to move TuDo onto the org-admin-api user service, following ricotdin.
 - 2026-11-13 (Ming) answers to the open questions:
   1. **Drop Cloudflare Access** in front of TuDo ("bỏ Cloudflare Access trước TuDo"). mmlabs Identity becomes the only
@@ -89,3 +90,13 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
   3. Join policy for app `tudocuatui`: **`open`**.
 
 ## Handoff
+
+### 2026-11-13 — claude — BLOCKED
+- Done: consults (software-architect, database-optimizer, security auditor) and the umbrella plan (`plan.md`, Status READY): target design, split T-019.1–T-019.10, rollout order (Access removed last), Ming items, decisions to record (D31; amend D25, D27, D30), assumptions A1–A20 with defaults.
+- In progress / next: Ming approves the plan (or changes A-n). Then create the sub-tickets T-019.1–T-019.10 on `main` and run T-019.1 first; T-019 itself stays the umbrella.
+- Gotchas: the plan numbers its Ming items M-16–M-21, but T-018.2 already reserves M-16 (AI_KEK deploy) — renumber when the items are added to `ming-todo.md`. Upstream org-admin-api: USR-07 before registering `tudocuatui`, USR-04 before any token; no workaround for USR-04.
+
+### 2026-11-13 — claude — IN_PROGRESS (umbrella)
+- Done: Ming approved the umbrella plan with A1–A20 defaults. Created sub-tickets T-019.1–T-019.10, Ming items M-17–M-22, decisions D31–D34, all on `main`.
+- In progress / next: T-019.1 needs M-17 (Ming's mmlabs `sub`) before it is runnable. T-019 is DONE when all sub-tickets are MERGED and M-22 is done.
+- Gotchas: plan.md still says M-16–M-21; read them as M-17–M-22 (+1).

@@ -34,7 +34,17 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | MERGED | P0 | M | ui, data | T-013.2 | none | 1 | 2026-11-11 |
 | T-015 | Switch the image and deploy from nginx to the Node server | MERGED | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-11 |
 | T-016 | Remove Supabase from the app | MERGED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 1 | 2026-11-13 |
-| T-019 | Sign in with mmlabs Identity (api.mmlabs.online) | BLOCKED | P1 | L | architecture, security, db | T-016 | plan-approval | 0 | 2026-11-13 |
+| T-019 | Sign in with mmlabs Identity (api.mmlabs.online) — umbrella | IN_PROGRESS | P1 | L | architecture, security, db | T-016 | plan-approval | 0 | 2026-11-13 |
+| T-019.1 | Ownership expand migration and owner backfill | BACKLOG | P1 | M | db, security | T-016; Ming M-17 | plan-approval | 0 | 2026-11-13 |
+| T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | BACKLOG | P1 | M | db, security, architecture | T-019.1; Ming M-18 | plan-approval | 0 | 2026-11-13 |
+| T-019.3 | Per-user AI settings | BACKLOG | P1 | S | db, security | T-019.2 | plan-approval | 0 | 2026-11-13 |
+| T-019.4 | Row level security with per-request app.user_id | BACKLOG | P1 | M | db, security | T-019.2, T-019.3 | plan-approval | 0 | 2026-11-13 |
+| T-019.5 | Identity JWT verifier and TUDO_AUTH_MODE switch | BACKLOG | P1 | M | security, architecture | T-019.2 | plan-approval | 0 | 2026-11-13 |
+| T-019.6 | Photos under bearer auth (blob URLs) | BACKLOG | P1 | S | security, ui | T-019.5 | none | 0 | 2026-11-13 |
+| T-019.7 | SPA sign-in and sign-out with the Identity token | BACKLOG | P1 | M | security, ui, architecture | T-019.5, T-019.6 | plan-approval | 0 | 2026-11-13 |
+| T-019.8 | CSP and HSTS for the SPA | BACKLOG | P1 | S | security | T-019.7 | none | 0 | 2026-11-13 |
+| T-019.9 | Cutover cleanup: remove Cloudflare Access code | BACKLOG | P1 | S | security, architecture | T-019.4, T-019.7, T-019.8; Ming M-21 | plan-approval | 0 | 2026-11-13 |
+| T-019.10 | Join flow UX | BACKLOG | P1 | S | security, ui | T-019.7 | plan-approval | 0 | 2026-11-13 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | MERGED | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-13 |
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | BACKLOG | P1 | M | security, architecture | T-018 | plan-approval | 0 | 2026-11-12 |

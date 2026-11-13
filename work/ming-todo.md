@@ -199,8 +199,28 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       reset the client secret (or delete the client and create a new one, step 1); (c) redo steps 4, 5, 6 and Run
       workflow `deploy-tudocuatui` from `main`; (d) delete every copy of the leaked file.
 
+### T-019 — sign in with mmlabs Identity (D31; plan `work/tickets/T-019/plan.md`, where these are numbered M-16–M-21)
+- [ ] **M-17 — Your mmlabs `sub`** (before T-019.1 can run). Create / use your account on `api.mmlabs.online`
+      (sign-up exists, USR-01); read `user.id` from the login response (or ask the org-admin-api operator). Paste it
+      under T-019 *Notes / answers from Ming*. Not secret. Double-check it: a wrong value hands the wardrobe to
+      another account.
+- [ ] **M-18 — Backup before the ownership migration** (before merging the first release PR that contains T-019.1):
+      take a manual `pg_dump` of `tudocuatui` on the Mac (in addition to the deploy's `backup` step) and keep it;
+      after deploy, run the read-only `user_id is null` count (expect 0).
+- [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
+      `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
+- [ ] **M-20 — Make your account usable:** verify your email (after org-admin-api USR-04) and become a member of
+      `tudocuatui` through the staff role assignment (USR-02c) until USR-03b ships the join flow (A9).
+- [ ] **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
+      `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` in the release PR's compose;
+      verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
+      the Access policy (A16). Rollback: `TUDO_AUTH_MODE: access`.
+- [ ] **M-22 — Remove Cloudflare Access (last step):** only after T-019.9 is released and M-21 verified: delete the
+      Access application for `tudocuatui.mmlabs.online`; check incognito shows TuDo's sign-in and `/api/items` → 401.
+
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-13, approved in session, A1–A20 defaults) Approve plan for T-019 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019/plan.md — sign in with mmlabs Identity; umbrella plan, split T-019.1–T-019.10; confirm A1–A20 (A1 two-step migration, A3 RLS now, A5 photos as blob URLs, A6 per-user AI keys, A7 quotas as follow-up, A9 interim membership via USR-02c)
 - [x] (2026-11-12) Approve plan for T-018 (branch `ticket/T-018`): work/tickets/T-018/plan.md — AI settings on the Node server; split T-018.1/T-018.2; changes C1–C14, assumptions A1–A12
 - [x] (2026-11-12) Approve plan for T-005.2 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.2/plan.md — photo upload/delete via Drive (slice 1; sweep → T-005.6); confirm A1–A19
 - [x] (2026-11-11) Approve plan for T-005.5 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.5/plan.md — Drive connect script + deploy secrets + M-15 runbook; confirm A1–A14 (A2, A3, A7)
