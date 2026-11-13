@@ -226,6 +226,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [ ] (2026-11-13) Approve plan for T-018.2 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-018.2/plan.md — AI key test endpoint + AI_KEK deploy wiring, seams for per-user keys (D33); confirm A1–A12 (A1 refuse AI when auth off, A3 saving a real key now means one re-entry after T-019.3) and C1–C6
 - [x] (2026-11-13, approved in session) Approve plan for T-019.11 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.11/plan.md — auth screens UI only (sign-in, sign-up, verify email), dev-only preview `/auth-preview.html`; confirm A1–A15 and the draft Vietnamese copy
 - [x] (2026-11-13, approved in session, A1–A20 defaults) Approve plan for T-019 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019/plan.md — sign in with mmlabs Identity; umbrella plan, split T-019.1–T-019.10; confirm A1–A20 (A1 two-step migration, A3 RLS now, A5 photos as blob URLs, A6 per-user AI keys, A7 quotas as follow-up, A9 interim membership via USR-02c)
 - [x] (2026-11-12) Approve plan for T-018 (branch `ticket/T-018`): work/tickets/T-018/plan.md — AI settings on the Node server; split T-018.1/T-018.2; changes C1–C14, assumptions A1–A12

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-13T03:35:00Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -21,6 +21,7 @@ Ming can check that the saved AI key works (`POST /api/ai-settings/test`), and t
 server, so AI settings work on the real app.
 
 ## Feature reference
+- **D33 (2026-11-13)** amends D30: `ai_settings` becomes per-user (BYOK, AAD v2 bound to the `sub`) in T-019.3. The single-row shape used here is temporary; this slice keeps seams (`getSecret()`, `openStoredKey()`) so T-019.3 changes about three call sites (consult R2, R8).
 - Second slice of T-018 ("Store AI provider settings and an encrypted API key on the Node server"). Its plan
   (`work/tickets/T-018/plan.md`, section *Split proposal*) outlines this slice, and Ming approved it on 2026-11-12:
   "Plan approved (T-018), chia 2".
@@ -81,7 +82,13 @@ server, so AI settings work on the real app.
 - Manual (Ming, after merge): run M-16, then save a key (`curl` or T-010) and press Test.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-12 (from T-018.1 security review, carry into the plan): refuse AI or warn loudly when Cloudflare Access is off (Y1); `delete process.env.AI_KEK` after import (G1); map every `openKey` failure to one code, never log the error object (G2); add a `/test` sentinel case with a provider error body echoing the key.
 - 2026-11-12: created from the approved T-018 split ("Plan approved (T-018), chia 2").
 
 ## Handoff
+
+### 2026-11-13 — claude — BLOCKED
+- Done: consult (software-architect) and plan.md (Status READY): `POST /api/ai-settings/test` with strict `{}` body, seams `getSecret()` / `openStoredKey()` / pure `claude.js` for T-019.3, G1 (`delete process.env.AI_KEK`) and Y1 (refuse AI when request auth is off) in `initAi`, `AI_KEK` envfile wiring + M-16; assumptions A1–A12, deviations C1–C6.
+- In progress / next: Ming approves the plan, then implement → review → PR.
+- Gotchas: hotspots with T-019.2/.3/.5 (`server/index.js`, `server/ai/*`); the implementer appends a forward note to T-019.3 in this diff (A5).
