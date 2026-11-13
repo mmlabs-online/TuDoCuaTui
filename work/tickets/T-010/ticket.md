@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-13T04:31:48Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/46 |
 
 ## Goal
 Ming opens Settings, picks Claude or Gemini, pastes an API key, picks a model and tests it — all in the app.
@@ -57,3 +57,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - Done: re-planned after D23; plan.md Status BLOCKED: the Node server has no AI-settings backend (T-009 exists only as unused Supabase code).
 - In progress / next: Ming answers Q1–Q3 in plan.md (default: new T-018 ports the backend to the Node server first; D21 "Supabase mode only" → "API mode only"; keep in-app key entry with a new `TUDOCUATUI_AI_KEK` deployment secret). Then create T-018 and set T-010 Depends on T-018.
 - Gotchas: T-016 touches the same frontend files (aiSettings.ts, mode.ts, main.tsx, App.tsx); whichever lands second rebases.
+
+### 2026-11-13 — claude — DONE
+- Done: re-planned on the merged T-018/T-018.2 backend; attempt 1 PASS; security review no 🔴 (two 🟡 as follow-ups). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/46.
+- In progress / next: Ming reviews/merges PR #46; after merge, check Settings in production with a real key (needs M-16 KEK).
+- Gotchas: `pnpm dev` is local mode, so the modal can't be opened in dev; `App.tsx` / `Header.tsx` are also edited by T-019.7 / T-019.10.
