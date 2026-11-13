@@ -62,6 +62,7 @@ export type SignUpScreenProps = {
 };
 
 export type VerifyState = "verifying" | "verified" | "invalid" | "rate_limited";
+/** Token rules for the wiring (T-019.7): see parseVerifyToken in validation.ts. */
 export type VerifyEmailScreenProps = {
   state: VerifyState;
   retryAfterSeconds?: number;

@@ -15,7 +15,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
           boxShadow: "var(--shadow)",
         }}
       >
-        <p className="text-xs font-semibold" style={{ color: "var(--green)" }}>
+        <p className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
           {AUTH_COPY.brand}
         </p>
         <h1 className="text-xl font-bold">{title}</h1>
@@ -31,7 +31,7 @@ export function LinkButton({ onClick, children }: { onClick: () => void; childre
       type="button"
       onClick={onClick}
       className="self-center text-sm font-semibold underline"
-      style={{ color: "var(--green)" }}
+      style={{ color: "var(--text)" }}
     >
       {children}
     </button>

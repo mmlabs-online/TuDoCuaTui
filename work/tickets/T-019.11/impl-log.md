@@ -37,3 +37,23 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; every file is in the plan list.
 - Diff size: new files only plus +4 lines in vitest.config.ts.
+
+## Attempt 2 (REWORK) — 2026-11-13
+
+### Files touched
+- `src/features/auth/AuthLayout.tsx`: brand line `var(--muted)`, `LinkButton` `var(--text)` (review Issue 1).
+- `src/features/auth/copy.ts`: `authErrorMessage` falls back to `unknown` for non-string / non-own codes (uses `Object.prototype.hasOwnProperty.call`; `Object.hasOwn` fails the repo's TS lib target); unknown `reasons` filtered (S1).
+- `src/features/auth/copy.test.ts`: "__proto__"/"bogus"/"constructor" and bogus reasons tests (S1).
+- `src/features/auth/validation.ts`, `types.ts`: doc comments with T-019.7 token rules (S2).
+- `src/features/auth/validation.test.ts`: 32- and 128-char accept tests (S3).
+- `src/features/auth/SignUpScreen.test.tsx`: asserts `method="post"` (S4).
+- `src/features/auth/preview/AuthPreview.tsx`: `whitespace-pre-wrap` on the log (nit).
+
+### Dark-mode check (Playwright, 390px, `.dark`, `/auth-preview.html`)
+Card `rgb(28,42,36)`; brand `rgb(193,185,173)`; links `rgb(255,248,235)`; scrollWidth 390 for sign-in idle, sign-up idle, sign-up sent. All readable.
+
+### Checks
+- typecheck: clean. format:check: all files correct. test: 63 files passed, 6 skipped; 728 passed, 101 skipped. build: OK.
+
+### Out-of-plan files: none. Follow-ups: skipped the "tới ." sentTo nit (wiring always passes it).
+### Scope self-check: only review issues and orchestrator-directed hardening.

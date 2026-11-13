@@ -115,7 +115,7 @@ export function AuthPreview() {
           />
         )}
       </div>
-      <pre className="p-3 text-xs" aria-label={p.log}>
+      <pre className="p-3 text-xs whitespace-pre-wrap" aria-label={p.log}>
         {error ? authErrorMessage(error) + "\n" : ""}
         {log.join("\n")}
       </pre>

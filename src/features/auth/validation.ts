@@ -75,7 +75,11 @@ export function validateSignUp(v: { email: string; password: string; confirm: st
   ]);
 }
 
-/** Token from a `#token=<32-128 url-safe chars>` fragment, else null. */
+/**
+ * Token from a `#token=<32-128 url-safe chars>` fragment, else null.
+ * T-019.7 must: call history.replaceState to strip the fragment before any network call; send the
+ * token only in a POST body; never log or render it; serve the page with Referrer-Policy no-referrer.
+ */
 export function parseVerifyToken(hash: string): string | null {
   return VERIFY_HASH_RE.exec(hash)?.[1] ?? null;
 }

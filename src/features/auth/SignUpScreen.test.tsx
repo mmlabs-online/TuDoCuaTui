@@ -31,6 +31,13 @@ const fill = (email = "an@vi.vn", pw = "a".repeat(12), confirm = pw) => {
   type(f.confirm, confirm);
 };
 
+describe("SignUpScreen form", () => {
+  it("posts, never GET", () => {
+    setup();
+    expect(document.querySelector("form")?.getAttribute("method")).toBe("post");
+  });
+});
+
 describe("SignUpScreen validation", () => {
   it.each([
     ["bad email", () => fill("bad"), f.email, AUTH_COPY.fieldErrors.invalid],

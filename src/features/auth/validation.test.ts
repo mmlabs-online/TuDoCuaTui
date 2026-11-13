@@ -116,6 +116,10 @@ describe("parseVerifyToken", () => {
     expect(parseVerifyToken("#token=" + token)).toBe(token);
   });
 
+  it.each([32, 128])("accepts %i chars", (n) => {
+    expect(parseVerifyToken("#token=" + "a".repeat(n))).toBe("a".repeat(n));
+  });
+
   it.each([
     ["empty", ""],
     ["hash only", "#"],

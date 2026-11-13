@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AUTH_COPY, authErrorMessage, formatWait } from "./copy";
-import type { AuthErrorCode } from "./types";
+import type { AuthError, AuthErrorCode } from "./types";
 
 describe("formatWait", () => {
   it.each([
@@ -65,5 +65,16 @@ describe("authErrorMessage", () => {
       `${e.weak_too_short} ${e.weak_too_common}`,
     );
     expect(authErrorMessage({ code: "weak_password" })).toBe(e.weak_password);
+  });
+
+  it("unknown or prototype codes fall back to unknown copy", () => {
+    for (const code of ["__proto__", "bogus", "constructor"]) {
+      expect(authErrorMessage({ code } as unknown as AuthError)).toBe(AUTH_COPY.errors.unknown);
+    }
+  });
+
+  it("filters unknown weak_password reasons", () => {
+    const err = { code: "weak_password", reasons: ["bogus"] } as unknown as AuthError;
+    expect(authErrorMessage(err)).toBe(AUTH_COPY.errors.weak_password);
   });
 });

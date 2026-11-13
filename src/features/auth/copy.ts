@@ -91,14 +91,17 @@ export function formatWait(seconds: number): string {
 
 export function authErrorMessage(error: AuthError): string {
   const e = AUTH_COPY.errors;
-  const code: AuthErrorCode = error.code;
+  const code: AuthErrorCode =
+    typeof error.code === "string" && Object.prototype.hasOwnProperty.call(e, error.code)
+      ? error.code
+      : "unknown";
   switch (code) {
     case "rate_limited":
       return e.rate_limited(formatWait(error.retryAfterSeconds ?? NaN));
     case "weak_password": {
-      const parts = (error.reasons ?? []).map((r) =>
-        r === "too_short" ? e.weak_too_short : e.weak_too_common,
-      );
+      const parts = (error.reasons ?? [])
+        .filter((r) => r === "too_short" || r === "too_common")
+        .map((r) => (r === "too_short" ? e.weak_too_short : e.weak_too_common));
       return parts.length ? parts.join(" ") : e.weak_password;
     }
     default:
