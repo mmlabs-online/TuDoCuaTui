@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-12 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-13T03:44:11Z |
 | PR | — |
 
 ## Goal
@@ -82,7 +82,7 @@ server, so AI settings work on the real app.
 - Manual (Ming, after merge): run M-16, then save a key (`curl` or T-010) and press Test.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-13: **Plan approved** (Ming, in session: "duyệt T-018.2"; A1–A12 and C1–C6 as in plan.md).
 - 2026-11-12 (from T-018.1 security review, carry into the plan): refuse AI or warn loudly when Cloudflare Access is off (Y1); `delete process.env.AI_KEK` after import (G1); map every `openKey` failure to one code, never log the error object (G2); add a `/test` sentinel case with a provider error body echoing the key.
 - 2026-11-12: created from the approved T-018 split ("Plan approved (T-018), chia 2").
 
