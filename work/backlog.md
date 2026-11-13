@@ -48,7 +48,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019.10 | Join flow UX | BACKLOG | P1 | S | security, ui | T-019.7 | plan-approval | 0 | 2026-11-13 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | MERGED | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-13 |
-| T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | BLOCKED | P1 | M | security, architecture | T-018 | plan-approval | 0 | 2026-11-13 |
+| T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | IN_PROGRESS | P1 | M | security, architecture | T-018 | plan-approval | 0 | 2026-11-13 |
 | T-010 | Settings screen: AI provider, API key and model | BLOCKED | P1 | S | ui, security | T-018.2 | none | 0 | 2026-11-12 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | BLOCKED | P1 | M | architecture, security | T-018.2 | plan-approval | 0 | 2026-11-10 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
