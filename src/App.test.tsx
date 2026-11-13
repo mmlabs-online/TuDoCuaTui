@@ -631,4 +631,32 @@ describe("App (mode switch, no login)", () => {
     expect(screen.queryByText("Đăng xuất")).toBeNull();
     expect(screen.queryByLabelText("Đăng xuất")).toBeNull();
   });
+
+  it("local mode has no settings button", async () => {
+    await renderApp();
+    expect(screen.queryByLabelText("Cài đặt")).toBeNull();
+  });
+
+  it("api mode shows the settings button and opens the AI settings modal", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (url: string) =>
+          new Response(
+            JSON.stringify(
+              url.includes("/ai-settings")
+                ? { settings: null }
+                : url.endsWith("/locations")
+                  ? { locations: [] }
+                  : { items: [] },
+            ),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+    render(<App mode="api" />);
+    fireEvent.click(await screen.findByLabelText("Cài đặt"));
+    expect(await screen.findByText("Cài đặt AI")).toBeTruthy();
+    await waitFor(() => expect(document.querySelector("input[type=password]")).toBeTruthy());
+  });
 });

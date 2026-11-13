@@ -2372,3 +2372,28 @@ main {
   color: var(--muted);
   padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
 }
+
+.ai-settings-body {
+  display: grid;
+  gap: 14px;
+  padding: 20px 24px;
+}
+.ai-settings-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ai-settings-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.ai-settings-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
