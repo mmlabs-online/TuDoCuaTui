@@ -35,6 +35,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - [ ] Reload restores the session silently via `mm_account_id`.
 - [ ] Auth code is lazy-loaded only in API + identity mode; local mode untouched.
 - [ ] Sign-up (`POST /auth/signup` with Turnstile token), `/verify-email` (fragment token, `Referrer-Policy: no-referrer`, `history.replaceState`) and resend are wired per org-admin-api `docs/consumers.md` (A8 changed, Ming 2026-11-13).
+- [ ] Verify-email token rules (T-019.11 security review S2): `history.replaceState` removes `#token` before any network call; the token goes only in the POST body; it is never logged or rendered; the page is served with `Referrer-Policy: no-referrer` (T-019.8). Server error bodies are normalised before reaching the screens (`reasons` must be an array; internal copy keys are never accepted as codes). The sign-up form is reset or unmounted after success.
 - [ ] Reuses the T-019.11 screens; all checks pass; 390px and dark mode.
 
 ## Technical notes
