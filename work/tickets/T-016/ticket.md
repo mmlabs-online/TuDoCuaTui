@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-014, T-015 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-13T01:37:41Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/43 |
 
 ## Goal
 No Supabase client, auth, Storage, Edge Function or `VITE_SUPABASE_*` code remains once the API mode is live.
@@ -54,3 +54,8 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - Done: software-architect consult (+ orchestrator note: Ming did sign in on the Supabase-mode production); plan.md READY — remove all Supabase code/deps/scripts/CI/release args, two modes (local | api), legacy `sb-*` key cleanup, hand-written row types; one ticket.
 - In progress / next: Ming approves A1–A6 (A3 lets T-016 edit .claude/commands/run.md + solo.md security triggers). Production is still nginx v0.1.4 until mmlabs-online/deployment#40 merges.
 - Gotchas: never clear `tu-do-items` / `tu-do-theme`; don't touch deploy/, server/, db/; keep the release.env-only guard.
+
+### 2026-11-13 — claude — DONE
+- Done: Ming approved the plan in session (A1–A6 defaults); planner refreshed it against main (Drive photos, T-017, T-018). Attempt 1 implemented, review PASS, security review no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/43.
+- In progress / next: Ming reviews/merges PR #43. Recommended before merge: fix 🟡 `legacySession.ts:6` (localStorage default param outside try). Ming A6 steps: sign out stoktok Supabase sessions now; delete `VITE_SUPABASE_*` secrets after merge.
+- Gotchas: check-image.sh not run locally (no Docker) — CI `image` job proves it. Worked on the session branch `claude/magical-cori-2ssw8l`, not `ticket/T-016`.
