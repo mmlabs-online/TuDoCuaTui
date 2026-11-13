@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | none |
 | Depends on | T-018.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-10 |
 | Claimed by | claude@2026-11-13T04:31:48Z |
 | PR | — |
