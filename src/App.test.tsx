@@ -599,3 +599,36 @@ describe("App (API mode photos)", () => {
     }
   });
 });
+
+describe("App (mode switch, no login)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("api mode: items load from /api, no login field, no sign-out", async () => {
+    const apiRow = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Áo từ server",
+      category: "top",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (url: string) =>
+          new Response(
+            JSON.stringify(url.endsWith("/locations") ? { locations: [] } : { items: [apiRow] }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+    render(<App mode="api" />);
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    expect(screen.getAllByText("Áo từ server").length).toBeGreaterThan(0);
+    expect(document.querySelector("input[type=email], input[type=password]")).toBeNull();
+    expect(screen.queryByText("Đăng xuất")).toBeNull();
+  });
+
+  it("local mode: demo items, no sign-out", async () => {
+    await renderApp();
+    expect(screen.queryByText("Đăng xuất")).toBeNull();
+    expect(screen.queryByLabelText("Đăng xuất")).toBeNull();
+  });
+});

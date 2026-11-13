@@ -1,6 +1,6 @@
-// Source of truth: src/shared/ai; mirrored to supabase/functions/_shared/ai; mirror.test.ts enforces equality.
+// Source of truth: src/shared/ai; mirrored by server/ai/*.js; server/ai/parity.test.ts enforces equality.
 
-/** Codes returned by the Edge Function, with their HTTP status. */
+/** Codes returned by the AI settings routes (server/ai), with their HTTP status. */
 export const AI_ERROR_STATUS = {
   bad_request: 400,
   unauthorized: 401,

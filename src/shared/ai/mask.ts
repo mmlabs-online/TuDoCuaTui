@@ -1,4 +1,4 @@
-// Source of truth: src/shared/ai; mirrored to supabase/functions/_shared/ai; mirror.test.ts enforces equality.
+// Source of truth: src/shared/ai; mirrored by server/ai/*.js; server/ai/parity.test.ts enforces equality.
 
 const HINT_LENGTH = 4;
 

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
 import {
   CATEGORY_ALIASES,
@@ -11,14 +10,13 @@ import {
   SEASON_TO_DB,
   STATUS_FROM_DB,
   STATUS_TO_DB,
+  type ItemRow,
   apiPhotoUrl,
   isUuid,
   itemToRow,
   rowToItem,
   toCategoryLabel,
 } from "./mappers";
-
-type ItemRow = Database["public"]["Views"]["tudo_items_with_stats"]["Row"];
 
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
 

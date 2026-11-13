@@ -1,9 +1,52 @@
-import type { Database } from "@/types/database";
 import type { Item, Status } from "@/types/item";
 
-type Enums = Database["public"]["Enums"];
-type ItemRow = Database["public"]["Views"]["tudo_items_with_stats"]["Row"];
-type ItemInsert = Database["public"]["Tables"]["tudo_items"]["Insert"];
+export type DbStatus = "active" | "stored" | "laundry" | "lent" | "out";
+export type DbSeason = "spring" | "summer" | "autumn" | "winter";
+
+/**
+ * Wire shape of an items_with_stats row from the API (server/items.js toItemRow). Nullable as in the view.
+ * category is a string: the DB enum still holds retired ids (bag, sport, home) that toCategoryLabel maps.
+ */
+export type ItemRow = {
+  id: string | null;
+  name: string | null;
+  category: string | null;
+  status: DbStatus | null;
+  brand: string | null;
+  size: string | null;
+  material: string | null;
+  purchase_date: string | null;
+  location_id: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  last_worn: string | null;
+  location_name: string | null;
+  primary_photo_path: string | null;
+  price: number | null;
+  wear_count: number | null;
+  colors: string[] | null;
+  tags: string[] | null;
+  seasons: DbSeason[] | null;
+};
+
+/** Body fields itemToRow produces (repo.http.ts drops id/location_id and adds location_name). */
+export type ItemInsert = {
+  id?: string;
+  name: string;
+  category: CategoryId;
+  status: DbStatus;
+  brand: string | null;
+  size: string | null;
+  material: string | null;
+  purchase_date: string | null;
+  notes: string | null;
+  price: number | null;
+  location_id: string | null;
+  colors: string[];
+  tags: string[];
+  seasons: DbSeason[];
+};
 
 const invert = <K extends string, V extends string>(o: Record<K, V>) =>
   Object.fromEntries(Object.entries(o).map(([k, v]) => [v, k])) as Record<V, K>;
@@ -62,7 +105,7 @@ export function toCategoryLabel(v: string | null | undefined): string {
   return OTHER_CATEGORY;
 }
 
-export const STATUS_TO_DB: Record<Status, Enums["tudo_item_status"]> = {
+export const STATUS_TO_DB: Record<Status, DbStatus> = {
   "Đang dùng": "active",
   "Cất kho": "stored",
   "Đang giặt-sửa": "laundry",
@@ -71,7 +114,7 @@ export const STATUS_TO_DB: Record<Status, Enums["tudo_item_status"]> = {
 };
 export const STATUS_FROM_DB = invert(STATUS_TO_DB);
 
-export const SEASON_TO_DB: Record<string, Enums["tudo_season"]> = {
+export const SEASON_TO_DB: Record<string, DbSeason> = {
   Xuân: "spring",
   Hạ: "summer",
   Thu: "autumn",
@@ -133,8 +176,7 @@ export const apiPhotoUrl = (id: string | null | undefined, base = "/api"): strin
 export function itemToRow(it: Item, locationId: string | null): ItemInsert {
   const row: ItemInsert = {
     name: it.name.trim(),
-    // Supabase's generated enum type predates D29 (A4); the API path validates the id server-side.
-    category: CATEGORY_TO_DB[toCategoryLabel(it.category)] as ItemInsert["category"],
+    category: CATEGORY_TO_DB[toCategoryLabel(it.category)],
     status: STATUS_TO_DB[it.status] ?? "active",
     brand: it.brand.trim() || null,
     size: it.size.trim() || null,

@@ -1,4 +1,4 @@
-// Source of truth: src/shared/ai; mirrored to supabase/functions/_shared/ai; mirror.test.ts enforces equality.
+// Source of truth: src/shared/ai; mirrored by server/ai/*.js; server/ai/parity.test.ts enforces equality.
 
 export const AI_PROVIDERS = ["claude", "gemini"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];

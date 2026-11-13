@@ -7,7 +7,6 @@ coverage
 .claude
 work
 docs
-supabase
 deploy
 scripts
 server/test
