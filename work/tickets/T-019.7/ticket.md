@@ -36,6 +36,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - [ ] Auth code is lazy-loaded only in API + identity mode; local mode untouched.
 - [ ] Sign-up (`POST /auth/signup` with Turnstile token), `/verify-email` (fragment token, `Referrer-Policy: no-referrer`, `history.replaceState`) and resend are wired per org-admin-api `docs/consumers.md` (A8 changed, Ming 2026-11-13).
 - [ ] Verify-email token rules (T-019.11 security review S2): `history.replaceState` removes `#token` before any network call; the token goes only in the POST body; it is never logged or rendered; the page is served with `Referrer-Policy: no-referrer` (T-019.8). Server error bodies are normalised before reaching the screens (`reasons` must be an array; internal copy keys are never accepted as codes). The sign-up form is reset or unmounted after success.
+- [ ] Verify-email waits for a button press (D36): the page parses and clears `#token`, shows a "Xác minh email" button, and sends the POST only on click (adds a `ready` state to the T-019.11 `VerifyEmailScreen`). Link scanners that run JavaScript must not spend the single-use token.
 - [ ] Reuses the T-019.11 screens; all checks pass; 390px and dark mode.
 
 ## Technical notes
@@ -45,6 +46,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+- 2026-11-13 (Ming): verify-email waits for a button press ("chờ bấm nút"), D36.
 - 2026-11-13 (Ming): screens come from T-019.11 (UI first); this slice integrates them with the Identity API once org-admin-api is ready.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
