@@ -57,3 +57,53 @@ Ming verification after merge (carry into the PR): open `/auth-preview.html` at 
 ### Follow-ups (out of scope)
 - Plan A15 items: password show/hide, `aria-describedby` in shared `Field.tsx`, Figma Make kit stories.
 - A boundary/visual check for text-colour contrast against theme variables (e.g. forbid `var(--green)` as `color` in new UI), since `--green` is a background colour in the dark theme.
+
+## Attempt 2 — 2026-11-13
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json`, clean.
+- format:check: "All matched files use the correct format." (181 files), exit 0.
+- test: 63 files passed, 6 skipped; 728 passed, 101 skipped. That is +5 tests since attempt 1, matching impl-log.md attempt 2. `pnpm test:coverage` exit 0.
+- build: OK. `dist/` = `assets/ favicon.png index.html robots.txt`; `grep -rl "auth-preview\|Tạo tài khoản" dist/` finds nothing.
+
+Browser check (reviewer, Playwright Chromium, 390×844, `vite` dev server, `/auth-preview.html`): the same 14 states as attempt 1,
+in light and in dark. No element inside `<main>` extends past 390px, and document scrollWidth = 390 in every state (the preview
+log now wraps). Lowest WCAG contrast of any leaf text against its painted background: light 5.28:1 (brand, `rgb(111,106,98)` on
+`rgb(255,253,248)`), dark 5.24:1 (error text `rgb(226,124,115)` on `rgb(28,42,36)`). Dark brand is 7.69:1 and dark links are
+`rgb(255,248,235)` on the card. Screenshots of dark sign-in idle and sign-up sent show the brand line, the "Tạo tài khoản" link
+and the sent-state "Đăng nhập" link as clearly readable. No console errors.
+
+### Attempt 1 issues
+- Issue 1 (R9 dark-mode contrast): fixed. `AuthLayout.tsx:18` uses `var(--muted)` and `AuthLayout.tsx:34` uses `var(--text)`, with the underline kept. `src/index.css` is untouched.
+
+### Security-review items applied (orchestrator-directed)
+- S1: `copy.ts:94-97` falls back to `unknown` unless `code` is a string and an own key of `AUTH_COPY.errors`. `__proto__`, `constructor` and `bogus` now return the `unknown` copy (`copy.test.ts` › "unknown or prototype codes fall back to unknown copy"). Unknown `reasons` are filtered (`copy.ts:102-104`, test "filters unknown weak_password reasons"). Using `hasOwnProperty.call` instead of `Object.hasOwn` is fine (lib target). Correct.
+- S3: `validation.test.ts` › "accepts 32 / 128 chars" passes. Correct.
+- S4: `SignUpScreen.test.tsx` › "posts, never GET" passes. Correct.
+- S2: doc comments only (`validation.ts:78-82`, `types.ts:65`); no behaviour change. Correct.
+- All are in planned files (`copy.ts`, `validation.ts`, `types.ts` and their tests), so no new files and no scope creep. The `whitespace-pre-wrap` on the preview log resolves the attempt-1 nit.
+
+### Acceptance criteria
+- [x] All screens and states: unchanged since attempt 1; tests green.
+- [x] Running app unchanged (R1): the out-of-slice files are only `auth-preview.html`, `vitest.config.ts` (planned) and `work/ming-todo.md` (orchestrator). `boundary.test.ts` is green, and nothing from auth is in `dist/`.
+- [x] Copy in Vietnamese in one place: `copy.ts`; `copy.test.ts` green.
+- [x] Component tests cover validation and each state.
+- [x] 390px and dark mode (R9): see the browser check above.
+- [x] All checks pass.
+
+Ming verification after merge (carry into the PR): open `/auth-preview.html` at 390px in light/dark; read the copy in
+`copy.ts` (A11); optionally confirm production `password_min_length = 12` (A1); copy the S2 token rules into T-019.7's
+acceptance criteria and decide on the optional "press to verify" state.
+
+### Rules R1–R10
+- R1, R3, R6, R7, R8, R9, R10: hold. R2, R4, R5: not applicable.
+
+### Nits (do not block)
+- `copy.ts:95`: the own-key guard still accepts the internal keys `weak_too_short` / `weak_too_common` as codes. They return strings, so nothing crashes. An explicit code list would be tighter.
+- `copy.ts:102`: `error.reasons` that is not an array (e.g. a string from bad JSON) would throw on `.filter`. T-019.7's response parsing should normalise it, or add `Array.isArray`.
+- `SignUpScreen.tsx:27`: carried over from attempt 1, the "tới ." text when `sentTo` is missing.
+
+### Follow-ups (out of scope)
+- From attempt 1: plan A15 items and a contrast lint for `var(--green)` used as a text colour.
+- T-019.7: S2 token handling; reset or unmount the sign-up form after `sent` (S4 note); optionally extend the boundary scan to `vite.config.ts` / `public/_redirects` (S6).
