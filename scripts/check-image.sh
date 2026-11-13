@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
 # T-007/T-015: image checks shared by ci.yml and release.yml (Node server image, D26).
-# usage: check-image.sh <image-ref> [expected-supabase-url]
-#   With expected-supabase-url the bundle must contain it (build with VITE_* build args);
-#   without it the bundle must be in local mode (no Supabase URL baked in). T-016 removes this argument.
+# usage: check-image.sh <image-ref>
 #   EXPECTED_VERSION (env, default "dev") is the release tag the image must show (vX.Y.Z or dev).
 #   CHECK_IMAGE_DATABASE_URL (env, CI only; release.yml never sets it): a throwaway Postgres URL reachable from
 #   the host network. Enables the "db smoke" section (migrate + /readyz from inside the image).
 set -uo pipefail
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-  echo "usage: check-image.sh <image-ref> [expected-supabase-url]" >&2
+if [ "$#" -ne 1 ]; then
+  echo "usage: check-image.sh <image-ref>" >&2
   exit 2
 fi
 IMAGE="$1"
-EXPECTED_URL="${2:-}"
 ROOT=/app/dist
 EXPECTED_VERSION="${EXPECTED_VERSION:-dev}"
 if ! [[ "$EXPECTED_VERSION" =~ ^(dev|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
@@ -76,15 +73,9 @@ if ! docker run --rm --entrypoint sh "$IMAGE" -c '
   echo "::error::image layout is wrong (see docs: package.json type=module, migrations, pg/jose, dist; no vite, src, tests)"; exit 1
 fi
 
-echo "== bundle mode"
-if [ -n "$EXPECTED_URL" ]; then
-  if ! docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqF -- '$EXPECTED_URL' $ROOT/assets"; then
-    echo "::error::expected Supabase URL not found in the bundle"; exit 1
-  fi
-else
-  if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqF ci-dummy.invalid $ROOT/assets"; then
-    echo "::error::the CI dummy Supabase URL is in an image built without build args (not local mode)"; exit 1
-  fi
+echo "== bundle"
+if docker run --rm --entrypoint sh "$IMAGE" -c "grep -rqi supabase $ROOT/assets"; then
+  echo "::error::Supabase code in the bundle (removed in T-016)"; exit 1
 fi
 
 echo "== version"

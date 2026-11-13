@@ -46,10 +46,9 @@ jobs:
           node server/migrate.js | tee /dev/stderr | grep -q "up to date"
       - run: pnpm format:check
       - run: pnpm build
-      - run: bash scripts/check-public-supabase-env.test.sh
 
-  # T-007/T-015: builds the production image (Node server, D26) twice (no build args = local mode; dummy args =
-  # Supabase mode, until T-016) and checks both. The first check also runs migrate + /readyz inside the image
+  # T-007/T-015: builds the production image (Node server, D26) twice (no build args; then with a dummy release
+  # version) and checks both. The first check also runs migrate + /readyz inside the image
   # against the postgres service. Never pushes, no registry login.
   image:
     needs: ci
@@ -65,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: build (local mode)
+      - name: build (no build args)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,22 +73,20 @@ jobs:
           tags: tudocuatui:ci-local
           cache-from: type=gha,scope=image
           cache-to: type=gha,mode=max,scope=image
-      # T-008: VITE_APP_VERSION is a dummy version; the local-mode image above must show dev.
-      - name: build (dummy Supabase build args)
+      # T-008: VITE_APP_VERSION is a dummy version; the image above must show dev.
+      - name: build (release version)
         uses: docker/build-push-action@v6
         with:
           context: .
           load: true
           push: false
-          tags: tudocuatui:ci-supabase
+          tags: tudocuatui:ci-version
           build-args: |
-            VITE_SUPABASE_URL=https://ci-dummy.invalid
-            VITE_SUPABASE_ANON_KEY=sb_publishable_ci_dummy
             VITE_APP_VERSION=v0.0.0
           cache-from: type=gha,scope=image
       - run: bash scripts/check-image.sh tudocuatui:ci-local
         env:
           CHECK_IMAGE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
-      - run: bash scripts/check-image.sh tudocuatui:ci-supabase https://ci-dummy.invalid
+      - run: bash scripts/check-image.sh tudocuatui:ci-version
         env:
           EXPECTED_VERSION: v0.0.0

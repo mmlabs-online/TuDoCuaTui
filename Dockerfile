@@ -2,7 +2,6 @@
 # /api; no ports published: cloudflared reaches it as `tudocuatui` on the external network.
 # Runtime config comes only from outside: DATABASE_URL from the host env file, CF_ACCESS_* from the compose file.
 # None of them (and never TUDO_ACCESS_DISABLED) is set here (R3).
-# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are still build args until T-016; both are public by design (R3).
 # VITE_APP_VERSION (T-008) is the release tag vX.Y.Z (public, not a secret); empty shows "dev".
 # Never set FIGMA_PUBLIC_URL: it changes Vite's `base`.
 
@@ -14,8 +13,6 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY . .
 # Build args live in this stage only: no ENV, so nothing lands in the runtime image config or history.
-ARG VITE_SUPABASE_URL=
-ARG VITE_SUPABASE_ANON_KEY=
 ARG VITE_APP_VERSION=
 RUN v="$VITE_APP_VERSION"; \
     [ -z "$v" ] || { [ -z "$(printf '%s' "$v" | tr -d '0-9.v')" ] \
