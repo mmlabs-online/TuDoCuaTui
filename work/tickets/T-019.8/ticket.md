@@ -32,6 +32,7 @@ proposal* → T-019.8). Decisions D31–D34. Ming items in the plan are numbered
 ## Acceptance criteria
 - [ ] CSP header on SPA responses as in plan A20 (`connect-src 'self' https://api.mmlabs.online`, `img-src 'self' blob: data:`, Google Fonts).
 - [ ] `Strict-Transport-Security` header.
+- [ ] CSP allows Cloudflare Turnstile (`https://challenges.cloudflare.com` in `script-src` and `frame-src`) for sign-up (A8 changed).
 - [ ] App and fonts still load; `static.test.ts` checks the headers; all checks pass.
 
 ## Technical notes

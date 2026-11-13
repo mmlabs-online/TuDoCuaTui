@@ -9,7 +9,7 @@
 | Epic | E1 — Auth & Account |
 | Areas | security, ui, architecture |
 | Gate | plan-approval |
-| Depends on | T-019.5, T-019.6 |
+| Depends on | T-019.5, T-019.6, T-019.11 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
@@ -34,7 +34,8 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - [ ] Vietnamese copy for `not_member`, `email_unverified`, `session_invalid`, `turnstile_required`, `rate_limited`, `network` (one copy file).
 - [ ] Reload restores the session silently via `mm_account_id`.
 - [ ] Auth code is lazy-loaded only in API + identity mode; local mode untouched.
-- [ ] All checks pass; 390px and dark mode.
+- [ ] Sign-up (`POST /auth/signup` with Turnstile token), `/verify-email` (fragment token, `Referrer-Policy: no-referrer`, `history.replaceState`) and resend are wired per org-admin-api `docs/consumers.md` (A8 changed, Ming 2026-11-13).
+- [ ] Reuses the T-019.11 screens; all checks pass; 390px and dark mode.
 
 ## Technical notes
 - Files (likely): `src/features/auth/*` (new), `src/data/repo.http.ts`, `src/main.tsx`, `src/App.tsx`
@@ -43,6 +44,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+- 2026-11-13 (Ming): screens come from T-019.11 (UI first); this slice integrates them with the Identity API once org-admin-api is ready.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff

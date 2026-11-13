@@ -79,6 +79,7 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 - Manual: sign in / out on a phone and desktop against production Identity, after Ming registers the app.
 
 ## Notes / answers from Ming
+- 2026-11-13 (Ming): **A8 changed.** org-admin-api USR-04 and USR-04c are DONE (USR-04c: sign-up requires `X-MM-App` + a registered `Origin`; the verification link always goes to `{origin}/verify-email#token=…`, so every app must host sign-up and `/verify-email`). TuDo gets its own sign-up (Turnstile) and `/verify-email` page. Ming: "dựng UI cho phần đăng kí, đăng nhập trước, sau đó đợi API repo done thì integrate API sau" → new slice **T-019.11** (auth screens UI only, not wired, runnable now); T-019.7 wires sign-in **and** sign-up/verify/resend to Identity later. Upstream still open: USR-07 (app registration; also blocks M-17, since sign-up needs a registered app), USR-03b (join), ADM-007 (deploy pipeline).
 - 2026-11-13: **Plan approved** (Ming, in session: "duyệt plan T-019, giữ mặc định A1–A20"). T-019 is now an umbrella: work runs in sub-tickets T-019.1–T-019.10 (each gets its own plan; High-tier slices still stop for plan approval). Ming items renumbered M-17–M-22 (plan M-16–M-21; M-16 is reserved by T-018.2).
 - 2026-11-13: Ming asked for a plan to move TuDo onto the org-admin-api user service, following ricotdin.
 - 2026-11-13 (Ming) answers to the open questions:
