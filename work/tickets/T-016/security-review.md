@@ -68,3 +68,6 @@ storage: Pick<Storage, "length" | "key" | "removeItem"> = localStorage,
 
 ### Open questions
 - None that block the ticket.
+
+### Resolution — 2026-11-13
+🟡 1 fixed on the PR branch (see impl-log "Follow-up fix"): `localStorage` is now resolved inside the `try`, with a test for a throwing global getter.

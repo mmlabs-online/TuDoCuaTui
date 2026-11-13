@@ -53,3 +53,9 @@ CLAUDE.md wording proposal: see the Appendix at the end of `work/tickets/T-016/p
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: +281 / -5354 lines (82 files, incl. lockfile and deletions)
+
+## Follow-up fix — 2026-11-13 (requested by Ming on PR #43)
+- Fixes security-review 🟡 1: `clearLegacyAuthKeys` read `localStorage` as a default parameter, outside the `try`, so a browser that blocks site data threw at startup in production.
+- `src/lib/legacySession.ts`: `storage` is optional; `storage ?? localStorage` is resolved inside the `try`.
+- `src/lib/legacySession.test.ts`: two tests for the default-storage path (clears keys from `window.localStorage`; returns 0 when the `localStorage` getter throws `SecurityError`). The throwing test fails on the previous code and passes now.
+- Checks: typecheck ✅ · format:check ✅ · test ✅ (635 passed, 101 skipped DB tests) · build ✅.

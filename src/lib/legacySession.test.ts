@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { clearLegacyAuthKeys } from "./legacySession";
 
 const fakeStorage = (init: Record<string, string>) => {
@@ -61,5 +61,30 @@ describe("clearLegacyAuthKeys", () => {
     expect(clearLegacyAuthKeys({ length: 1, key: () => "sb-a-auth-token", removeItem: boom })).toBe(
       0,
     );
+  });
+
+  describe("default storage", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    test("clears legacy keys from window.localStorage when no storage is passed", () => {
+      localStorage.setItem("sb-abc-auth-token", "1");
+      localStorage.setItem("tu-do-theme", "dark");
+      expect(clearLegacyAuthKeys()).toBe(1);
+      expect(localStorage.getItem("sb-abc-auth-token")).toBeNull();
+      expect(localStorage.getItem("tu-do-theme")).toBe("dark");
+      localStorage.clear();
+    });
+
+    test("returns 0 when reading window.localStorage throws (site data blocked)", () => {
+      vi.stubGlobal("localStorage", undefined);
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+          throw new DOMException("denied", "SecurityError");
+        },
+      });
+      expect(() => clearLegacyAuthKeys()).not.toThrow();
+      expect(clearLegacyAuthKeys()).toBe(0);
+    });
   });
 });
