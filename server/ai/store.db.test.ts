@@ -91,6 +91,24 @@ describe.skipIf(!dbAvailable)("ai_settings (real Postgres)", () => {
     expect((await pool.query("select provider from ai_settings")).rows[0].provider).toBe("gemini");
   });
 
+  it("getSecret: null without a row or key, else provider, model and a v1 ciphertext", async () => {
+    const s = store();
+    expect(await s.getSecret()).toBeNull();
+    await s.save({ provider: "claude", model: "claude-haiku-5-5", sealed: null });
+    expect(await s.getSecret()).toBeNull();
+    const kek = await importKek(randomBytes(32).toString("base64"));
+    const ciphertext = await sealKey(kek, "claude", SENTINEL);
+    await s.save({
+      provider: "claude",
+      model: "claude-haiku-5-5",
+      sealed: { ciphertext, hint: "cdef" },
+    });
+    const got = await s.getSecret();
+    expect(got).toEqual({ provider: "claude", model: "claude-haiku-5-5", ciphertext });
+    expect(got?.ciphertext).toMatch(/^v1:/);
+    expect(await openKey(kek, "claude", got!.ciphertext)).toBe(SENTINEL);
+  });
+
   it("stores ciphertext, never the key", async () => {
     const kek = await importKek(randomBytes(32).toString("base64"));
     const ciphertext = await sealKey(kek, "claude", SENTINEL);

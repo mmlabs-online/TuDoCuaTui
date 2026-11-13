@@ -199,6 +199,31 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       reset the client secret (or delete the client and create a new one, step 1); (c) redo steps 4, 5, 6 and Run
       workflow `deploy-tudocuatui` from `main`; (d) delete every copy of the leaked file.
 
+### T-018.2 — AI key encryption (D30; plan `work/tickets/T-018.2/plan.md`)
+- [ ] **M-16 — Deploy the AI KEK** (after T-018.2 is merged). Never paste the value into a chat, ticket or log.
+      1. On the Mac: `mkdir -p ~/.config/tudocuatui && umask 077 && openssl rand -base64 32 | tr -d '\n' >
+         ~/.config/tudocuatui/ai-kek.txt`. Do not `cat` the file.
+      2. Bitwarden, **personal** collection, item "TuDoCuaTui AI_KEK": paste the value from the file. Copy it with
+         `pbcopy < ~/.config/tudocuatui/ai-kek.txt` and clear the clipboard afterwards.
+      3. `gh secret set TUDOCUATUI_AI_KEK -R mmlabs-online/deployment < ~/.config/tudocuatui/ai-kek.txt`. Check that
+         `gh secret list -R mmlabs-online/deployment` shows the name.
+      4. `rm ~/.config/tudocuatui/ai-kek.txt`.
+      5. Merge the setup PR `setup/tudocuatui-ai-kek` on `mmlabs-online/deployment`, which contains the two drafted
+         files (`deploy/deployment-repo/` here). If no PR was opened, copy the two files into one, on a branch whose
+         name does not start with `release/`.
+      6. Check that `/version.txt` shows a release that contains T-018.1. If it does not, cut a release, as in M-15
+         step 7. Then go to Actions → `deploy-tudocuatui` → Run workflow from `main`. On the Mac,
+         `docker compose -p tudocuatui logs --tail 20 tudocuatui` should show `ai configured`.
+      7. Signed in through Access, `https://tudocuatui.mmlabs.online/api/ai-settings` should return
+         `{"settings":null}`.
+      8. Optional (real-key check; T-010 has no UI yet). In the browser console on the signed-in app:
+         `await fetch("/api/ai-settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:"claude",model:"claude-haiku-5-5",apiKey:prompt("key")})}).then(r=>r.status)`
+         then `await fetch("/api/ai-settings/test",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(r=>r.json())`.
+         Expect `{ok:true}`; a wrong key gives `invalid_key`.
+      A key saved now is cleared by T-019.3 (per-user keys, D33); enter it again after that release.
+      KEK lost or leaked: generate a new one (steps 1-4), Run workflow, enter the key again.
+      Turn AI off: `gh secret delete TUDOCUATUI_AI_KEK -R mmlabs-online/deployment`, then Run workflow.
+
 ### T-019 — sign in with mmlabs Identity (D31; plan `work/tickets/T-019/plan.md`, where these are numbered M-16–M-21)
 - [ ] **M-17 — Your mmlabs `sub`** (before T-019.1 can run). Create / use your account on `api.mmlabs.online`
       (sign-up exists, USR-01); read `user.id` from the login response (or ask the org-admin-api operator). Paste it

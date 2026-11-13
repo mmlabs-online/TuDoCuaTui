@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { parseSettingsBody } from "./validate.js";
+import { parseSettingsBody, parseTestBody } from "./validate.js";
 
 describe("parseSettingsBody", () => {
   it("accepts {provider, model} with or without apiKey", () => {
@@ -27,5 +27,18 @@ describe("parseSettingsBody", () => {
       { model: "m" },
     ];
     for (const b of bad) expect(parseSettingsBody(b)).toEqual({ ok: false, code: "bad_request" });
+  });
+});
+
+describe("parseTestBody", () => {
+  it("accepts only {}", () => {
+    expect(parseTestBody({})).toEqual({ ok: true });
+  });
+
+  it("rejects any field, arrays and non-objects", () => {
+    const withProto = JSON.parse('{"__proto__":1}');
+    const bare = Object.assign(Object.create(null), { a: 1 });
+    const bad = [{ apiKey: "x" }, { x: 1 }, [], null, "{}", 0, bare, withProto];
+    for (const b of bad) expect(parseTestBody(b)).toEqual({ ok: false, code: "bad_request" });
   });
 });

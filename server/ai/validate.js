@@ -49,3 +49,15 @@ export function parseSettingsBody(body) {
   if (b.apiKey !== undefined) value.apiKey = b.apiKey;
   return { ok: true, value };
 }
+
+/**
+ * POST /api/ai-settings/test takes exactly {}: never a key, so the endpoint is not a key-validity oracle.
+ * @param {unknown} body
+ * @returns {{ ok: true } | { ok: false, code: "bad_request" }}
+ */
+export function parseTestBody(body) {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, code: "bad_request" };
+  }
+  return Object.keys(body).length === 0 ? { ok: true } : { ok: false, code: "bad_request" };
+}

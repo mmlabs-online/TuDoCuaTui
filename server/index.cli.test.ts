@@ -113,12 +113,32 @@ describe("entry point", () => {
     }
   });
 
-  it("valid AI_KEK: logs 'ai configured', value not printed", async () => {
+  it("valid AI_KEK with Access on: logs 'ai configured', value not printed", async () => {
     const kek = randomBytes(32).toString("base64");
-    const { child, port, output } = await start({ TUDO_ACCESS_DISABLED: "1", AI_KEK: kek });
+    const { child, port, output } = await start({
+      CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com",
+      CF_ACCESS_AUD: "aud",
+      AI_KEK: kek,
+    });
     try {
       expect((await fetch(`http://127.0.0.1:${port}/healthz`)).status).toBe(200);
       expect(output()).toContain("ai configured");
+      expect(output()).not.toContain(kek);
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("valid AI_KEK with Access off: logs 'ai disabled: request auth off', routes answer 503", async () => {
+    const kek = randomBytes(32).toString("base64");
+    const { child, port, output } = await start({ TUDO_ACCESS_DISABLED: "1", AI_KEK: kek });
+    try {
+      expect(output()).toContain("ai disabled: request auth off");
+      const res = await fetch(`http://127.0.0.1:${port}/api/ai-settings`);
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as { error: { code: string } }).error.code).toBe(
+        "server_misconfigured",
+      );
       expect(output()).not.toContain(kek);
     } finally {
       child.kill("SIGTERM");

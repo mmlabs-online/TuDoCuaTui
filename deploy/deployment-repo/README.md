@@ -7,6 +7,7 @@ on `mmlabs-online/deployment` (not a `release/*` branch, so `pr-scope` does not 
 |---|---|---|
 | `.github/workflows/deploy-tudocuatui.yml` | `.github/workflows/deploy-tudocuatui.yml` | Setup PR with the postgres registration (M-12) |
 | `.github/workflows/deploy-tudocuatui.yml` (T-005.5 version) + `apps/tudocuatui/compose.yml` (comments) | same paths | Setup PR `setup/tudocuatui-drive-secrets`, M-15 (repository secrets, D28) |
+| `.github/workflows/deploy-tudocuatui.yml` (T-018 version) + `apps/tudocuatui/compose.yml` (comment) | same paths | Setup PR `setup/tudocuatui-ai-kek`, M-16 (repository secret `TUDOCUATUI_AI_KEK`) |
 | `apps/tudocuatui/compose.yml` | `apps/tudocuatui/compose.yml` | Inside the first Node release PR, see M-14 in TuDo `work/ming-todo.md` |
 
 Why the split: the pinned nginx release has no `migrate` command and no database. The workflow only runs
@@ -45,6 +46,15 @@ repo (Settings → Secrets and variables → Actions, D28; no GitHub environment
 file). Never printed. The script `scripts/drive-connect.mjs` in the TuDoCuaTui repo creates the values. Rotation:
 `gh secret set …` then `workflow_dispatch` (a manual run always recreates the app, so the new env file is read). The full runbook is M-15 in
 TuDoCuaTui `work/ming-todo.md`.
+
+## AI key encryption (T-018)
+
+The server encrypts the saved AI provider key with a KEK (D30). It comes from the repository secret
+`TUDOCUATUI_AI_KEK`, which the `envfile` step writes as the line `AI_KEK=<value>` after `DATABASE_URL` and the Drive
+lines. Format: base64 of 32 random bytes (44 characters ending `=`). It is optional and independent of the Drive group.
+Unset: the AI routes answer 503. A malformed value fails the `envfile` step (nothing is started); a malformed value that
+gets past it makes the server exit 2. The value is never printed. Rotation is not supported: a new KEK means entering the
+provider key again. The Bitwarden backup is the only copy. Runbook: M-16 in TuDoCuaTui `work/ming-todo.md`.
 
 Migrations must be expand-then-contract: a rollback restores the previous image but never un-migrates. Never
 run `docker compose down -v` or remove volumes for this project's neighbours: all data is in the shared `pgdata`.

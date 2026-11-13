@@ -12,7 +12,7 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
 | `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token (scope `drive.file`). Secret: runtime env only. |
 | `DRIVE_FOLDER_ID` | Id of the `TuDoCuaTui` Drive folder the connect script created |
-| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset: AI routes answer 503; malformed: exit 2. |
+| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset, or request auth off (`access check OFF`): AI routes answer 503; malformed: exit 2. Removed from `process.env` after startup. |
 | `NODE_ENV` | With `production`, missing `CF_ACCESS_*` exits 2. |
 | `PORT` | Default 3000 |
 
@@ -89,8 +89,8 @@ Scheduling it is a deployment-repo follow-up.
 
 ## AI settings (T-018)
 
-`GET /api/ai-settings` returns `{ settings: AiSettingsView | null }` (provider, model, masked `keyHint`, `hasKey`, `modelSupported`, `updatedAt`; never the key). `PUT /api/ai-settings` takes `{ provider, model, apiKey? }` (omit `apiKey` to keep the stored key; changing provider needs a new key). `DELETE /api/ai-settings/key` clears the key (idempotent). The key is sealed with AES-256-GCM (`server/ai/crypto.js`, KEK from `AI_KEK`) and stored in the single `ai_settings` row.
+`GET /api/ai-settings` returns `{ settings: AiSettingsView | null }` (provider, model, masked `keyHint`, `hasKey`, `modelSupported`, `updatedAt`; never the key). `PUT /api/ai-settings` takes `{ provider, model, apiKey? }` (omit `apiKey` to keep the stored key; changing provider needs a new key). `DELETE /api/ai-settings/key` clears the key (idempotent). The key is sealed with AES-256-GCM (`server/ai/crypto.js`, KEK from `AI_KEK`) and stored in the single `ai_settings` row. `POST /api/ai-settings/test` (body exactly `{}`, `Content-Type: application/json`) checks the saved key with the provider (`GET /v1/models/<model>` on `api.anthropic.com`, no tokens spent) and answers `{ ok: true }`; failures use the codes below. With request auth off (`access === null`) AI is disabled at startup (log `ai disabled: request auth off`) and every AI route answers 503.
 
-Errors use the codes in `AI_ERROR_STATUS`: `invalid_provider`, `invalid_model`, `invalid_key_format`, `key_required`, `bad_request`, `invalid_json`, `unsupported_media_type`, `payload_too_large` (4096 bytes), `forbidden_origin`, `rate_limited` (30 saves/hour, in memory), `db_unavailable`, `server_misconfigured` (no `AI_KEK`: every AI route), `internal`.
+Errors use the codes in `AI_ERROR_STATUS`: `invalid_provider`, `invalid_model`, `invalid_key_format`, `key_required`, `bad_request`, `invalid_json`, `unsupported_media_type`, `payload_too_large` (4096 bytes), `forbidden_origin`, `not_configured` (no saved key), `key_unreadable` (ciphertext does not open under this `AI_KEK`), `invalid_key`, `key_forbidden`, `model_unavailable`, `provider_rate_limited`, `provider_unavailable`, `rate_limited` (30 saves/hour and 20 tests/hour, in memory), `db_unavailable`, `server_misconfigured` (no `AI_KEK`: every AI route), `internal`.
 
 `server/ai/*.js` mirrors `src/shared/ai`; `server/ai/parity.test.ts` fails if they drift. The `/test` endpoint comes with T-018.2.

@@ -20,8 +20,9 @@ name: deploy-tudocuatui
 #
 # Secrets: the Postgres password is still the one committed in postgres/secrets/ (see README). The four Google Drive
 # values for photos (T-005.5, D27) come from repository secrets of this repo (D28; the job runs only on main via its `if:`), all-or-none, and are
-# written only to the host env file, never printed. After changing them, run workflow_dispatch from main: a manual run
-# (or a changed env file) recreates the app.
+# written only to the host env file, never printed. AI_KEK (T-018, D30: repository secret TUDOCUATUI_AI_KEK, base64 of
+# 32 bytes) is optional and independent of the Drive group; it is written the same way and never printed. After
+# changing any of them, run workflow_dispatch from main: a manual run (or a changed env file) recreates the app.
 
 on:
   push:
@@ -85,8 +86,8 @@ jobs:
             echo "previous=$previous"
           } >> "$GITHUB_OUTPUT"
 
-      # Writes DATABASE_URL, and the four Drive values when all are set, to the host env file. Secrets are never
-      # printed (no echo, no argv). If this fails, the old file stays and nothing is started.
+      # Writes DATABASE_URL, the four Drive values when all are set, and AI_KEK when set (optional, independent of
+      # the Drive group), to the host env file. Secrets are never printed (no echo, no argv). If this fails, the old file stays and nothing is started.
       - name: envfile
         id: envfile
         if: steps.release.outputs.skip != 'true'
@@ -95,6 +96,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.TUDOCUATUI_GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.TUDOCUATUI_GOOGLE_REFRESH_TOKEN }}
           DRIVE_FOLDER_ID: ${{ secrets.TUDOCUATUI_DRIVE_FOLDER_ID }}
+          AI_KEK: ${{ secrets.TUDOCUATUI_AI_KEK }}
         run: |
           umask 077
           [[ "$ENV_FILE" == "$HOME/"* ]] || { echo "::error::ENV_FILE $ENV_FILE is not under $HOME. Nothing was started."; exit 1; }
@@ -128,6 +130,11 @@ jobs:
               exit 1
             fi
           fi
+          re_kek='^[A-Za-z0-9+/]{43}=$'
+          if [ -n "$AI_KEK" ] && ! [[ "$AI_KEK" =~ $re_kek ]]; then
+            echo "::error::Malformed TUDOCUATUI_AI_KEK (expected base64 of 32 bytes). Nothing was started; $ENV_FILE was not changed."
+            exit 1
+          fi
           dir="$(dirname "$ENV_FILE")"
           install -d -m 700 "$dir"
           tmp="$(mktemp "$dir/.env.XXXXXX")"
@@ -137,6 +144,7 @@ jobs:
             printf 'GOOGLE_CLIENT_ID=%s\nGOOGLE_CLIENT_SECRET=%s\nGOOGLE_REFRESH_TOKEN=%s\nDRIVE_FOLDER_ID=%s\n' \
               "$GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_SECRET" "$GOOGLE_REFRESH_TOKEN" "$DRIVE_FOLDER_ID" >> "$tmp"
           fi
+          if [ -n "$AI_KEK" ]; then printf 'AI_KEK=%s\n' "$AI_KEK" >> "$tmp"; fi
           chmod 600 "$tmp"
           if cmp -s "$tmp" "$ENV_FILE"; then changed=false; else changed=true; fi
           mv -f "$tmp" "$ENV_FILE"

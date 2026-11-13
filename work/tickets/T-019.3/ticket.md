@@ -44,4 +44,11 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 ## Notes / answers from Ming
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
+- 2026-11-13 (T-018.2): T-018.2 merges first (KEK deployed). T-019.3 must also: make `store.getSecret(userId)` take the
+  user; move `openStoredKey` (`server/ai/crypto.js`) to the v2 AAD; make the `test` limiter per user and keep a global
+  ceiling on `test`/`save` (open join); add a two-user `/test` isolation test (B never sends A's key and gets
+  `not_configured`); test that a leftover v1 ciphertext gives `key_unreadable` or is cleared by the migration. The
+  "KEK not yet deployed" rationale of T-019 plan A6 no longer holds; clearing is still correct and Ming enters his key
+  again. T-019.5 must change `initAi`'s `requestAuth` to "auth mode is access or identity" (T-018.2 A1).
+
 ## Handoff

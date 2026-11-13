@@ -12,7 +12,7 @@ import { serveStatic } from "./static.js";
  * @param {{
  *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
- *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore } | null,
+ *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, fetch?: typeof globalThis.fetch } | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   access: { verify(req: import("node:http").IncomingMessage): Promise<{ ok: boolean, code?: string }> } | null,
  *   log: (entry: Record<string, unknown>) => void,
@@ -32,6 +32,7 @@ export function createApp({
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
     limiter: createLimiter({ now }),
+    fetch: ai.fetch ?? globalThis.fetch,
   };
   return async function handler(
     /** @type {import("node:http").IncomingMessage} */ req,
