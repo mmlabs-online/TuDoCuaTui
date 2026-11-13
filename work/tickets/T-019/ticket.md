@@ -80,5 +80,12 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 
 ## Notes / answers from Ming
 - 2026-11-13: Ming asked for a plan to move TuDo onto the org-admin-api user service, following ricotdin.
+- 2026-11-13 (Ming) answers to the open questions:
+  1. **Drop Cloudflare Access** in front of TuDo ("bỏ Cloudflare Access trước TuDo"). mmlabs Identity becomes the only
+     access control; the server-side Access JWT check is replaced by the Identity token check.
+  2. **Multi-user; data belongs to the user id** ("Nhiều người dùng, data đi theo userID"): every table gets a `user_id`
+     (the mmlabs `sub`), every query is scoped to it. Supersedes D25's single-user note; existing single-user rows need an
+     owner (planner proposes how).
+  3. Join policy for app `tudocuatui`: **`open`**.
 
 ## Handoff
