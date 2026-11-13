@@ -16,11 +16,13 @@ import { ItemGrid } from "@/features/items/ItemGrid";
 import { StatsRow } from "@/features/items/StatsRow";
 import { useItemFilters } from "@/features/items/useItemFilters";
 import { Header } from "@/features/layout/Header";
+import { AiSettingsModal } from "@/features/settings/AiSettingsModal";
 import { LAYOUT_COPY } from "@/features/layout/copy";
 import { Hero } from "@/features/layout/Hero";
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
+import { httpAiSettings } from "@/data/aiSettings";
 import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
@@ -49,6 +51,7 @@ function App({ mode }: { mode?: DataMode } = {}) {
   const [isNew, setIsNew] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast, notify } = useToast();
@@ -95,6 +98,7 @@ function App({ mode }: { mode?: DataMode } = {}) {
         onImport={() => setImportOpen(true)}
         onExport={() => setExportOpen(true)}
         onAdd={openNew}
+        onSettings={wardrobe.mode === "api" ? () => setSettingsOpen(true) : undefined}
       />
 
       {wardrobe.error && (
@@ -243,6 +247,9 @@ function App({ mode }: { mode?: DataMode } = {}) {
             notify(IMPORT_EXPORT_COPY.exported(type));
           }}
         />
+      )}
+      {settingsOpen && wardrobe.mode === "api" && (
+        <AiSettingsModal client={httpAiSettings} onClose={() => setSettingsOpen(false)} />
       )}
       <Toast message={toast} />
     </div>

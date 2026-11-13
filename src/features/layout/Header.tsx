@@ -1,5 +1,6 @@
 import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
+import { SETTINGS_COPY } from "@/features/settings/copy";
 
 export function Header({
   count,
@@ -8,6 +9,7 @@ export function Header({
   onImport,
   onExport,
   onAdd,
+  onSettings,
 }: {
   count: number;
   dark: boolean;
@@ -15,6 +17,7 @@ export function Header({
   onImport: () => void;
   onExport: () => void;
   onAdd: () => void;
+  onSettings?: () => void;
 }) {
   return (
     <header className="topbar">
@@ -31,6 +34,11 @@ export function Header({
         <button className="icon-btn" onClick={onToggleDark} aria-label="Đổi giao diện">
           <Icon name={dark ? "sun" : "moon"} />
         </button>
+        {onSettings && (
+          <button className="icon-btn" onClick={onSettings} aria-label={SETTINGS_COPY.open}>
+            <Icon name="settings" />
+          </button>
+        )}
         <Btn className="desktop-btn" onClick={onImport}>
           <Icon name="import" /> Import
         </Btn>

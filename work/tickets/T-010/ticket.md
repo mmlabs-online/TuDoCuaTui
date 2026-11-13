@@ -2,19 +2,19 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
 | Epic | E7 — AI |
 | Areas | ui, security |
 | Gate | none |
-| Depends on | T-009 |
+| Depends on | T-018.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/46 |
 
 ## Goal
 Ming opens Settings, picks Claude or Gemini, pastes an API key, picks a model and tests it — all in the app.
@@ -43,11 +43,22 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - [ ] Hidden in local mode; works at 390px and in dark mode; tests pass.
 
 ## Notes / answers from Ming
+- 2026-11-12: backend is T-018 (D30): REST `/api/ai-settings` (GET/PUT), `/key` (DELETE), `/test` (POST, T-018.2); `{settings: AiSettingsView|null}`. Generic `/api` codes (`invalid_json`, `unsupported_media_type`, `forbidden_origin`, `db_unavailable`) are in `AI_ERROR_STATUS`. An expired Access session shows up as a redirect/network error on fetch, not a 401: show 'đăng nhập lại'.
+- 2026-11-13: T-018 and T-018.2 are MERGED (PRs #42, #45). D33: AI settings become per-user in T-019.3 (server-side only; the UI contract stays `{settings}`).
+- 2026-11-12 (chat with Annie): "ok" to plan.md Q1–Q3 defaults — T-018 ports the backend first (T-010 now depends on T-018 and stays UI-only); AI is "API mode only" (D21 amended in T-018); key entered in Settings, stored encrypted with `TUDOCUATUI_AI_KEK`. Re-plan T-010 after T-018 merges.
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
-- 2026-11-12: backend is T-018 (D30): REST `/api/ai-settings` (GET/PUT), `/key` (DELETE), `/test` (POST, T-018.2); `{settings: AiSettingsView|null}`. Generic `/api` codes (`invalid_json`, `unsupported_media_type`, `forbidden_origin`, `db_unavailable`) are in `AI_ERROR_STATUS`. An expired Access session shows up as a redirect/network error on fetch, not a 401: show 'đăng nhập lại'.
-
 ## Handoff
+
+### 2026-11-12 — claude — BLOCKED
+- Done: re-planned after D23; plan.md Status BLOCKED: the Node server has no AI-settings backend (T-009 exists only as unused Supabase code).
+- In progress / next: Ming answers Q1–Q3 in plan.md (default: new T-018 ports the backend to the Node server first; D21 "Supabase mode only" → "API mode only"; keep in-app key entry with a new `TUDOCUATUI_AI_KEK` deployment secret). Then create T-018 and set T-010 Depends on T-018.
+- Gotchas: T-016 touches the same frontend files (aiSettings.ts, mode.ts, main.tsx, App.tsx); whichever lands second rebases.
+
+### 2026-11-13 — claude — DONE
+- Done: re-planned on the merged T-018/T-018.2 backend; attempt 1 PASS; security review no 🔴 (two 🟡 as follow-ups). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/46.
+- In progress / next: Ming reviews/merges PR #46; after merge, check Settings in production with a real key (needs M-16 KEK).
+- Gotchas: `pnpm dev` is local mode, so the modal can't be opened in dev; `App.tsx` / `Header.tsx` are also edited by T-019.7 / T-019.10.

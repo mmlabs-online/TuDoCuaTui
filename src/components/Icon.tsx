@@ -70,6 +70,12 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
       </>
     ),
     check: <path d="m5 12 4 4L19 6" />,
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
+      </>
+    ),
     sparkle: (
       <>
         <path d="m12 3 1.3 4.2L17 9l-3.7 1.8L12 15l-1.3-4.2L7 9l3.7-1.8L12 3Z" />
