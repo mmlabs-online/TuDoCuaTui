@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-12 |
-| Claimed by | claude@2026-11-13T03:44:11Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/45 |
 
 ## Goal
 Ming can check that the saved AI key works (`POST /api/ai-settings/test`), and the deploy delivers the KEK to the
@@ -92,3 +92,8 @@ server, so AI settings work on the real app.
 - Done: consult (software-architect) and plan.md (Status READY): `POST /api/ai-settings/test` with strict `{}` body, seams `getSecret()` / `openStoredKey()` / pure `claude.js` for T-019.3, G1 (`delete process.env.AI_KEK`) and Y1 (refuse AI when request auth is off) in `initAi`, `AI_KEK` envfile wiring + M-16; assumptions A1–A12, deviations C1–C6.
 - In progress / next: Ming approves the plan, then implement → review → PR.
 - Gotchas: hotspots with T-019.2/.3/.5 (`server/index.js`, `server/ai/*`); the implementer appends a forward note to T-019.3 in this diff (A5).
+
+### 2026-11-13 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴, Y3 runbook wording applied (docs). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/45.
+- In progress / next: Ming reviews/merges PR #45, then M-16 (KEK). Deployment-repo setup PR `setup/tudocuatui-ai-kek` not opened (other repo; ask Ming).
+- Gotchas: DB tests skipped here; reviewer ran them on local PG 16 (858/859, one env-only failure). CI confirms coverage.
