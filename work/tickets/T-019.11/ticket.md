@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-13T03:11:34Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -61,6 +61,11 @@ org-admin-api USR-04c sends the verification link to the app the user signed up 
 - Manual: 390px light/dark in the preview harness.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-13: UI first, integrate the API later (T-019.7).
 
 ## Handoff
+### 2026-11-13 — claude — BLOCKED
+- Done: plan.md (Status READY): three presentational screens + shared layout/field/notice in `src/features/auth/`, `types.ts` contract for T-019.7, rules mirrored from org-admin-api (password 12–128 after NFKC, verify token regex), copy in `copy.ts`, dev-only preview page `auth-preview.html` (not in `dist/`), tests incl. a boundary test; assumptions A1–A15.
+- In progress / next: Ming approves the plan (or edits A-n / the draft copy), then implement → review → PR.
+- Gotchas: ~650 product + ~500 test lines (over the ~400 guide); fallback split moves verify-email + token parser to T-019.12. `vitest.config.ts` is shared with later T-019 slices.
