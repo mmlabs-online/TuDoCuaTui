@@ -1,19 +1,9 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { createFakeSupabase, type FakeSupabase } from "@/test/fakeSupabase";
-import type { Database } from "@/types/database";
 import type { Item } from "@/types/item";
+import { API_ERROR_COPY } from "./apiErrors";
 import { type ImportResult, useWardrobe } from "./useWardrobe";
 
-const h = vi.hoisted(() => ({ client: null as unknown }));
-
-vi.mock("@/lib/supabase", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/supabase")>()),
-  get supabase() {
-    return h.client;
-  },
-}));
 vi.mock("./photos", () => ({ resizeImage: vi.fn(), urlToBlob: vi.fn() }));
 
 const makeItem = (over: Partial<Item> = {}): Item => ({
@@ -44,20 +34,13 @@ const starter = [
 ];
 const defaults = ["Tủ phòng ngủ", "Kệ giày"];
 
-const useFake = (fake: FakeSupabase) => {
-  h.client = fake.client as unknown as SupabaseClient<Database>;
-};
-
 const setup = async () => {
   const hook = renderHook(() => useWardrobe(starter, defaults));
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
 };
 
-afterEach(() => {
-  cleanup();
-  h.client = null;
-});
+afterEach(cleanup);
 
 describe("useWardrobe", () => {
   describe("local mode", () => {
@@ -201,86 +184,16 @@ describe("useWardrobe", () => {
       expect(result.current.items).toHaveLength(3);
     });
 
-    test("signOut does nothing", async () => {
+    test("the hook result has no signOut", async () => {
       const { result } = await setup();
-      await expect(result.current.signOut()).resolves.toBeUndefined();
+      expect(result.current).not.toHaveProperty("signOut");
     });
   });
 
-  test("message maps 23505, 42501, Error messages and unknown values", async () => {
+  test("message returns Error messages and the generic text for unknown values", async () => {
     const { message } = (await setup()).result.current;
-    expect(message({ code: "23505" })).toBe("Dữ liệu bị trùng");
-    expect(message({ code: "42501" })).toBe("Không có quyền thao tác");
     expect(message(new Error("Mất mạng"))).toBe("Mất mạng");
     for (const v of [{}, null, "x"]) expect(message(v)).toBe("Có lỗi xảy ra, thử lại nhé");
-  });
-
-  describe("supabase mode", () => {
-    test("loads through the Supabase repo", async () => {
-      const fake = createFakeSupabase();
-      fake.push({ data: [] }, { data: [{ name: "Kệ giày" }] });
-      useFake(fake);
-      const { result } = await setup();
-      expect(result.current.mode).toBe("supabase");
-      expect(result.current.locations).toEqual(["Kệ giày"]);
-      expect(fake.calls).toContainEqual({
-        table: "tudo_items_with_stats",
-        method: "select",
-        args: ["*"],
-      });
-      expect(fake.calls).toContainEqual({
-        table: "tudo_locations",
-        method: "select",
-        args: ["name"],
-      });
-    });
-
-    test("a load error shows the mapped message", async () => {
-      const fake = createFakeSupabase();
-      fake.push({ error: { code: "42501" } }, { data: [] });
-      useFake(fake);
-      const { result } = await setup();
-      expect(result.current.error).toBe("Không có quyền thao tác");
-      expect(result.current.loading).toBe(false);
-    });
-
-    test("signOut calls auth.signOut", async () => {
-      const fake = createFakeSupabase();
-      fake.push({ data: [] }, { data: [] });
-      useFake(fake);
-      const { result } = await setup();
-      await act(async () => {
-        await result.current.signOut();
-      });
-      expect(fake.client.auth.signOut).toHaveBeenCalledTimes(1);
-    });
-
-    test("importMany continues after a failed row and keeps the saved rows in state", async () => {
-      const fake = createFakeSupabase();
-      fake.push(
-        { data: [] },
-        { data: [] },
-        { data: { id: "n1" } },
-        { data: { id: "n1", name: "X1" } },
-        { error: { code: "23505" } },
-        { data: { id: "n3" } },
-        { data: { id: "n3", name: "X3" } },
-      );
-      useFake(fake);
-      const { result } = await setup();
-      let out: ImportResult[] = [];
-      await act(async () => {
-        out = await result.current.importMany([
-          makeItem({ name: "X1" }),
-          makeItem({ name: "X2" }),
-          makeItem({ name: "X3" }),
-        ]);
-      });
-      expect(out.map((r) => r.ok)).toEqual([true, false, true]);
-      expect(out[1]).toEqual({ index: 1, ok: false, error: "Dữ liệu bị trùng" });
-      expect(result.current.items.map((i) => i.id).sort()).toEqual(["n1", "n3"]);
-      expect(fake.calls.filter((c) => c.method === "upsert")).toHaveLength(3);
-    });
   });
 
   describe("api mode", () => {
@@ -304,6 +217,50 @@ describe("useWardrobe", () => {
       expect(result.current.mode).toBe("api");
       expect(result.current.items).toEqual([]);
       expect(result.current.locations).toEqual(["L"]);
+    });
+
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+
+    test("a load error shows the ApiError message and loading ends", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => json({ error: { code: "db_unavailable" } }, 503)),
+      );
+      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.error).toBe(API_ERROR_COPY.db_unavailable);
+    });
+
+    test("importMany continues after a failed row and keeps the saved rows in state", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if ((init?.method ?? "GET") === "GET") {
+            return json(url.endsWith("/locations") ? { locations: [] } : { items: [] });
+          }
+          const id = /\/items\/([^/]+)/.exec(url)![1];
+          const name = JSON.parse(init!.body as string).name as string;
+          if (name === "X2") return json({ error: { code: "invalid_input" } }, 400);
+          return json({ item: { id, name, category: "top", status: "active" } });
+        }),
+      );
+      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      let out: ImportResult[] = [];
+      await act(async () => {
+        out = await result.current.importMany([
+          makeItem({ name: "X1" }),
+          makeItem({ name: "X2" }),
+          makeItem({ name: "X3" }),
+        ]);
+      });
+      expect(out.map((r) => r.ok)).toEqual([true, false, true]);
+      expect(out[1]).toEqual({ index: 1, ok: false, error: API_ERROR_COPY.invalid_input });
+      expect(result.current.items.map((i) => i.name).sort()).toEqual(["X1", "X3"]);
     });
   });
 });

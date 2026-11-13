@@ -1,10 +1,7 @@
-import { supabase } from "@/lib/supabase";
+export type DataMode = "local" | "api";
 
-export type DataMode = "local" | "supabase" | "api";
-
-/** api (served by the Node server) beats supabase (env set) beats local. */
-export const pickMode = (apiAvailable: boolean, hasSupabase: boolean): DataMode =>
-  apiAvailable ? "api" : hasSupabase ? "supabase" : "local";
+/** api (served by the Node server) or local (localStorage + demo data). */
+export const pickMode = (apiAvailable: boolean): DataMode => (apiAvailable ? "api" : "local");
 
 type Probe = "yes" | "no" | "error";
 
@@ -14,7 +11,7 @@ async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Prob
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     // manual: an expired Cloudflare Access session redirects to the Access login, which must not
-    // look like an SPA host (that would fall back to Supabase mode instead of API mode)
+    // look like an SPA host (that would fall back to local mode instead of API mode)
     const res = await fetchFn("/healthz", {
       cache: "no-store",
       redirect: "manual",
@@ -36,17 +33,15 @@ async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Prob
 
 export async function detectMode({
   fetchFn = (...a: Parameters<typeof fetch>) => fetch(...a),
-  hasSupabase = !!supabase,
   dev = import.meta.env.DEV,
   timeoutMs = 2000,
 }: {
   fetchFn?: typeof fetch;
-  hasSupabase?: boolean;
   dev?: boolean;
   timeoutMs?: number;
 } = {}): Promise<DataMode> {
-  if (dev) return pickMode(false, hasSupabase);
+  if (dev) return pickMode(false);
   let r = await probeOnce(fetchFn, timeoutMs);
   if (r === "error") r = await probeOnce(fetchFn, timeoutMs);
-  return pickMode(r === "yes", hasSupabase);
+  return pickMode(r === "yes");
 }

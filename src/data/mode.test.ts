@@ -11,37 +11,34 @@ const mk = (...impl: Array<() => Response | Promise<Response>>) => {
   impl.forEach((i) => fn.mockImplementationOnce(async () => i()));
   return fn;
 };
-const detect = (fn: ReturnType<typeof vi.fn>, hasSupabase = false) =>
-  detectMode({ fetchFn: fn as unknown as typeof fetch, hasSupabase, dev: false });
+const detect = (fn: ReturnType<typeof vi.fn>) =>
+  detectMode({ fetchFn: fn as unknown as typeof fetch, dev: false });
 
 describe("pickMode", () => {
-  test("api beats supabase beats local", () => {
-    expect(pickMode(true, true)).toBe("api");
-    expect(pickMode(true, false)).toBe("api");
-    expect(pickMode(false, true)).toBe("supabase");
-    expect(pickMode(false, false)).toBe("local");
+  test("true -> api, false -> local", () => {
+    expect(pickMode(true)).toBe("api");
+    expect(pickMode(false)).toBe("local");
   });
 });
 
 describe("detectMode", () => {
   test("dev never calls fetch", async () => {
     const fn = vi.fn();
-    expect(await detectMode({ fetchFn: fn, hasSupabase: false, dev: true })).toBe("local");
-    expect(await detectMode({ fetchFn: fn, hasSupabase: true, dev: true })).toBe("supabase");
+    expect(await detectMode({ fetchFn: fn, dev: true })).toBe("local");
     expect(fn).not.toHaveBeenCalled();
   });
 
   test("api only for 200 + JSON + status ok; GETs /healthz no-store", async () => {
     const fn = mk(okRes);
-    expect(await detect(fn, true)).toBe("api");
+    expect(await detect(fn)).toBe("api");
     expect(fn.mock.calls[0][0]).toBe("/healthz");
     expect(fn.mock.calls[0][1].cache).toBe("no-store");
     expect(fn.mock.calls[0][1].redirect).toBe("manual");
   });
 
-  test("opaqueredirect (expired Access session) -> api even with supabase", async () => {
+  test("opaqueredirect (expired Access session) -> api", async () => {
     const fn = mk(() => ({ type: "opaqueredirect", ok: false, status: 0 }) as unknown as Response);
-    expect(await detect(fn, true)).toBe("api");
+    expect(await detect(fn)).toBe("api");
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
@@ -64,12 +61,12 @@ describe("detectMode", () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
-  test("falls back after two network errors", async () => {
+  test("falls back to local after two network errors", async () => {
     const boom = () => {
       throw new TypeError("x");
     };
     const fn = mk(boom, boom);
-    expect(await detect(fn, true)).toBe("supabase");
+    expect(await detect(fn)).toBe("local");
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
@@ -81,11 +78,7 @@ describe("detectMode", () => {
           init.signal!.addEventListener("abort", () => rej(new DOMException("a", "AbortError"))),
         ),
     );
-    const p = detectMode({
-      fetchFn: fn as unknown as typeof fetch,
-      hasSupabase: false,
-      dev: false,
-    });
+    const p = detectMode({ fetchFn: fn as unknown as typeof fetch, dev: false });
     await vi.advanceTimersByTimeAsync(5000);
     expect(await p).toBe("local");
     expect(fn).toHaveBeenCalledTimes(2);

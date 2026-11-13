@@ -5,13 +5,9 @@ version: 1
 default: medium
 high:
   # DB migrations
-  - "supabase/migrations/**"
-  # Edge functions hold server secrets
-  - "supabase/functions/**"
-  # Auth code
-  - "src/features/auth/**"
-  # Supabase client / anon-key boundary (R3)
-  - "src/lib/supabase.ts"
+  - "db/migrations/**"
+  # API, Access JWT check, DB access, Drive and AI secrets
+  - "server/**"
   # Production deploy workflows
   - ".github/workflows/deploy*"
   # Self-hosted image and release pipeline (T-007, D20)
@@ -20,7 +16,6 @@ high:
   - "docker/**"
   - ".github/workflows/release.yml"
   - "deploy/**"
-  - "scripts/check-public-supabase-env*.sh"
   - "scripts/check-image.sh"
   # Cloudflare Pages redirects (legacy: D5, superseded by D20)
   - "public/_redirects"

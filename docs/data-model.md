@@ -1,7 +1,6 @@
 # Data model — Wardrobe app
 
-Backend: Supabase (Postgres + Auth + Storage). Every row belongs to `auth.uid()`; RLS enforces it.
-Runs on the shared stoktok project (D17); every object is prefixed `tudo_`.
+Backend: self-hosted Postgres behind the Node API (D23); the authoritative schema is `db/migrations/` (tables without the `tudo_` prefix, photos on Google Drive via `item_photos`, D27). Single user without login for now: no `user_id`/RLS until in-app auth arrives (D25). The diagram below is the Supabase-era design and is kept as history.
 
 ```mermaid
 erDiagram

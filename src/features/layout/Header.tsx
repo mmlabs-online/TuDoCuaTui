@@ -5,8 +5,6 @@ export function Header({
   count,
   dark,
   onToggleDark,
-  showSignOut,
-  onSignOut,
   onImport,
   onExport,
   onAdd,
@@ -14,8 +12,6 @@ export function Header({
   count: number;
   dark: boolean;
   onToggleDark: () => void;
-  showSignOut: boolean;
-  onSignOut: () => void;
   onImport: () => void;
   onExport: () => void;
   onAdd: () => void;
@@ -35,11 +31,6 @@ export function Header({
         <button className="icon-btn" onClick={onToggleDark} aria-label="Đổi giao diện">
           <Icon name={dark ? "sun" : "moon"} />
         </button>
-        {showSignOut && (
-          <button className="icon-btn" onClick={onSignOut} aria-label="Đăng xuất" title="Đăng xuất">
-            <Icon name="logout" />
-          </button>
-        )}
         <Btn className="desktop-btn" onClick={onImport}>
           <Icon name="import" /> Import
         </Btn>

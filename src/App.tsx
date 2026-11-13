@@ -92,8 +92,6 @@ function App({ mode }: { mode?: DataMode } = {}) {
         count={items.length}
         dark={dark}
         onToggleDark={() => setDark(!dark)}
-        showSignOut={wardrobe.mode === "supabase"}
-        onSignOut={wardrobe.signOut}
         onImport={() => setImportOpen(true)}
         onExport={() => setExportOpen(true)}
         onAdd={openNew}

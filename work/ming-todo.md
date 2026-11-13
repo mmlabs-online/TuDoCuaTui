@@ -205,7 +205,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] (2026-11-12) Approve plan for T-005.2 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.2/plan.md — photo upload/delete via Drive (slice 1; sweep → T-005.6); confirm A1–A19
 - [x] (2026-11-11) Approve plan for T-005.5 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.5/plan.md — Drive connect script + deploy secrets + M-15 runbook; confirm A1–A14 (A2, A3, A7)
 - [x] (2026-11-11) Approve plan for T-005.1 (branch `claude/loving-fermi-t90upb`): work/tickets/T-005.1/plan.md — Node server ↔ Google Drive; confirm A1–A17 (A2, A4, A5, A6 are the real choices)
-- [ ] (2026-11-11) Approve plan for T-016 (branch `claude/loving-fermi-t90upb`): work/tickets/T-016/plan.md — remove Supabase; confirm A1–A6
+- [x] (2026-11-13, approved in session) Approve plan for T-016 (branch `claude/loving-fermi-t90upb`): work/tickets/T-016/plan.md — remove Supabase; confirm A1–A6
 - [x] (2026-11-11) Approve plan for T-015 (branch `claude/loving-fermi-t90upb`): work/tickets/T-015/plan.md — Node image + deploy switch; confirm A1–A15 (A1: keep or drop `VITE_SUPABASE_*` build args)
 - [x] (2026-11-11) Approve plan for T-013.2 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013.2/plan.md — `/api` endpoints; confirm new assumptions A15–A27 (A8–A14 already approved)
 - [x] (2026-11-10) Approve plan for T-013 (branch `claude/loving-fermi-t90upb`): work/tickets/T-013/plan.md — slice T-013.1 (Node server shell, static SPA, health, Cloudflare Access guard); confirm A1–A14 (A8–A14 fix the T-013.2 `/api` contract)

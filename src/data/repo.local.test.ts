@@ -3,8 +3,6 @@ import type { Item } from "@/types/item";
 import { CATEGORY_TO_DB } from "./mappers";
 import { createLocalRepo } from "./repo";
 
-vi.mock("./photos", () => ({ resizeImage: vi.fn(), urlToBlob: vi.fn() }));
-
 const LS_KEY = "tu-do-items";
 
 const makeItem = (over: Partial<Item> = {}): Item => ({

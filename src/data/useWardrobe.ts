@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
 import { runImport } from "./importRunner";
 import type { DataMode } from "./mode";
-import { createLocalRepo, createSupabaseRepo } from "./repo";
+import { createLocalRepo } from "./repo";
 import { createHttpRepo } from "./repo.http";
 
 export type ImportResult =
@@ -12,29 +11,16 @@ export type ImportResult =
   | { index: number; ok: false; error: string };
 
 const message = (e: unknown) => {
-  const code = (e as { code?: string })?.code;
-  if (code === "23505") return "Dữ liệu bị trùng";
-  if (code === "42501") return "Không có quyền thao tác";
   return (e as Error)?.message || "Có lỗi xảy ra, thử lại nhé";
 };
 
 /**
  * Single source of truth for wardrobe data.
- * `mode` api → Node API; supabase (default when VITE_SUPABASE_* is set) → Supabase;
- * otherwise localStorage + demo data.
+ * `mode` api → Node API; local (default) → localStorage + demo data.
  */
-export function useWardrobe(
-  starter: Item[],
-  defaultLocations: string[],
-  mode: DataMode = supabase ? "supabase" : "local",
-) {
+export function useWardrobe(starter: Item[], defaultLocations: string[], mode: DataMode = "local") {
   const repo = useMemo(
-    () =>
-      mode === "api"
-        ? createHttpRepo()
-        : mode === "supabase" && supabase
-          ? createSupabaseRepo(supabase)
-          : createLocalRepo(starter, defaultLocations),
+    () => (mode === "api" ? createHttpRepo() : createLocalRepo(starter, defaultLocations)),
     [], // starter/defaultLocations are module constants
   );
   const [items, setItems] = useState<Item[]>([]);
@@ -117,10 +103,6 @@ export function useWardrobe(
     [repo],
   );
 
-  const signOut = useCallback(async () => {
-    await supabase?.auth.signOut();
-  }, []);
-
   return {
     mode: repo.mode,
     items,
@@ -132,7 +114,6 @@ export function useWardrobe(
     remove,
     wear,
     importMany,
-    signOut,
     message,
   };
 }

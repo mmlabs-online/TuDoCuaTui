@@ -12,6 +12,8 @@ const FORBIDDEN = [
   "tudo_ai_calls",
   "AI_KEK",
   "ai_settings",
+  "@supabase/",
+  "VITE_SUPABASE",
 ];
 
 function walk(dir: string): string[] {
@@ -24,10 +26,7 @@ function walk(dir: string): string[] {
 describe("client/server boundary (R3)", () => {
   it("no client source names a server-only secret or table", () => {
     const files = walk(path.join(root, "src")).filter(
-      (f) =>
-        /\.(ts|tsx)$/.test(f) &&
-        !/\.test\.(ts|tsx)$/.test(f) &&
-        !f.endsWith(path.join("src", "types", "database.ts")),
+      (f) => /\.(ts|tsx)$/.test(f) && !/\.test\.(ts|tsx)$/.test(f),
     );
     const hits = files.flatMap((f) => {
       const text = readFileSync(f, "utf8");

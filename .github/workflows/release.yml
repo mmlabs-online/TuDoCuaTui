@@ -5,15 +5,12 @@
 # (image pinned by digest). Merging it runs deploy-tudocuatui on macbook-runner.
 # Copied from stoktok's release.yml (one image instead of two). Runbook: README.md, "Deploy".
 # T-015 (D26): the image is the Node server (server/); the deploy runs backup + migrate before replacing the app.
-# The VITE_SUPABASE_* build args stay until T-016 removes them.
+# T-016: no Supabase; the browser build takes only VITE_APP_VERSION.
 #
 # Secrets in this repo:
 #   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  push to mingming21400/tudocuatui
 #   DEPLOY_REPO_TOKEN                    fine-grained PAT on mmlabs-online/deployment only:
 #                                        Contents read/write, Pull requests read/write
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  optional, build args. Public values only (R3):
-#                                        the stoktok project URL and its anon/publishable key.
-#                                        Both empty = the release runs in local mode.
 # T-008: the validated tag is also passed as build arg VITE_APP_VERSION and shown in the app footer.
 
 name: release
@@ -49,8 +46,6 @@ jobs:
           DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_REPO_TOKEN }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::$GITHUB_SHA is not on main: merge main into release, never commit to release directly"; exit 1
@@ -76,10 +71,6 @@ jobs:
               echo "::error::repository secret for $name is empty (see README.md, Deploy)"; exit 1
             fi
           done
-          # R3: only the public URL and the anon/publishable key may be baked into the image.
-          bash scripts/check-public-supabase-env.sh
-          if [ -n "$VITE_SUPABASE_URL" ]; then mode="Supabase mode"; else mode="local mode"; fi
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
       # Reserve the version before pushing the image: a failed run never reuses it.
       - name: create version tag
@@ -107,8 +98,6 @@ jobs:
           platforms: linux/amd64
           tags: ${{ env.NAMESPACE }}/tudocuatui:${{ steps.version.outputs.tag }}
           build-args: |
-            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
-            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
             VITE_APP_VERSION=${{ steps.version.outputs.tag }}
           # No build-arg metadata in attestations.
           provenance: false
@@ -120,18 +109,16 @@ jobs:
       - name: verify pushed digest
         env:
           DIGEST: ${{ steps.image.outputs.digest }}
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           EXPECTED_VERSION: ${{ steps.version.outputs.tag }}
         run: |
           ref="$NAMESPACE/tudocuatui@$DIGEST"
           docker pull "$ref"
-          bash scripts/check-image.sh "$ref" ${SUPABASE_URL:+"$SUPABASE_URL"}
+          bash scripts/check-image.sh "$ref"
 
       - name: pull request on the deployment repo
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_REPO_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
-          MODE: ${{ steps.version.outputs.mode }}
           DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           branch="release/$APP-$TAG"
@@ -155,4 +142,4 @@ jobs:
           git push origin "$branch"
           gh pr create --repo mmlabs-online/deployment --base main --head "$branch" \
             --title "$APP $TAG" \
-            --body "Deploys \`$image_ref\` (Node server, $MODE build; deploy runs backup + migrate; $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Merging runs deploy-$APP on macbook-runner."
+            --body "Deploys \`$image_ref\` (Node server, API mode; deploy runs backup + migrate; $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA). Merging runs deploy-$APP on macbook-runner."

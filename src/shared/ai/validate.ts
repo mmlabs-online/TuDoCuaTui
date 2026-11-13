@@ -1,4 +1,4 @@
-// Source of truth: src/shared/ai; mirrored to supabase/functions/_shared/ai; mirror.test.ts enforces equality.
+// Source of truth: src/shared/ai; mirrored by server/ai/*.js; server/ai/parity.test.ts enforces equality.
 
 import { AI_MODELS, AI_PROVIDERS, type AiProvider } from "./catalog.ts";
 

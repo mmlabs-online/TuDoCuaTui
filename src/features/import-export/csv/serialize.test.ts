@@ -144,7 +144,7 @@ describe("values", () => {
 });
 
 describe("toDateOnly", () => {
-  it("keeps a date-only value (Supabase mode)", () => {
+  it("keeps a date-only value (API mode)", () => {
     expect(toDateOnly("2026-11-05")).toBe("2026-11-05");
   });
   it("converts an ISO timestamp to the UTC+7 date (local mode)", () => {
