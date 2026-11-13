@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-13T04:42:28Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -41,6 +41,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - [ ] The key never leaves the server; nothing secret in logs (R3).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 - 2026-11-10: function renamed to `tudo-tag-item-photo` (T-009 plan approval, A4; D22 naming), to avoid colliding with stoktok's functions on the shared project.
@@ -52,3 +53,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-13: T-018.2 MERGED (PR #45): `store.getSecret()`, `openStoredKey()` and `server/ai/claude.js` exist; T-010 MERGED (PR #46). D33: per-user keys later in T-019.3.
 
 ## Handoff
+
+### 2026-11-13 — claude — BLOCKED
+- Done: consult (software-architect) and plan.md (Status READY): `POST /api/ai/tag-photo` (raw JPEG ≤ 2 MB), Claude Messages API with forced tool use, server sanitizer, shared `loadSettingsKey`, limits 100/24 h + 2 in flight, new codes `invalid_photo`/`request_timeout`/`provider_bad_response`/`ai_busy`; superseded ticket text C1–C9; assumptions A1–A16.
+- In progress / next: Ming approves the plan. On approval, create F-701.1 (Gemini) on `main` (A1), then implement → review → PR.
+- Gotchas: hotspots with T-019.2/.3/.5/.6; `src/features/settings/copy.ts` must cover the new error codes (exhaustive table).
