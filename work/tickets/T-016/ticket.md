@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | PLANNING |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-13T01:37:41Z |
 | PR | — |
 
 ## Goal
@@ -41,7 +41,7 @@ Reference (read-only): `/home/user/deployment` — `postgres/compose.yml`, `post
 - [ ] All checks pass; local mode and API mode work.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-13: **Plan approved** (Ming, in session: A1–A6 accepted with their defaults). Planner refreshes the plan against current `main` (Drive photos T-005.x, T-017, T-018 merged) before implementing; the approval covers that refresh unless it adds scope or new High-tier decisions.
 - 2026-11-11: **On hold (Ming)** — photo upload (T-005.1–T-005.3) goes first. Plan stays as written; re-check it against the photo work before approval.
 - (2026-11-11, Ming) No data migration from Supabase to Postgres is needed (answers T-012 A9 / T-014 A11). T-016 can remove the Supabase path without a data-export step. Ming cuts the M-14 release himself.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
