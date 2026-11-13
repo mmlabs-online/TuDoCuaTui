@@ -209,6 +209,12 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       after deploy, run the read-only `user_id is null` count (expect 0).
 - [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
+      Status 2026-11-13: USR-07 is DONE on org-admin-api branch `claude/blissful-wozniak-fx4lm9`, not yet merged to
+      its `main`. Once merged and deployed: Actions → `ops-org-admin-api` → command `register-app`, inputs
+      `key=tudocuatui`, `name=TuDoCuaTui`, `origins=https://tudocuatui.mmlabs.online`, `join_policy=open`,
+      `org_mode=none`; run with `dry_run` on first, approve the `org-admin-api-ops` environment, then again with
+      `dry_run` off (org-admin-api `docs/deploy.md`, "Register an app"). After this, M-17 (your `sub`) becomes possible:
+      sign up from TuDo's sign-up page once T-019.7 is live, or from another registered app.
 - [ ] **M-20 — Make your account usable:** verify your email (after org-admin-api USR-04) and become a member of
       `tudocuatui` through the staff role assignment (USR-02c) until USR-03b ships the join flow (A9).
 - [ ] **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
