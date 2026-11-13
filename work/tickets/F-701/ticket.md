@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | PLANNING |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-13T04:42:28Z |
 | PR | — |
 
 ## Goal
@@ -48,5 +48,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
 - 2026-11-12: re-plan on the Node server (D30); reads settings via `server/ai/store.js` and opens the key with `server/ai/crypto.js`; depends on T-018.2.
+
+- 2026-11-13: T-018.2 MERGED (PR #45): `store.getSecret()`, `openStoredKey()` and `server/ai/claude.js` exist; T-010 MERGED (PR #46). D33: per-user keys later in T-019.3.
 
 ## Handoff
