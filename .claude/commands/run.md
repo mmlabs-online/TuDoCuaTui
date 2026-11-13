@@ -43,7 +43,7 @@ Dispatch `implementer` with: ticket path, "implement plan.md; attempt N". Verify
 
 ## 4. Review
 Set state `REVIEW`. Then:
-1. Decide whether security review is needed: `Areas` contains `security`, **or** the diff (`git diff --name-only origin/main...HEAD`) touches any of: `supabase/`, `src/features/auth/`, `src/lib/supabase.ts`, `src/data/repo.ts`, `**/*.sql`, `.env.example`, `vite.config.ts`, `public/_redirects`, `.github/workflows/`. If yes, dispatch `security-ai-generated-code-auditor` **in parallel** with the reviewer and save its reply to `security-review.md` (append per attempt).
+1. Decide whether security review is needed: `Areas` contains `security`, **or** the diff (`git diff --name-only origin/main...HEAD`) touches any of: `server/`, `db/migrations/`, `Dockerfile`, `scripts/check-image.sh`, `deploy/`, `src/data/repo.ts`, `src/data/repo.http.ts`, `**/*.sql`, `.env.example`, `vite.config.ts`, `public/_redirects`, `.github/workflows/`. If yes, dispatch `security-ai-generated-code-auditor` **in parallel** with the reviewer and save its reply to `security-review.md` (append per attempt).
 2. Dispatch `reviewer` with the ticket path and attempt number.
 3. Read the latest section of `review.md`. The verdict is the first line: `Verdict: PASS` or `Verdict: REWORK`.
 4. A 🔴 finding in `security-review.md` turns a PASS into REWORK: append it to the review attempt under "Security blockers".

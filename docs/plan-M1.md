@@ -1,5 +1,7 @@
 # M1 — Usable MVP: plan
 
+> Backend superseded by D23 (2026-11-10): Supabase was removed in T-016; mentions of Supabase, Auth, RLS and Storage below are historical and are re-planned on the Node backend.
+
 Tickets: `work/tickets/<ID>/ticket.md`, board and run order in `work/backlog.md`, decisions in `work/decisions.md`,
 human steps in `work/ming-todo.md`. Source: `docs/feature-list.md`. Written 2026-11-07 against `main` @ `0a6fc32`.
 Execution: the `/run` loop described in `CLAUDE.md` → Workflow.

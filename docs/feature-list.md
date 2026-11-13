@@ -1,5 +1,7 @@
 # Tủ đồ của tôi — Feature List
 
+> Backend superseded by D23 (2026-11-10): Supabase was removed in T-016; mentions of Supabase, Auth, RLS and Storage below are historical and are re-planned on the Node backend.
+
 > **For Claude Code:** this file is the source of truth for planning. Read it together with `README.md`,
 > `docs/data-model.md` and `supabase/migrations/`. Your job:
 > 1. Turn each feature (`F-xxx`) into one or more tickets. Split anything estimated above **M** into tickets of at most 1 day each.
