@@ -1,22 +1,24 @@
 // @ts-check
-// /api/ai-settings: GET (view), PUT (save provider, model, optional key), DELETE /key.
+// /api/ai-settings: GET (view), PUT (save provider, model, optional key), DELETE /key, POST /test.
 // The key and its ciphertext never leave this module: responses carry the masked hint only, and logs carry
 // fixed fields only (never the body, the key, the hint or an error object).
 import { dbLogFields, mapDbError } from "../errors.js";
 import { readJson, sendError, sendJson } from "../http.js";
-import { AI_MODELS } from "./catalog.js";
-import { sealKey } from "./crypto.js";
+import { AI_ERROR_STATUS, AI_MODELS } from "./catalog.js";
+import { checkClaudeKey } from "./claude.js";
+import { openStoredKey, sealKey } from "./crypto.js";
 import { keyHintOf, maskHint } from "./mask.js";
 import {
   isAllowedModel,
   isAllowedProvider,
   MAX_BODY_BYTES,
   parseSettingsBody,
+  parseTestBody,
   validateApiKeyFormat,
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(kind: "save" | "test"): boolean } }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(kind: "save" | "test"): boolean }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {
@@ -32,6 +34,53 @@ function toView(row) {
 }
 
 /**
+ * POST /api/ai-settings/test: checks the saved key with the provider. Body is exactly {}.
+ * @param {import("node:http").IncomingMessage} req
+ * @param {import("node:http").ServerResponse} res
+ * @param {{ route: string, ai: AiContext, id: string, log: (entry: Record<string, unknown>) => void }} ctx
+ */
+async function handleTest(req, res, { route, ai, id, log }) {
+  /** @param {number} status @param {string} code */
+  const fail = (status, code) => {
+    log({ event: "ai_settings", id, action: "test", code });
+    return sendError(res, status, code);
+  };
+  if (!ai.limiter.check("test")) return fail(429, "rate_limited");
+  const body = await readJson(req, { limit: MAX_BODY_BYTES });
+  if (!body.ok) {
+    /** @type {Record<string, string>} */
+    const headers = body.status === 413 ? { Connection: "close" } : {};
+    if (body.status === 413) res.once("finish", () => req.socket.destroy());
+    log({ event: "ai_settings", id, action: "test", code: body.code });
+    return sendError(res, body.status, body.code, {}, headers);
+  }
+  const parsed = parseTestBody(body.value);
+  if (!parsed.ok) return fail(400, parsed.code);
+  if (!ai.store) return fail(503, "db_unavailable");
+
+  try {
+    const secret = await ai.store.getSecret();
+    if (!secret) return fail(409, "not_configured");
+    const { provider, model } = secret;
+    // Before decryption: no plaintext for a request that cannot go out.
+    if (!isAllowedProvider(provider) || provider !== "claude" || !isAllowedModel(provider, model)) {
+      return fail(400, "invalid_model");
+    }
+    const opened = await openStoredKey(ai.kek, secret);
+    if (!opened.ok) return fail(AI_ERROR_STATUS[opened.code], opened.code);
+    const r = await checkClaudeKey({ fetch: ai.fetch, key: opened.key, model });
+    if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
+    log({ event: "ai_settings", id, action: "test", code: "ok" });
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    const mapped = mapDbError(err);
+    log({ event: "db_error", id, route, ...dbLogFields(err) });
+    const extra = mapped.code === "internal" ? { requestId: id } : {};
+    return sendError(res, mapped.status, mapped.code, extra);
+  }
+}
+
+/**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  * @param {{
@@ -41,6 +90,7 @@ function toView(row) {
  */
 export async function handleAiSettings(req, res, { route, ai, id, log }) {
   if (!ai) return sendError(res, 503, "server_misconfigured");
+  if (route === "/api/ai-settings/test") return handleTest(req, res, { route, ai, id, log });
   const method = req.method ?? "";
   const action = method === "PUT" ? "save" : method === "DELETE" ? "deleteKey" : "get";
   /** @param {number} status @param {string} code */

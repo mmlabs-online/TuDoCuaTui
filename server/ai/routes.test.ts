@@ -4,7 +4,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { importKek, openKey } from "./crypto.js";
+import { importKek, openKey, sealKey } from "./crypto.js";
 import type { AiStore } from "./store.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
@@ -30,9 +30,14 @@ type Saved = {
 };
 
 /** In-memory store with the same semantics as the SQL one. */
-function fakeStore(initial: Row | null = null, failWith?: Error) {
+function fakeStore(
+  initial: Row | null = null,
+  failWith?: Error,
+  secret: { provider: string; model: string; ciphertext: string } | null = null,
+) {
   let row = initial;
   const saved: Saved[] = [];
+  let getSecretCalls = 0;
   const store: AiStore = {
     async get() {
       if (failWith) throw failWith;
@@ -54,27 +59,36 @@ function fakeStore(initial: Row | null = null, failWith?: Error) {
       };
       return { ok: true, row };
     },
+    async getSecret() {
+      if (failWith) throw failWith;
+      getSecretCalls++;
+      return secret;
+    },
     async clearKey() {
       if (failWith) throw failWith;
       if (row) row = { ...row, keyHint: null, hasKey: false };
       return row;
     },
   };
-  return { store, saved };
+  return { store, saved, calls: () => getSecretCalls };
 }
+
+const newKek = () => importKek(randomBytes(32).toString("base64"));
 
 async function start(opts: {
   store?: AiStore;
   ai?: boolean;
   pool?: object | null;
   now?: () => number;
+  kek?: Awaited<ReturnType<typeof importKek>>;
+  fetch?: typeof globalThis.fetch;
 }) {
   const logs: Record<string, unknown>[] = [];
-  const kek = await importKek(randomBytes(32).toString("base64"));
+  const kek = opts.kek ?? (await newKek());
   const server = http.createServer(
     createApp({
       pool: (opts.pool === undefined ? { query: async () => ({ rows: [] }) } : opts.pool) as never,
-      ai: opts.ai === false ? null : { kek, store: opts.store },
+      ai: opts.ai === false ? null : { kek, store: opts.store, fetch: opts.fetch },
       distDir: "/nonexistent",
       access: null,
       log: (e) => logs.push(e),
@@ -85,6 +99,36 @@ async function start(opts: {
   servers.push(server);
   return { base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, logs, kek };
 }
+
+type Call = { url: string; init: RequestInit };
+/** Fake provider fetch that records every call and answers with `status` and a body echoing the key. */
+function fakeProvider(respond: (init: RequestInit) => Response | Promise<Response>) {
+  const calls: Call[] = [];
+  const fetchFn = (async (url: string, init: RequestInit) => {
+    calls.push({ url, init });
+    return respond(init);
+  }) as unknown as typeof globalThis.fetch;
+  return { calls, fetch: fetchFn };
+}
+const status = (s: number) => () => new Response(`{"echo":"${SENTINEL}"}`, { status: s });
+const MODEL_URL = "https://api.anthropic.com/v1/models/claude-haiku-5-5";
+
+async function withSecret(over: { provider?: string; model?: string } = {}) {
+  const kek = await newKek();
+  const provider = over.provider ?? "claude";
+  const secret = {
+    provider,
+    model: over.model ?? "claude-haiku-5-5",
+    ciphertext: await sealKey(kek, provider, SENTINEL),
+  };
+  return { kek, secret };
+}
+const postTest = (base: string, body: unknown = {}, headers: Record<string, string> = JSON_H) =>
+  fetch(`${base}/api/ai-settings/test`, {
+    method: "POST",
+    headers,
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
 
 const put = (base: string, body: unknown, headers: Record<string, string> = JSON_H) =>
   fetch(`${base}/api/ai-settings`, {
@@ -313,5 +357,217 @@ describe("sentinel never leaves the server", () => {
     const all = JSON.stringify([seen, a.logs, b.logs, ok.saved.map((s) => s.sealed?.ciphertext)]);
     expect(all).not.toContain(SENTINEL);
     expect(all).not.toContain(OTHER_KEY);
+  });
+});
+
+describe("POST /test results", () => {
+  it("200 {ok:true} no-store; exactly one call to the pinned URL with the key only in x-api-key", async () => {
+    const { kek, secret } = await withSecret();
+    const prov = fakeProvider(status(200));
+    const { base, logs } = await start({
+      kek,
+      store: fakeStore(aRow, undefined, secret).store,
+      fetch: prov.fetch,
+    });
+    const res = await postTest(base);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ ok: true });
+    expect(prov.calls).toHaveLength(1);
+    expect(prov.calls[0].url).toBe(MODEL_URL);
+    const { headers, ...rest } = prov.calls[0].init;
+    expect((headers as Record<string, string>)["x-api-key"]).toBe(SENTINEL);
+    expect(JSON.stringify([prov.calls[0].url, rest])).not.toContain(SENTINEL);
+    expect(logs.find((l) => l.event === "ai_settings")).toEqual({
+      event: "ai_settings",
+      id: expect.any(String),
+      action: "test",
+      code: "ok",
+    });
+  });
+
+  it("maps provider statuses, timeout and network errors", async () => {
+    const { kek, secret } = await withSecret();
+    const cases: [() => Response | Promise<Response>, number, string][] = [
+      [status(401), 422, "invalid_key"],
+      [status(403), 422, "key_forbidden"],
+      [status(404), 422, "model_unavailable"],
+      [status(429), 429, "provider_rate_limited"],
+      [status(500), 502, "provider_unavailable"],
+      [status(529), 502, "provider_unavailable"],
+      [
+        () => {
+          throw new DOMException("t", "TimeoutError");
+        },
+        502,
+        "provider_unavailable",
+      ],
+      [
+        () => {
+          throw new TypeError(`fetch failed ${SENTINEL}`);
+        },
+        502,
+        "provider_unavailable",
+      ],
+    ];
+    for (const [respond, st, c] of cases) {
+      const prov = fakeProvider(respond);
+      const { base } = await start({
+        kek,
+        store: fakeStore(aRow, undefined, secret).store,
+        fetch: prov.fetch,
+      });
+      const res = await postTest(base);
+      expect([res.status, await code(res)]).toEqual([st, c]);
+    }
+  });
+
+  it("not_configured (no row / no key), invalid_model (catalog, gemini), key_unreadable; no fetch for the first two", async () => {
+    const prov = fakeProvider(status(200));
+    const none = await start({ store: fakeStore().store, fetch: prov.fetch });
+    const a = await postTest(none.base);
+    expect([a.status, await code(a)]).toEqual([409, "not_configured"]);
+
+    const old = await withSecret({ model: "claude-old-1" });
+    const b = await start({
+      kek: old.kek,
+      store: fakeStore(aRow, undefined, old.secret).store,
+      fetch: prov.fetch,
+    });
+    const rb = await postTest(b.base);
+    expect([rb.status, await code(rb)]).toEqual([400, "invalid_model"]);
+
+    const gem = await withSecret({ provider: "gemini" });
+    const c = await start({
+      kek: gem.kek,
+      store: fakeStore(aRow, undefined, gem.secret).store,
+      fetch: prov.fetch,
+    });
+    const rc = await postTest(c.base);
+    expect([rc.status, await code(rc)]).toEqual([400, "invalid_model"]);
+    expect(prov.calls).toHaveLength(0);
+
+    const other = await withSecret();
+    const d = await start({
+      store: fakeStore(aRow, undefined, other.secret).store,
+      fetch: prov.fetch,
+    });
+    const rd = await postTest(d.base);
+    expect([rd.status, await code(rd)]).toEqual([409, "key_unreadable"]);
+    expect(prov.calls).toHaveLength(0);
+    const entry = d.logs.find((l) => l.event === "ai_settings")!;
+    expect(Object.keys(entry).sort()).toEqual(["action", "code", "event", "id"]);
+    expect(entry).toMatchObject({ action: "test", code: "key_unreadable" });
+  });
+});
+
+describe("POST /test body and guards", () => {
+  it("400 bad_request and no fetch for {apiKey}, {x:1}, []", async () => {
+    const { kek, secret } = await withSecret();
+    const prov = fakeProvider(status(200));
+    const { base } = await start({
+      kek,
+      store: fakeStore(aRow, undefined, secret).store,
+      fetch: prov.fetch,
+    });
+    for (const body of [{ apiKey: SENTINEL }, { x: 1 }, []]) {
+      const res = await postTest(base, body);
+      expect([res.status, await code(res)]).toEqual([400, "bad_request"]);
+    }
+    expect(prov.calls).toHaveLength(0);
+  });
+
+  it("415, invalid_json, 413, cross-site 403, 405 with Allow, 404 below /test", async () => {
+    const { base } = await start({ store: fakeStore().store });
+    const a = await postTest(base, "{}", { "Content-Type": "text/plain" });
+    expect([a.status, await code(a)]).toEqual([415, "unsupported_media_type"]);
+    const b = await postTest(base, "{nope");
+    expect([b.status, await code(b)]).toEqual([400, "invalid_json"]);
+    const c = await postTest(base, JSON.stringify({ a: "a".repeat(5000) }));
+    expect([c.status, await code(c)]).toEqual([413, "payload_too_large"]);
+    const d = await postTest(base, {}, { ...JSON_H, "Sec-Fetch-Site": "cross-site" });
+    expect([d.status, await code(d)]).toEqual([403, "forbidden_origin"]);
+    const e = await fetch(`${base}/api/ai-settings/test`);
+    expect([e.status, e.headers.get("allow")]).toEqual([405, "POST"]);
+    expect((await fetch(`${base}/api/ai-settings/test/x`, { method: "POST" })).status).toBe(404);
+  });
+});
+
+describe("POST /test rate limit", () => {
+  it("the 21st call -> 429 before the body and the store; PUT unaffected; resets after an hour", async () => {
+    const { kek, secret } = await withSecret();
+    const prov = fakeProvider(status(200));
+    const fs = fakeStore(aRow, undefined, secret);
+    let t = 1000;
+    const { base } = await start({ kek, store: fs.store, fetch: prov.fetch, now: () => t });
+    for (let i = 0; i < 20; i++) expect((await postTest(base)).status).toBe(200);
+    const res = await postTest(base, "{nope");
+    expect([res.status, await code(res)]).toEqual([429, "rate_limited"]);
+    expect(prov.calls).toHaveLength(20);
+    expect(fs.calls()).toBe(20);
+    expect((await put(base, valid)).status).toBe(200);
+    t += 60 * 60 * 1000 + 1;
+    expect((await postTest(base)).status).toBe(200);
+  });
+});
+
+describe("POST /test KEK off / store unavailable", () => {
+  it("503 server_misconfigured with ai null; 503 db_unavailable with pool null", async () => {
+    const off = await start({ ai: false });
+    const a = await postTest(off.base);
+    expect([a.status, await code(a)]).toEqual([503, "server_misconfigured"]);
+    const nopool = await start({ pool: null });
+    const b = await postTest(nopool.base);
+    expect([b.status, await code(b)]).toEqual([503, "db_unavailable"]);
+  });
+
+  it("57P01 -> 503; other errors -> 500 with requestId; log has safe fields only", async () => {
+    const down = await start({
+      store: fakeStore(null, Object.assign(new Error(SENTINEL), { code: "57P01" })).store,
+    });
+    expect((await postTest(down.base)).status).toBe(503);
+    const boom = await start({ store: fakeStore(null, new Error(SENTINEL)).store });
+    const res = await postTest(boom.base);
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: { code: string; requestId: string } };
+    expect(body.error.requestId).toBeTruthy();
+    const entry = boom.logs.find((l) => l.event === "db_error")!;
+    expect(Object.keys(entry).sort()).toEqual(["event", "id", "route"]);
+    expect(JSON.stringify(boom.logs)).not.toContain(SENTINEL);
+  });
+});
+
+describe("POST /test sentinel never leaves the server", () => {
+  it("is absent from bodies, headers and logs; the key goes only into x-api-key", async () => {
+    const { kek, secret } = await withSecret();
+    const seen: string[] = [];
+    const logsAll: unknown[] = [];
+    const callsAll: Call[] = [];
+    const record = async (res: Response) => {
+      seen.push(await res.text(), JSON.stringify([...res.headers.entries()]));
+    };
+    const rejecting = () => {
+      throw new Error(`boom ${SENTINEL}`);
+    };
+    for (const respond of [status(200), status(401), rejecting]) {
+      const prov = fakeProvider(respond);
+      const s = await start({
+        kek,
+        store: fakeStore(aRow, undefined, secret).store,
+        fetch: prov.fetch,
+      });
+      await record(await postTest(s.base));
+      await record(await postTest(s.base, { apiKey: SENTINEL }));
+      logsAll.push(s.logs);
+      callsAll.push(...prov.calls);
+    }
+    expect(callsAll).toHaveLength(3);
+    for (const c of callsAll) {
+      expect(c.url).toBe(MODEL_URL);
+      const { headers, ...rest } = c.init;
+      expect(headers).toMatchObject({ "x-api-key": SENTINEL });
+      expect(JSON.stringify([c.url, rest])).not.toContain(SENTINEL);
+    }
+    expect(JSON.stringify([seen, logsAll])).not.toContain(SENTINEL);
   });
 });

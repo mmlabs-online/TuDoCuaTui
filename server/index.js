@@ -5,7 +5,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
-import { AiConfigError, loadAiConfig } from "./ai/config.js";
+import { AiConfigError, initAi } from "./ai/config.js";
 import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
@@ -52,9 +52,9 @@ try {
 /** @type {{ kek: import("./ai/crypto.js").AiKek } | null} */
 let ai = null;
 try {
-  const aiConfig = loadAiConfig(process.env);
-  if (aiConfig.mode === "on") ai = { kek: await importKek(aiConfig.kekB64) };
-  console.log(ai ? "ai configured" : "ai not configured");
+  const r = await initAi(process.env, { requestAuth: access !== null, importKek });
+  ai = r.ai;
+  console.log(r.line);
 } catch (err) {
   console.error(err instanceof AiConfigError ? `config error: ${err.message}` : "config error");
   process.exit(2);

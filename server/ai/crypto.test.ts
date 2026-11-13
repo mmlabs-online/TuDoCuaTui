@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { randomBytes } from "node:crypto";
-import { describe, expect, it } from "vitest";
-import { importKek, openKey, sealKey } from "./crypto.js";
+import { describe, expect, it, vi } from "vitest";
+import { importKek, openKey, openStoredKey, sealKey } from "./crypto.js";
 
 const b64 = (n: number) => randomBytes(n).toString("base64");
 const SECRET = "sk-ant-PLAINTEXT-0123456789abcdef";
@@ -45,5 +45,42 @@ describe("crypto", () => {
     for (const v of [b64(31), b64(33), "!!!", "", undefined]) {
       await expect(importKek(v)).rejects.toThrow("server_misconfigured");
     }
+  });
+});
+
+describe("openStoredKey", () => {
+  it("null -> not_configured; round trip -> key", async () => {
+    const kek = await importKek(b64(32));
+    expect(await openStoredKey(kek, null)).toEqual({ ok: false, code: "not_configured" });
+    const ciphertext = await sealKey(kek, "claude", SECRET);
+    expect(await openStoredKey(kek, { provider: "claude", ciphertext })).toEqual({
+      ok: true,
+      key: SECRET,
+    });
+  });
+
+  it("every failure is key_unreadable, never throws, never logs", async () => {
+    const spies = [vi.spyOn(console, "error"), vi.spyOn(console, "log")];
+    const kek = await importKek(b64(32));
+    const ciphertext = await sealKey(kek, "claude", SECRET);
+    const bytes = Buffer.from(ciphertext.slice(3), "base64");
+    const flipped = Buffer.from(bytes);
+    flipped[flipped.length - 1] ^= 1;
+    const cases: [Awaited<ReturnType<typeof importKek>>, string, string][] = [
+      [await importKek(b64(32)), "claude", ciphertext],
+      [kek, "gemini", ciphertext],
+      [kek, "claude", "v1:" + flipped.toString("base64")],
+      [kek, "claude", "v2:" + bytes.toString("base64")],
+      [kek, "claude", "v1:not base64!"],
+      [kek, "claude", "v1:" + bytes.subarray(0, 12).toString("base64")],
+    ];
+    for (const [k, provider, c] of cases) {
+      expect(await openStoredKey(k, { provider, ciphertext: c })).toEqual({
+        ok: false,
+        code: "key_unreadable",
+      });
+    }
+    for (const s of spies) expect(s).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 });

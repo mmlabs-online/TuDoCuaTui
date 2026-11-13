@@ -70,7 +70,7 @@ function setup(pwfile: string | null = FAKE_PW + "\n") {
   const envFile = path.join(home, ".config/tudocuatui/tudocuatui.env");
   const output = path.join(root, "output");
   fs.writeFileSync(output, "");
-  function exec(secrets: Partial<Record<keyof typeof GOOD, string>> = {}) {
+  function exec(secrets: Record<string, string> = {}) {
     const r = spawnSync("bash", ["-e", script], {
       cwd,
       encoding: "utf8",
@@ -93,6 +93,8 @@ function setup(pwfile: string | null = FAKE_PW + "\n") {
     fs.existsSync(path.dirname(envFile)) ? fs.readdirSync(path.dirname(envFile)) : [];
   return { exec, seed, envFile, dirFiles };
 }
+
+const KEK = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO0+="; // 43 chars from the allowed set + "="
 
 d("envfile step (real run block)", () => {
   it("no Drive secrets: only DATABASE_URL, live bytes; changed=true first, false on re-run", () => {
@@ -123,6 +125,81 @@ d("envfile step (real run block)", () => {
     const off = t.exec();
     expect(off.output.trim().split("\n").pop()).toBe("changed=true");
     expect(fs.readFileSync(t.envFile, "utf8")).toBe(DB_LINE);
+  });
+
+  it("AI_KEK only (no Drive): DATABASE_URL then AI_KEK, mode 600, value not printed, changed flips", () => {
+    const t = setup();
+    const a = t.exec({ AI_KEK: KEK });
+    expect(a.status).toBe(0);
+    expect(fs.readFileSync(t.envFile, "utf8")).toBe(`${DB_LINE}AI_KEK=${KEK}\n`);
+    expect(fs.statSync(t.envFile).mode & 0o777).toBe(0o600);
+    expect(a.stdout + a.stderr).not.toContain(KEK);
+    expect(a.output).toContain("changed=true");
+    expect(t.exec({ AI_KEK: KEK }).output).toContain("changed=false");
+  });
+
+  it("AI_KEK with all four Drive values: DB, the four Drive lines, then AI_KEK", () => {
+    const t = setup();
+    expect(t.exec({ ...GOOD, AI_KEK: KEK }).status).toBe(0);
+    const got = fs.readFileSync(t.envFile, "utf8").split("\n");
+    expect(got.map((l) => l.split("=")[0])).toEqual([
+      "DATABASE_URL",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REFRESH_TOKEN",
+      "DRIVE_FOLDER_ID",
+      "AI_KEK",
+      "",
+    ]);
+  });
+
+  it("unset or empty AI_KEK leaves the line out; removing the secret drops it", () => {
+    for (const env of [{}, { AI_KEK: "" }] as Record<string, string>[]) {
+      const t = setup();
+      expect(t.exec(env).status).toBe(0);
+      expect(fs.readFileSync(t.envFile, "utf8")).not.toContain("AI_KEK");
+    }
+    const t = setup();
+    t.exec({ AI_KEK: KEK });
+    const off = t.exec();
+    expect(off.output.trim().split("\n").pop()).toBe("changed=true");
+    expect(fs.readFileSync(t.envFile, "utf8")).toBe(DB_LINE);
+  });
+
+  it("malformed AI_KEK: exit 1, file unchanged, value not printed, no temp left", () => {
+    const bads = [
+      KEK.slice(0, 42), // 43 chars without "="
+      KEK.slice(0, 41) + "==", // 42 chars + "=="
+      KEK + "A", // 45 chars
+      KEK.slice(0, 10) + "-" + KEK.slice(11),
+      KEK.slice(0, 10) + "_" + KEK.slice(11),
+      KEK.slice(0, 10) + " " + KEK.slice(11),
+      KEK + "\n",
+      `${KEK}\nTUDO_ACCESS_DISABLED=1`,
+      KEK.slice(0, 10) + "$" + KEK.slice(11),
+      KEK.slice(0, 10) + '"' + KEK.slice(11),
+    ];
+    for (const bad of bads) {
+      for (const extra of [{}, GOOD]) {
+        const t = setup();
+        t.seed("OLD=1\n");
+        const r = t.exec({ ...extra, AI_KEK: bad });
+        expect(r.status, JSON.stringify(bad)).toBe(1);
+        expect(r.stdout + r.stderr).toContain("TUDOCUATUI_AI_KEK");
+        expect(r.stdout + r.stderr).not.toContain(bad.trim());
+        expect(fs.readFileSync(t.envFile, "utf8")).toBe("OLD=1\n");
+        expect(t.dirFiles()).toEqual(["tudocuatui.env"]);
+      }
+    }
+  });
+
+  it("AI_KEK is independent of the Drive group", () => {
+    const t = setup();
+    t.seed("OLD=1\n");
+    const r = t.exec({ AI_KEK: KEK, GOOGLE_CLIENT_ID: GOOD.GOOGLE_CLIENT_ID });
+    expect(r.status).toBe(1);
+    expect(r.stdout + r.stderr).not.toContain("AI_KEK");
+    expect(setup().exec({ AI_KEK: KEK }).status).toBe(0);
   });
 
   it("every 1/2/3-of-4 subset: exit 1, error lists the missing names, old file unchanged, no temp left", () => {
@@ -195,7 +272,7 @@ describe("deploy-tudocuatui.yml static checks", () => {
     expect(yml).toMatch(/^ {2}deploy:\n {4}if: github\.ref == 'refs\/heads\/main'\n {4}runs-on:/m);
     expect(yml).not.toMatch(/^\s*environment:/m);
   });
-  it("envfile env maps exactly the four TUDOCUATUI_* secrets", () => {
+  it("envfile env maps exactly the five TUDOCUATUI_* secrets", () => {
     const s = stepLines("envfile").join("\n");
     const mapped = [...s.matchAll(/^ {10}(\w+): \$\{\{ (secrets\.\w+) \}\}$/gm)].map((m) => [
       m[1],
@@ -206,8 +283,9 @@ describe("deploy-tudocuatui.yml static checks", () => {
       ["GOOGLE_CLIENT_SECRET", "secrets.TUDOCUATUI_GOOGLE_CLIENT_SECRET"],
       ["GOOGLE_REFRESH_TOKEN", "secrets.TUDOCUATUI_GOOGLE_REFRESH_TOKEN"],
       ["DRIVE_FOLDER_ID", "secrets.TUDOCUATUI_DRIVE_FOLDER_ID"],
+      ["AI_KEK", "secrets.TUDOCUATUI_AI_KEK"],
     ]);
-    expect(yml.match(/secrets\./g)).toHaveLength(4);
+    expect(yml.match(/secrets\./g)).toHaveLength(5);
   });
   it("no run block contains ${{", () => {
     for (const name of [

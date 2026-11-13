@@ -48,6 +48,22 @@ export async function sealKey(kek, provider, plaintext) {
 }
 
 /**
+ * Opens a stored secret; every failure is the single code "key_unreadable", never an error object.
+ * T-019.3 changes the AAD here (v2, sub) and nowhere else.
+ * @param {AiKek} kek
+ * @param {{ provider: string, ciphertext: string } | null} secret
+ * @returns {Promise<{ ok: true, key: string } | { ok: false, code: "not_configured" | "key_unreadable" }>}
+ */
+export async function openStoredKey(kek, secret) {
+  if (!secret) return { ok: false, code: "not_configured" };
+  try {
+    return { ok: true, key: await openKey(kek, secret.provider, secret.ciphertext) };
+  } catch {
+    return { ok: false, code: "key_unreadable" };
+  }
+}
+
+/**
  * Throws on any failure (wrong KEK, provider, tampering, unknown version).
  * @param {AiKek} kek @param {string} provider @param {string} sealed @returns {Promise<string>}
  */

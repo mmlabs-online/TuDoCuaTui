@@ -16,6 +16,9 @@ function match(parts) {
   if (parts.length === 3 && a === "ai-settings") {
     return { route: "/api/ai-settings", allow: "GET, PUT" };
   }
+  if (parts.length === 4 && a === "ai-settings" && b === "test") {
+    return { route: "/api/ai-settings/test", allow: "POST" };
+  }
   if (parts.length === 4 && a === "ai-settings" && b === "key") {
     return { route: "/api/ai-settings/key", allow: "DELETE" };
   }

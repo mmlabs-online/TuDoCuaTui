@@ -8,6 +8,7 @@
  *   get(): Promise<AiSettingsRow | null>,
  *   save(input: { provider: string, model: string, sealed: { ciphertext: string, hint: string } | null }): Promise<{ ok: true, row: AiSettingsRow } | { ok: false, code: "key_required" }>,
  *   clearKey(): Promise<AiSettingsRow | null>,
+ *   getSecret(): Promise<{ provider: string, model: string, ciphertext: string } | null>,
  * }} AiStore
  */
 
@@ -69,6 +70,16 @@ export function createAiStore(pool) {
       } finally {
         client.release();
       }
+    },
+
+    async getSecret() {
+      const r = await pool.query(
+        "select provider, model, key_ciphertext from ai_settings where id and key_ciphertext is not null",
+      );
+      const row = r.rows[0];
+      return row
+        ? { provider: row.provider, model: row.model, ciphertext: row.key_ciphertext }
+        : null;
     },
 
     async clearKey() {
