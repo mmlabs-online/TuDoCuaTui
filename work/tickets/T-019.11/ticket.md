@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | MERGED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-016 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/44 |
 
 ## Goal
 Build the TuDo sign-in, sign-up and email-verification screens now, as presentational UI with no calls to the Identity
@@ -61,6 +61,16 @@ org-admin-api USR-04c sends the verification link to the app the user signed up 
 - Manual: 390px light/dark in the preview harness.
 
 ## Notes / answers from Ming
+- 2026-11-13: **Plan approved** (Ming, in session: "duyệt T-019.11"; A1–A15 and the draft copy as in plan.md).
 - 2026-11-13: UI first, integrate the API later (T-019.7).
 
 ## Handoff
+### 2026-11-13 — claude — BLOCKED
+- Done: plan.md (Status READY): three presentational screens + shared layout/field/notice in `src/features/auth/`, `types.ts` contract for T-019.7, rules mirrored from org-admin-api (password 12–128 after NFKC, verify token regex), copy in `copy.ts`, dev-only preview page `auth-preview.html` (not in `dist/`), tests incl. a boundary test; assumptions A1–A15.
+- In progress / next: Ming approves the plan (or edits A-n / the draft copy), then implement → review → PR.
+- Gotchas: ~650 product + ~500 test lines (over the ~400 guide); fallback split moves verify-email + token parser to T-019.12. `vitest.config.ts` is shared with later T-019 slices.
+
+### 2026-11-13 — claude — DONE
+- Done: attempt 1 REWORK (dark-mode contrast of brand line and links), attempt 2 PASS; security review no 🔴, S1/S3/S4 applied and S2 as doc comments. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/44.
+- In progress / next: Ming reviews/merges PR #44; decide verify-email trigger (auto vs button). T-019.7 later wires the screens (token rules from security-review S2 copied into its ACs).
+- Gotchas: preview only via `pnpm dev` → `/auth-preview.html`; `vitest.config.ts` shared with later T-019 slices.
