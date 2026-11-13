@@ -221,7 +221,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          then `await fetch("/api/ai-settings/test",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(r=>r.json())`.
          Expect `{ok:true}`; a wrong key gives `invalid_key`.
       A key saved now is cleared by T-019.3 (per-user keys, D33); enter it again after that release.
-      KEK lost or leaked: generate a new one (steps 1-4), Run workflow, enter the key again.
+      KEK lost: generate a new one (steps 1-4), Run workflow, enter the key again. KEK leaked: first revoke the Claude key in the Anthropic console (KEK + any DB dump decrypts it), then generate a new KEK (steps 1-4), Run workflow, and enter a **new** key.
       Turn AI off: `gh secret delete TUDOCUATUI_AI_KEK -R mmlabs-online/deployment`, then Run workflow.
 
 ### T-019 — sign in with mmlabs Identity (D31; plan `work/tickets/T-019/plan.md`, where these are numbered M-16–M-21)

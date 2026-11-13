@@ -54,7 +54,7 @@ The server encrypts the saved AI provider key with a KEK (D30). It comes from th
 lines. Format: base64 of 32 random bytes (44 characters ending `=`). It is optional and independent of the Drive group.
 Unset: the AI routes answer 503. A malformed value fails the `envfile` step (nothing is started); a malformed value that
 gets past it makes the server exit 2. The value is never printed. Rotation is not supported: a new KEK means entering the
-provider key again. The Bitwarden backup is the only copy. Runbook: M-16 in TuDoCuaTui `work/ming-todo.md`.
+provider key again. If the KEK leaks, revoke the stored provider key at the provider first (KEK + any DB dump decrypts it), then set a new KEK and enter a new key. The Bitwarden backup is the only recoverable copy. Runbook: M-16 in TuDoCuaTui `work/ming-todo.md`.
 
 Migrations must be expand-then-contract: a rollback restores the previous image but never un-migrates. Never
 run `docker compose down -v` or remove volumes for this project's neighbours: all data is in the shared `pgdata`.

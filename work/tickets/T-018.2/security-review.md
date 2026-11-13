@@ -56,3 +56,7 @@ Files read: `server/ai/{claude,providerErrors,crypto,config,routes,validate,stor
 ### Open questions
 1. Was spaceM#47 (separate env file for `migrate`) filed?
 2. Fix Y3 in this ticket (default yes) or record as follow-up?
+
+### Resolution — 2026-11-13 (orchestrator, docs only)
+- Y3 applied: `work/ming-todo.md` M-16 and `deploy/deployment-repo/README.md` now say to revoke the provider key first when the KEK leaks, then set a new KEK and enter a new key. N5 wording ("only recoverable copy") applied in the same README line.
+- Y2, N1, N2 left as follow-ups (listed in the PR).
