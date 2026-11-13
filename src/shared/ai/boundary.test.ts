@@ -10,6 +10,8 @@ const FORBIDDEN = [
   "SERVICE_ROLE",
   "tudo_ai_settings",
   "tudo_ai_calls",
+  "AI_KEK",
+  "ai_settings",
 ];
 
 function walk(dir: string): string[] {

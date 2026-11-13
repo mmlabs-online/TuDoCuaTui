@@ -1,5 +1,6 @@
 // @ts-check
 // /api router. Called by app.js only after the access check, with the raw pathname (never decoded).
+import { handleAiSettings } from "./ai/routes.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
@@ -12,6 +13,12 @@ function match(parts) {
   if (empty !== "" || api !== "api") return null;
   if (parts.length === 3 && a === "items") return { route: "/api/items", allow: "GET" };
   if (parts.length === 3 && a === "locations") return { route: "/api/locations", allow: "GET" };
+  if (parts.length === 3 && a === "ai-settings") {
+    return { route: "/api/ai-settings", allow: "GET, PUT" };
+  }
+  if (parts.length === 4 && a === "ai-settings" && b === "key") {
+    return { route: "/api/ai-settings/key", allow: "DELETE" };
+  }
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
@@ -30,6 +37,7 @@ function match(parts) {
  * @param {import("node:http").ServerResponse} res
  * @param {{
  *   pool: import("./items.js").Pool | null,
+ *   ai: import("./ai/routes.js").AiContext | null,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
  *   setRoute: (template: string) => void,
@@ -38,7 +46,7 @@ function match(parts) {
 export async function handleApi(
   req,
   res,
-  { pool, drive, pathname, query, id, log, now, setRoute },
+  { pool, ai, drive, pathname, query, id, log, now, setRoute },
 ) {
   const parts = pathname.split("/");
   const m = match(parts);
@@ -55,6 +63,9 @@ export async function handleApi(
   const site = req.headers["sec-fetch-site"];
   if (write && (site === "cross-site" || site === "same-site")) {
     return sendError(res, 403, "forbidden_origin");
+  }
+  if (m.route.startsWith("/api/ai-settings")) {
+    return await handleAiSettings(req, res, { route: m.route, ai, id, log });
   }
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {

@@ -55,7 +55,7 @@ if [ "$cmd" != '["node","server/index.js"]' ]; then
   echo "::error::image Cmd is $cmd, expected [\"node\",\"server/index.js\"]"; exit 1
 fi
 envs=$(docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|TUDO_|GOOGLE_|DRIVE_)' || true)
+  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|TUDO_|GOOGLE_|DRIVE_|AI_)' || true)
 if [ "$envs" != "NODE_ENV=production" ]; then
   echo "::error::image env must set exactly NODE_ENV=production among app variables, got: $envs"; exit 1
 fi
@@ -111,6 +111,7 @@ expect_exit 2 "server with TUDO_ACCESS_DISABLED=1 (must be refused in production
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
 expect_exit 2 "drive smoke without Google env" "$IMAGE" node server/drive-smoke.js
 expect_exit 2 "server with partial Google config" "${ACCESS[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"
+expect_exit 2 "server with malformed AI_KEK" "${ACCESS[@]}" -e AI_KEK=not-a-kek "$IMAGE"
 
 # probe <path>: prints the HTTP status, then the body, fetched from inside the container.
 probe() {

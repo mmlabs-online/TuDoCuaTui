@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | architecture, security |
 | Gate | plan-approval |
-| Depends on | T-009 |
+| Depends on | T-018.2 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
@@ -46,5 +46,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - 2026-11-10: function renamed to `tudo-tag-item-photo` (T-009 plan approval, A4; D22 naming), to avoid colliding with stoktok's functions on the shared project.
 
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
+
+- 2026-11-12: re-plan on the Node server (D30); reads settings via `server/ai/store.js` and opens the key with `server/ai/crypto.js`; depends on T-018.2.
 
 ## Handoff

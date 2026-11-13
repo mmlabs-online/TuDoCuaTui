@@ -46,6 +46,8 @@ Waiting for Ming: plan approval (High tier)
 - (2026-11-11, Ming) No data migration from Supabase to Postgres is needed (answers T-012 A9 / T-014 A11). T-016 can remove the Supabase path without a data-export step. Ming cuts the M-14 release himself.
 - 2026-11-10: see D23. Single user, no auth in the app; Cloudflare Access protects the site.
 
+- 2026-11-12: T-018 adds `server/ai/*.js`, mirrors of `src/shared/ai`, enforced by `server/ai/parity.test.ts`. When removing `supabase/`, the line-1 header of `src/shared/ai/*.ts` should say 'mirrored by `server/ai/*.js`; `server/ai/parity.test.ts` enforces equality'. Keep `AI_KEK` and `ai_settings` in `boundary.test.ts` `FORBIDDEN`. Whichever lands second rebases.
+
 ## Handoff
 
 ### 2026-11-11 — claude — BLOCKED

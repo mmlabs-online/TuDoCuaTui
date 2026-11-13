@@ -48,4 +48,6 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 
 - 2026-11-10: **Paused by D23** (move to self-hosted Postgres + Node API). Re-plan on the new backend after T-013/T-014; the Supabase design no longer applies.
 
+- 2026-11-12: backend is T-018 (D30): REST `/api/ai-settings` (GET/PUT), `/key` (DELETE), `/test` (POST, T-018.2); `{settings: AiSettingsView|null}`. Generic `/api` codes (`invalid_json`, `unsupported_media_type`, `forbidden_origin`, `db_unavailable`) are in `AI_ERROR_STATUS`. An expired Access session shows up as a redirect/network error on fetch, not a 401: show 'đăng nhập lại'.
+
 ## Handoff
