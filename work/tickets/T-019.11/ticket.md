@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-13T03:17:24Z |
 | PR | — |
 
 ## Goal
@@ -61,7 +61,7 @@ org-admin-api USR-04c sends the verification link to the app the user signed up 
 - Manual: 390px light/dark in the preview harness.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-13: **Plan approved** (Ming, in session: "duyệt T-019.11"; A1–A15 and the draft copy as in plan.md).
 - 2026-11-13: UI first, integrate the API later (T-019.7).
 
 ## Handoff
