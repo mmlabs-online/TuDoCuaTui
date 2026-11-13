@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-016 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | claude@2026-11-13T03:17:24Z |
 | PR | — |
