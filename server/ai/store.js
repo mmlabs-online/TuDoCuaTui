@@ -1,5 +1,6 @@
 // @ts-check
 // All SQL for ai_settings (one row per user, primary key user_id; D33). Values only ever travel as $n parameters.
+import { withUser } from "../db.js";
 import { toUserId } from "../user.js";
 
 /** @typedef {{ query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> }} Pool */
@@ -36,16 +37,18 @@ export function createAiStore(pool) {
   return {
     async get(userId) {
       need(userId);
-      const r = await pool.query(`select ${COLUMNS} from ai_settings where user_id = $1`, [userId]);
+      const r = await withUser(
+        pool,
+        userId,
+        (c) => c.query(`select ${COLUMNS} from ai_settings where user_id = $1`, [userId]),
+        { readOnly: true },
+      );
       return r.rows[0] ? toRow(r.rows[0]) : null;
     },
 
     async save(userId, { provider, model, sealed }) {
       need(userId);
-      if (!pool.connect) throw new Error("pool has no connect()");
-      const client = await pool.connect();
-      try {
-        await client.query("begin");
+      return withUser(pool, userId, async (client) => {
         const cur = (
           await client.query(
             "select provider, key_hint from ai_settings where user_id = $1 for update",
@@ -54,8 +57,7 @@ export function createAiStore(pool) {
         ).rows[0];
         // A key sealed for one provider is never kept for another: the user must enter it again.
         if (!sealed && cur && cur.key_hint !== null && cur.provider !== provider) {
-          await client.query("rollback");
-          return { ok: false, code: "key_required" };
+          return /** @type {const} */ ({ ok: false, code: "key_required" });
         }
         const r = sealed
           ? await client.query(
@@ -73,21 +75,21 @@ export function createAiStore(pool) {
                returning ${COLUMNS}`,
               [userId, provider, model],
             );
-        await client.query("commit");
-        return { ok: true, row: toRow(r.rows[0]) };
-      } catch (err) {
-        await client.query("rollback").catch(() => {});
-        throw err;
-      } finally {
-        client.release();
-      }
+        return /** @type {const} */ ({ ok: true, row: toRow(r.rows[0]) });
+      });
     },
 
     async getSecret(userId) {
       need(userId);
-      const r = await pool.query(
-        "select provider, model, key_ciphertext from ai_settings where user_id = $1 and key_ciphertext is not null",
-        [userId],
+      const r = await withUser(
+        pool,
+        userId,
+        (c) =>
+          c.query(
+            "select provider, model, key_ciphertext from ai_settings where user_id = $1 and key_ciphertext is not null",
+            [userId],
+          ),
+        { readOnly: true },
       );
       const row = r.rows[0];
       return row
@@ -97,10 +99,12 @@ export function createAiStore(pool) {
 
     async clearKey(userId) {
       need(userId);
-      const r = await pool.query(
-        `update ai_settings set key_ciphertext = null, key_hint = null, key_updated_at = null
-         where user_id = $1 returning ${COLUMNS}`,
-        [userId],
+      const r = await withUser(pool, userId, (c) =>
+        c.query(
+          `update ai_settings set key_ciphertext = null, key_hint = null, key_updated_at = null
+           where user_id = $1 returning ${COLUMNS}`,
+          [userId],
+        ),
       );
       return r.rows[0] ? toRow(r.rows[0]) : null;
     },

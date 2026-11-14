@@ -69,6 +69,14 @@ Router note for T-013.2: `server/app.js` computes one `pathname` (after rejectin
 
 Photo reads (T-005.3): every `getMedia` caller passes a per-request signal with a deadline (`servePhoto`: 30 s total, also aborted when the client disconnects); a handed-over stream keeps its abort listener until that signal goes away. The bytes are served unchanged: photos uploaded through the app are re-encoded by the canvas resize, which strips EXIF/GPS, but a hand-made `PUT /api/items/:id/photo` could store EXIF/GPS and it would be served back as is (only to access-authenticated users). Read errors are logged as `{event:"photo_read_failed", code}` with no ids.
 
+## Row level security (T-019.4)
+
+Every TuDo table has RLS `ENABLE` + `FORCE` with the policy `owner_only`: `user_id = app_user_id()`, which reads the transaction-local setting `app.user_id`. `withUser(pool, userId, fn, { readOnly })` in `server/db.js` is the only way to query user tables: it opens a transaction, sets `app.user_id`, runs `fn(client)` and commits. Without it every table reads 0 rows and writes fail with 42501. `items_with_stats` is `security_invoker`. A transaction never spans Drive IO or streaming (pool `max: 5`).
+
+- Maintenance path: the photo sweep needs all users' `item_photos` rows. It uses `withMaintenance(pool, "photo-sweep", fn)` (read-only, sets `tudo.maintenance`), which the SELECT-only policy `photo_sweep_read` on `item_photos` accepts. No other table, and no write, is reachable that way. No extra DB role exists (D24).
+- What it protects: a second layer against app bugs (a forgotten `where user_id`). It does not protect against stolen DB credentials or arbitrary SQL on the app connection: the owner can `no force`, and any session can set any setting. Splitting roles is the D24 follow-up.
+- psql checks: run them as `postgres` (`psql -U postgres -d tudocuatui`), or set `select set_config('app.user_id', '<sub>', false);` first. As the `tudocuatui` role they return 0 rows, which is expected.
+
 ## Photo sweep (T-005.6)
 
 `node server/photo-sweep.js [--apply] [--grace-minutes N] [--max-delete N]` finds Drive files that no `item_photos` row references (a create that timed out after Google accepted it, a crash, a failed best-effort delete) and deletes them. Drive deletes are permanent, so it is dry-run by default: run it without `--apply` first and check the counts.

@@ -8,6 +8,7 @@ import { createApp } from "../app.js";
 import { importKek, sealKey } from "./crypto.js";
 import type { AiStore } from "./store.js";
 import { fixedAuth, headerAuth, OWNER_A } from "../test/auth.js";
+import { fakePool } from "../test/fake-pool.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
 const URL_ = "/api/ai/tag-photo";
@@ -83,7 +84,7 @@ async function start(
   const logs: Record<string, unknown>[] = [];
   const server = http.createServer(
     createApp({
-      pool: (opts.store === null ? null : { query: async () => ({ rows: [] }) }) as never,
+      pool: (opts.store === null ? null : fakePool({ query: async () => ({ rows: [] }) })) as never,
       ai: opts.ai === false ? null : { kek, store: store as AiStore, fetch: fetchFn },
       distDir: "/nonexistent",
       auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),

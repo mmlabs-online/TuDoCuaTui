@@ -1,7 +1,7 @@
 // @vitest-environment node
 import pg from "pg";
 import { describe, expect, it } from "vitest";
-import { createPool, ping } from "./db.js";
+import { createPool, ping, withMaintenance, withUser } from "./db.js";
 
 describe("createPool", () => {
   it("options: max 5, connectionTimeoutMillis 3000, idleTimeoutMillis 30000, statement_timeout 5000, application_name tudocuatui-api", async () => {
@@ -40,5 +40,111 @@ describe("createPool", () => {
     const calls: string[] = [];
     await ping({ query: async (s: string) => void calls.push(s) });
     expect(calls).toEqual(["select 1"]);
+  });
+});
+
+const UID = "aaaaaaaa-1111-4111-8111-111111111111";
+
+function fakeClientPool(opts: { failOn?: string; rollbackFails?: boolean } = {}) {
+  const calls: { sql: string; params?: unknown[] }[] = [];
+  const released: unknown[] = [];
+  let connects = 0;
+  const client = {
+    query: async (sql: string, params?: unknown[]) => {
+      calls.push({ sql, params });
+      if (sql === opts.failOn) throw new Error("boom");
+      if (sql === "rollback" && opts.rollbackFails) throw new Error("rollback failed");
+      return { rows: [], rowCount: 0 };
+    },
+    release: (err?: unknown) => void released.push(err),
+  };
+  const pool = {
+    connect: async () => {
+      connects++;
+      return client;
+    },
+  };
+  return { pool, calls, released, connects: () => connects };
+}
+
+describe("withUser", () => {
+  it("begin -> set_config(app.user_id) -> fn -> commit -> release()", async () => {
+    const { pool, calls, released } = fakeClientPool();
+    const r = await withUser(pool, UID, async (c) => {
+      await c.query("select 1");
+      return 42;
+    });
+    expect(r).toBe(42);
+    expect(calls).toEqual([
+      { sql: "begin", params: undefined },
+      { sql: "select set_config('app.user_id', $1, true)", params: [UID] },
+      { sql: "select 1", params: undefined },
+      { sql: "commit", params: undefined },
+    ]);
+    expect(released).toEqual([undefined]);
+  });
+
+  it("readOnly sends begin read only", async () => {
+    const { pool, calls } = fakeClientPool();
+    await withUser(pool, UID, async () => {}, { readOnly: true });
+    expect(calls[0].sql).toBe("begin read only");
+  });
+
+  it("fn throws -> rollback, release(err), the error is rethrown; a rollback failure is swallowed", async () => {
+    const { pool, calls, released } = fakeClientPool({ rollbackFails: true });
+    const err = new Error("fn failed");
+    await expect(
+      withUser(pool, UID, async () => {
+        throw err;
+      }),
+    ).rejects.toBe(err);
+    expect(calls.map((c) => c.sql)).toContain("rollback");
+    expect(calls.map((c) => c.sql)).not.toContain("commit");
+    expect(released).toEqual([err]);
+  });
+
+  it("begin fails -> release(err)", async () => {
+    const { pool, released } = fakeClientPool({ failOn: "begin" });
+    await expect(withUser(pool, UID, async () => {})).rejects.toThrow("boom");
+    expect(released).toHaveLength(1);
+    expect(released[0]).toBeInstanceOf(Error);
+  });
+
+  it("rejects undefined, empty, uppercase and nil ids and a pool without connect() before any connect", async () => {
+    const { pool, connects } = fakeClientPool();
+    for (const bad of [undefined, "", UID.toUpperCase(), "00000000-0000-0000-0000-000000000000"]) {
+      await expect(withUser(pool, bad as never, async () => {})).rejects.toThrow("userId required");
+    }
+    await expect(withUser({} as never, UID, async () => {})).rejects.toThrow(
+      "pool has no connect()",
+    );
+    expect(connects()).toBe(0);
+  });
+
+  it("a nested withUser or withMaintenance inside fn throws without a second connect", async () => {
+    const { pool, connects } = fakeClientPool();
+    await expect(withUser(pool, UID, () => withUser(pool, UID, async () => {}))).rejects.toThrow(
+      "nested transaction",
+    );
+    await expect(
+      withUser(pool, UID, () => withMaintenance(pool, "photo-sweep", async () => {})),
+    ).rejects.toThrow("nested transaction");
+    expect(connects()).toBe(2);
+  });
+});
+
+describe("withMaintenance", () => {
+  it("accepts only photo-sweep, sets tudo.maintenance and begins read only", async () => {
+    const { pool, calls, connects } = fakeClientPool();
+    await expect(withMaintenance(pool, "other", async () => {})).rejects.toThrow(
+      "unknown maintenance task",
+    );
+    expect(connects()).toBe(0);
+    await withMaintenance(pool, "photo-sweep", async () => {});
+    expect(calls.slice(0, 2)).toEqual([
+      { sql: "begin read only", params: undefined },
+      { sql: "select set_config('tudo.maintenance', $1, true)", params: ["photo-sweep"] },
+    ]);
+    expect(calls.at(-1)?.sql).toBe("commit");
   });
 });

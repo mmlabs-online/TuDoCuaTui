@@ -34,6 +34,8 @@ export interface TestDb {
   name: string;
   url: string;
   baseUrl: string;
+  /** Same database, admin credentials: fixtures, truncate and direct reads in owner-role tests. */
+  adminUrl: string;
   drop(): Promise<void>;
 }
 
@@ -50,6 +52,7 @@ export async function createTestDb(opts: { owner?: boolean } = {}): Promise<Test
   return {
     name,
     baseUrl: adminUrl,
+    adminUrl: urlFor(adminUrl, name),
     url: urlFor(adminUrl, name, role, role ? password : undefined),
     drop: () =>
       withAdmin(async (c) => {

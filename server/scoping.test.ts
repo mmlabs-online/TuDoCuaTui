@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Static guard (T-019.2): every SQL string literal in server/*.js and server/ai/*.js that touches a TuDo table
 // must mention user_id. Limit: the check is per literal, not per table reference; the runtime recorder in
-// isolation.db.test.ts, the composite FKs and later RLS (T-019.4) are the backstops.
+// isolation.db.test.ts, the composite FKs and RLS (T-019.4, live) are the backstops.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -93,5 +93,23 @@ describe("user_id scoping guard", () => {
       );
       expect(found, `${a.file}: ${a.includes}`).toBe(true);
     }
+  });
+
+  it("items.js, photos.js, ai/store.js and photo-sweep.js never call pool.query( or pool.connect( directly", () => {
+    for (const f of ["items.js", "photos.js", "ai/store.js", "photo-sweep.js"]) {
+      const src = readFileSync(path.join(serverDir, f), "utf8");
+      expect(src, f).not.toMatch(/\bpool\.(query|connect)\(/);
+    }
+  });
+
+  it("set_config( only in db.js and migrator.js; tudo.maintenance and app.user_id only in db.js", () => {
+    const all = [...readdirSync(serverDir, { recursive: true, encoding: "utf8" })].filter(
+      (f) => f.endsWith(".js") && !f.startsWith("test"),
+    );
+    const where = (needle: string) =>
+      all.filter((f) => readFileSync(path.join(serverDir, f), "utf8").includes(needle)).sort();
+    expect(where("set_config(")).toEqual(["db.js", "migrator.js"]);
+    expect(where("tudo.maintenance")).toEqual(["db.js"]);
+    expect(where("app.user_id")).toEqual(["db.js"]);
   });
 });

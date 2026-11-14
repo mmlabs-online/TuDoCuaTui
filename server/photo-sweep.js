@@ -3,11 +3,12 @@
 // Dry-run by default. Deletes only files tagged app=tudo that no item_photos row references and that are older than
 // the grace period; re-checks the DB before each delete. Exit codes: 0 ok, 1 something failed, 2 bad usage or config.
 // Global on purpose, never scoped by user_id: one Drive folder holds every user's files and the DB (all users) is the
-// authority on what is referenced (T-019.2; allow-listed in scoping.test.ts).
+// authority on what is referenced (T-019.2; allow-listed in scoping.test.ts). Under RLS (T-019.4) it reads item_photos
+// through withMaintenance, i.e. the SELECT-only policy photo_sweep_read; it never writes rows.
 // Prints counts, codes and photo row uuids only: never a Drive id, page token, secret or Google text.
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
-import { createPool } from "./db.js";
+import { createPool, withMaintenance } from "./db.js";
 import {
   createDriveClient,
   DriveConfigError,
@@ -31,7 +32,7 @@ const codeOf = (err) =>
 /**
  * @param {{
  *   drive: Pick<ReturnType<typeof createDriveClient>, "checkFolder" | "listFiles" | "deleteFile">,
- *   pool: { query(sql: string, params?: unknown[]): Promise<{ rows: any[] }> },
+ *   pool: { connect(): Promise<any> },
  *   folderId: string, apply?: boolean, graceMinutes?: number, maxDelete?: number,
  *   now?: () => number, log?: (line: string) => void,
  * }} o
@@ -82,8 +83,10 @@ export async function runSweep({
   let rows;
   try {
     rows = (
-      await pool.query(
-        "select id, drive_file_id, created_at from item_photos where drive_file_id is not null",
+      await withMaintenance(pool, "photo-sweep", (c) =>
+        c.query(
+          "select id, drive_file_id, created_at from item_photos where drive_file_id is not null",
+        ),
       )
     ).rows;
   } catch (err) {
@@ -128,9 +131,9 @@ export async function runSweep({
         continue;
       }
       try {
-        const again = await pool.query("select 1 from item_photos where drive_file_id = $1", [
-          f.id,
-        ]);
+        const again = await withMaintenance(pool, "photo-sweep", (c) =>
+          c.query("select 1 from item_photos where drive_file_id = $1", [f.id]),
+        );
         if (again.rows.length > 0) {
           log(`keep ${label(f)}: referenced`);
           continue;

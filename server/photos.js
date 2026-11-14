@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { withUser } from "./db.js";
 import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { createInFlight } from "./inflight.js";
@@ -91,29 +92,16 @@ export async function deleteDriveFiles(drive, photos, log) {
  * @param {import("./items.js").Pool} pool @param {import("./user.js").UserId} userId @param {string} itemId
  * @param {(client: any) => Promise<void>} fn @returns {Promise<boolean>} false when the caller has no such item
  */
-async function withLockedItem(pool, userId, itemId, fn) {
-  if (!pool.connect) throw new Error("pool has no connect()");
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+function withLockedItem(pool, userId, itemId, fn) {
+  return withUser(pool, userId, async (client) => {
     const lock = await client.query(
       "select id from items where id = $1 and user_id = $2 for update",
       [itemId, userId],
     );
-    if (lock.rowCount === 0) {
-      await client.query("rollback");
-      client.release();
-      return false;
-    }
+    if (lock.rowCount === 0) return false;
     await fn(client);
-    await client.query("commit");
-  } catch (err) {
-    await client.query("rollback").catch(() => {});
-    client.release(/** @type {any} */ (err));
-    throw err;
-  }
-  client.release();
-  return true;
+    return true;
+  });
 }
 
 /**
@@ -194,10 +182,12 @@ async function putPhoto(req, res, { pool, userId, drive, itemId, log }) {
   if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) {
     return sendError(res, 400, "invalid_photo");
   }
-  const exists = await pool.query("select 1 from items where id = $1 and user_id = $2", [
-    itemId,
+  const exists = await withUser(
+    pool,
     userId,
-  ]);
+    (c) => c.query("select 1 from items where id = $1 and user_id = $2", [itemId, userId]),
+    { readOnly: true },
+  );
   if (exists.rowCount === 0) return sendError(res, 404, "not_found");
 
   const photoId = randomUUID();
@@ -276,9 +266,15 @@ export async function servePhoto(
   if (!pool) return sendError(res, 503, "db_unavailable");
   let driveFileId;
   try {
-    const r = await pool.query(
-      "select drive_file_id from item_photos where id = $1 and user_id = $2",
-      [photoId, userId],
+    const r = await withUser(
+      pool,
+      userId,
+      (c) =>
+        c.query("select drive_file_id from item_photos where id = $1 and user_id = $2", [
+          photoId,
+          userId,
+        ]),
+      { readOnly: true },
     );
     driveFileId = r.rows[0]?.drive_file_id;
   } catch (err) {
