@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-14T16:16:11Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/49 |
 
 ## Goal
 Every item, location, wear-log and photo query is scoped to the caller's `user_id`; under Access every request maps to `TUDO_OWNER_SUB`.
@@ -56,3 +56,8 @@ proposal* → T-019.2). Decisions D31–D34. Ming items in the plan are numbered
 - Done: consults (software-architect, database-optimizer) and plan.md (Status READY): contract migration `20261114120000`, `server/user.js` (branded `UserId`), required `auth.authenticate`, owner in every mode (exit 2), scoped `items.js`/`photos.js`, per-user photo cap 2 / total 3, compose owner anchor, check-image cases, guard + two-user isolation tests; A1–A19.
 - In progress / next: Ming approves the plan, then implement → review → PR. On approval: add M-24 (PG ≥ 15) and update M-18 (done in this commit), forward A17 recommendations to T-019.3/.4/.5/.6.
 - Gotchas: ~1,000 changed lines (over the guide; fallback split 2a/2b in the plan). Not image-rollback-safe after the contract (A8).
+
+### 2026-11-14 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴 (forward items recorded on T-019.4 / T-019.5). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/49.
+- In progress / next: Ming merges PR #49. After merge `main` needs M-17 + M-18 + M-24 before any release (app exits 2 with an empty owner).
+- Gotchas: not image-rollback-safe after the contract; CI image job must confirm the `check-image.sh` changes.
