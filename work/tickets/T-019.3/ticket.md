@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-14T17:19:41Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/50 |
 
 ## Goal
 Each user has their own AI provider settings and encrypted key (D33).
@@ -64,3 +64,8 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 - Done: consult (database-optimizer) and plan.md (Status READY): migration `20261114180000` (owner check + backfill, clear v1 key, PK `user_id`), AAD v2 bound to `sub` with v1 rejected, store/`loadSettingsKey` require `userId`, per-user limiter + global ceilings, tag in-flight 1/user 2 total, guard + two-user AI tests; A1–A18.
 - In progress / next: Ming approves the plan, then implement → review → PR.
 - Gotchas: ~650 lines (fallback split 3a/3b); not image-rollback-safe; the saved AI key is cleared — Ming re-enters it after the release (added to M-18).
+
+### 2026-11-14 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴 (F8/F9 forwarded to T-019.5). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/50.
+- In progress / next: Ming merges PR #50; releases with T-019.1/T-019.2 (M-17, M-18, M-24); Ming re-enters the AI key after release.
+- Gotchas: not image-rollback-safe; cleared key cannot be restored.
