@@ -53,3 +53,16 @@
 ### Open questions
 - Is the `create or replace view` guard test (`migrator.db.test.ts:585-593`) green on PG 17 in CI (depends on CREATE OR REPLACE resetting reloptions)?
 - Fix 1–3 here or as follow-ups? (auditor: fix 1 and 3 here)
+
+## Attempt 2 — 2026-11-14 (security re-check, read-only)
+
+All three 🟡 fixed correctly; no 🔴, no new 🟡.
+- 🟢 Fix 1: `server/migrator.js:112,121` guard activates for file version ≥ `20261114200000`; `:130` missing table / `!rls` / `!forced` throws, migration rolls back (`:229-230`); `server/migrator.db.test.ts:566-574` a later `disable row level security` file is rejected, version not recorded, tables stay forced.
+- 🟢 Fix 2: `server/rls.db.test.ts:209-237` asserts the full `pg_policies` rows with `toEqual` (a later `using (true)` fails CI).
+- 🟢 Fix 3: `server/db.js:87` `withUser` sets `app.user_id` and clears `tudo.maintenance` in one tx-local `select`, user id bound `$1`; `:105` mirror in `withMaintenance`; `:81`, `:102` validate before connect; asserted `db.test.ts:81,182`; `test/fake-pool.ts:13-14`.
+- 🟢 Optional: a DB test with a session-level `tudo.maintenance=photo-sweep` showing `withUser` still can't see B's `item_photos` (follow-up). Exact-policy check is CI-only, not in `assertRlsForced` (acceptable: migrations applied by Ming after CI).
+- 🟢 ROLLBACK commit tag: `db.js:61-62` throws → catch `:66-67` rollback + `release(err)`; tested `db.test.ts:109-123`. `release()` after the try (`db.js:70`; `db.test.ts:125-138`); residual: a throwing `release()` after commit would 500 for saved data (pg doesn't throw in practice).
+- 🟢 `scoping.test.ts:111-114`: `set_config(` only in `db.js`/`migrator.js`; `tudo.maintenance`, `app.user_id` only in `db.js`; `withMaintenance` only in `db.js`/`photo-sweep.js`.
+- 🟢 `items.js:123-128` 42501 / `rowCount 0` → `null`; `items.test.ts:24-46` rollback sent, no commit, one release, other codes rethrown.
+- 🟢 Minor: `migrator.js:133` skips the view check if `items_with_stats` is dropped (fails visibly).
+- Open: `create or replace view` guard test (`migrator.db.test.ts:595-603`) green on PG 17 in CI?
