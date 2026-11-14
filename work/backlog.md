@@ -37,7 +37,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019 | Sign in with mmlabs Identity (api.mmlabs.online) — umbrella | IN_PROGRESS | P1 | L | architecture, security, db | T-016 | plan-approval | 0 | 2026-11-13 |
 | T-019.11 | Auth screens UI: sign-in, sign-up, verify email (not wired) | MERGED | P1 | M | ui, security | T-016 | plan-approval | 1 | 2026-11-13 |
 | T-019.1 | Ownership expand migration and owner backfill | MERGED | P1 | M | db, security | T-016 | plan-approval | 1 | 2026-11-14 |
-| T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | BLOCKED | P1 | M | db, security, architecture | T-019.1 | plan-approval | 0 | 2026-11-13 |
+| T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | IN_PROGRESS | P1 | M | db, security, architecture | T-019.1 | plan-approval | 0 | 2026-11-13 |
 | T-019.3 | Per-user AI settings | BACKLOG | P1 | S | db, security | T-019.2 | plan-approval | 0 | 2026-11-13 |
 | T-019.4 | Row level security with per-request app.user_id | BACKLOG | P1 | M | db, security | T-019.2, T-019.3 | plan-approval | 0 | 2026-11-13 |
 | T-019.5 | Identity JWT verifier and TUDO_AUTH_MODE switch | BACKLOG | P1 | M | security, architecture | T-019.2 | plan-approval | 0 | 2026-11-13 |

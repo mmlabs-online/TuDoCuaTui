@@ -42,6 +42,7 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.3 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14 (T-019.2 plan A17, recommendation): T-019.3 should be merged before identity mode (see T-019.5 note); add `ai_settings` to the T-019.2 SQL guard's table list.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 - 2026-11-13 (T-018.2): T-018.2 merges first (KEK deployed). T-019.3 must also: make `store.getSecret(userId)` take the
