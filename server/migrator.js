@@ -88,6 +88,23 @@ export async function readMigrationFiles(dir) {
   return files;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * TUDO_OWNER_SUB: empty or unset -> undefined; otherwise a canonical (lowercased) non-nil UUID.
+ * The message never contains the input.
+ * @param {string | undefined} raw
+ * @returns {string | undefined}
+ */
+export function parseOwnerSub(raw) {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (!v) return undefined;
+  if (!UUID_RE.test(v) || v === "00000000-0000-0000-0000-000000000000") {
+    throw new MigrationError("TUDO_OWNER_SUB is not a valid UUID", 2);
+  }
+  return v;
+}
+
 /** @param {unknown} err */
 const errCode = (err) =>
   err && typeof err === "object" && "code" in err && typeof err.code === "string"
@@ -98,9 +115,16 @@ const errCode = (err) =>
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * @param {{ connectionString: string, dir: string, log?: (line: string) => void, lockWaitMs?: number }} opts
+ * @param {{ connectionString: string, dir: string, log?: (line: string) => void, lockWaitMs?: number, ownerSub?: string }} opts
  */
-export async function runMigrations({ connectionString, dir, log = () => {}, lockWaitMs = 30000 }) {
+export async function runMigrations({
+  connectionString,
+  dir,
+  log = () => {},
+  lockWaitMs = 30000,
+  ownerSub,
+}) {
+  const owner = parseOwnerSub(ownerSub);
   const files = await readMigrationFiles(dir);
 
   /** @type {import("pg").Client} */
@@ -164,6 +188,7 @@ export async function runMigrations({ connectionString, dir, log = () => {}, loc
         await client.query("set local lock_timeout = '10s'");
         await client.query("set local statement_timeout = '5min'");
         await client.query("set local tudo.migrating = 'on'");
+        if (owner) await client.query("select set_config('tudo.owner_sub', $1, true)", [owner]);
         await client.query(file.sql);
         // A transaction-control statement in the file (end, abort, commit ... and chain) would have
         // dropped the transaction-local setting.

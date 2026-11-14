@@ -2,7 +2,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { checksum, parseMigrationFilename, planMigrations } from "./migrator.js";
+import {
+  checksum,
+  MigrationError,
+  parseMigrationFilename,
+  parseOwnerSub,
+  planMigrations,
+} from "./migrator.js";
 
 const ref = (version: string, sum = "x") => ({ version, name: "n", checksum: sum });
 
@@ -19,6 +25,37 @@ describe("parseMigrationFilename", () => {
       "init.sql",
     ]) {
       expect(parseMigrationFilename(bad)).toBeNull();
+    }
+  });
+});
+
+describe("parseOwnerSub", () => {
+  const V4 = "3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b";
+  const V7 = "0190a6f2-7c3e-7b8a-9d4e-1f2a3b4c5d6e";
+
+  it("unset or blank means no owner", () => {
+    for (const v of [undefined, "", "   "]) expect(parseOwnerSub(v)).toBeUndefined();
+  });
+
+  it("trims, lowercases, accepts v4 and v7", () => {
+    expect(parseOwnerSub(`  ${V4.toUpperCase()}\n`)).toBe(V4);
+    expect(parseOwnerSub(V7)).toBe(V7);
+  });
+
+  it("rejects malformed values with exit code 2 and never echoes the input", () => {
+    for (const bad of ["xyz", V4.slice(1), `{${V4}}`, "00000000-0000-0000-0000-000000000000"]) {
+      let err: unknown;
+      try {
+        parseOwnerSub(bad);
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err).toMatchObject({
+        exitCode: 2,
+        message: "TUDO_OWNER_SUB is not a valid UUID",
+      });
+      expect((err as Error).message).not.toContain(bad);
     }
   });
 });

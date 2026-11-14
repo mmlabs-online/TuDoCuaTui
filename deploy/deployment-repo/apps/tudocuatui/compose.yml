@@ -23,6 +23,10 @@
 # but is only on the internal `db` network (no egress) and never reads them.
 # No volumes here: all data lives in the shared `pgdata` volume.
 #
+# TUDO_OWNER_SUB (T-019.1, D37): not secret, so it lives here and not in the env file. M-17/M-18: set Ming's Identity
+# `sub` in the release PR that first contains the T-019.1 migration. Empty is valid only while the database has no
+# rows (the migration then fails and the deploy stops). The app service does not get it until T-019.2.
+#
 # migrate: one-shot `node server/migrate.js` (profile `migrate`), run by the deploy before the app is
 # replaced, never by `up -d` and never on a restore. The app container itself never migrates.
 
@@ -68,6 +72,8 @@ services:
     profiles: [migrate]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+    environment:
+      TUDO_OWNER_SUB: ""
     command: ["node", "server/migrate.js"]
     networks: [db]
 

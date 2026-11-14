@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { cp, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import pg from "pg";
@@ -9,6 +9,14 @@ import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
 const here = import.meta.dirname;
 const realDir = path.resolve(here, "../db/migrations");
+const OWNER = "0190a6f2-7c3e-7b8a-9d4e-1f2a3b4c5d6e";
+const APPLIED = [
+  "20261110120000_init.sql",
+  "20261112120000_item_photos_drive.sql",
+  "20261112140000_item_category_v2.sql",
+  "20261112160000_ai_settings.sql",
+];
+const EXPAND = "20261113120000_user_ownership_expand.sql";
 const fixture = (name: string) => path.join(here, "test/fixtures", name);
 
 async function query(url: string, sql: string) {
@@ -30,8 +38,10 @@ async function tempCopy(name: string) {
 describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
   let db: TestDb;
   const tmpDirs: string[] = [];
-  const run = (dir: string, extra: { lockWaitMs?: number; log?: (l: string) => void } = {}) =>
-    runMigrations({ connectionString: db.url, dir, ...extra });
+  const run = (
+    dir: string,
+    extra: { lockWaitMs?: number; log?: (l: string) => void; ownerSub?: string } = {},
+  ) => runMigrations({ connectionString: db.url, dir, ...extra });
   const versions = async () =>
     (await query(db.url, "select version from schema_migrations order by version")).map(
       (r) => r.version as string,
@@ -142,10 +152,121 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     }
   });
 
+  /** Applies the four pre-ownership files, then inserts one row in each of the five tables. */
+  async function seedBeforeExpand(url: string) {
+    const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+    tmpDirs.push(dir);
+    for (const f of APPLIED) await copyFile(path.join(realDir, f), path.join(dir, f));
+    await runMigrations({ connectionString: url, dir });
+    const loc = (await query(url, "insert into locations (name) values ('L') returning id"))[0].id;
+    const item = (
+      await query(url, `insert into items (name, location_id) values ('I', '${loc}') returning id`)
+    )[0].id;
+    await query(
+      url,
+      `insert into item_photos (item_id, storage_path) values ('${item}', 'u/i/a.jpg')`,
+    );
+    await query(url, `insert into wear_logs (item_id, worn_on) values ('${item}', '2026-11-10')`);
+    await query(url, "insert into ai_settings (provider, model) values ('claude', 'm')");
+    return dir;
+  }
+
+  it("ownership expand: rows in all five tables get the owner; updated_at unchanged; triggers re-enabled", async () => {
+    await seedBeforeExpand(db.url);
+    const ts = () =>
+      query(
+        db.url,
+        "select (select updated_at from items)::text as i, (select updated_at from ai_settings)::text as a",
+      );
+    const before = await ts();
+    await run(realDir, { ownerSub: OWNER });
+    for (const t of ["locations", "items", "item_photos", "wear_logs", "ai_settings"]) {
+      const rows = await query(db.url, `select user_id from ${t}`);
+      expect(rows, t).toEqual([{ user_id: OWNER }]);
+    }
+    expect(await ts()).toEqual(before);
+    const trg = await query(
+      db.url,
+      "select tgenabled from pg_trigger where tgname in ('items_updated_at', 'ai_settings_updated_at')",
+    );
+    expect(trg).toEqual([{ tgenabled: "O" }, { tgenabled: "O" }]);
+    await query(db.url, "update items set name = 'J'");
+    const after = await query(db.url, "select updated_at::text as i from items");
+    expect(after[0].i).not.toBe(before[0].i);
+  });
+
+  it("rows + no owner rejects; nothing applied", async () => {
+    await seedBeforeExpand(db.url);
+    for (const ownerSub of [undefined, "  "]) {
+      const err = await run(realDir, { ownerSub }).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.exitCode).toBe(1);
+      expect(err.message).toMatch(/TUDO_OWNER_SUB is not set/);
+    }
+    expect(await versions()).toEqual(APPLIED.map((f) => f.slice(0, 14)));
+    expect(
+      await query(
+        db.url,
+        "select 1 from information_schema.columns where column_name = 'user_id' and table_name = 'items'",
+      ),
+    ).toEqual([]);
+  });
+
+  it("empty DB passes with and without owner", async () => {
+    await run(realDir);
+    const other = await createTestDb();
+    try {
+      await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
+      for (const url of [db.url, other.url]) {
+        expect((await query(url, "select version from schema_migrations")).length).toBe(5);
+        expect(
+          (
+            await query(
+              url,
+              "select 1 from information_schema.columns where column_name = 'user_id' and table_name = 'locations'",
+            )
+          ).length,
+        ).toBe(1);
+      }
+    } finally {
+      await other.drop();
+    }
+  });
+
+  it("garbage tudo.owner_sub GUC is rejected without echoing it", async () => {
+    await seedBeforeExpand(db.url);
+    const sql = await readFile(path.join(realDir, EXPAND), "utf8");
+    for (const bad of ["not-a-uuid-SECRETISH", "00000000-0000-0000-0000-000000000000"]) {
+      const c = new pg.Client({ connectionString: db.url });
+      await c.connect();
+      try {
+        await c.query("begin");
+        await c.query("select set_config('tudo.owner_sub', $1, true)", [bad]);
+        const err = await c.query(sql).catch((e) => e);
+        expect(err.message).toMatch(/not a valid uuid/);
+        expect(err.message).not.toContain("SECRETISH");
+        await c.query("rollback");
+      } finally {
+        await c.end();
+      }
+    }
+  });
+
+  it("null user_id inserts still accepted", async () => {
+    await run(realDir);
+    await query(db.url, "insert into locations (name) values ('L')");
+    await query(db.url, "insert into items (name) values ('I')");
+    const id = (await query(db.url, "select id from items"))[0].id;
+    await query(db.url, `insert into item_photos (item_id, storage_path) values ('${id}', 'p')`);
+    await query(db.url, `insert into wear_logs (item_id, worn_on) values ('${id}', '2026-11-10')`);
+    await query(db.url, "insert into ai_settings (provider, model) values ('claude', 'm')");
+  });
+
   it("applies as a NOSUPERUSER database owner", async () => {
     const owned = await createTestDb({ owner: true });
     try {
-      await runMigrations({ connectionString: owned.url, dir: realDir });
+      await seedBeforeExpand(owned.url);
+      await runMigrations({ connectionString: owned.url, dir: realDir, ownerSub: OWNER });
       const rows = await query(
         owned.url,
         "select rolsuper from pg_roles where rolname = current_user",
