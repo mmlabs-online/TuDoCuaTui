@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-14T17:08:54Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -42,6 +42,7 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.3 rows).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-14 (T-019.2 plan A17, recommendation): T-019.3 should be merged before identity mode (see T-019.5 note); add `ai_settings` to the T-019.2 SQL guard's table list.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
@@ -58,3 +59,8 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 
 ## Handoff
 - 2026-11-14 (F-701 security review F2): `loadSettingsKey` must take a **required** `userId` (throw when missing, never default to the single row); the two-user isolation test covers both `/api/ai-settings/test` and `/api/ai/tag-photo` (B → `not_configured`, no fetch); consider a per-user in-flight cap of 1 inside the global cap of 2 for tagging.
+
+### 2026-11-14 — claude — BLOCKED
+- Done: consult (database-optimizer) and plan.md (Status READY): migration `20261114180000` (owner check + backfill, clear v1 key, PK `user_id`), AAD v2 bound to `sub` with v1 rejected, store/`loadSettingsKey` require `userId`, per-user limiter + global ceilings, tag in-flight 1/user 2 total, guard + two-user AI tests; A1–A18.
+- In progress / next: Ming approves the plan, then implement → review → PR.
+- Gotchas: ~650 lines (fallback split 3a/3b); not image-rollback-safe; the saved AI key is cleared — Ming re-enters it after the release (added to M-18).
