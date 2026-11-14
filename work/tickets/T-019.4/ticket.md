@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.2, T-019.3 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/51 |
 
 ## Goal
 Postgres enforces ownership as a second layer: RLS `ENABLE` + `FORCE` on every TuDo table (D32).
@@ -42,8 +42,14 @@ proposal* → T-019.4). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.4 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14: **Plan approval waived** (Ming, in session: "bỏ qua bước xem plan T-019.4"). If plan.md comes back READY with no new High-tier decision beyond the approved umbrella plan (A3; D24, D32, D37) — in particular no new DB role or other Ming step — the loop goes straight to implement; otherwise it stops and asks.
 - 2026-11-14 (T-019.2 security review): (1) recreate `items_with_stats` `with (security_invoker = true)` — as a normal view it runs with the owner's rights and bypasses RLS; test that it returns no rows of another user under RLS. (2) Under `FORCE` RLS the unscoped photo sweep would see only one user's rows and treat other users' Drive files as orphans: run the sweep as a `BYPASSRLS` role or give it a dedicated policy, plus a two-user sweep test under RLS.
 - 2026-11-14 (T-019.2 plan A17, recommendation): RLS must be live before multi-user sign-up (T-019.7) reaches production.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-14 — claude — DONE
+- Done: plan approval waived (nothing beyond the umbrella plan); attempt 1 REWORK (42501 path untested), attempt 2 PASS; security 🟡 1–3 fixed in attempt 2. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/51.
+- In progress / next: Ming merges PR #51; CI confirms PG 17. Releases with T-019.1–T-019.3 (M-17, M-24, M-18; psql checks as `postgres`).
+- Gotchas: migration and `withUser` code must ship in the same image; future data migrations need `no force` … `force`.

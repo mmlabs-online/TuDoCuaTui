@@ -8,6 +8,7 @@ import { importKek, openKey, sealKey } from "./crypto.js";
 import { loadSettingsKey } from "./routes.js";
 import type { AiStore } from "./store.js";
 import { fixedAuth, headerAuth, OWNER_A } from "../test/auth.js";
+import { fakePool } from "../test/fake-pool.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
 const OTHER_KEY = "sk-ant-OTHERKEY-0123456789abcdef";
@@ -95,7 +96,9 @@ async function start(opts: {
   const kek = opts.kek ?? (await newKek());
   const server = http.createServer(
     createApp({
-      pool: (opts.pool === undefined ? { query: async () => ({ rows: [] }) } : opts.pool) as never,
+      pool: (opts.pool === undefined
+        ? fakePool({ query: async () => ({ rows: [] }) })
+        : opts.pool) as never,
       ai: opts.ai === false ? null : { kek, store: opts.store, fetch: opts.fetch },
       distDir: "/nonexistent",
       auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),

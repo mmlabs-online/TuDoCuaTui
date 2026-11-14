@@ -23,6 +23,9 @@ type As = "a" | "b";
 
 describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () => {
   let db: TestDb;
+  /** The app pool: the NOSUPERUSER owner role, so RLS applies (T-019.4). */
+  let appPool: ReturnType<typeof createPool>;
+  /** Admin pool: fixtures, truncate and direct reads. */
   let pool: ReturnType<typeof createPool>;
   let fake: Awaited<ReturnType<typeof startFakeDrive>>;
   let server: http.Server;
@@ -79,14 +82,15 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
   }
 
   beforeAll(async () => {
-    db = await createTestDb();
+    db = await createTestDb({ owner: true });
     await runMigrations({ connectionString: db.url, dir: realDir });
-    pool = createPool(db.url);
+    pool = createPool(db.adminUrl);
+    appPool = createPool(db.url);
     fake = await startFakeDrive();
     const drive = createDriveClient({ config: fakeConfig, ...fake.urls, sleep: async () => {} });
     server = http.createServer(
       createApp({
-        pool: recording(pool),
+        pool: recording(appPool),
         drive,
         distDir: "/nonexistent",
         auth: headerAuth(),
@@ -100,6 +104,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
   afterAll(async () => {
     await new Promise((r) => server?.close(r));
     await fake?.close();
+    await appPool?.end();
     await pool?.end();
     await db?.drop();
   });
@@ -108,6 +113,13 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     fake.files.clear();
     fake.requests.length = 0;
     statements = [];
+  });
+
+  it("guard: the app pool is not a superuser and does not bypass RLS", async () => {
+    const r = await appPool.query(
+      "select rolsuper, rolbypassrls from pg_roles where rolname = current_user",
+    );
+    expect(r.rows).toEqual([{ rolsuper: false, rolbypassrls: false }]);
   });
 
   it("lists: A and B each see only their items and locations", async () => {
@@ -261,7 +273,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     await call("a", `/api/photos/${row.id}`);
     await delPhoto("a", uuid(1), row.id);
     await call("a", `/api/items/${uuid(1)}`, { method: "DELETE" });
-    const control = /^\s*(begin|commit|rollback)\s*$/i;
+    const control = /^\s*(begin( read only)?|commit|rollback)\s*$/i;
     const bad = statements.filter((s) => !control.test(s) && !s.includes("user_id"));
     expect(statements.length).toBeGreaterThan(10);
     expect(bad).toEqual([]);
@@ -373,7 +385,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
       await test("a");
       await tag("a");
       await aiCall("a", "/api/ai-settings/key", { method: "DELETE" });
-      const control = /^\s*(begin|commit|rollback)\s*$/i;
+      const control = /^\s*(begin( read only)?|commit|rollback)\s*$/i;
       const bad = statements.filter((q) => !control.test(q) && !q.includes("user_id"));
       expect(statements.length).toBeGreaterThan(4);
       expect(bad).toEqual([]);

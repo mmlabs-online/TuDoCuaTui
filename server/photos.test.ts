@@ -3,6 +3,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { servePhoto } from "./photos.js";
 import { OWNER_A } from "./test/auth.js";
+import { fakePool } from "./test/fake-pool.js";
 
 const PHOTO = "11111111-1111-4111-8111-111111111111";
 const DRIVE_ID = "fakefile00000001";
@@ -30,7 +31,9 @@ function setup(body: ReadableStream<Uint8Array>) {
       return { body, contentType: "text/html", contentLength: null };
     },
   };
-  const pool = { query: async () => ({ rows: [{ drive_file_id: DRIVE_ID }], rowCount: 1 }) };
+  const pool = fakePool({
+    query: async () => ({ rows: [{ drive_file_id: DRIVE_ID }], rowCount: 1 }),
+  });
   const run = (res: unknown, deadlineMs?: number) =>
     servePhoto({ headers: {} } as never, res as never, {
       pool: pool as never,

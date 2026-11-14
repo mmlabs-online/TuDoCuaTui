@@ -19,6 +19,8 @@ const APPLIED = [
 const EXPAND = "20261113120000_user_ownership_expand.sql";
 const CONTRACT = "20261114120000_user_ownership_contract.sql";
 const AI_PER_USER = "20261114180000_ai_settings_per_user.sql";
+const RLS = "20261114200000_row_level_security.sql";
+const TABLES = ["locations", "items", "item_photos", "wear_logs", "ai_settings"];
 const OWNER_B = "0190a6f2-7c3e-7b8a-9d4e-aaaaaaaaaaaa";
 const fixture = (name: string) => path.join(here, "test/fixtures", name);
 
@@ -240,7 +242,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(7);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(8);
         expect(
           (
             await query(
@@ -506,5 +508,98 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     } finally {
       await owned.drop();
     }
+  });
+
+  describe("row level security (T-019.4)", () => {
+    const forced = async (url: string) =>
+      (
+        await query(
+          url,
+          `select relname, relrowsecurity as rls, relforcerowsecurity as forced from pg_class
+           where relname in (${TABLES.map((t) => `'${t}'`).join(",")}) order by relname`,
+        )
+      ).map((r) => `${r.relname}:${r.rls}:${r.forced}`);
+    const allForced = [...TABLES].sort().map((t) => `${t}:true:true`);
+
+    /** A copy of the real migrations plus one extra file that runs after the RLS file. */
+    async function withExtra(sql: string) {
+      const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+      tmpDirs.push(dir);
+      await cp(realDir, dir, { recursive: true });
+      await writeFile(path.join(dir, "20261114210000_extra.sql"), sql);
+      return dir;
+    }
+
+    it("empty DB: all files applied, the five tables end with RLS + FORCE", async () => {
+      await run(realDir);
+      expect(await versions()).toContain(RLS.slice(0, 14));
+      expect(await forced(db.url)).toEqual(allForced);
+    });
+
+    it("upgrade with existing owned rows (as a NOSUPERUSER owner): rows intact, FORCE on", async () => {
+      const owned = await createTestDb({ owner: true });
+      try {
+        await seedBeforeExpand(owned.url);
+        await runMigrations({ connectionString: owned.url, dir: realDir, ownerSub: OWNER });
+        expect(await forced(owned.url)).toEqual(allForced);
+        for (const t of TABLES) {
+          const rows = await query(owned.adminUrl, `select user_id from ${t}`);
+          expect(rows, t).toEqual([{ user_id: OWNER }]);
+        }
+      } finally {
+        await owned.drop();
+      }
+    });
+
+    it("a file that leaves a table unforced fails and rolls back", async () => {
+      await run(realDir);
+      const dir = await withExtra(
+        "alter table items no force row level security; update items set notes = 'x';",
+      );
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/row level security not forced on items/);
+      expect(await versions()).not.toContain("20261114210000");
+      expect(await forced(db.url)).toEqual(allForced);
+    });
+
+    it("a later file that disables RLS fails the guard (activation is by version, not by the table flag)", async () => {
+      await run(realDir);
+      const dir = await withExtra("alter table items disable row level security;");
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/row level security not forced on items/);
+      expect(await versions()).not.toContain("20261114210000");
+      expect(await forced(db.url)).toEqual(allForced);
+    });
+
+    it("no force ... force around a data change passes, as the owner role", async () => {
+      const owned = await createTestDb({ owner: true });
+      try {
+        await runMigrations({ connectionString: owned.url, dir: realDir });
+        await query(
+          owned.adminUrl,
+          `insert into items (id, user_id, name) values ('00000000-0000-4000-8000-000000000001', '${OWNER}', 'n')`,
+        );
+        const dir = await withExtra(
+          "alter table items no force row level security; update items set notes = 'x'; alter table items force row level security;",
+        );
+        await runMigrations({ connectionString: owned.url, dir });
+        expect(await query(owned.adminUrl, "select notes from items")).toEqual([{ notes: "x" }]);
+        expect(await forced(owned.url)).toEqual(allForced);
+      } finally {
+        await owned.drop();
+      }
+    });
+
+    it("create or replace view without security_invoker fails the guard", async () => {
+      await run(realDir);
+      const dir = await withExtra(
+        "do $$ begin execute 'create or replace view items_with_stats as ' || pg_get_viewdef('items_with_stats'::regclass); end $$;",
+      );
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/items_with_stats is not security_invoker/);
+    });
   });
 });

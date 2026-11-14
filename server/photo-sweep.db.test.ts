@@ -24,7 +24,10 @@ const ITEM = uuid(900);
 
 describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Drive", () => {
   let db: TestDb;
+  /** The sweep pool: the NOSUPERUSER owner role, so RLS applies (T-019.4). */
   let pool: ReturnType<typeof createPool>;
+  /** Admin pool: fixtures and direct reads. */
+  let admin: ReturnType<typeof createPool>;
   let fake: Awaited<ReturnType<typeof startFakeDrive>>;
   const iso = (agoMin: number) => new Date(NOW - agoMin * MIN).toISOString();
 
@@ -42,7 +45,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     });
   const addRow = async (n: number, agoMin = 600) =>
     (
-      await pool.query(
+      await admin.query(
         `insert into item_photos (user_id, id, item_id, drive_file_id, created_at) values ('${OWNER_A}', $1, $2, $3, $4) returning id`,
         [uuid(n), ITEM, fid(n), iso(agoMin)],
       )
@@ -66,26 +69,54 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     });
     return { code, lines };
   };
+  /** The owner pool, with a hook after every statement a checked-out client runs. */
+  const withClientHook = (after: (sql: string) => Promise<void>) => ({
+    connect: async () => {
+      const c: any = await pool.connect();
+      const query = c.query.bind(c);
+      const release = c.release.bind(c);
+      c.release = (err?: unknown) => {
+        c.query = query; // the pg client goes back to the pool: undo the override
+        c.release = release;
+        release(err);
+      };
+      c.query = async (sql: string, params?: unknown[]) => {
+        const res = await query(sql, params);
+        await after(sql);
+        return res;
+      };
+      return c;
+    },
+  });
   const deletes = () => fake.requests.filter((r) => r.method === "DELETE");
   const listCalls = () => fake.requests.filter((r) => r.url.startsWith("/drive/v3/files?q="));
 
   beforeAll(async () => {
-    db = await createTestDb();
+    db = await createTestDb({ owner: true });
     await runMigrations({ connectionString: db.url, dir: realDir });
     pool = createPool(db.url);
+    admin = createPool(db.adminUrl);
   });
   afterAll(async () => {
     await pool?.end();
+    await admin?.end();
     await db?.drop();
   });
   beforeEach(async () => {
     fake = await startFakeDrive();
-    await pool.query("truncate wear_logs, item_photos, items, locations cascade");
-    await pool.query(`insert into items (user_id, id, name) values ('${OWNER_A}', $1, 'x')`, [
+    await admin.query("truncate wear_logs, item_photos, items, locations cascade");
+    await admin.query(`insert into items (user_id, id, name) values ('${OWNER_A}', $1, 'x')`, [
       ITEM,
     ]);
   });
   afterEach(() => fake?.close());
+
+  it("guard: the sweep pool's current_user is not a superuser and does not bypass RLS", async () => {
+    const r = await pool.query(
+      "select rolsuper, rolbypassrls from pg_roles where rolname = current_user",
+    );
+    expect(r.rows).toEqual([{ rolsuper: false, rolbypassrls: false }]);
+  });
 
   it("apply deletes an unreferenced tagged file older than the grace period", async () => {
     await anchor();
@@ -99,14 +130,14 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
 
   it("files referenced by two users' rows are both kept; an unreferenced file is still a candidate", async () => {
     const itemB = uuid(901);
-    await pool.query(`insert into items (user_id, id, name) values ('${OWNER_B}', $1, 'y')`, [
+    await admin.query(`insert into items (user_id, id, name) values ('${OWNER_B}', $1, 'y')`, [
       itemB,
     ]);
     await anchor();
     putFile(1, 600);
     await addRow(1);
     putFile(2, 600);
-    await pool.query(
+    await admin.query(
       `insert into item_photos (user_id, id, item_id, drive_file_id, created_at) values ('${OWNER_B}', $1, $2, $3, $4)`,
       [uuid(2), itemB, fid(2), iso(600)],
     );
@@ -197,21 +228,41 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     await anchor();
     putFile(1, 600);
     let loaded = false;
-    const lateInsertPool = {
-      query: async (sql: string, params?: unknown[]) => {
-        const r = await pool.query(sql, params);
-        if (!loaded) {
-          loaded = true; // the sweep has its reference set: now a row appears
-          await addRow(1);
-        }
-        return r;
-      },
-    };
+    const lateInsertPool = withClientHook(async (sql) => {
+      if (!loaded && sql.includes("drive_file_id is not null")) {
+        loaded = true; // the sweep has its reference set: now a row appears
+        await addRow(1);
+      }
+    });
     const { code, lines } = await run({ pool: lateInsertPool, apply: true });
     expect(code).toBe(0);
     expect(fake.files.has(fid(1))).toBe(true);
     expect(deletes()).toHaveLength(0);
     expect(lines).toContain(`keep ${uuid(1)}: referenced`);
+  });
+
+  it("a sweep run without maintenance context sees no rows and refuses", async () => {
+    await anchor();
+    putFile(1, 600);
+    const blind = {
+      connect: async () => {
+        const c: any = await pool.connect();
+        const query = c.query.bind(c);
+        const release = c.release.bind(c);
+        c.release = (err?: unknown) => {
+          c.query = query; // the pg client goes back to the pool: undo the override
+          c.release = release;
+          release(err);
+        };
+        c.query = (sql: string, params?: unknown[]) =>
+          sql.includes("tudo.maintenance") ? Promise.resolve({ rows: [] }) : query(sql, params);
+        return c;
+      },
+    };
+    const { code, lines } = await run({ pool: blind, apply: true });
+    expect(code).toBe(1);
+    expect(lines).toContain("refusing: no listed file is referenced (check DATABASE_URL)");
+    expect(deletes()).toHaveLength(0);
   });
 
   it("rows whose Drive file is missing are reported and kept; young rows are not reported", async () => {
@@ -222,7 +273,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     expect(lines).toContain(`missing file for photo ${old}`);
     expect(lines.filter((l) => l.startsWith("missing file"))).toHaveLength(1);
     expect(lines.at(-1)).toContain("missing 1");
-    expect((await pool.query("select 1 from item_photos")).rowCount).toBe(2);
+    expect((await admin.query("select 1 from item_photos")).rowCount).toBe(2);
   });
 
   it("pagination: files on later pages are swept", async () => {
@@ -309,7 +360,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   it("db failure -> exit 1, nothing deleted", async () => {
     putFile(1, 600);
     const badPool = {
-      query: () => Promise.reject(Object.assign(new Error("x"), { code: "57P01" })),
+      connect: () => Promise.reject(Object.assign(new Error("x"), { code: "57P01" })),
     };
     const { code, lines } = await run({ pool: badPool, apply: true });
     expect(code).toBe(1);

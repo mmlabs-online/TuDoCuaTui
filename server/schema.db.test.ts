@@ -243,11 +243,15 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(Date.now() - row.updated_at.getTime()).toBeLessThan(60_000);
   });
 
-  it("no table has RLS; user_id is NOT NULL on all five tables", async () => {
+  it("RLS enabled and forced on all five tables; user_id is NOT NULL on all five tables", async () => {
     const rls = await pool.query(
-      "select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity",
+      "select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity and c.relforcerowsecurity order by relname",
     );
-    expect(rls.rows).toEqual([]);
+    expect(rls.rows).toEqual(
+      ["ai_settings", "item_photos", "items", "locations", "wear_logs"].map((relname) => ({
+        relname,
+      })),
+    );
     const cols = await pool.query(
       "select table_name, data_type, is_nullable from information_schema.columns where table_schema = 'public' and column_name = 'user_id' and table_name not like '%_with_stats' order by table_name",
     );

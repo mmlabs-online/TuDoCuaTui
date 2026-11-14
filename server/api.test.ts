@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { fixedAuth, OWNER_A } from "./test/auth.js";
+import { fakePool } from "./test/fake-pool.js";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const NOW = Date.parse("2026-03-04T05:00:00Z");
@@ -335,7 +336,7 @@ describe("no DB and DB errors", () => {
       detail: "Key (name)=(hunter2)",
       query: "select hunter2",
     });
-    const base = await start({ query: async () => Promise.reject(secret) });
+    const base = await start(fakePool({ query: async () => Promise.reject(secret) }));
     const res = await fetch(base + "/api/items");
     const text = await res.text();
     expect(res.status).toBe(500);
@@ -349,9 +350,10 @@ describe("no DB and DB errors", () => {
   });
 
   it("23503 on wear -> 404; ECONNREFUSED on list -> 503; 23505 -> 409", async () => {
-    const mk = (code: string) => ({
-      query: async () => Promise.reject(Object.assign(new Error("x"), { code })),
-    });
+    const mk = (code: string) =>
+      fakePool({
+        query: async () => Promise.reject(Object.assign(new Error("x"), { code })),
+      });
     const wearBody = JSON.stringify({ delta: 1, today: "2026-03-04" });
     const wear = await fetch(`${await start(mk("23503"))}/api/items/${ID}/wear`, {
       method: "POST",

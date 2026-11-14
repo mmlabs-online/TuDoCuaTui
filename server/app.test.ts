@@ -8,6 +8,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { fixedAuth, OWNER_A } from "./test/auth.js";
+import { fakePool } from "./test/fake-pool.js";
 
 let dir: string;
 const logs: Record<string, unknown>[] = [];
@@ -190,12 +191,12 @@ describe("app", () => {
 
   it("a successful authenticate passes userId to the API; the body and query cannot override it", async () => {
     const queries: unknown[][] = [];
-    const pool = {
+    const pool = fakePool({
       query: async (_sql: string, values?: unknown[]) => {
         queries.push(values ?? []);
         return { rows: [] };
       },
-    };
+    });
     const base = await start({ pool, allow: true });
     const res = await fetch(`${base}/api/items?user_id=22222222-2222-4222-8222-222222222222`, {
       headers: { "x-user-id": "22222222-2222-4222-8222-222222222222" },
