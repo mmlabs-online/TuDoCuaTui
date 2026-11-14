@@ -232,9 +232,10 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Note 2026-11-14: sign-up needs a registered app origin **and** a Turnstile token, so the realistic path is TuDo's own
       sign-up page (T-019.7) or another registered app with a sign-up UI. See T-019.1 note: the `sub` is only needed when
       the T-019.1 migration runs in production (M-18), not to write the code.
-- [ ] **M-18 — Backup before the ownership migration** (before merging the first release PR that contains T-019.1; do not cut that release until M-17 is done, D37):
+- [ ] **M-18 — Backup before the ownership migration** (before merging the first release PR that contains T-019.1; do not cut that release until M-17 is done, D37): set `TUDO_OWNER_SUB: <your sub>` on the `migrate` service in the release PR's `apps/tudocuatui/compose.yml` (empty = unset; a populated DB then fails the migrate step and the old app keeps running);
       take a manual `pg_dump` of `tudocuatui` on the Mac (in addition to the deploy's `backup` step) and keep it;
       after deploy, run the read-only `user_id is null` count (expect 0).
+      Owner check (T-019.1 security review): copy the `sub` from the Identity login/userinfo response for your own account (not from memory); after the deploy run, read-only, `select distinct user_id from <t>` on `locations`, `items`, `item_photos`, `wear_logs`, `ai_settings` — each must return exactly that value (and no null).
 - [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
       Status 2026-11-14: USR-07 is merged and live (org-admin-api v0.1.3, deployment#63). **Can be done now:** Actions → `ops-org-admin-api` → command `register-app`, inputs

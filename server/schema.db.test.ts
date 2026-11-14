@@ -9,6 +9,7 @@ import { runMigrations } from "./migrator.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
+const OWNER = "0190a6f2-7c3e-7b8a-9d4e-1f2a3b4c5d6e";
 
 describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   let db: TestDb;
@@ -80,7 +81,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(await stats(id)).toMatchObject({ wear_count: 0, last_worn: null });
   });
 
-  it("items_with_stats columns: existing order kept, primary_photo_id last", async () => {
+  it("items_with_stats columns: existing order kept, user_id last", async () => {
     const r = await pool.query(
       "select column_name from information_schema.columns where table_name = 'items_with_stats' order by ordinal_position",
     );
@@ -106,7 +107,16 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       "location_name",
       "primary_photo_path",
       "primary_photo_id",
+      "user_id",
     ]);
+  });
+
+  it("view still returns location_name for a null-user_id item", async () => {
+    const loc = (await pool.query("insert into locations (name) values ('Tủ A') returning id"))
+      .rows[0].id;
+    await pool.query("insert into items (name, location_id) values ('x', $1)", [loc]);
+    const row = (await pool.query("select location_name, user_id from items_with_stats")).rows[0];
+    expect(row).toEqual({ location_name: "Tủ A", user_id: null });
   });
 
   it("pg JS shapes: seasons string[], wear_count number, price string; last_worn 'YYYY-MM-DD' with a per-client 1082 parser", async () => {
@@ -215,15 +225,31 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(Date.now() - row.updated_at.getTime()).toBeLessThan(60_000);
   });
 
-  it("no table has RLS or a user_id column", async () => {
+  it("no table has RLS; user_id is a nullable uuid on exactly the five tables", async () => {
     const rls = await pool.query(
       "select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity",
     );
     expect(rls.rows).toEqual([]);
     const cols = await pool.query(
-      "select table_name from information_schema.columns where table_schema = 'public' and column_name = 'user_id'",
+      "select table_name, data_type, is_nullable from information_schema.columns where table_schema = 'public' and column_name = 'user_id' and table_name not like '%_with_stats' order by table_name",
     );
-    expect(cols.rows).toEqual([]);
+    expect(cols.rows).toEqual(
+      ["ai_settings", "item_photos", "items", "locations", "wear_logs"].map((table_name) => ({
+        table_name,
+        data_type: "uuid",
+        is_nullable: "YES",
+      })),
+    );
+  });
+
+  it("ownership indexes exist", async () => {
+    const r = await pool.query(
+      "select indexname, indexdef from pg_indexes where indexname in ('items_user_created_idx', 'locations_user_sort_idx') order by indexname",
+    );
+    expect(r.rows.map((x) => x.indexdef.replace(/^.*USING btree /, ""))).toEqual([
+      "(user_id, created_at DESC, id)",
+      "(user_id, sort_order, name)",
+    ]);
   });
 
   it("migration applies over init data; a storage_path row survives", async () => {
@@ -239,9 +265,9 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       await c.query("insert into item_photos (item_id, storage_path) values ($1, 'u/i/a.jpg')", [
         item,
       ]);
-      await runMigrations({ connectionString: tmp.url, dir: realDir });
+      await runMigrations({ connectionString: tmp.url, dir: realDir, ownerSub: OWNER });
       const row = (await c.query("select * from items_with_stats")).rows[0];
-      expect(row).toMatchObject({ primary_photo_path: "u/i/a.jpg" });
+      expect(row).toMatchObject({ primary_photo_path: "u/i/a.jpg", user_id: OWNER });
       expect(row.primary_photo_id).toMatch(/^[0-9a-f-]{36}$/);
       await c.end();
     } finally {
@@ -271,10 +297,12 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       await c.query("insert into wear_logs (item_id, worn_on) values ($1, '2026-11-10')", [
         ids.bag,
       ]);
-      await runMigrations({ connectionString: tmp.url, dir: realDir });
-      const rows = (await c.query("select id, name, category, wear_count from items_with_stats"))
-        .rows;
+      await runMigrations({ connectionString: tmp.url, dir: realDir, ownerSub: OWNER });
+      const rows = (
+        await c.query("select id, name, category, wear_count, user_id from items_with_stats")
+      ).rows;
       expect(rows).toHaveLength(5);
+      expect(rows.every((r) => r.user_id === OWNER)).toBe(true);
       const by = Object.fromEntries(rows.map((r) => [r.name, r]));
       expect(by.bag).toMatchObject({ id: ids.bag, category: "accessory", wear_count: 1 });
       expect(by.sport.category).toBe("other");
@@ -283,7 +311,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       expect(by.other.category).toBe("other");
       for (const cat of CATEGORIES)
         await c.query("insert into items (name, category) values ('n', $1)", [cat]);
-      await runMigrations({ connectionString: tmp.url, dir: realDir }); // second run is a no-op
+      await runMigrations({ connectionString: tmp.url, dir: realDir, ownerSub: OWNER }); // second run is a no-op
       expect((await c.query("select 1 from items")).rowCount).toBe(15);
       await c.end();
     } finally {

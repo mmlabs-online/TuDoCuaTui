@@ -1,6 +1,7 @@
 // @ts-check
 // Entry point for the `migrate` one-shot service (D24): node server/migrate.js
-// Exit codes: 0 ok or no-op, 1 runtime failure, 2 configuration error. Never prints DATABASE_URL.
+// Exit codes: 0 ok or no-op, 1 runtime failure, 2 configuration error. Never prints DATABASE_URL or TUDO_OWNER_SUB.
+// Env: DATABASE_URL (required); TUDO_OWNER_SUB (UUID; owner of existing rows, needed only if the database has rows).
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MigrationError, runMigrations } from "./migrator.js";
@@ -32,7 +33,12 @@ if (!connectionString) {
 } else {
   const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../db/migrations");
   try {
-    await runMigrations({ connectionString, dir, log: (line) => console.log(line) });
+    await runMigrations({
+      connectionString,
+      dir,
+      log: (line) => console.log(line),
+      ownerSub: process.env.TUDO_OWNER_SUB,
+    });
   } catch (err) {
     fail(err);
   }
