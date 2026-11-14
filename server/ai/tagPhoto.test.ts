@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { importKek, sealKey } from "./crypto.js";
 import type { AiStore } from "./store.js";
-import { fixedAuth, OWNER_A } from "../test/auth.js";
+import { fixedAuth, headerAuth, OWNER_A } from "../test/auth.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
 const URL_ = "/api/ai/tag-photo";
@@ -52,25 +52,27 @@ async function start(
     kek?: Awaited<ReturnType<typeof importKek>>;
     now?: () => number;
     getSecretError?: Error;
+    headerAuth?: boolean;
   } = {},
 ) {
   const kek = opts.kek ?? (await importKek(randomBytes(32).toString("base64")));
-  const secret: Secret =
-    opts.secret === undefined || opts.secret === "default"
-      ? {
-          provider: "claude",
-          model: "claude-haiku-5-5",
-          ciphertext: await sealKey(kek, "claude", SENTINEL),
-        }
-      : opts.secret;
+  const defaultSecret = opts.secret === undefined || opts.secret === "default";
+  const fixed: Secret = defaultSecret ? null : (opts.secret as Secret);
   const state = { getSecret: 0, fetches: [] as { url: string; init: RequestInit }[] };
   const store: AiStore | null =
     opts.store === undefined
       ? ({
-          async getSecret() {
+          async getSecret(userId: string) {
             state.getSecret++;
             if (opts.getSecretError) throw opts.getSecretError;
-            return secret;
+            // The default secret is sealed for whoever asks, so each user has a working key.
+            return defaultSecret
+              ? {
+                  provider: "claude",
+                  model: "claude-haiku-5-5",
+                  ciphertext: await sealKey(kek, userId, "claude", SENTINEL),
+                }
+              : fixed;
           },
         } as unknown as AiStore)
       : opts.store;
@@ -84,7 +86,7 @@ async function start(
       pool: (opts.store === null ? null : { query: async () => ({ rows: [] }) }) as never,
       ai: opts.ai === false ? null : { kek, store: store as AiStore, fetch: fetchFn },
       distDir: "/nonexistent",
-      auth: fixedAuth(OWNER_A),
+      auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: opts.now,
     }),
@@ -155,7 +157,7 @@ describe("error codes", () => {
 
   it("gemini or unknown model -> 400 invalid_model (even under another KEK)", async () => {
     const other = await importKek(randomBytes(32).toString("base64"));
-    const ct = await sealKey(other, "gemini", SENTINEL);
+    const ct = await sealKey(other, OWNER_A, "gemini", SENTINEL);
     for (const secret of [
       { provider: "gemini", model: "gemini-x", ciphertext: ct },
       { provider: "claude", model: "claude-nope", ciphertext: ct },
@@ -172,7 +174,7 @@ describe("error codes", () => {
     const secret = {
       provider: "claude",
       model: "claude-haiku-5-5",
-      ciphertext: await sealKey(other, "claude", SENTINEL),
+      ciphertext: await sealKey(other, OWNER_A, "claude", SENTINEL),
     };
     const s = await start({ secret });
     const res = await post(s.base);
@@ -309,24 +311,64 @@ describe("rate limit", () => {
 });
 
 describe("in-flight cap", () => {
-  it("a third concurrent call gets 503 ai_busy; the counter is released afterwards", async () => {
+  it("1 per user, 2 in total: A's second and C are busy, B is accepted; release frees a slot", async () => {
     const release: (() => void)[] = [];
     const s = await start({
+      headerAuth: true,
       fetch: () => new Promise<Response>((r) => release.push(() => r(toolAnswer(GOOD)))),
     });
-    const a = post(s.base);
-    const b = post(s.base);
+    const as = (u: string) => ({ ...JPEG_H, "x-test-user": u });
+    const a = post(s.base, jpeg(), as("a"));
+    while (release.length < 1) await new Promise((r) => setTimeout(r, 5));
+    const a2 = await post(s.base, jpeg(), as("a"));
+    expect([a2.status, await err(a2)]).toEqual([503, "ai_busy"]);
+    expect(a2.headers.get("retry-after")).toBe("5");
+    const b = post(s.base, jpeg(), as("b"));
     while (release.length < 2) await new Promise((r) => setTimeout(r, 5));
-    const c = await post(s.base);
+    const c = await post(s.base, jpeg(), as("c"));
     expect([c.status, await err(c)]).toEqual([503, "ai_busy"]);
-    expect(c.headers.get("retry-after")).toBe("5");
     release.forEach((f) => f());
     expect((await a).status).toBe(200);
     expect((await b).status).toBe(200);
-    const d = post(s.base);
+    const c2 = post(s.base, jpeg(), as("c"));
     while (release.length < 3) await new Promise((r) => setTimeout(r, 5));
     release[2]();
-    expect((await d).status).toBe(200);
+    expect((await c2).status).toBe(200);
+  });
+
+  it("a busy, 415 or declared-413 answer does not consume tag quota", async () => {
+    let release: (() => void) | null = null;
+    let calls = 0;
+    const s = await start({
+      fetch: () =>
+        ++calls === 1
+          ? new Promise<Response>((r) => (release = () => r(toolAnswer(GOOD))))
+          : toolAnswer(GOOD),
+    });
+    const first = post(s.base);
+    while (!release) await new Promise((r) => setTimeout(r, 5));
+    for (let i = 0; i < 60; i++) {
+      expect((await post(s.base)).status).toBe(503); // busy (same user)
+      expect((await post(s.base, jpeg(), { "Content-Type": "image/png" })).status).toBe(415);
+    }
+    expect((await post(s.base, Buffer.alloc(2 * 1024 * 1024 + 1, 1))).status).toBe(413);
+    (release as unknown as () => void)();
+    expect((await first).status).toBe(200);
+    // One call counted so far: 99 more pass, then 429.
+    for (let i = 0; i < 99; i++) expect((await post(s.base)).status).toBe(200);
+    expect((await post(s.base)).status).toBe(429);
+  }, 30_000);
+
+  it("two app instances do not share the in-flight counter", async () => {
+    const release: (() => void)[] = [];
+    const slow = () => new Promise<Response>((r) => release.push(() => r(toolAnswer(GOOD))));
+    const s1 = await start({ fetch: slow });
+    const s2 = await start({ fetch: slow });
+    const p1 = post(s1.base);
+    const p2 = post(s2.base);
+    while (release.length < 2) await new Promise((r) => setTimeout(r, 5));
+    release.forEach((f) => f());
+    expect([(await p1).status, (await p2).status]).toEqual([200, 200]);
   });
 
   it("is released after an error path", async () => {

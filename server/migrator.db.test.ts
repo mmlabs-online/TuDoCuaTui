@@ -18,6 +18,7 @@ const APPLIED = [
 ];
 const EXPAND = "20261113120000_user_ownership_expand.sql";
 const CONTRACT = "20261114120000_user_ownership_contract.sql";
+const AI_PER_USER = "20261114180000_ai_settings_per_user.sql";
 const OWNER_B = "0190a6f2-7c3e-7b8a-9d4e-aaaaaaaaaaaa";
 const fixture = (name: string) => path.join(here, "test/fixtures", name);
 
@@ -154,6 +155,16 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     }
   });
 
+  /** A temp dir with the first six files (up to and including the contract). */
+  async function contractDir() {
+    const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+    tmpDirs.push(dir);
+    for (const f of [...APPLIED, EXPAND, CONTRACT]) {
+      await copyFile(path.join(realDir, f), path.join(dir, f));
+    }
+    return dir;
+  }
+
   /** A temp dir with the first five files (up to and including the expand). */
   async function expandDir() {
     const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
@@ -229,7 +240,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(6);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(7);
         expect(
           (
             await query(
@@ -376,13 +387,13 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     });
 
     it("empty DB passes with and without owner; an ai_settings row with null user_id is ignored", async () => {
-      await run(realDir);
+      await run(await contractDir());
       expect(await contractApplied()).toBe(true);
       await db.drop();
       db = await createTestDb();
       await run(await expandDir());
       await query(db.url, "insert into ai_settings (provider, model) values ('claude', 'm')");
-      await expect(run(realDir, { ownerSub: OWNER })).resolves.toBeUndefined();
+      await expect(run(await contractDir(), { ownerSub: OWNER })).resolves.toBeUndefined();
       expect(await notNull()).toEqual(["NO", "NO", "NO", "NO"]);
     });
 
@@ -391,6 +402,93 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       expect(sql).toContain("server_version_num");
       expect(sql).toContain("150000");
       expect(sql).toContain("'PostgreSQL 15 or newer is required'");
+    });
+  });
+
+  describe("ai_settings per user (T-019.3)", () => {
+    const perUserApplied = async () => (await versions()).includes("20261114180000");
+    const aiColumns = async () =>
+      (
+        await query(
+          db.url,
+          "select column_name from information_schema.columns where table_name = 'ai_settings' order by column_name",
+        )
+      ).map((r) => r.column_name as string);
+    const pkColumns = async () =>
+      (
+        await query(
+          db.url,
+          "select a.attname from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey) where i.indrelid = 'ai_settings'::regclass and i.indisprimary",
+        )
+      ).map((r) => r.attname as string);
+    const legacyRow = (user: string | null) =>
+      query(
+        db.url,
+        `insert into ai_settings (user_id, provider, model, key_ciphertext, key_hint, key_updated_at)
+         values (${user ? `'${user}'` : "null"}, 'claude', 'claude-haiku-5-5', 'v1:AAAA', 'cdef', now())`,
+      );
+
+    it("legacy v1 row: owner set, key columns cleared, provider/model kept, updated_at bumped; PK is user_id", async () => {
+      await run(await contractDir());
+      await legacyRow(null);
+      const before = (await query(db.url, "select updated_at::text as t from ai_settings"))[0].t;
+      await new Promise((r) => setTimeout(r, 15));
+      await run(realDir, { ownerSub: OWNER });
+      const rows = await query(
+        db.url,
+        "select user_id, provider, model, key_ciphertext, key_hint, key_updated_at, updated_at::text as t from ai_settings",
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        user_id: OWNER,
+        provider: "claude",
+        model: "claude-haiku-5-5",
+        key_ciphertext: null,
+        key_hint: null,
+        key_updated_at: null,
+      });
+      expect(rows[0].t).not.toBe(before);
+      expect(await pkColumns()).toEqual(["user_id"]);
+      expect(await aiColumns()).not.toContain("id");
+    });
+
+    it("a row already owned by the owner keeps its owner and is cleared", async () => {
+      await run(await contractDir());
+      await legacyRow(OWNER);
+      await run(realDir, { ownerSub: OWNER });
+      expect(await query(db.url, "select user_id, key_ciphertext from ai_settings")).toEqual([
+        { user_id: OWNER, key_ciphertext: null },
+      ]);
+    });
+
+    it("a row and no owner -> fails with a constant message; id column still there", async () => {
+      await run(await contractDir());
+      await legacyRow(null);
+      const err = await run(realDir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/rows exist but TUDO_OWNER_SUB is not set/);
+      expect(await perUserApplied()).toBe(false);
+      expect(await aiColumns()).toContain("id");
+    });
+
+    it("a row owned by someone else -> 'existing owner differs'; no uuid in the message", async () => {
+      await run(await contractDir());
+      await legacyRow(OWNER_B);
+      const err = await run(realDir, { ownerSub: OWNER }).catch((e) => e);
+      expect(err.message).toMatch(/existing owner differs from TUDO_OWNER_SUB/);
+      expect(err.message).not.toContain(OWNER);
+      expect(err.message).not.toContain(OWNER_B);
+      expect(await perUserApplied()).toBe(false);
+    });
+
+    it("an empty table passes with and without owner", async () => {
+      await run(realDir);
+      expect(await perUserApplied()).toBe(true);
+      await db.drop();
+      db = await createTestDb();
+      await run(realDir, { ownerSub: OWNER });
+      expect(await perUserApplied()).toBe(true);
+      expect(await pkColumns()).toEqual(["user_id"]);
     });
   });
 

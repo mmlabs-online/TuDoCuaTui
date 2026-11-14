@@ -5,6 +5,7 @@ import { createAiStore } from "./ai/store.js";
 import { createLimiter } from "./ai/rateLimit.js";
 import { handleApi } from "./api.js";
 import { ping } from "./db.js";
+import { createInFlight } from "./inflight.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
 
@@ -32,6 +33,8 @@ export function createApp({
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
     limiter: createLimiter({ now }),
+    // Tag-photo calls in flight: 1 per user, 2 in total (this app instance).
+    tagSlots: createInFlight({ perUser: 1, total: 2 }),
     fetch: ai.fetch ?? globalThis.fetch,
   };
   return async function handler(

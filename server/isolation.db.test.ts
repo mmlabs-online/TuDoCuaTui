@@ -1,10 +1,12 @@
 // @vitest-environment node
 // Two users on one database (T-019.2): everything one user does is invisible to, and cannot change, the other's.
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
 import { createDriveClient } from "./drive.js";
@@ -263,5 +265,118 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     const bad = statements.filter((s) => !control.test(s) && !s.includes("user_id"));
     expect(statements.length).toBeGreaterThan(10);
     expect(bad).toEqual([]);
+  });
+
+  describe("ai_settings", () => {
+    const KEY_A = "sk-ant-KEYOFA-0123456789abcdef";
+    const fetched: { url: string; key: string }[] = [];
+    let aiServer: http.Server;
+    let aiBase: string;
+    const aiCall = (as: As, p: string, init: RequestInit = {}) =>
+      fetch(`${aiBase}${p}`, { ...init, headers: { "x-test-user": as, ...init.headers } });
+    const view = async (as: As) =>
+      ((await (await aiCall(as, "/api/ai-settings")).json()) as { settings: any }).settings;
+    const save = (as: As, body: Record<string, unknown>) =>
+      aiCall(as, "/api/ai-settings", {
+        method: "PUT",
+        headers: JSON_H,
+        body: JSON.stringify(body),
+      });
+    const test = (as: As) =>
+      aiCall(as, "/api/ai-settings/test", { method: "POST", headers: JSON_H, body: "{}" });
+    const tag = (as: As) =>
+      aiCall(as, "/api/ai/tag-photo", {
+        method: "POST",
+        headers: { "Content-Type": "image/jpeg" },
+        body: JPEG,
+      });
+    const codeOf = async (r: Response) => ((await r.json()) as any).error.code;
+    const base_ = { provider: "claude", model: "claude-haiku-5-5" };
+
+    beforeAll(async () => {
+      const kek = await importKek(randomBytes(32).toString("base64"));
+      const fakeFetch = (async (url: string, init: RequestInit) => {
+        fetched.push({ url, key: (init.headers as Record<string, string>)["x-api-key"] });
+        return url.endsWith("/messages")
+          ? new Response(
+              JSON.stringify({
+                stop_reason: "tool_use",
+                content: [{ type: "tool_use", name: "tag_item", input: { name: "x" } }],
+              }),
+            )
+          : new Response("{}");
+      }) as unknown as typeof globalThis.fetch;
+      aiServer = http.createServer(
+        createApp({
+          pool: recording(pool),
+          ai: { kek, fetch: fakeFetch },
+          distDir: "/nonexistent",
+          auth: headerAuth(),
+          log: () => {},
+        }),
+      );
+      await new Promise<void>((r) => aiServer.listen(0, "127.0.0.1", r));
+      aiBase = `http://127.0.0.1:${(aiServer.address() as AddressInfo).port}`;
+    });
+    afterAll(async () => {
+      await new Promise((r) => aiServer?.close(r));
+    });
+    beforeEach(async () => {
+      await pool.query("truncate ai_settings");
+      fetched.length = 0;
+      statements = [];
+    });
+
+    it("get, put and delete are independent per user", async () => {
+      expect((await save("a", { ...base_, apiKey: KEY_A })).status).toBe(200);
+      expect(await view("b")).toBeNull();
+      expect((await save("b", base_)).status).toBe(200);
+      expect(await view("b")).toMatchObject({ hasKey: false });
+      expect(await view("a")).toMatchObject({ hasKey: true });
+      expect((await aiCall("b", "/api/ai-settings/key", { method: "DELETE" })).status).toBe(200);
+      expect(await view("a")).toMatchObject({ hasKey: true });
+      expect((await aiCall("a", "/api/ai-settings/key", { method: "DELETE" })).status).toBe(200);
+      expect(await view("a")).toMatchObject({ hasKey: false });
+      expect(await view("b")).toMatchObject({ provider: "claude", hasKey: false });
+    });
+
+    it("B's /test and tag-photo never use A's key: 409 not_configured, no fetch", async () => {
+      await save("a", { ...base_, apiKey: KEY_A });
+      const bt = await test("b");
+      expect([bt.status, await codeOf(bt)]).toEqual([409, "not_configured"]);
+      const bg = await tag("b");
+      expect([bg.status, await codeOf(bg)]).toEqual([409, "not_configured"]);
+      expect(fetched).toEqual([]);
+      expect((await test("a")).status).toBe(200);
+      expect(fetched).toHaveLength(1);
+      expect(fetched[0].key).toBe(KEY_A);
+    });
+
+    it("row copy: A's ciphertext in B's row -> 409 key_unreadable, no fetch", async () => {
+      await save("a", { ...base_, apiKey: KEY_A });
+      await save("b", base_);
+      await pool.query(
+        `update ai_settings b set key_ciphertext = a.key_ciphertext, key_hint = a.key_hint
+         from ai_settings a where a.user_id = $1 and b.user_id = $2`,
+        [OWNER_A, OWNER_B],
+      );
+      const bt = await test("b");
+      expect([bt.status, await codeOf(bt)]).toEqual([409, "key_unreadable"]);
+      const bg = await tag("b");
+      expect([bg.status, await codeOf(bg)]).toEqual([409, "key_unreadable"]);
+      expect(fetched).toEqual([]);
+    });
+
+    it("every statement of the AI routes mentions user_id", async () => {
+      await save("a", { ...base_, apiKey: KEY_A });
+      await view("a");
+      await test("a");
+      await tag("a");
+      await aiCall("a", "/api/ai-settings/key", { method: "DELETE" });
+      const control = /^\s*(begin|commit|rollback)\s*$/i;
+      const bad = statements.filter((q) => !control.test(q) && !q.includes("user_id"));
+      expect(statements.length).toBeGreaterThan(4);
+      expect(bad).toEqual([]);
+    });
   });
 });

@@ -73,9 +73,10 @@ export async function handleApi(
     return sendError(res, 403, "forbidden_origin");
   }
   if (m.route.startsWith("/api/ai-settings")) {
-    return await handleAiSettings(req, res, { route: m.route, ai, id, log });
+    return await handleAiSettings(req, res, { route: m.route, ai, userId, id, log });
   }
-  if (m.route === "/api/ai/tag-photo") return await handleTagPhoto(req, res, { ai, id, log });
+  if (m.route === "/api/ai/tag-photo")
+    return await handleTagPhoto(req, res, { ai, userId, id, log });
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });
