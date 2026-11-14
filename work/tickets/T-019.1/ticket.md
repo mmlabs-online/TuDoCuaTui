@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-14T15:26:52Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/48 |
 
 ## Goal
 Every existing row gets an owner (`user_id` = Ming's mmlabs `sub`) without breaking the running code.
@@ -50,3 +50,8 @@ proposal* → T-019.1). Decisions D31–D34. Ming items in the plan are numbered
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-14 — claude — DONE
+- Done: plan approval waived by Ming (no new High-tier decision); attempt 1 PASS; security review no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/48.
+- In progress / next: Ming merges PR #48. No production release containing it until M-17 + M-18 (D37). Next slice: T-019.2.
+- Gotchas: T-019.2's release needs `TUDO_OWNER_SUB` again (straggler rows); single-owner assertion noted on T-019.2.
