@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-14T09:01:58Z |
 | PR | — |
 
 ## Goal
@@ -41,7 +41,7 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - [ ] The key never leaves the server; nothing secret in logs (R3).
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-14: **Plan approved** (Ming, in session: "duyệt F-701"; A1–A16 and C1–C9 as in plan.md). Gemini split to F-701.1 (A1).
 - 2026-11-10: providers Claude + Gemini; key + provider + model chosen in Settings; key stored server-side,
   encrypted (option chosen over browser storage); AI only in Supabase mode.
 - 2026-11-10: function renamed to `tudo-tag-item-photo` (T-009 plan approval, A4; D22 naming), to avoid colliding with stoktok's functions on the shared project.
