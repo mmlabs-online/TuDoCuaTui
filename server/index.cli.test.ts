@@ -65,6 +65,67 @@ describe("entry point", () => {
     }
   });
 
+  it("TUDO_AUTH_MODE and MM_IDENTITY_ISSUER misconfiguration -> exit 2, values never printed", () => {
+    const id = { TUDO_AUTH_MODE: "identity" };
+    const cases: Array<[Record<string, string>, string, string?]> = [
+      [{ TUDO_AUTH_MODE: "bogus", TUDO_ACCESS_DISABLED: "1" }, "TUDO_AUTH_MODE", "bogus"],
+      [id, "MM_IDENTITY_ISSUER"],
+      [
+        { ...id, NODE_ENV: "production", MM_IDENTITY_ISSUER: "https://evil.example" },
+        "MM_IDENTITY_ISSUER",
+        "evil.example",
+      ],
+      [
+        { ...id, NODE_ENV: "production", MM_IDENTITY_ISSUER: "http://api.mmlabs.online" },
+        "MM_IDENTITY_ISSUER",
+      ],
+      [
+        { ...id, MM_IDENTITY_ISSUER: "https://api.mmlabs.online", TUDO_ACCESS_DISABLED: "1" },
+        "TUDO_ACCESS_DISABLED",
+      ],
+    ];
+    for (const [env, msg, secret] of cases) {
+      const r = run(env);
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain(msg);
+      if (secret) expect(r.stdout + r.stderr).not.toContain(secret);
+    }
+  });
+
+  it("production identity needs no CF_ACCESS_* or owner: starts, /healthz auth identity, /api 401", async () => {
+    const { child, port, output } = await start({
+      NODE_ENV: "production",
+      TUDO_AUTH_MODE: "identity",
+      MM_IDENTITY_ISSUER: "https://api.mmlabs.online",
+      TUDO_OWNER_SUB: "",
+    });
+    try {
+      expect(output()).toContain("auth: identity");
+      expect(await (await fetch(`http://127.0.0.1:${port}/healthz`)).json()).toEqual({
+        status: "ok",
+        auth: "identity",
+      });
+      expect((await fetch(`http://127.0.0.1:${port}/api/items`)).status).toBe(401);
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
+  it("identity with a valid AI_KEK: logs 'ai configured'", async () => {
+    const kek = randomBytes(32).toString("base64");
+    const { child, output } = await start({
+      TUDO_AUTH_MODE: "identity",
+      MM_IDENTITY_ISSUER: "https://api.mmlabs.online",
+      AI_KEK: kek,
+    });
+    try {
+      expect(output()).toContain("ai configured");
+      expect(output()).not.toContain(kek);
+    } finally {
+      child.kill("SIGTERM");
+    }
+  });
+
   it("TUDO_ACCESS_DISABLED=1 is refused in production (exit 2)", () => {
     const r = run({ NODE_ENV: "production", TUDO_ACCESS_DISABLED: "1" });
     expect(r.status).toBe(2);

@@ -15,7 +15,8 @@ import { serveStatic } from "./static.js";
  *   distDir: string,
  *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, fetch?: typeof globalThis.fetch } | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
- *   auth: import("./access.js").Auth,
+ *   auth: import("./auth.js").Auth,
+ *   authMode?: string,
  *   log: (entry: Record<string, unknown>) => void,
  *   now?: () => number,
  * }} deps
@@ -26,6 +27,7 @@ export function createApp({
   ai = null,
   drive = null,
   auth,
+  authMode = "access",
   log,
   now = () => Date.now(),
 }) {
@@ -66,7 +68,7 @@ export function createApp({
       if (pathname === "/healthz" || pathname === "/readyz") {
         route = pathname;
         if (!isRead) return sendError(res, 405, "method_not_allowed", {}, { Allow: "GET, HEAD" });
-        if (pathname === "/healthz") return sendJson(res, 200, { status: "ok" });
+        if (pathname === "/healthz") return sendJson(res, 200, { status: "ok", auth: authMode });
         try {
           if (!pool) throw new Error("no pool");
           await ping(pool);
@@ -81,7 +83,7 @@ export function createApp({
         route = "/api";
         const result = await auth.authenticate(req);
         if (!result.ok) {
-          log({ event: "access_denied", code: result.code });
+          log({ event: "auth_denied", code: result.code });
           return sendError(res, 401, "unauthorized");
         }
         return await handleApi(req, res, {

@@ -4,18 +4,14 @@
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  AccessConfigError,
-  createAccessAuth,
-  createAccessVerifier,
-  createFixedAuth,
-  loadAccessConfig,
-} from "./access.js";
+import { AccessConfigError } from "./access.js";
 import { AiConfigError, initAi } from "./ai/config.js";
 import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
+import { AuthConfigError, authLabel, createAuth, loadAuthConfig, requestAuth } from "./auth.js";
 import { createPool } from "./db.js";
 import { createDriveClient, DriveConfigError, loadDriveConfig } from "./drive.js";
+import { IdentityConfigError } from "./identity.js";
 
 /** @param {Record<string, unknown>} entry */
 const log = (entry) => console.log(JSON.stringify(entry));
@@ -30,25 +26,23 @@ const fatal = (err) => {
 process.on("unhandledRejection", fatal);
 process.on("uncaughtException", fatal);
 
-let accessConfig;
+let authConfig;
 try {
-  accessConfig = loadAccessConfig(process.env);
+  authConfig = loadAuthConfig(process.env);
 } catch (err) {
-  console.error(err instanceof AccessConfigError ? `config error: ${err.message}` : "config error");
+  const known =
+    err instanceof AuthConfigError ||
+    err instanceof AccessConfigError ||
+    err instanceof IdentityConfigError;
+  console.error(known ? `config error: ${err.message}` : "config error");
   process.exit(2);
 }
-
-/** @type {import("./access.js").Auth} */
-let auth;
-if (accessConfig.mode === "on") {
-  auth = createAccessAuth({
-    verifier: createAccessVerifier(accessConfig),
-    ownerSub: accessConfig.ownerSub,
-  });
-} else {
-  auth = createFixedAuth(accessConfig.ownerSub);
-  console.log("access check OFF (dev)");
-}
+const auth = createAuth(authConfig);
+console.log(
+  authConfig.mode === "access" && authConfig.access.mode === "off"
+    ? "auth: access (dev, off)"
+    : `auth: ${authConfig.mode}`,
+);
 
 // Drive is not part of /readyz: a Drive outage must not take the whole app out of rotation.
 /** @type {ReturnType<typeof createDriveClient> | null} */
@@ -65,7 +59,7 @@ try {
 /** @type {{ kek: import("./ai/crypto.js").AiKek } | null} */
 let ai = null;
 try {
-  const r = await initAi(process.env, { requestAuth: accessConfig.mode === "on", importKek });
+  const r = await initAi(process.env, { requestAuth: requestAuth(authConfig), importKek });
   ai = r.ai;
   console.log(r.line);
 } catch (err) {
@@ -80,7 +74,9 @@ if (!pool) console.log("database not configured");
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 const port = Number(process.env.PORT ?? 3000);
 
-const server = http.createServer(createApp({ pool, distDir, ai, drive, auth, log }));
+const server = http.createServer(
+  createApp({ pool, distDir, ai, drive, auth, authMode: authLabel(authConfig), log }),
+);
 server.listen(port, "0.0.0.0", () => {
   const addr = server.address();
   console.log(`listening on :${typeof addr === "object" && addr ? addr.port : port}`);

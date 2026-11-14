@@ -5,23 +5,31 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | Variable | Meaning |
 |---|---|
 | `DATABASE_URL` | `postgres://tudocuatui:<pw>@postgres:5432/tudocuatui` (D24). Unset: starts without a DB, `/readyz` is 503. |
+| `TUDO_AUTH_MODE` | `access` (default when unset) or `identity`; anything else, including an empty value, exits 2. `identity` verifies mmlabs Identity access tokens (see Identity tokens) and ignores `CF_ACCESS_*` and `TUDO_OWNER_SUB`; it cannot be combined with `TUDO_ACCESS_DISABLED`. |
+| `MM_IDENTITY_ISSUER` | Identity mode only (not secret). Exactly `https://<host>`; in production it must equal `https://api.mmlabs.online`. Outside production `http://localhost:<port>` is also accepted. Missing or malformed exits 2. |
 | `CF_ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com` (not secret) |
 | `CF_ACCESS_AUD` | Access application AUD tag (not secret) |
-| `TUDO_OWNER_SUB` | The owner's Identity `sub` (a UUID; not secret; never printed). Required in every mode; every request runs as this user. Same value for the app and `migrate`; a malformed or missing value exits 2. |
+| `TUDO_OWNER_SUB` | The owner's Identity `sub` (a UUID; not secret; never printed). Access mode only (and `migrate`); every request runs as this user. Required in access mode. Same value for the app and `migrate`; a malformed or missing value exits 2. |
 | `TUDO_ACCESS_DISABLED` | `1` turns the `/api` JWT check off. Dev only; refused when `NODE_ENV=production`. |
 | `GOOGLE_CLIENT_ID` | OAuth client id of "TuDoCuaTui" (ends `.apps.googleusercontent.com`). Photos (D27). |
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
 | `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token (scope `drive.file`). Secret: runtime env only. |
 | `DRIVE_FOLDER_ID` | Id of the `TuDoCuaTui` Drive folder the connect script created |
-| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset, or request auth off (`access check OFF`): AI routes answer 503; malformed: exit 2. Removed from `process.env` after startup. |
-| `NODE_ENV` | With `production`, missing `CF_ACCESS_*` exits 2. |
+| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset, or request auth off (`auth: access (dev, off)`): AI routes answer 503; malformed: exit 2. Removed from `process.env` after startup. |
+| `NODE_ENV` | With `production`, access mode without `CF_ACCESS_*` exits 2 and identity mode requires the production issuer. |
 | `PORT` | Default 3000 |
 
-Routes: `/healthz` (liveness), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT required; endpoints below), everything else is the SPA.
+Routes: `/healthz` (liveness, `{status:"ok", auth:"access"|"identity"}`), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT or Identity bearer token, per `TUDO_AUTH_MODE`; endpoints below), everything else is the SPA.
 
 In production the four Google values come from `deploy-tudocuatui` (repository secrets of `mmlabs-online/deployment`, D28), see M-15 in `work/ming-todo.md`.
 
 The four Google variables are all-or-nothing: none set means photos are off (`drive not configured`, the server still starts); a partial or malformed set exits 2 with a message that names variables, never values. An empty string counts as unset.
+
+## Identity tokens (T-019.5)
+
+With `TUDO_AUTH_MODE=identity`, `/api` needs `Authorization: Bearer <access token>` (never a cookie, query or other header). The verifier follows `consumers.md` of org-admin-api: ES256 only, keys from `<issuer>/.well-known/jwks.json` (cache 300 s, unknown `kid` refetch at most once per 60 s, 5 s timeout, `User-Agent: tudocuatui-server`), exact `iss`, `aud` = `tudocuatui`, `typ` = `at+jwt`, `exp`/`iat`/`sub`/`jti` required, 30 s leeway, tokens older than 15 min rejected, `email_verified` true, `sub` a canonical UUID, and at least one `tudocuatui:`-prefixed entry in `roles` (removing the role is the ban lever). The server must be able to reach Identity over HTTPS (egress). Fail closed: any failure, including an unreachable JWKS, answers 401 `unauthorized`.
+
+Denied requests log `{event:"auth_denied", code}` only, with `code` one of `missing`, `too_large`, `malformed`, `alg`, `signature`, `expired`, `claim_<iss|aud|typ|iat|nbf|exp|sub|jti>`, `unknown_kid`, `jwks_unavailable`, `email_unverified`, `sub_invalid`, `no_role`, `invalid`. Tokens, claims and error messages are never logged. Authentication runs no database query. A revoked user or removed role keeps access until the token expires (up to 15 minutes, accepted; ADR-0005).
 
 ## Google Drive (T-005.1)
 

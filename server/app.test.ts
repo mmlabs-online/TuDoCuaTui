@@ -5,8 +5,10 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
+import { exportJWK, generateKeyPair, SignJWT, createLocalJWKSet } from "jose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { createIdentityAuth, createIdentityVerifier } from "./identity.js";
 import { fixedAuth, OWNER_A } from "./test/auth.js";
 import { fakePool } from "./test/fake-pool.js";
 
@@ -42,11 +44,11 @@ async function start(opts: {
 }
 
 describe("app", () => {
-  it('/healthz -> 200 {status:"ok"} without a DB, no-store', async () => {
+  it('/healthz -> 200 {status:"ok",auth} without a DB, no-store', async () => {
     const base = await start({});
     const res = await fetch(base + "/healthz");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok" });
+    expect(await res.json()).toEqual({ status: "ok", auth: "access" });
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -225,5 +227,114 @@ describe("app", () => {
     const body = await res.text();
     expect(body).toContain("internal");
     expect(body).not.toContain("hunter2");
+  });
+});
+
+describe("identity auth", () => {
+  const ISS = "https://api.mmlabs.online";
+  const SUB = "44444444-4444-4444-8444-444444444444";
+
+  async function startIdentity(pool: Parameters<typeof createApp>[0]["pool"] = null) {
+    const { publicKey, privateKey } = await generateKeyPair("ES256");
+    const jwk = { ...(await exportJWK(publicKey)), kid: "k1", alg: "ES256" };
+    const verifier = createIdentityVerifier({
+      issuer: ISS,
+      jwks: createLocalJWKSet({ keys: [jwk] }),
+    });
+    const server = http.createServer(
+      createApp({
+        pool,
+        distDir: dir,
+        auth: createIdentityAuth({ verifier }),
+        authMode: "identity",
+        log: (e) => logs.push(e),
+      }),
+    );
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    servers.push(server);
+    const token = (claims: Record<string, unknown> = {}) =>
+      new SignJWT({
+        iss: ISS,
+        aud: "tudocuatui",
+        sub: SUB,
+        jti: "jti-xyz-123",
+        email: "me@example.com",
+        email_verified: true,
+        roles: ["tudocuatui:member"],
+        ...claims,
+      })
+        .setProtectedHeader({ alg: "ES256", kid: "k1", typ: "at+jwt" })
+        .setIssuedAt()
+        .setExpirationTime("10m")
+        .sign(privateKey);
+    return { base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, token };
+  }
+
+  it('/healthz -> {status:"ok",auth:"identity"}', async () => {
+    const { base } = await startIdentity();
+    expect(await (await fetch(base + "/healthz")).json()).toEqual({
+      status: "ok",
+      auth: "identity",
+    });
+  });
+
+  it("every /api route without a bearer, or with a bogus one -> 401, no pool call", async () => {
+    const calls: string[] = [];
+    const pool = {
+      query: async () => calls.push("query"),
+      connect: async () => calls.push("connect"),
+    };
+    const { base } = await startIdentity(pool);
+    const id = "11111111-1111-4111-8111-111111111111";
+    const routes: Array<[string, string]> = [
+      ["GET", "/api/items"],
+      ["GET", "/api/locations"],
+      ["PUT", `/api/items/${id}`],
+      ["DELETE", `/api/items/${id}`],
+      ["POST", `/api/items/${id}/wear`],
+      ["PUT", `/api/items/${id}/photo`],
+      ["DELETE", `/api/items/${id}/photo`],
+      ["GET", `/api/photos/${id}`],
+      ["GET", "/api/ai-settings"],
+      ["PUT", "/api/ai-settings"],
+      ["POST", "/api/ai/tag-photo"],
+    ];
+    for (const [method, p] of routes) {
+      for (const headers of [{} as Record<string, string>, { Authorization: "Bearer x.y.z" }]) {
+        const res = await fetch(base + p, { method, headers });
+        expect(res.status, `${method} ${p}`).toBe(401);
+        expect(await res.json()).toEqual({ error: { code: "unauthorized" } });
+      }
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("a valid token reaches the API as the canonical sub; logs hold no token, sub, email or jti", async () => {
+    const users: unknown[] = [];
+    const pool = fakePool({
+      query: async (sql: string, params?: unknown[]) => {
+        users.push(params);
+        return { rows: [], rowCount: 0 };
+      },
+    });
+    const { base, token } = await startIdentity(pool);
+    logs.length = 0;
+    const t = await token();
+    const res = await fetch(base + "/api/locations", { headers: { Authorization: `Bearer ${t}` } });
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(users)).toContain(SUB);
+    await new Promise((r) => setTimeout(r, 20));
+    for (const bad of [await token({ aud: "other" }), "a.b.c"]) {
+      await fetch(base + "/api/items", { headers: { Authorization: `Bearer ${bad}` } });
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    const denied = logs.filter((l) => l.event === "auth_denied");
+    expect(denied).toEqual([
+      { event: "auth_denied", code: "claim_aud" },
+      { event: "auth_denied", code: "malformed" },
+    ]);
+    const all = JSON.stringify(logs);
+    for (const secret of [t, SUB, "me@example.com", "jti-xyz-123"])
+      expect(all).not.toContain(secret);
   });
 });
