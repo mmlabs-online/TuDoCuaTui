@@ -45,4 +45,13 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 
 - 2026-11-12: 'Supabase mode only' becomes 'API mode only' (D30).
 
+- 2026-11-14 (F-701): the endpoint is `POST /api/ai/tag-photo`: raw JPEG body (`Content-Type: image/jpeg`, at most
+  2 MB), answer `{ suggestion: { name, category, colors, seasons, material, brand, tags } }` with DB ids (`null`/`[]`
+  when unknown; map with `*_FROM_DB`; fill empty fields only). `resizeImage` before posting, debounce the button, show
+  a disclosure line near it (e.g. "Ảnh sẽ được gửi tới Claude bằng key của bạn"), and map `not_configured` to the
+  Settings link. Codes: `not_configured`, `invalid_key`, `key_forbidden`, `invalid_model`, `key_unreadable`,
+  `rate_limited` (100/24 h), `provider_rate_limited`, `provider_unavailable`, `provider_bad_response`, `invalid_photo`,
+  `unsupported_media_type`, `payload_too_large`, `request_timeout`, `ai_busy`, `server_misconfigured`, `db_unavailable`.
+  Claude only until F-701.1.
+
 ## Handoff

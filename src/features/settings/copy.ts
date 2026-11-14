@@ -54,6 +54,10 @@ export const AI_ERRORS: Record<AiErrorCode, string> = {
   rate_limited: "Thao tác quá nhiều lần, thử lại sau ít phút",
   server_misconfigured: "AI chưa được cấu hình trên máy chủ",
   internal: "Lỗi máy chủ",
+  invalid_photo: "Ảnh không hợp lệ — chỉ nhận ảnh JPEG",
+  request_timeout: "Tải ảnh lên quá lâu, thử lại",
+  provider_bad_response: "AI trả về kết quả không đọc được, thử lại",
+  ai_busy: "AI đang bận, thử lại sau vài giây",
   not_available: "Tính năng AI chỉ có khi dùng máy chủ",
   network: "Không kết nối được máy chủ — kiểm tra mạng hoặc tải lại trang để đăng nhập lại",
 };

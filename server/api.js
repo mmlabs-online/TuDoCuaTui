@@ -1,6 +1,7 @@
 // @ts-check
 // /api router. Called by app.js only after the access check, with the raw pathname (never decoded).
 import { handleAiSettings } from "./ai/routes.js";
+import { handleTagPhoto } from "./ai/tagPhoto.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
@@ -21,6 +22,9 @@ function match(parts) {
   }
   if (parts.length === 4 && a === "ai-settings" && b === "key") {
     return { route: "/api/ai-settings/key", allow: "DELETE" };
+  }
+  if (parts.length === 4 && a === "ai" && b === "tag-photo") {
+    return { route: "/api/ai/tag-photo", allow: "POST" };
   }
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
@@ -70,6 +74,7 @@ export async function handleApi(
   if (m.route.startsWith("/api/ai-settings")) {
     return await handleAiSettings(req, res, { route: m.route, ai, id, log });
   }
+  if (m.route === "/api/ai/tag-photo") return await handleTagPhoto(req, res, { ai, id, log });
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });

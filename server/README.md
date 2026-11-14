@@ -93,4 +93,8 @@ Scheduling it is a deployment-repo follow-up.
 
 Errors use the codes in `AI_ERROR_STATUS`: `invalid_provider`, `invalid_model`, `invalid_key_format`, `key_required`, `bad_request`, `invalid_json`, `unsupported_media_type`, `payload_too_large` (4096 bytes), `forbidden_origin`, `not_configured` (no saved key), `key_unreadable` (ciphertext does not open under this `AI_KEK`), `invalid_key`, `key_forbidden`, `model_unavailable`, `provider_rate_limited`, `provider_unavailable`, `rate_limited` (30 saves/hour and 20 tests/hour, in memory), `db_unavailable`, `server_misconfigured` (no `AI_KEK`: every AI route), `internal`.
 
+### Photo tagging (F-701)
+
+`POST /api/ai/tag-photo` takes a raw JPEG body (`Content-Type: image/jpeg`, at most 2 MB, magic bytes checked, 30 s body deadline) and answers `{ suggestion: { name, category, colors, seasons, material, brand, tags } }`. Values are DB ids (`category` in `CATEGORIES`, colours from `COLOR_IDS`, `SEASONS`); anything unknown becomes `null` or `[]`, never `"other"`. It uses the provider, model and key saved in `ai_settings` (Claude only for now; a Gemini row answers 400 `invalid_model`). The photo is sent to `api.anthropic.com` under the user's own key (forced tool use, `max_tokens` 1024, 45 s timeout, no retries) and is not stored or logged. Limits: 100 calls per 24 h (in memory, global until T-019.3) and 2 in flight. New codes: `invalid_photo` (400), `request_timeout` (408), `provider_bad_response` (502), `ai_busy` (503, `Retry-After: 5`). Logs: `ai_tag` with `{id, code, ms}` only.
+
 `server/ai/*.js` mirrors `src/shared/ai`; `server/ai/parity.test.ts` fails if they drift. The `/test` endpoint comes with T-018.2.

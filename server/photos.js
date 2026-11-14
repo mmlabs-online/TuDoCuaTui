@@ -10,7 +10,7 @@ import { sendError, sendJson } from "./http.js";
 import { getItem } from "./items.js";
 import { isUuid } from "./validate.js";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+export const MAX_BYTES = 2 * 1024 * 1024;
 const BODY_DEADLINE_MS = 30_000;
 const MAX_IN_FLIGHT = 3;
 let inFlight = 0;
@@ -22,7 +22,7 @@ let inFlight = 0;
  * @param {import("node:http").IncomingMessage} req @param {import("node:http").ServerResponse} res
  * @param {number} status @param {string} code @param {Record<string, string>} [headers]
  */
-function rejectUnread(req, res, status, code, headers = {}) {
+export function rejectUnread(req, res, status, code, headers = {}) {
   res.once("finish", () => req.socket.destroy());
   return sendError(res, status, code, {}, { Connection: "close", ...headers });
 }
@@ -31,7 +31,7 @@ function rejectUnread(req, res, status, code, headers = {}) {
  * @param {import("node:http").IncomingMessage} req
  * @returns {Promise<{ ok: true, bytes: Buffer } | { ok: false, status: number, code: string }>}
  */
-function readBody(req) {
+export function readBody(req) {
   const declared = req.headers["content-length"];
   return new Promise((resolve) => {
     /** @type {Buffer[]} */

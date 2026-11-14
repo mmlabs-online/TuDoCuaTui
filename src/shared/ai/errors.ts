@@ -24,6 +24,10 @@ export const AI_ERROR_STATUS = {
   rate_limited: 429,
   server_misconfigured: 503,
   internal: 500,
+  invalid_photo: 400,
+  request_timeout: 408,
+  provider_bad_response: 502,
+  ai_busy: 503,
 } as const;
 
 export type AiServerErrorCode = keyof typeof AI_ERROR_STATUS;

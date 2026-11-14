@@ -249,8 +249,17 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [ ] **M-22 — Remove Cloudflare Access (last step):** only after T-019.9 is released and M-21 verified: delete the
       Access application for `tudocuatui.mmlabs.online`; check incognito shows TuDo's sign-in and `/api/items` → 401.
 
+### F-701 — photo tagging
+
+- [ ] **M-23 (optional) — Real-key smoke test:** after a release containing F-701 is deployed and a Claude key is saved
+      in Settings (T-010), open the app, and in the browser console run
+      `fetch("/api/ai/tag-photo", {method:"POST", headers:{"Content-Type":"image/jpeg"}, body: <a small JPEG File from an <input type=file>>}).then(r => r.json())`.
+      Expect `{"suggestion":{...}}` with a Vietnamese `name`. This is the only check against the real Anthropic API
+      (model ids and the tool-use response shape are taken on trust). T-019.3 clears the saved key later; enter it again then.
+
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [x] (2026-11-14, approved in session) Approve plan for F-701 (branch `claude/magical-cori-2ssw8l`): work/tickets/F-701/plan.md — AI photo tagging on the Node server (`POST /api/ai/tag-photo`), Claude only, Gemini split to F-701.1; confirm A1–A16 (A1 Claude only, A2 no zod/SDK, A3 100/day, A4 four new error codes, A5 disclosure in F-702) and C1–C9
 - [x] (2026-11-13, approved in session) Approve plan for T-018.2 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-018.2/plan.md — AI key test endpoint + AI_KEK deploy wiring, seams for per-user keys (D33); confirm A1–A12 (A1 refuse AI when auth off, A3 saving a real key now means one re-entry after T-019.3) and C1–C6
 - [x] (2026-11-13, approved in session) Approve plan for T-019.11 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.11/plan.md — auth screens UI only (sign-in, sign-up, verify email), dev-only preview `/auth-preview.html`; confirm A1–A15 and the draft Vietnamese copy
 - [x] (2026-11-13, approved in session, A1–A20 defaults) Approve plan for T-019 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019/plan.md — sign in with mmlabs Identity; umbrella plan, split T-019.1–T-019.10; confirm A1–A20 (A1 two-step migration, A3 RLS now, A5 photos as blob URLs, A6 per-user AI keys, A7 quotas as follow-up, A9 interim membership via USR-02c)

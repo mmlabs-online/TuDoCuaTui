@@ -51,4 +51,9 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
   "KEK not yet deployed" rationale of T-019 plan A6 no longer holds; clearing is still correct and Ming enters his key
   again. T-019.5 must change `initAi`'s `requestAuth` to "auth mode is access or identity" (T-018.2 A1).
 
+- 2026-11-14 (F-701): F-701 added `POST /api/ai/tag-photo`. T-019.3 must also make `loadSettingsKey(ai, userId)`
+  (`server/ai/routes.js`) take the user, include `tag` in the per-user limiter and the global ceiling, keep the `tag`
+  in-flight cap global, and add a two-user isolation test (B gets `not_configured`, no fetch).
+
 ## Handoff
+- 2026-11-14 (F-701 security review F2): `loadSettingsKey` must take a **required** `userId` (throw when missing, never default to the single row); the two-user isolation test covers both `/api/ai-settings/test` and `/api/ai/tag-photo` (B → `not_configured`, no fetch); consider a per-user in-flight cap of 1 inside the global cap of 2 for tagging.

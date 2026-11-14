@@ -10,7 +10,8 @@
     "strict": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": { "@/*": ["./src/*.ts"] }
   },
   "include": ["server/**/*.js", "server/**/*.ts", "scripts/drive-connect.mjs", "scripts/*.test.ts"]
 }
