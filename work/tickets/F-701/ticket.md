@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-14T09:01:58Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/47 |
 
 ## Goal
 Given an item photo, return suggested `{name, category, colors[], seasons[], material, brand, tags[]}` restricted to
@@ -58,3 +58,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - Done: consult (software-architect) and plan.md (Status READY): `POST /api/ai/tag-photo` (raw JPEG ≤ 2 MB), Claude Messages API with forced tool use, server sanitizer, shared `loadSettingsKey`, limits 100/24 h + 2 in flight, new codes `invalid_photo`/`request_timeout`/`provider_bad_response`/`ai_busy`; superseded ticket text C1–C9; assumptions A1–A16.
 - In progress / next: Ming approves the plan. On approval, create F-701.1 (Gemini) on `main` (A1), then implement → review → PR.
 - Gotchas: hotspots with T-019.2/.3/.5/.6; `src/features/settings/copy.ts` must cover the new error codes (exhaustive table).
+
+### 2026-11-14 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴 (F1 disconnect edge case, F2 T-019.3 hazards noted, F3 hardening). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/47.
+- In progress / next: Ming reviews/merges PR #47; optional M-23 real-key smoke after M-16. F-702 can start after merge; F-701.1 (Gemini) is on the board.
+- Gotchas: hotspots with T-019.2/.3/.5; reviewer ran DB tests on local PG 16 (937/937).
