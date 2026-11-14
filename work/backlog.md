@@ -36,7 +36,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-016 | Remove Supabase from the app | MERGED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 1 | 2026-11-13 |
 | T-019 | Sign in with mmlabs Identity (api.mmlabs.online) — umbrella | IN_PROGRESS | P1 | L | architecture, security, db | T-016 | plan-approval | 0 | 2026-11-13 |
 | T-019.11 | Auth screens UI: sign-in, sign-up, verify email (not wired) | MERGED | P1 | M | ui, security | T-016 | plan-approval | 1 | 2026-11-13 |
-| T-019.1 | Ownership expand migration and owner backfill | BACKLOG | P1 | M | db, security | T-016 | plan-approval | 0 | 2026-11-13 |
+| T-019.1 | Ownership expand migration and owner backfill | PLANNING | P1 | M | db, security | T-016 | plan-approval | 0 | 2026-11-13 |
 | T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | BACKLOG | P1 | M | db, security, architecture | T-019.1 | plan-approval | 0 | 2026-11-13 |
 | T-019.3 | Per-user AI settings | BACKLOG | P1 | S | db, security | T-019.2 | plan-approval | 0 | 2026-11-13 |
 | T-019.4 | Row level security with per-request app.user_id | BACKLOG | P1 | M | db, security | T-019.2, T-019.3 | plan-approval | 0 | 2026-11-13 |
@@ -51,7 +51,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | MERGED | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-13 |
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | MERGED | P1 | M | security, architecture | T-018 | plan-approval | 1 | 2026-11-13 |
 | T-010 | Settings screen: AI provider, API key and model | MERGED | P1 | S | ui, security | T-018.2 | none | 1 | 2026-11-13 |
-| F-701 | Edge Function `tag-item-photo` using the user's AI settings | DONE | P1 | M | architecture, security | T-018.2 | plan-approval | 1 | 2026-11-14 |
+| F-701 | Edge Function `tag-item-photo` using the user's AI settings | MERGED | P1 | M | architecture, security | T-018.2 | plan-approval | 1 | 2026-11-14 |
 | F-701.1 | Gemini provider for AI photo tagging and the key test | BACKLOG | P2 | S | security, architecture | F-701 | plan-approval | 0 | 2026-11-14 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
 | T-005.1 | Connect the Node server to Google Drive | MERGED | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 1 | 2026-11-11 |
