@@ -39,6 +39,7 @@ Slice of T-019 (D31). From the T-019.3 security review F8/F9 and the T-019.2 sec
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
+- 2026-11-14 (T-019.5 security review): also decide here, before M-22 / T-019.10, **whose Google Drive holds other users' photos** — today `server/photos.js` writes every user's photos through the one configured Drive client (Ming's Drive, D27). Options: keep Ming's Drive with per-user quotas, per-user folders, or photos only for allow-listed users until a storage decision.
 - 2026-11-14: created by the orchestrator per T-019.5 plan A-T5; gates T-019.9 (and so M-22, Access removal) and T-019.10 (join UX).
 
 ## Handoff
