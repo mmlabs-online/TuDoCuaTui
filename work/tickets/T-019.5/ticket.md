@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-14T18:45:52Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/52 |
 
 ## Goal
 The Node server can verify mmlabs Identity access tokens, selected by `TUDO_AUTH_MODE` (`access` stays the production default until M-21).
@@ -50,3 +50,8 @@ proposal* → T-019.5). Decisions D31–D34. Ming items in the plan are numbered
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-14 — claude — DONE
+- Done: plan approval waived (nothing beyond the umbrella plan); attempt 1 PASS; security review no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/52. T-019.13 (abuse limits + shared Drive decision) created on `main`, gating T-019.9 and T-019.10.
+- In progress / next: Ming merges PR #52; production stays `access` until M-21. Next: T-019.6 (photos under bearer).
+- Gotchas: CI image job must confirm `check-image.sh`; role check accepts any `tudocuatui:` role.
