@@ -4,6 +4,8 @@ import * as sharedCatalog from "../../src/shared/ai/catalog.ts";
 import { AI_ERROR_STATUS as sharedStatus } from "../../src/shared/ai/errors.ts";
 import * as sharedMask from "../../src/shared/ai/mask.ts";
 import * as sharedValidate from "../../src/shared/ai/validate.ts";
+import { CATEGORY_TO_DB, COLOR_TO_DB, SEASON_TO_DB } from "../../src/data/mappers.ts";
+import { CATEGORIES, COLOR_IDS, SEASONS } from "../validate.js";
 import * as catalog from "./catalog.js";
 import * as mask from "./mask.js";
 import * as validate from "./validate.js";
@@ -65,5 +67,11 @@ describe("server/ai mirrors src/shared/ai", () => {
     }
     expect(mask.maskHint(null)).toBe(sharedMask.maskHint(null));
     expect(mask.maskHint("abcd")).toBe(sharedMask.maskHint("abcd"));
+  });
+
+  it("server vocabulary equals src/data/mappers.ts", () => {
+    expect(COLOR_IDS).toEqual(Object.values(COLOR_TO_DB));
+    expect(CATEGORIES).toEqual(Object.values(CATEGORY_TO_DB));
+    expect(SEASONS).toEqual(Object.values(SEASON_TO_DB));
   });
 });

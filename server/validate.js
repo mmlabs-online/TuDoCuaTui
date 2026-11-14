@@ -19,6 +19,25 @@ export const CATEGORIES = [
 export const DEPRECATED_CATEGORIES = ["bag", "sport", "home"];
 export const STATUSES = ["active", "stored", "laundry", "lent", "out"];
 export const SEASONS = ["spring", "summer", "autumn", "winter"];
+// Copy of src/data/mappers.ts COLOR_TO_DB values; server/ai/parity.test.ts guards drift.
+export const COLOR_IDS = [
+  "den",
+  "trang",
+  "xam",
+  "kem",
+  "be",
+  "nau",
+  "do",
+  "hong",
+  "cam",
+  "vang",
+  "xanhla",
+  "reu",
+  "xanhduong",
+  "navy",
+  "tim",
+  "hoatiet",
+];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_MS = 86400000;
