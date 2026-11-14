@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/50 |
 
 ## Goal
 Each user has their own AI provider settings and encrypted key (D33).
@@ -42,6 +42,7 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.3 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14: **Plan approved** (Ming, in session: "duyệt T-019.3"; A1–A18 as in plan.md, one ticket).
 - 2026-11-14 (T-019.2 plan A17, recommendation): T-019.3 should be merged before identity mode (see T-019.5 note); add `ai_settings` to the T-019.2 SQL guard's table list.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
@@ -58,3 +59,13 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 
 ## Handoff
 - 2026-11-14 (F-701 security review F2): `loadSettingsKey` must take a **required** `userId` (throw when missing, never default to the single row); the two-user isolation test covers both `/api/ai-settings/test` and `/api/ai/tag-photo` (B → `not_configured`, no fetch); consider a per-user in-flight cap of 1 inside the global cap of 2 for tagging.
+
+### 2026-11-14 — claude — BLOCKED
+- Done: consult (database-optimizer) and plan.md (Status READY): migration `20261114180000` (owner check + backfill, clear v1 key, PK `user_id`), AAD v2 bound to `sub` with v1 rejected, store/`loadSettingsKey` require `userId`, per-user limiter + global ceilings, tag in-flight 1/user 2 total, guard + two-user AI tests; A1–A18.
+- In progress / next: Ming approves the plan, then implement → review → PR.
+- Gotchas: ~650 lines (fallback split 3a/3b); not image-rollback-safe; the saved AI key is cleared — Ming re-enters it after the release (added to M-18).
+
+### 2026-11-14 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴 (F8/F9 forwarded to T-019.5). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/50.
+- In progress / next: Ming merges PR #50; releases with T-019.1/T-019.2 (M-17, M-18, M-24); Ming re-enters the AI key after release.
+- Gotchas: not image-rollback-safe; cleared key cannot be restored.

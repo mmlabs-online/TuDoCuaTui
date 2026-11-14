@@ -18,7 +18,7 @@ import {
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(kind: "save" | "test" | "tag"): boolean }, fetch: typeof globalThis.fetch }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {
@@ -37,16 +37,18 @@ function toView(row) {
  * Reads the saved settings and opens the key. May throw DB errors; callers keep their try/catch.
  * Provider and model are checked before decryption: no plaintext for a request that cannot go out.
  * @param {AiContext & { store: AiStore }} ai
+ * @param {string} userId required: never defaults to "the" row
  * @returns {Promise<{ ok: true, provider: "claude", model: string, key: string } | { ok: false, status: number, code: string }>}
  */
-export async function loadSettingsKey(ai) {
-  const secret = await ai.store.getSecret();
+export async function loadSettingsKey(ai, userId) {
+  if (typeof userId !== "string" || userId === "") throw new Error("userId required");
+  const secret = await ai.store.getSecret(userId);
   if (!secret) return { ok: false, status: 409, code: "not_configured" };
   const { provider, model } = secret;
   if (!isAllowedProvider(provider) || provider !== "claude" || !isAllowedModel(provider, model)) {
     return { ok: false, status: 400, code: "invalid_model" };
   }
-  const opened = await openStoredKey(ai.kek, secret);
+  const opened = await openStoredKey(ai.kek, userId, secret);
   if (!opened.ok) return { ok: false, status: AI_ERROR_STATUS[opened.code], code: opened.code };
   return { ok: true, provider, model, key: opened.key };
 }
@@ -55,15 +57,15 @@ export async function loadSettingsKey(ai) {
  * POST /api/ai-settings/test: checks the saved key with the provider. Body is exactly {}.
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
- * @param {{ route: string, ai: AiContext, id: string, log: (entry: Record<string, unknown>) => void }} ctx
+ * @param {{ route: string, ai: AiContext, userId: string, id: string, log: (entry: Record<string, unknown>) => void }} ctx
  */
-async function handleTest(req, res, { route, ai, id, log }) {
+async function handleTest(req, res, { route, ai, userId, id, log }) {
   /** @param {number} status @param {string} code */
   const fail = (status, code) => {
     log({ event: "ai_settings", id, action: "test", code });
     return sendError(res, status, code);
   };
-  if (!ai.limiter.check("test")) return fail(429, "rate_limited");
+  if (!ai.limiter.check(userId, "test")) return fail(429, "rate_limited");
   const body = await readJson(req, { limit: MAX_BODY_BYTES });
   if (!body.ok) {
     /** @type {Record<string, string>} */
@@ -77,7 +79,7 @@ async function handleTest(req, res, { route, ai, id, log }) {
   if (!ai.store) return fail(503, "db_unavailable");
 
   try {
-    const s = await loadSettingsKey(/** @type {AiContext & { store: AiStore }} */ (ai));
+    const s = await loadSettingsKey(/** @type {AiContext & { store: AiStore }} */ (ai), userId);
     if (!s.ok) return fail(s.status, s.code);
     const r = await checkClaudeKey({ fetch: ai.fetch, key: s.key, model: s.model });
     if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
@@ -95,13 +97,14 @@ async function handleTest(req, res, { route, ai, id, log }) {
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  * @param {{
- *   route: string, ai: AiContext | null, id: string,
+ *   route: string, ai: AiContext | null, userId: string, id: string,
  *   log: (entry: Record<string, unknown>) => void,
  * }} ctx
  */
-export async function handleAiSettings(req, res, { route, ai, id, log }) {
+export async function handleAiSettings(req, res, { route, ai, userId, id, log }) {
   if (!ai) return sendError(res, 503, "server_misconfigured");
-  if (route === "/api/ai-settings/test") return handleTest(req, res, { route, ai, id, log });
+  if (route === "/api/ai-settings/test")
+    return handleTest(req, res, { route, ai, userId, id, log });
   const method = req.method ?? "";
   const action = method === "PUT" ? "save" : method === "DELETE" ? "deleteKey" : "get";
   /** @param {number} status @param {string} code */
@@ -113,7 +116,7 @@ export async function handleAiSettings(req, res, { route, ai, id, log }) {
   /** @type {{ provider: string, model: string, sealed: { ciphertext: string, hint: string } | null } | null} */
   let input = null;
   if (method === "PUT") {
-    if (!ai.limiter.check("save")) return fail(429, "rate_limited");
+    if (!ai.limiter.check(userId, "save")) return fail(429, "rate_limited");
     const body = await readJson(req, { limit: MAX_BODY_BYTES });
     if (!body.ok) {
       /** @type {Record<string, string>} */
@@ -135,18 +138,21 @@ export async function handleAiSettings(req, res, { route, ai, id, log }) {
     }
     input = { provider, model, sealed: null };
     if (key !== null && ai.store) {
-      input.sealed = { ciphertext: await sealKey(ai.kek, provider, key), hint: keyHintOf(key) };
+      input.sealed = {
+        ciphertext: await sealKey(ai.kek, userId, provider, key),
+        hint: keyHintOf(key),
+      };
     }
   }
   if (!ai.store) return fail(503, "db_unavailable");
 
   try {
     if (input) {
-      const r = await ai.store.save(input);
+      const r = await ai.store.save(userId, input);
       if (!r.ok) return fail(400, r.code);
       return sendJson(res, 200, { settings: toView(r.row) });
     }
-    const row = method === "DELETE" ? await ai.store.clearKey() : await ai.store.get();
+    const row = method === "DELETE" ? await ai.store.clearKey(userId) : await ai.store.get(userId);
     return sendJson(res, 200, { settings: row ? toView(row) : null });
   } catch (err) {
     const mapped = mapDbError(err);

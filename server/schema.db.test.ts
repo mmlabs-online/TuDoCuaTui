@@ -243,7 +243,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(Date.now() - row.updated_at.getTime()).toBeLessThan(60_000);
   });
 
-  it("no table has RLS; user_id is NOT NULL on four tables and nullable on ai_settings", async () => {
+  it("no table has RLS; user_id is NOT NULL on all five tables", async () => {
     const rls = await pool.query(
       "select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity",
     );
@@ -255,9 +255,20 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       ["ai_settings", "item_photos", "items", "locations", "wear_logs"].map((table_name) => ({
         table_name,
         data_type: "uuid",
-        is_nullable: table_name === "ai_settings" ? "YES" : "NO",
+        is_nullable: "NO",
       })),
     );
+  });
+
+  it("ai_settings: primary key is (user_id), no id column", async () => {
+    const pk = await pool.query(
+      "select a.attname from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey) where i.indrelid = 'ai_settings'::regclass and i.indisprimary",
+    );
+    expect(pk.rows).toEqual([{ attname: "user_id" }]);
+    const id = await pool.query(
+      "select 1 from information_schema.columns where table_name = 'ai_settings' and column_name = 'id'",
+    );
+    expect(id.rows).toEqual([]);
   });
 
   describe("contract (T-019.2)", () => {

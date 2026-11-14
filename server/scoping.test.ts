@@ -1,15 +1,14 @@
 // @vitest-environment node
 // Static guard (T-019.2): every SQL string literal in server/*.js and server/ai/*.js that touches a TuDo table
 // must mention user_id. Limit: the check is per literal, not per table reference; the runtime recorder in
-// isolation.db.test.ts, the composite FKs and later RLS (T-019.4) are the backstops. ai_settings is not listed:
-// T-019.3 scopes it.
+// isolation.db.test.ts, the composite FKs and later RLS (T-019.4) are the backstops.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const serverDir = path.resolve(import.meta.dirname);
 const TABLE_RE =
-  /\b(from|into|update|join)\s+(items|locations|item_photos|wear_logs|items_with_stats)\b/i;
+  /\b(from|into|update|join)\s+(items|locations|item_photos|wear_logs|items_with_stats|ai_settings)\b/i;
 
 /** String and template literals of a JS source; comments are skipped. */
 function literals(src: string): string[] {
@@ -67,6 +66,11 @@ describe("user_id scoping guard", () => {
     expect(unscoped('pool.query("select * from items where id = $1", [id])')).toHaveLength(1);
     expect(unscoped("pool.query(`delete from wear_logs\n where id = $1`)")).toHaveLength(1);
     expect(unscoped('pool.query("select * from items where id = $1 and user_id = $2")')).toEqual(
+      [],
+    );
+    expect(unscoped('pool.query("select provider from ai_settings where id")')).toHaveLength(1);
+    expect(unscoped("pool.query(`update ai_settings set key_hint = null`)")).toHaveLength(1);
+    expect(unscoped('pool.query("select provider from ai_settings where user_id = $1")')).toEqual(
       [],
     );
     expect(unscoped('// select * from items\nconst x = "no sql here";')).toEqual([]);

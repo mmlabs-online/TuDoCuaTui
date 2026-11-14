@@ -2,12 +2,12 @@
 import { randomBytes } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { importKek, openKey, sealKey } from "./crypto.js";
 import { loadSettingsKey } from "./routes.js";
 import type { AiStore } from "./store.js";
-import { fixedAuth, OWNER_A } from "../test/auth.js";
+import { fixedAuth, headerAuth, OWNER_A } from "../test/auth.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
 const OTHER_KEY = "sk-ant-OTHERKEY-0123456789abcdef";
@@ -40,12 +40,15 @@ function fakeStore(
   let row = initial;
   const saved: Saved[] = [];
   let getSecretCalls = 0;
+  const users: string[] = [];
   const store: AiStore = {
-    async get() {
+    async get(userId) {
+      users.push(userId);
       if (failWith) throw failWith;
       return row;
     },
-    async save(input) {
+    async save(userId, input) {
+      users.push(userId);
       if (failWith) throw failWith;
       saved.push(input);
       if (!input.sealed && row?.hasKey && row.provider !== input.provider) {
@@ -61,18 +64,20 @@ function fakeStore(
       };
       return { ok: true, row };
     },
-    async getSecret() {
+    async getSecret(userId) {
+      users.push(userId);
       if (failWith) throw failWith;
       getSecretCalls++;
       return secret;
     },
-    async clearKey() {
+    async clearKey(userId) {
+      users.push(userId);
       if (failWith) throw failWith;
       if (row) row = { ...row, keyHint: null, hasKey: false };
       return row;
     },
   };
-  return { store, saved, calls: () => getSecretCalls };
+  return { store, saved, users, calls: () => getSecretCalls };
 }
 
 const newKek = () => importKek(randomBytes(32).toString("base64"));
@@ -84,6 +89,7 @@ async function start(opts: {
   now?: () => number;
   kek?: Awaited<ReturnType<typeof importKek>>;
   fetch?: typeof globalThis.fetch;
+  headerAuth?: boolean;
 }) {
   const logs: Record<string, unknown>[] = [];
   const kek = opts.kek ?? (await newKek());
@@ -92,7 +98,7 @@ async function start(opts: {
       pool: (opts.pool === undefined ? { query: async () => ({ rows: [] }) } : opts.pool) as never,
       ai: opts.ai === false ? null : { kek, store: opts.store, fetch: opts.fetch },
       distDir: "/nonexistent",
-      auth: fixedAuth(OWNER_A),
+      auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: opts.now,
     }),
@@ -121,7 +127,7 @@ async function withSecret(over: { provider?: string; model?: string } = {}) {
   const secret = {
     provider,
     model: over.model ?? "claude-haiku-5-5",
-    ciphertext: await sealKey(kek, provider, SENTINEL),
+    ciphertext: await sealKey(kek, OWNER_A, provider, SENTINEL),
   };
   return { kek, secret };
 }
@@ -218,7 +224,7 @@ describe("PUT key handling", () => {
     expect(settings).toMatchObject({ hasKey: true, keyHint: "••••cdef" });
     const sealed = saved[0].sealed!;
     expect(sealed.hint).toBe("cdef");
-    expect(await openKey(kek, "claude", sealed.ciphertext)).toBe(SENTINEL);
+    expect(await openKey(kek, OWNER_A, "claude", sealed.ciphertext)).toBe(SENTINEL);
   });
 
   it("no key keeps the existing one; no row and no key saves hasKey:false", async () => {
@@ -582,11 +588,12 @@ describe("loadSettingsKey", () => {
     kek: kek ?? (await newKek()),
     fetch: globalThis.fetch,
     limiter: { check: () => true },
+    tagSlots: { tryAcquire: () => () => {} },
     store: fakeStore(null, undefined, secret).store,
   });
 
   it("no row -> 409 not_configured", async () => {
-    expect(await loadSettingsKey(await ai(null))).toEqual({
+    expect(await loadSettingsKey(await ai(null), OWNER_A)).toEqual({
       ok: false,
       status: 409,
       code: "not_configured",
@@ -598,7 +605,7 @@ describe("loadSettingsKey", () => {
       { provider: "gemini", model: "x", ciphertext: "garbage" },
       { provider: "claude", model: "nope", ciphertext: "garbage" },
     ]) {
-      expect(await loadSettingsKey(await ai(s))).toEqual({
+      expect(await loadSettingsKey(await ai(s), OWNER_A)).toEqual({
         ok: false,
         status: 400,
         code: "invalid_model",
@@ -608,16 +615,50 @@ describe("loadSettingsKey", () => {
 
   it("wrong KEK -> 409 key_unreadable; valid -> the key", async () => {
     const { kek, secret } = await withSecret();
-    expect(await loadSettingsKey(await ai(secret))).toMatchObject({
+    expect(await loadSettingsKey(await ai(secret), OWNER_A)).toMatchObject({
       ok: false,
       status: 409,
       code: "key_unreadable",
     });
-    expect(await loadSettingsKey(await ai(secret, kek))).toEqual({
+    expect(await loadSettingsKey(await ai(secret, kek), OWNER_A)).toEqual({
       ok: true,
       provider: "claude",
       model: "claude-haiku-5-5",
       key: SENTINEL,
     });
+  });
+
+  it("a missing or empty user rejects without reading the store", async () => {
+    const a = await ai(null);
+    const calls = vi.spyOn(a.store, "getSecret");
+    await expect(loadSettingsKey(a, undefined as never)).rejects.toThrow("userId required");
+    await expect(loadSettingsKey(a, "")).rejects.toThrow("userId required");
+    expect(calls).not.toHaveBeenCalled();
+  });
+});
+
+describe("per-user plumbing", () => {
+  it("every store call gets the authenticated user", async () => {
+    const { store, users } = fakeStore(aRow);
+    const { base } = await start({ store });
+    await fetch(`${base}/api/ai-settings`);
+    await put(base, valid);
+    await fetch(`${base}/api/ai-settings/key`, { method: "DELETE" });
+    expect(users).toHaveLength(3);
+    expect(new Set(users)).toEqual(new Set([OWNER_A]));
+  });
+
+  it("limits are per user: A's 21st /test is 429, B's first is not", async () => {
+    const { store } = fakeStore();
+    const { base } = await start({ store, headerAuth: true });
+    const post = (u: string) =>
+      fetch(`${base}/api/ai-settings/test`, {
+        method: "POST",
+        headers: { ...JSON_H, "x-test-user": u },
+        body: "{}",
+      });
+    for (let i = 0; i < 20; i++) expect((await post("a")).status).not.toBe(429);
+    expect((await post("a")).status).toBe(429);
+    expect((await post("b")).status).not.toBe(429);
   });
 });

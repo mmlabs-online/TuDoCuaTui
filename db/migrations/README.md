@@ -10,7 +10,8 @@ Plain SQL applied by `node server/migrate.js` (the `migrate` one-shot service, D
   rollback to an older image stays safe. Add columns/tables first, remove them in a later release.
 - Exception: `20261114120000_user_ownership_contract` (T-019.2) is not image-rollback-safe (an older image cannot
   write after it). Rollback = fix forward or restore the pre-release backup (M-18). It requires `TUDO_OWNER_SUB`
-  whenever rows exist and checks that there is one owner equal to it.
+  whenever rows exist and checks that there is one owner equal to it. `20261114180000_ai_settings_per_user`
+  (T-019.3) is not image-rollback-safe either (old AI code uses `where id`) and clears the stored AI key.
 - Ownership (D32): `user_id` is added nullable and backfilled in an expand migration (T-019.1), made NOT NULL with
   uniques and composite FKs in the contract migrations (T-019.2/.3), and RLS `ENABLE` + `FORCE` arrives in its own
   migration (T-019.4).

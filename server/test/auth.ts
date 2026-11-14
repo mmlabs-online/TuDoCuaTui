@@ -4,17 +4,23 @@ import { toUserId, type UserId } from "../user.js";
 
 export const OWNER_A = toUserId("11111111-1111-4111-8111-111111111111") as UserId;
 export const OWNER_B = toUserId("22222222-2222-4222-8222-222222222222") as UserId;
+export const OWNER_C = toUserId("33333333-3333-4333-8333-333333333333") as UserId;
 
 export function fixedAuth(userId: UserId) {
   return { authenticate: async () => ({ ok: true as const, userId }) };
 }
 
-/** `x-test-user: a|b` picks the user (default A). */
+/** `x-test-user: a|b|c` picks the user (default A). */
 export function headerAuth() {
   return {
     authenticate: async (req: IncomingMessage) => ({
       ok: true as const,
-      userId: req.headers["x-test-user"] === "b" ? OWNER_B : OWNER_A,
+      userId:
+        req.headers["x-test-user"] === "b"
+          ? OWNER_B
+          : req.headers["x-test-user"] === "c"
+            ? OWNER_C
+            : OWNER_A,
     }),
   };
 }

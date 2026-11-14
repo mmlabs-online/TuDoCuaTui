@@ -9,16 +9,14 @@ import { tagPhotoWithClaude } from "./claude.js";
 import { loadSettingsKey } from "./routes.js";
 import { parseTagSuggestion } from "./tagging.js";
 
-const MAX_IN_FLIGHT = 2;
-let inFlight = 0;
 const TAGGERS = { claude: tagPhotoWithClaude };
 
 /**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
- * @param {{ ai: import("./routes.js").AiContext | null, id: string, log: (entry: Record<string, unknown>) => void }} ctx
+ * @param {{ ai: import("./routes.js").AiContext | null, userId: string, id: string, log: (entry: Record<string, unknown>) => void }} ctx
  */
-export async function handleTagPhoto(req, res, { ai, id, log }) {
+export async function handleTagPhoto(req, res, { ai, userId, id, log }) {
   const started = Date.now();
   /** @param {string} code */
   const done = (code) => log({ event: "ai_tag", id, code, ms: Date.now() - started });
@@ -34,18 +32,18 @@ export async function handleTagPhoto(req, res, { ai, id, log }) {
   };
 
   if (!ai) return reject(503, "server_misconfigured");
-  if (!ai.limiter.check("tag")) return reject(429, "rate_limited");
   const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
   if (type !== "image/jpeg") return reject(415, "unsupported_media_type");
   if (Number(req.headers["content-length"]) > MAX_BYTES) return reject(413, "payload_too_large");
-  if (inFlight >= MAX_IN_FLIGHT) return reject(503, "ai_busy", { "Retry-After": "5" });
-
-  inFlight++;
+  // Acquire before the limiter and before any await: a busy answer never consumes quota.
+  const release = ai.tagSlots.tryAcquire(userId);
+  if (!release) return reject(503, "ai_busy", { "Retry-After": "5" });
   try {
+    if (!ai.limiter.check(userId, "tag")) return reject(429, "rate_limited");
     const store = ai.store;
     if (!store) return reject(503, "db_unavailable");
     // Decrypts before the body is read, so no_key / invalid_model never make the client upload 2 MB.
-    const s = await loadSettingsKey({ ...ai, store });
+    const s = await loadSettingsKey({ ...ai, store }, userId);
     if (!s.ok) return reject(s.status, s.code);
     const body = await readBody(req);
     if (!body.ok) {
@@ -76,6 +74,6 @@ export async function handleTagPhoto(req, res, { ai, id, log }) {
     const extra = mapped.code === "internal" ? { requestId: id } : {};
     if (!res.destroyed) sendError(res, mapped.status, mapped.code, extra);
   } finally {
-    inFlight--;
+    release();
   }
 }
