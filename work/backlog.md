@@ -38,7 +38,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019.11 | Auth screens UI: sign-in, sign-up, verify email (not wired) | MERGED | P1 | M | ui, security | T-016 | plan-approval | 1 | 2026-11-13 |
 | T-019.1 | Ownership expand migration and owner backfill | MERGED | P1 | M | db, security | T-016 | plan-approval | 1 | 2026-11-14 |
 | T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | MERGED | P1 | M | db, security, architecture | T-019.1 | plan-approval | 1 | 2026-11-14 |
-| T-019.3 | Per-user AI settings | PLANNING | P1 | S | db, security | T-019.2 | plan-approval | 0 | 2026-11-13 |
+| T-019.3 | Per-user AI settings | BLOCKED | P1 | S | db, security | T-019.2 | plan-approval | 0 | 2026-11-13 |
 | T-019.4 | Row level security with per-request app.user_id | BACKLOG | P1 | M | db, security | T-019.2, T-019.3 | plan-approval | 0 | 2026-11-13 |
 | T-019.5 | Identity JWT verifier and TUDO_AUTH_MODE switch | BACKLOG | P1 | M | security, architecture | T-019.2 | plan-approval | 0 | 2026-11-13 |
 | T-019.6 | Photos under bearer auth (blob URLs) | BACKLOG | P1 | S | security, ui | T-019.5 | none | 0 | 2026-11-13 |
