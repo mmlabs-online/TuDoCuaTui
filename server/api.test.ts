@@ -4,6 +4,7 @@ import net from "node:net";
 import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { fixedAuth, OWNER_A } from "./test/auth.js";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const NOW = Date.parse("2026-03-04T05:00:00Z");
@@ -21,7 +22,7 @@ async function start(pool: Stub | null, drive: object | null = null) {
       pool,
       drive: drive as never,
       distDir: "/nonexistent",
-      access: null,
+      auth: fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: () => NOW,
     }),

@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { importKek, sealKey } from "./crypto.js";
 import type { AiStore } from "./store.js";
+import { fixedAuth, OWNER_A } from "../test/auth.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
 const URL_ = "/api/ai/tag-photo";
@@ -83,7 +84,7 @@ async function start(
       pool: (opts.store === null ? null : { query: async () => ({ rows: [] }) }) as never,
       ai: opts.ai === false ? null : { kek, store: store as AiStore, fetch: fetchFn },
       distDir: "/nonexistent",
-      access: null,
+      auth: fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: opts.now,
     }),

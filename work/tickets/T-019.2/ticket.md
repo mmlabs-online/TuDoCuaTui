@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/49 |
 
 ## Goal
 Every item, location, wear-log and photo query is scoped to the caller's `user_id`; under Access every request maps to `TUDO_OWNER_SUB`.
@@ -45,8 +45,19 @@ proposal* → T-019.2). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.2 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14: **Plan approved** (Ming, in session: "duyệt T-019.2"; A1–A19 as in plan.md, one ticket, no split).
 - 2026-11-14 (T-019.1 security review, rec 2): the straggler backfill must, before NOT NULL, raise with a constant message when `count(distinct user_id) where user_id is not null` > 1 or differs from the `tudo.owner_sub` GUC (no ownership split across two identities); the migrator must keep printing only `err.message`, never PG `detail` (which will contain full rows once NOT NULL/checks exist).
 - 2026-11-14 (Ming: "đồng ý gỡ M-17 khỏi T-019"): M-17 is no longer a prerequisite to write or merge T-019.x code. `TUDO_OWNER_SUB` is only needed when the T-019.1 migration runs in production (M-18). The production release of T-019.1 waits until Ming has an Identity account (via TuDo's own sign-up from T-019.7, or another registered app); until then T-019.1+ can merge to `main` but no release that contains T-019.1 is cut (D37).
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-14 — claude — BLOCKED
+- Done: consults (software-architect, database-optimizer) and plan.md (Status READY): contract migration `20261114120000`, `server/user.js` (branded `UserId`), required `auth.authenticate`, owner in every mode (exit 2), scoped `items.js`/`photos.js`, per-user photo cap 2 / total 3, compose owner anchor, check-image cases, guard + two-user isolation tests; A1–A19.
+- In progress / next: Ming approves the plan, then implement → review → PR. On approval: add M-24 (PG ≥ 15) and update M-18 (done in this commit), forward A17 recommendations to T-019.3/.4/.5/.6.
+- Gotchas: ~1,000 changed lines (over the guide; fallback split 2a/2b in the plan). Not image-rollback-safe after the contract (A8).
+
+### 2026-11-14 — claude — DONE
+- Done: attempt 1 PASS; security review no 🔴 (forward items recorded on T-019.4 / T-019.5). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/49.
+- In progress / next: Ming merges PR #49. After merge `main` needs M-17 + M-18 + M-24 before any release (app exits 2 with an empty owner).
+- Gotchas: not image-rollback-safe after the contract; CI image job must confirm the `check-image.sh` changes.

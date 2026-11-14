@@ -20,7 +20,8 @@ NAME="tudocuatui-smoke-$$"
 DBNAME="tudocuatui-dbsmoke-$$"
 trap 'docker rm -f "$NAME" "$DBNAME" >/dev/null 2>&1' EXIT
 # Dummy Access values: not secret, only so the server starts. The JWKS is never fetched (no header = 401).
-ACCESS=(-e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy)
+# TUDO_OWNER_SUB is not secret; this is a dummy v4 uuid.
+ACCESS=(-e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f)
 
 echo "== no secrets in image"
 if docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
@@ -99,6 +100,9 @@ expect_exit() { # <expected> <description> <docker run args...>
 }
 expect_exit 2 "server without Access values" "$IMAGE"
 expect_exit 2 "server with TUDO_ACCESS_DISABLED=1 (must be refused in production)" -e TUDO_ACCESS_DISABLED=1 "$IMAGE"
+expect_exit 2 "server with Access values but no TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy "$IMAGE"
+expect_exit 2 "server with malformed TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=not-a-uuid "$IMAGE"
+expect_exit 2 "server with nil TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=00000000-0000-0000-0000-000000000000 "$IMAGE"
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
 expect_exit 2 "drive smoke without Google env" "$IMAGE" node server/drive-smoke.js
 expect_exit 2 "server with partial Google config" "${ACCESS[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"

@@ -1,5 +1,5 @@
 // @ts-check
-// /api router. Called by app.js only after the access check, with the raw pathname (never decoded).
+// /api router. Called by app.js only after the auth check, with the raw pathname (never decoded).
 import { handleAiSettings } from "./ai/routes.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
 import { dbLogFields, mapDbError } from "./errors.js";
@@ -44,6 +44,7 @@ function match(parts) {
  * @param {import("node:http").ServerResponse} res
  * @param {{
  *   pool: import("./items.js").Pool | null,
+ *   userId: import("./user.js").UserId,
  *   ai: import("./ai/routes.js").AiContext | null,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
@@ -53,7 +54,7 @@ function match(parts) {
 export async function handleApi(
   req,
   res,
-  { pool, ai, drive, pathname, query, id, log, now, setRoute },
+  { pool, userId, ai, drive, pathname, query, id, log, now, setRoute },
 ) {
   const parts = pathname.split("/");
   const m = match(parts);
@@ -82,6 +83,7 @@ export async function handleApi(
   if (m.route === "/api/photos/:id") {
     return await servePhoto(req, res, {
       pool,
+      userId,
       drive,
       photoId: /** @type {string} */ (itemId),
       id,
@@ -91,6 +93,7 @@ export async function handleApi(
   if (m.route === "/api/items/:id/photo") {
     return handlePhoto(req, res, {
       pool,
+      userId,
       drive,
       itemId: /** @type {string} */ (itemId),
       query,
@@ -122,21 +125,21 @@ export async function handleApi(
   try {
     if (m.route === "/api/items" || m.route === "/api/locations") {
       return m.route === "/api/items"
-        ? sendJson(res, 200, { items: await listItems(pool) })
-        : sendJson(res, 200, { locations: await listLocations(pool) });
+        ? sendJson(res, 200, { items: await listItems(pool, userId) })
+        : sendJson(res, 200, { locations: await listLocations(pool, userId) });
     }
     if (method === "DELETE") {
-      const photos = await removeItem(pool, itemId);
+      const photos = await removeItem(pool, userId, itemId);
       await deleteDriveFiles(drive, photos, log);
       res.writeHead(204, { "Cache-Control": "no-store" });
       return res.end();
     }
     if (method === "PUT") {
-      const item = await saveItem(pool, itemId, /** @type {Record<string, any>} */ (input));
+      const item = await saveItem(pool, userId, itemId, /** @type {Record<string, any>} */ (input));
       return item ? sendJson(res, 200, { item }) : sendError(res, 404, "not_found");
     }
     const w = /** @type {{ delta: 1 | -1, today: string }} */ (input);
-    const stats = await wearItem(pool, itemId, w.delta, w.today);
+    const stats = await wearItem(pool, userId, itemId, w.delta, w.today);
     return stats ? sendJson(res, 200, stats) : sendError(res, 404, "not_found");
   } catch (err) {
     const mapped = mapDbError(err);

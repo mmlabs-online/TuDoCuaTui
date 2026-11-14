@@ -12,6 +12,7 @@ import { runMigrations } from "./migrator.js";
 import { fakeConfig, startFakeDrive } from "./test/fake-drive.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 import { CATEGORIES, DEPRECATED_CATEGORIES, SEASONS, STATUSES } from "./validate.js";
+import { fixedAuth, OWNER_A } from "./test/auth.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
 type Res = Omit<Response, "json"> & { json(): Promise<any> };
@@ -45,7 +46,13 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
     await runMigrations({ connectionString: db.url, dir: realDir });
     pool = createPool(db.url);
     server = http.createServer(
-      createApp({ pool, distDir: "/nonexistent", access: null, log: () => {}, now: () => now }),
+      createApp({
+        pool,
+        distDir: "/nonexistent",
+        auth: fixedAuth(OWNER_A),
+        log: () => {},
+        now: () => now,
+      }),
     );
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -69,9 +76,10 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
     await put(uuid(1), { name: "older", price: 150000, purchase_date: "2026-01-02" });
     await new Promise((r) => setTimeout(r, 15));
     await put(uuid(2), { name: "newer" });
-    await pool.query("insert into item_photos (item_id, storage_path) values ($1, 'a/b.jpg')", [
-      uuid(1),
-    ]);
+    await pool.query(
+      `insert into item_photos (user_id, item_id, storage_path) values ('${OWNER_A}', $1, 'a/b.jpg')`,
+      [uuid(1)],
+    );
     await wear(uuid(1), 1);
     const items = await list();
     expect(items.map((i: { name: string }) => i.name)).toEqual(["newer", "older"]);
@@ -95,7 +103,7 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
 
   it("GET /api/locations -> names ordered by sort_order, name", async () => {
     await pool.query(
-      "insert into locations (name, sort_order) values ('b', 0), ('a', 0), ('z', -1), ('c', 5)",
+      `insert into locations (user_id, name, sort_order) values ('${OWNER_A}', 'b', 0), ('${OWNER_A}', 'a', 0), ('${OWNER_A}', 'z', -1), ('${OWNER_A}', 'c', 5)`,
     );
     expect(await (await fetch(`${base}/api/locations`)).json()).toEqual({
       locations: ["z", "a", "b", "c"],
@@ -194,7 +202,7 @@ describe.skipIf(!dbAvailable)("/api with real Postgres", () => {
       tags: [],
       notes: null,
     };
-    await expect(saveItem(pool, uuid(1), values)).rejects.toMatchObject({ code: "22P02" });
+    await expect(saveItem(pool, OWNER_A, uuid(1), values)).rejects.toMatchObject({ code: "22P02" });
     expect((await pool.query("select count(*)::int as n from locations")).rows[0].n).toBe(0);
   });
 
@@ -368,10 +376,10 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     };
     const log = (e: Record<string, unknown>) => logs.push(e);
     server = http.createServer(
-      createApp({ pool, drive, distDir: "/nonexistent", access: null, log }),
+      createApp({ pool, drive, distDir: "/nonexistent", auth: fixedAuth(OWNER_A), log }),
     );
     noDriveServer = http.createServer(
-      createApp({ pool, distDir: "/nonexistent", access: null, log }),
+      createApp({ pool, distDir: "/nonexistent", auth: fixedAuth(OWNER_A), log }),
     );
     base = await listen(server);
     noDriveBase = await listen(noDriveServer);
@@ -527,7 +535,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     expect(fake.files.size).toBe(1);
   });
 
-  it("DELETE photo removes row and file; second DELETE 204; missing item 204", async () => {
+  it("DELETE photo removes row and file; second DELETE 204; missing item 404", async () => {
     await mkItem(uuid(1));
     await putPhoto(uuid(1));
     const pid = await primaryId();
@@ -535,7 +543,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     expect(await rows()).toEqual([]);
     expect(fake.files.size).toBe(0);
     expect((await delPhoto(uuid(1), base, pid)).status).toBe(204);
-    expect((await delPhoto(uuid(9), base, pid)).status).toBe(204);
+    expect((await delPhoto(uuid(9), base, pid)).status).toBe(404);
     const items = ((await (await fetch(`${base}/api/items`)).json()) as { items: any[] }).items;
     expect(items[0].primary_photo_id).toBeNull();
   });
@@ -577,7 +585,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     await mkItem(uuid(1));
     await putPhoto(uuid(1));
     await pool.query(
-      "insert into item_photos (item_id, storage_path) values ($1, 'legacy/a.jpg')",
+      `insert into item_photos (user_id, item_id, storage_path) values ('${OWNER_A}', $1, 'legacy/a.jpg')`,
       [uuid(1)],
     );
     const del = (id: string) => fetch(`${base}/api/items/${id}`, { method: "DELETE" });
@@ -724,7 +732,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
   it("GET photo: legacy storage_path-only row -> 404, no Drive request", async () => {
     await mkItem(uuid(1));
     const { rows: r } = await pool.query(
-      "insert into item_photos (item_id, storage_path) values ($1, 'a/b.jpg') returning id",
+      `insert into item_photos (user_id, item_id, storage_path) values ('${OWNER_A}', $1, 'a/b.jpg') returning id`,
       [uuid(1)],
     );
     expect((await getPhoto(r[0].id)).status).toBe(404);

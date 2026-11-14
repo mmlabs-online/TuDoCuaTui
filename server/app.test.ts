@@ -7,6 +7,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { fixedAuth, OWNER_A } from "./test/auth.js";
 
 let dir: string;
 const logs: Record<string, unknown>[] = [];
@@ -25,12 +26,14 @@ async function start(opts: {
   pool?: { query(sql: string): Promise<unknown>; connect?(): Promise<unknown> } | null;
   allow?: boolean | null;
 }) {
-  const access =
-    opts.allow === null || opts.allow === undefined
-      ? null
-      : { verify: async () => (opts.allow ? { ok: true } : { ok: false, code: "ERR_X" }) };
+  const auth = {
+    authenticate: async () =>
+      opts.allow === false
+        ? { ok: false as const, code: "ERR_X" }
+        : { ok: true as const, userId: OWNER_A },
+  };
   const server = http.createServer(
-    createApp({ pool: opts.pool ?? null, distDir: dir, access, log: (e) => logs.push(e) }),
+    createApp({ pool: opts.pool ?? null, distDir: dir, auth, log: (e) => logs.push(e) }),
   );
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);
@@ -172,7 +175,7 @@ describe("app", () => {
         pool,
         drive: drive as never,
         distDir: dir,
-        access: { verify: async () => ({ ok: false, code: "ERR_X" }) },
+        auth: { authenticate: async () => ({ ok: false as const, code: "ERR_X" }) },
         log: () => {},
       }),
     );
@@ -185,13 +188,29 @@ describe("app", () => {
     expect(calls).toEqual([]);
   });
 
+  it("a successful authenticate passes userId to the API; the body and query cannot override it", async () => {
+    const queries: unknown[][] = [];
+    const pool = {
+      query: async (_sql: string, values?: unknown[]) => {
+        queries.push(values ?? []);
+        return { rows: [] };
+      },
+    };
+    const base = await start({ pool, allow: true });
+    const res = await fetch(`${base}/api/items?user_id=22222222-2222-4222-8222-222222222222`, {
+      headers: { "x-user-id": "22222222-2222-4222-8222-222222222222" },
+    });
+    expect(res.status).toBe(200);
+    expect(queries).toEqual([[OWNER_A]]);
+  });
+
   it("unexpected errors -> 500 `internal` with requestId only", async () => {
     const server = http.createServer(
       createApp({
         pool: null,
         distDir: dir,
-        access: {
-          verify: async () => {
+        auth: {
+          authenticate: async () => {
             throw new Error("boom password=hunter2");
           },
         },

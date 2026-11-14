@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
+import { fixedAuth, OWNER_A } from "./test/auth.js";
 
 describe.skipIf(!dbAvailable)("app with real Postgres", () => {
   let db: TestDb;
@@ -19,7 +20,9 @@ describe.skipIf(!dbAvailable)("app with real Postgres", () => {
     db = await createTestDb();
     pool = createPool(db.url);
     dir = fs.mkdtempSync(os.tmpdir() + "/tudo-appdb-");
-    server = http.createServer(createApp({ pool, distDir: dir, access: null, log: () => {} }));
+    server = http.createServer(
+      createApp({ pool, distDir: dir, auth: fixedAuth(OWNER_A), log: () => {} }),
+    );
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   });
   afterAll(async () => {

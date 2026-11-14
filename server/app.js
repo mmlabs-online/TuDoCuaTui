@@ -14,7 +14,7 @@ import { serveStatic } from "./static.js";
  *   distDir: string,
  *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, fetch?: typeof globalThis.fetch } | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
- *   access: { verify(req: import("node:http").IncomingMessage): Promise<{ ok: boolean, code?: string }> } | null,
+ *   auth: import("./access.js").Auth,
  *   log: (entry: Record<string, unknown>) => void,
  *   now?: () => number,
  * }} deps
@@ -24,7 +24,7 @@ export function createApp({
   distDir,
   ai = null,
   drive = null,
-  access,
+  auth,
   log,
   now = () => Date.now(),
 }) {
@@ -76,15 +76,14 @@ export function createApp({
 
       if (pathname === "/api" || pathname.startsWith("/api/")) {
         route = "/api";
-        if (access) {
-          const result = await access.verify(req);
-          if (!result.ok) {
-            log({ event: "access_denied", code: result.code });
-            return sendError(res, 401, "unauthorized");
-          }
+        const result = await auth.authenticate(req);
+        if (!result.ok) {
+          log({ event: "access_denied", code: result.code });
+          return sendError(res, 401, "unauthorized");
         }
         return await handleApi(req, res, {
           pool,
+          userId: result.userId,
           ai: aiContext,
           drive,
           pathname,

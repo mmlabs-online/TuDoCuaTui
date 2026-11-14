@@ -4,7 +4,13 @@
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
+import {
+  AccessConfigError,
+  createAccessAuth,
+  createAccessVerifier,
+  createFixedAuth,
+  loadAccessConfig,
+} from "./access.js";
 import { AiConfigError, initAi } from "./ai/config.js";
 import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
@@ -32,10 +38,17 @@ try {
   process.exit(2);
 }
 
-/** @type {ReturnType<typeof createAccessVerifier> | null} */
-let access = null;
-if (accessConfig.mode === "on") access = createAccessVerifier(accessConfig);
-else console.log("access check OFF (dev)");
+/** @type {import("./access.js").Auth} */
+let auth;
+if (accessConfig.mode === "on") {
+  auth = createAccessAuth({
+    verifier: createAccessVerifier(accessConfig),
+    ownerSub: accessConfig.ownerSub,
+  });
+} else {
+  auth = createFixedAuth(accessConfig.ownerSub);
+  console.log("access check OFF (dev)");
+}
 
 // Drive is not part of /readyz: a Drive outage must not take the whole app out of rotation.
 /** @type {ReturnType<typeof createDriveClient> | null} */
@@ -52,7 +65,7 @@ try {
 /** @type {{ kek: import("./ai/crypto.js").AiKek } | null} */
 let ai = null;
 try {
-  const r = await initAi(process.env, { requestAuth: access !== null, importKek });
+  const r = await initAi(process.env, { requestAuth: accessConfig.mode === "on", importKek });
   ai = r.ai;
   console.log(r.line);
 } catch (err) {
@@ -67,7 +80,7 @@ if (!pool) console.log("database not configured");
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 const port = Number(process.env.PORT ?? 3000);
 
-const server = http.createServer(createApp({ pool, distDir, ai, drive, access, log }));
+const server = http.createServer(createApp({ pool, distDir, ai, drive, auth, log }));
 server.listen(port, "0.0.0.0", () => {
   const addr = server.address();
   console.log(`listening on :${typeof addr === "object" && addr ? addr.port : port}`);

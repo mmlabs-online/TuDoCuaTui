@@ -6,14 +6,15 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
+import { createInFlight } from "./inflight.js";
 import { sendError, sendJson } from "./http.js";
 import { getItem } from "./items.js";
 import { isUuid } from "./validate.js";
 
 export const MAX_BYTES = 2 * 1024 * 1024;
 const BODY_DEADLINE_MS = 30_000;
-const MAX_IN_FLIGHT = 3;
-let inFlight = 0;
+// 3 uploads in memory at most (3 x 2 MiB); 2 per user so one user cannot take every slot.
+const photoSlots = createInFlight({ perUser: 2, total: 3 });
 
 /** @typedef {{ id: string, drive_file_id: string | null }} PhotoRef */
 
@@ -86,16 +87,19 @@ export async function deleteDriveFiles(drive, photos, log) {
 }
 
 /**
- * Runs `fn` in a transaction with the item row locked. `fn` gets the client; a missing item returns null.
- * @param {import("./items.js").Pool} pool @param {string} itemId
- * @param {(client: any) => Promise<void>} fn @returns {Promise<boolean>} false when the item does not exist
+ * Runs `fn` in a transaction with the caller's item row locked. `fn` gets the client.
+ * @param {import("./items.js").Pool} pool @param {import("./user.js").UserId} userId @param {string} itemId
+ * @param {(client: any) => Promise<void>} fn @returns {Promise<boolean>} false when the caller has no such item
  */
-async function withLockedItem(pool, itemId, fn) {
+async function withLockedItem(pool, userId, itemId, fn) {
   if (!pool.connect) throw new Error("pool has no connect()");
   const client = await pool.connect();
   try {
     await client.query("begin");
-    const lock = await client.query("select id from items where id = $1 for update", [itemId]);
+    const lock = await client.query(
+      "select id from items where id = $1 and user_id = $2 for update",
+      [itemId, userId],
+    );
     if (lock.rowCount === 0) {
       await client.query("rollback");
       client.release();
@@ -117,11 +121,12 @@ async function withLockedItem(pool, itemId, fn) {
  * @param {import("node:http").ServerResponse} res
  * @param {{
  *   pool: import("./items.js").Pool | null,
+ *   userId: import("./user.js").UserId,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   itemId: string, query: string, id: string, log: (entry: Record<string, unknown>) => void,
  * }} ctx
  */
-export async function handlePhoto(req, res, { pool, drive, itemId, query, id, log }) {
+export async function handlePhoto(req, res, { pool, userId, drive, itemId, query, id, log }) {
   const put = req.method === "PUT";
   if (put) {
     const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
@@ -142,7 +147,9 @@ export async function handlePhoto(req, res, { pool, drive, itemId, query, id, lo
   }
   if (!drive) return rejectUnread(req, res, 503, "photos_unavailable");
   if (!pool) return rejectUnread(req, res, 503, "db_unavailable");
-  if (put && inFlight >= MAX_IN_FLIGHT) {
+  // No await between the check and the acquire.
+  const release = put ? photoSlots.tryAcquire(userId) : null;
+  if (put && !release) {
     return rejectUnread(req, res, 503, "photos_unavailable", { "Retry-After": "5" });
   }
 
@@ -150,35 +157,33 @@ export async function handlePhoto(req, res, { pool, drive, itemId, query, id, lo
     if (!put) {
       /** @type {PhotoRef[]} */
       let old = [];
-      await withLockedItem(pool, itemId, async (c) => {
+      const found = await withLockedItem(pool, userId, itemId, async (c) => {
         old = (
           await c.query(
-            "delete from item_photos where item_id = $1 and id = $2 returning id, drive_file_id",
-            [itemId, expected],
+            "delete from item_photos where item_id = $1 and id = $2 and user_id = $3 returning id, drive_file_id",
+            [itemId, expected, userId],
           )
         ).rows;
       });
+      if (!found) return sendError(res, 404, "not_found");
       await deleteDriveFiles(drive, old, log);
       res.writeHead(204, { "Cache-Control": "no-store" });
       return res.end();
     }
 
-    inFlight++;
-    try {
-      return await putPhoto(req, res, { pool, drive, itemId, id, log });
-    } finally {
-      inFlight--;
-    }
+    return await putPhoto(req, res, { pool, userId, drive, itemId, id, log });
   } catch (err) {
     const mapped = mapDbError(err);
     log({ event: "db_error", id, ...dbLogFields(err) });
     const extra = mapped.code === "internal" ? { requestId: id } : {};
     return sendError(res, mapped.status, mapped.code, extra);
+  } finally {
+    release?.();
   }
 }
 
 /** @param {import("node:http").IncomingMessage} req @param {import("node:http").ServerResponse} res @param {any} ctx */
-async function putPhoto(req, res, { pool, drive, itemId, log }) {
+async function putPhoto(req, res, { pool, userId, drive, itemId, log }) {
   const body = await readBody(req);
   if (!body.ok) {
     return body.status === 400
@@ -189,7 +194,10 @@ async function putPhoto(req, res, { pool, drive, itemId, log }) {
   if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) {
     return sendError(res, 400, "invalid_photo");
   }
-  const exists = await pool.query("select 1 from items where id = $1", [itemId]);
+  const exists = await pool.query("select 1 from items where id = $1 and user_id = $2", [
+    itemId,
+    userId,
+  ]);
   if (exists.rowCount === 0) return sendError(res, 404, "not_found");
 
   const photoId = randomUUID();
@@ -215,15 +223,16 @@ async function putPhoto(req, res, { pool, drive, itemId, log }) {
   let old = [];
   let found;
   try {
-    found = await withLockedItem(pool, itemId, async (c) => {
+    found = await withLockedItem(pool, userId, itemId, async (c) => {
       old = (
-        await c.query("delete from item_photos where item_id = $1 returning id, drive_file_id", [
-          itemId,
-        ])
+        await c.query(
+          "delete from item_photos where item_id = $1 and user_id = $2 returning id, drive_file_id",
+          [itemId, userId],
+        )
       ).rows;
       await c.query(
-        "insert into item_photos (id, item_id, drive_file_id, is_primary) values ($1, $2, $3, true)",
-        [photoId, itemId, file.id],
+        "insert into item_photos (id, user_id, item_id, drive_file_id, is_primary) values ($1, $2, $3, $4, true)",
+        [photoId, userId, itemId, file.id],
       );
     });
   } catch (err) {
@@ -235,7 +244,7 @@ async function putPhoto(req, res, { pool, drive, itemId, log }) {
     return sendError(res, 404, "not_found");
   }
   await deleteDriveFiles(drive, old, log);
-  const item = await getItem(pool, itemId);
+  const item = await getItem(pool, userId, itemId);
   return item ? sendJson(res, 200, { item }) : sendError(res, 404, "not_found");
 }
 
@@ -253,16 +262,24 @@ const PHOTO_HEADERS = {
  * @param {import("node:http").ServerResponse} res
  * @param {{
  *   pool: import("./items.js").Pool | null,
+ *   userId: import("./user.js").UserId,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   photoId: string, id: string, log: (entry: Record<string, unknown>) => void, deadlineMs?: number,
  * }} ctx
  */
-export async function servePhoto(req, res, { pool, drive, photoId, id, log, deadlineMs = 30_000 }) {
+export async function servePhoto(
+  req,
+  res,
+  { pool, userId, drive, photoId, id, log, deadlineMs = 30_000 },
+) {
   if (!drive) return sendError(res, 503, "photos_unavailable");
   if (!pool) return sendError(res, 503, "db_unavailable");
   let driveFileId;
   try {
-    const r = await pool.query("select drive_file_id from item_photos where id = $1", [photoId]);
+    const r = await pool.query(
+      "select drive_file_id from item_photos where id = $1 and user_id = $2",
+      [photoId, userId],
+    );
     driveFileId = r.rows[0]?.drive_file_id;
   } catch (err) {
     const mapped = mapDbError(err);

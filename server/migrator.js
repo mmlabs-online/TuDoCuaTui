@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
+import { toUserId } from "./user.js";
 
 const LOCK_KEY = "7410512012";
 const FILENAME_RE = /^(\d{14})_([a-z0-9_]+)\.sql$/;
@@ -88,8 +89,6 @@ export async function readMigrationFiles(dir) {
   return files;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
 /**
  * TUDO_OWNER_SUB: empty or unset -> undefined; otherwise a canonical (lowercased) non-nil UUID.
  * The message never contains the input.
@@ -97,11 +96,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * @returns {string | undefined}
  */
 export function parseOwnerSub(raw) {
-  const v = (raw ?? "").trim().toLowerCase();
-  if (!v) return undefined;
-  if (!UUID_RE.test(v) || v === "00000000-0000-0000-0000-000000000000") {
-    throw new MigrationError("TUDO_OWNER_SUB is not a valid UUID", 2);
-  }
+  if (!(raw ?? "").trim()) return undefined;
+  const v = toUserId(raw);
+  if (!v) throw new MigrationError("TUDO_OWNER_SUB is not a valid UUID", 2);
   return v;
 }
 
@@ -203,6 +200,7 @@ export async function runMigrations({
         await client.query("commit");
       } catch (err) {
         await client.query("rollback").catch(() => {});
+        // Only the message is printed, never the PG `detail` (it can carry row values).
         const msg = err instanceof Error ? err.message : "unknown error";
         throw new MigrationError(`migration ${file.version} failed: ${msg}`, 1, errCode(err));
       }
