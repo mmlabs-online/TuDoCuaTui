@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-14T17:19:41Z |
 | PR | — |
 
 ## Goal
@@ -42,7 +42,7 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.3 rows).
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-14: **Plan approved** (Ming, in session: "duyệt T-019.3"; A1–A18 as in plan.md, one ticket).
 - 2026-11-14 (T-019.2 plan A17, recommendation): T-019.3 should be merged before identity mode (see T-019.5 note); add `ai_settings` to the T-019.2 SQL guard's table list.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
