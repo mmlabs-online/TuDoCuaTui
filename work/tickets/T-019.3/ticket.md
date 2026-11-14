@@ -56,3 +56,4 @@ proposal* → T-019.3). Decisions D31–D34. Ming items in the plan are numbered
   in-flight cap global, and add a two-user isolation test (B gets `not_configured`, no fetch).
 
 ## Handoff
+- 2026-11-14 (F-701 security review F2): `loadSettingsKey` must take a **required** `userId` (throw when missing, never default to the single row); the two-user isolation test covers both `/api/ai-settings/test` and `/api/ai/tag-photo` (B → `not_configured`, no fetch); consider a per-user in-flight cap of 1 inside the global cap of 2 for tagging.
