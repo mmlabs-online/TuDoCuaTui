@@ -42,6 +42,7 @@ proposal* → T-019.4). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.4 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14 (T-019.2 plan A17, recommendation): RLS must be live before multi-user sign-up (T-019.7) reaches production.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
