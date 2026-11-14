@@ -236,6 +236,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       take a manual `pg_dump` of `tudocuatui` on the Mac (in addition to the deploy's `backup` step) and keep it;
       after deploy, run the read-only `user_id is null` count (expect 0).
       Owner check (T-019.1 security review): copy the `sub` from the Identity login/userinfo response for your own account (not from memory); after the deploy run, read-only, `select distinct user_id from <t>` on `locations`, `items`, `item_photos`, `wear_logs`, `ai_settings` — each must return exactly that value (and no null).
+      2026-11-14 (T-019.2 plan A1, A8, A12): the first release will contain both T-019.1 (expand) and T-019.2 (contract). Set the owner **once** through the `x-owner-sub` anchor in `apps/tudocuatui/compose.yml` (it feeds both `migrate` and the app; an empty value makes the app exit 2). After the contract is applied the old image cannot write: rollback = restore this backup (or the manual down SQL in the migration header).
+- [ ] **M-24 — Check the production Postgres version** (before the first release containing T-019.2): read-only `select current_setting('server_version_num');` on the `tudocuatui` database must be ≥ 150000 (PG 15+; the contract migration uses `on delete set null (col)` and refuses older versions).
 - [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
       Status 2026-11-14: USR-07 is merged and live (org-admin-api v0.1.3, deployment#63). **Can be done now:** Actions → `ops-org-admin-api` → command `register-app`, inputs
@@ -262,6 +264,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ## Plan approvals and escalations
 <!-- /run appends items here, e.g. "- [ ] Approve plan for F-101: work/tickets/F-101/plan.md" -->
+- [ ] (2026-11-14) Approve plan for T-019.2 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.2/plan.md — owner scoping + contract migration; confirm A1–A19 (A1 ship T-019.1+T-019.2 together, A3 strict single-owner check, A4 foreign-id responses, A5 photo cap 2/user 3 total, A8 not image-rollback-safe); ~1,000 lines kept as one ticket
 - [x] (2026-11-14, approved in session) Approve plan for F-701 (branch `claude/magical-cori-2ssw8l`): work/tickets/F-701/plan.md — AI photo tagging on the Node server (`POST /api/ai/tag-photo`), Claude only, Gemini split to F-701.1; confirm A1–A16 (A1 Claude only, A2 no zod/SDK, A3 100/day, A4 four new error codes, A5 disclosure in F-702) and C1–C9
 - [x] (2026-11-13, approved in session) Approve plan for T-018.2 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-018.2/plan.md — AI key test endpoint + AI_KEK deploy wiring, seams for per-user keys (D33); confirm A1–A12 (A1 refuse AI when auth off, A3 saving a real key now means one re-entry after T-019.3) and C1–C6
 - [x] (2026-11-13, approved in session) Approve plan for T-019.11 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.11/plan.md — auth screens UI only (sign-in, sign-up, verify email), dev-only preview `/auth-preview.html`; confirm A1–A15 and the draft Vietnamese copy
