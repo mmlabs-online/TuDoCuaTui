@@ -77,7 +77,10 @@ describe("withUser", () => {
     expect(r).toBe(42);
     expect(calls).toEqual([
       { sql: "begin", params: undefined },
-      { sql: "select set_config('app.user_id', $1, true)", params: [UID] },
+      {
+        sql: "select set_config('app.user_id', $1, true), set_config('tudo.maintenance', '', true)",
+        params: [UID],
+      },
       { sql: "select 1", params: undefined },
       { sql: "commit", params: undefined },
     ]);
@@ -101,6 +104,38 @@ describe("withUser", () => {
     expect(calls.map((c) => c.sql)).toContain("rollback");
     expect(calls.map((c) => c.sql)).not.toContain("commit");
     expect(released).toEqual([err]);
+  });
+
+  it("a commit answered with the ROLLBACK tag is an error; a throwing release() does not roll back or release twice", async () => {
+    const calls: string[] = [];
+    let releases = 0;
+    const client = {
+      query: async (sql: string) => {
+        calls.push(sql);
+        return sql === "commit" ? { command: "ROLLBACK" } : { rows: [] };
+      },
+      release: () => void releases++,
+    };
+    await expect(withUser({ connect: async () => client }, UID, async () => 1)).rejects.toThrow(
+      "transaction was rolled back",
+    );
+    expect(calls).toContain("rollback");
+    expect(releases).toBe(1);
+
+    const calls2: string[] = [];
+    let releases2 = 0;
+    const bad = {
+      query: async (sql: string) => (calls2.push(sql), { rows: [] }),
+      release: () => {
+        releases2++;
+        throw new Error("release failed");
+      },
+    };
+    await expect(withUser({ connect: async () => bad }, UID, async () => 1)).rejects.toThrow(
+      "release failed",
+    );
+    expect(calls2).not.toContain("rollback");
+    expect(releases2).toBe(1);
   });
 
   it("begin fails -> release(err)", async () => {
@@ -143,7 +178,10 @@ describe("withMaintenance", () => {
     await withMaintenance(pool, "photo-sweep", async () => {});
     expect(calls.slice(0, 2)).toEqual([
       { sql: "begin read only", params: undefined },
-      { sql: "select set_config('tudo.maintenance', $1, true)", params: ["photo-sweep"] },
+      {
+        sql: "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+        params: ["photo-sweep"],
+      },
     ]);
     expect(calls.at(-1)?.sql).toBe("commit");
   });

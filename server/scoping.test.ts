@@ -111,5 +111,6 @@ describe("user_id scoping guard", () => {
     expect(where("set_config(")).toEqual(["db.js", "migrator.js"]);
     expect(where("tudo.maintenance")).toEqual(["db.js"]);
     expect(where("app.user_id")).toEqual(["db.js"]);
+    expect(where("withMaintenance")).toEqual(["db.js", "photo-sweep.js"]);
   });
 });

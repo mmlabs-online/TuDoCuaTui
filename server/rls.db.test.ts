@@ -106,10 +106,12 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     const insertItem = (c: { query: Function }, u: string) =>
       c.query("insert into items (user_id, name) values ($1, 'x')", [u]);
     expect(await sqlState(insertItem(pool, OWNER_A))).toBe("42501");
-    expect(await withUser(pool, OWNER_A, (c) => sqlState(insertItem(c, OWNER_B)))).toBe("42501");
+    expect(await sqlState(withUser(pool, OWNER_A, (c) => insertItem(c, OWNER_B)))).toBe("42501");
     expect(
-      await withUser(pool, OWNER_A, (c) =>
-        sqlState(c.query("update items set user_id = $1 where id = $2", [OWNER_B, ITEM_A])),
+      await sqlState(
+        withUser(pool, OWNER_A, (c) =>
+          c.query("update items set user_id = $1 where id = $2", [OWNER_B, ITEM_A]),
+        ),
       ),
     ).toBe("42501");
     await withUser(pool, OWNER_A, async (c) => {
@@ -140,7 +142,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     expect(code).toBe("22P02");
   });
 
-  it("saveItem(B, A's id) -> null; A's row and locations are unchanged", async () => {
+  it("saveItem(B, A's id) -> null via the upsert's WHERE (rowCount 0); A's row and locations are unchanged", async () => {
     const before = (await admin.query("select * from items order by id")).rows;
     const locs = (await admin.query("select * from locations order by name")).rows;
     const r = await saveItem(pool, OWNER_B, ITEM_A, {
@@ -202,6 +204,37 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       expect(x.relforcerowsecurity, x.relname).toBe(true);
       expect(x.policies, x.relname).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("pg_policies: exactly the five owner_only policies and photo_sweep_read (SELECT only)", async () => {
+    const r = await admin.query(
+      `select tablename, policyname, cmd, permissive, qual, with_check from pg_policies
+        where schemaname = 'public' order by tablename, policyname`,
+    );
+    const owner = "(user_id = ( SELECT app_user_id() AS app_user_id))";
+    const row = (tablename: string) => ({
+      tablename,
+      policyname: "owner_only",
+      cmd: "ALL",
+      permissive: "PERMISSIVE",
+      qual: owner,
+      with_check: owner,
+    });
+    expect(r.rows).toEqual([
+      row("ai_settings"),
+      row("item_photos"),
+      {
+        tablename: "item_photos",
+        policyname: "photo_sweep_read",
+        cmd: "SELECT",
+        permissive: "PERMISSIVE",
+        qual: "(current_setting('tudo.maintenance'::text, true) = 'photo-sweep'::text)",
+        with_check: null,
+      },
+      row("items"),
+      row("locations"),
+      row("wear_logs"),
+    ]);
   });
 
   describe("maintenance (photo sweep)", () => {

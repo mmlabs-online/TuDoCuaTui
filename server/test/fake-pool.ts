@@ -9,7 +9,11 @@ export function fakePool<T extends Stub>(stub: T) {
   const released: unknown[] = [];
   const client = {
     query: async (sql: string, params?: unknown[]) =>
-      CONTROL.test(sql) || sql.startsWith("select set_config(") ? EMPTY : stub.query(sql, params),
+      CONTROL.test(sql) ||
+      sql.startsWith("select set_config('app.user_id'") ||
+      sql.startsWith("select set_config('tudo.maintenance'")
+        ? EMPTY
+        : stub.query(sql, params),
     release: (err?: unknown) => {
       released.push(err);
     },

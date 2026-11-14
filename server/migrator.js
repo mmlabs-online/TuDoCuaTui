@@ -108,21 +108,23 @@ const errCode = (err) =>
     ? err.code
     : undefined;
 
+/** The guard applies from the migration that enables RLS (never from a table flag a later file could flip). */
+const RLS_VERSION = "20261114200000";
 const RLS_TABLES = ["locations", "items", "item_photos", "wear_logs", "ai_settings"];
 
 /**
  * Once items has RLS (T-019.4), a file must leave every TuDo table forced and the view security_invoker.
  * Messages carry table names only.
- * @param {import("pg").Client} client
+ * @param {import("pg").Client} client @param {string} version the file being applied
  */
-async function assertRlsForced(client) {
+async function assertRlsForced(client, version) {
+  if (version < RLS_VERSION) return;
   const { rows } = await client.query(
     `select c.relname, c.relrowsecurity as rls, c.relforcerowsecurity as forced, c.reloptions
        from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname = any($1)`,
     [[...RLS_TABLES, "items_with_stats"]],
   );
   const by = new Map(rows.map((r) => [r.relname, r]));
-  if (!by.get("items")?.rls) return;
   for (const t of RLS_TABLES) {
     const r = by.get(t);
     if (!r?.rls || !r.forced) throw new Error(`row level security not forced on ${t}`);
@@ -218,7 +220,7 @@ export async function runMigrations({
           "select current_setting('tudo.migrating', true) = 'on' as ok",
         );
         if (!guard.rows[0].ok) throw new Error("migration ended the transaction itself");
-        await assertRlsForced(client);
+        await assertRlsForced(client, file.version);
         await client.query(
           "insert into schema_migrations (version, name, checksum) values ($1, $2, $3)",
           [file.version, file.name, file.checksum],

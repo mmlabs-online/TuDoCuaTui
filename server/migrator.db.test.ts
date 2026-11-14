@@ -563,6 +563,16 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       expect(await forced(db.url)).toEqual(allForced);
     });
 
+    it("a later file that disables RLS fails the guard (activation is by version, not by the table flag)", async () => {
+      await run(realDir);
+      const dir = await withExtra("alter table items disable row level security;");
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/row level security not forced on items/);
+      expect(await versions()).not.toContain("20261114210000");
+      expect(await forced(db.url)).toEqual(allForced);
+    });
+
     it("no force ... force around a data change passes, as the owner role", async () => {
       const owned = await createTestDb({ owner: true });
       try {

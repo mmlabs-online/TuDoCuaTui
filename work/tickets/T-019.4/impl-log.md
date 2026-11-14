@@ -46,3 +46,19 @@ None.
 - Could the diff be smaller? No; mostly tests and mechanical call-site moves.
 - Diff size: +582 / -192 tracked lines plus 3 new files (migration, rls.db.test.ts, fake-pool.ts).
 - Deviation: `withUser` / `withMaintenance` share one internal `inTx` helper in `db.js` (smaller than two copies); the saveItem rollback uses an internal `NotOwned` sentinel thrown inside the transaction (so a `rowCount === 0` still rolls back the location upsert, as before).
+
+## Attempt 2 (REWORK)
+
+Fixes for review attempt 1 (Issue 1 + nits) and the orchestrator's security-review items.
+
+- `server/items.js`: doc comment reworded (the upsert WHERE yields rowCount 0; 42501 mapped the same way if the clause is dropped). WHERE kept.
+- `server/items.test.ts` (new): fakePool upsert rejects 42501 -> `saveItem` null, rollback sent, commit not, released; code 23505 rethrown.
+- `server/rls.db.test.ts`: saveItem test relabelled (WHERE path); new exact `pg_policies` set test (5 owner_only + photo_sweep_read SELECT only); the "writes" test now lets withUser propagate the error (it swallowed an error and committed an aborted transaction, which the new commit check rejects).
+- `server/photo-sweep.db.test.ts`: rolsuper/rolbypassrls guard test.
+- `server/db.js`: `withUser` also clears `tudo.maintenance`, `withMaintenance` also clears `app.user_id`, in the same set_config statement; `release()` moved after the try (no double release when release throws); commit result tag ROLLBACK -> error. Tests in `db.test.ts`, `test/fake-pool.ts` updated.
+- `server/scoping.test.ts`: `withMaintenance` only in db.js and photo-sweep.js.
+- `server/migrator.js`: `assertRlsForced` activates by file version >= 20261114200000, not by `items.relrowsecurity`; `migrator.db.test.ts` new test: a later `alter table items disable row level security;` fails and rolls back.
+
+Migration SQL untouched. Out-of-plan files: none beyond the above (all guard/test files of this ticket). 
+Checks (fresh PG 16, password auth, removed afterwards): typecheck OK; format:check OK; test 83 files / 1049 tests passed (DB tests ran); build OK.
+Follow-ups: none new. Scope self-check: only the listed review/security items.

@@ -50,13 +50,16 @@ async function inTx(pool, [setSql, value], readOnly, fn) {
   if (!pool.connect) throw new Error("pool has no connect()");
   if (inTransaction.getStore()) throw new Error("nested transaction");
   const client = await pool.connect();
+  /** @type {T} */
+  let out;
   try {
-    return await inTransaction.run(true, async () => {
+    out = await inTransaction.run(true, async () => {
       await client.query(readOnly ? "begin read only" : "begin");
       await client.query(setSql, [value]);
       const result = await fn(client);
-      await client.query("commit");
-      client.release();
+      // Postgres answers COMMIT of an aborted transaction with a ROLLBACK tag and no error.
+      const done = await client.query("commit");
+      if (done?.command === "ROLLBACK") throw new Error("transaction was rolled back");
       return result;
     });
   } catch (err) {
@@ -64,6 +67,8 @@ async function inTx(pool, [setSql, value], readOnly, fn) {
     client.release(/** @type {any} */ (err));
     throw err;
   }
+  client.release();
+  return out;
 }
 
 /**
@@ -76,7 +81,15 @@ export async function withUser(pool, userId, fn, { readOnly = false } = {}) {
   if (typeof userId !== "string" || toUserId(userId) !== userId) {
     throw new Error("userId required");
   }
-  return inTx(pool, ["select set_config('app.user_id', $1, true)", userId], readOnly, fn);
+  return inTx(
+    pool,
+    [
+      "select set_config('app.user_id', $1, true), set_config('tudo.maintenance', '', true)",
+      userId,
+    ],
+    readOnly,
+    fn,
+  );
 }
 
 /**
@@ -87,5 +100,10 @@ export async function withUser(pool, userId, fn, { readOnly = false } = {}) {
  */
 export async function withMaintenance(pool, task, fn) {
   if (!MAINTENANCE_TASKS.includes(task)) throw new Error("unknown maintenance task");
-  return inTx(pool, ["select set_config('tudo.maintenance', $1, true)", task], true, fn);
+  return inTx(
+    pool,
+    ["select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)", task],
+    true,
+    fn,
+  );
 }

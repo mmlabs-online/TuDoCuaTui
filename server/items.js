@@ -72,7 +72,8 @@ async function getItemOn(client, userId, id) {
 
 /**
  * Idempotent upsert; location get-or-create runs in the same transaction. An id owned by another user
- * changes nothing (the whole transaction rolls back; RLS raises 42501) and returns null.
+ * changes nothing and returns null: the `where items.user_id = excluded.user_id` clause makes the upsert a
+ * no-op (rowCount 0); a 42501 from RLS is mapped the same way in case that clause is ever dropped.
  * @param {Pool} pool @param {UserId} userId @param {string} id @param {Record<string, any>} v
  */
 export async function saveItem(pool, userId, id, v) {

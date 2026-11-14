@@ -111,6 +111,13 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   });
   afterEach(() => fake?.close());
 
+  it("guard: the sweep pool's current_user is not a superuser and does not bypass RLS", async () => {
+    const r = await pool.query(
+      "select rolsuper, rolbypassrls from pg_roles where rolname = current_user",
+    );
+    expect(r.rows).toEqual([{ rolsuper: false, rolbypassrls: false }]);
+  });
+
   it("apply deletes an unreferenced tagged file older than the grace period", async () => {
     await anchor();
     putFile(1, 120);
