@@ -9,7 +9,7 @@
 | Epic | E1 — Auth & Account |
 | Areas | security, ui |
 | Gate | plan-approval |
-| Depends on | T-019.7 |
+| Depends on | T-019.7, T-019.13 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
