@@ -42,6 +42,7 @@ proposal* → T-019.5). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.5 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14 (T-019.2 security review): (1) map the JWT `sub` through `server/user.js` `toUserId`, never the raw claim. (2) Before identity mode, rate-limit photo PUTs per IP/user or shorten the body deadline: with the cap 2/user, 3 total and a 30 s body deadline, two stalled uploaders block everyone (503). (3) `scoping.test.ts` scans only `server/*.js` and `server/ai/*.js` — a new `server/auth/` must be covered.
 - 2026-11-14 (T-019.2 plan A17, recommendation): do not switch production to identity mode (M-21) before T-019.3 is merged — until then `ai_settings` is one shared row, so every Identity user would use Ming's AI key. Keep `initAi`'s `requestAuth` meaning "requests are authenticated" when adding `TUDO_AUTH_MODE`.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
