@@ -45,6 +45,7 @@ proposal* → T-019.2). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.2 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14 (T-019.1 security review, rec 2): the straggler backfill must, before NOT NULL, raise with a constant message when `count(distinct user_id) where user_id is not null` > 1 or differs from the `tudo.owner_sub` GUC (no ownership split across two identities); the migrator must keep printing only `err.message`, never PG `detail` (which will contain full rows once NOT NULL/checks exist).
 - 2026-11-14 (Ming: "đồng ý gỡ M-17 khỏi T-019"): M-17 is no longer a prerequisite to write or merge T-019.x code. `TUDO_OWNER_SUB` is only needed when the T-019.1 migration runs in production (M-18). The production release of T-019.1 waits until Ming has an Identity account (via TuDo's own sign-up from T-019.7, or another registered app); until then T-019.1+ can merge to `main` but no release that contains T-019.1 is cut (D37).
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
