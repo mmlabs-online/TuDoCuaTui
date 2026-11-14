@@ -18,7 +18,7 @@ import {
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(kind: "save" | "test"): boolean }, fetch: typeof globalThis.fetch }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(kind: "save" | "test" | "tag"): boolean }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {
@@ -31,6 +31,24 @@ function toView(row) {
     modelSupported: AI_MODELS[provider]?.some((m) => m.id === row.model) ?? false,
     updatedAt: row.updatedAt,
   };
+}
+
+/**
+ * Reads the saved settings and opens the key. May throw DB errors; callers keep their try/catch.
+ * Provider and model are checked before decryption: no plaintext for a request that cannot go out.
+ * @param {AiContext & { store: AiStore }} ai
+ * @returns {Promise<{ ok: true, provider: "claude", model: string, key: string } | { ok: false, status: number, code: string }>}
+ */
+export async function loadSettingsKey(ai) {
+  const secret = await ai.store.getSecret();
+  if (!secret) return { ok: false, status: 409, code: "not_configured" };
+  const { provider, model } = secret;
+  if (!isAllowedProvider(provider) || provider !== "claude" || !isAllowedModel(provider, model)) {
+    return { ok: false, status: 400, code: "invalid_model" };
+  }
+  const opened = await openStoredKey(ai.kek, secret);
+  if (!opened.ok) return { ok: false, status: AI_ERROR_STATUS[opened.code], code: opened.code };
+  return { ok: true, provider, model, key: opened.key };
 }
 
 /**
@@ -59,16 +77,9 @@ async function handleTest(req, res, { route, ai, id, log }) {
   if (!ai.store) return fail(503, "db_unavailable");
 
   try {
-    const secret = await ai.store.getSecret();
-    if (!secret) return fail(409, "not_configured");
-    const { provider, model } = secret;
-    // Before decryption: no plaintext for a request that cannot go out.
-    if (!isAllowedProvider(provider) || provider !== "claude" || !isAllowedModel(provider, model)) {
-      return fail(400, "invalid_model");
-    }
-    const opened = await openStoredKey(ai.kek, secret);
-    if (!opened.ok) return fail(AI_ERROR_STATUS[opened.code], opened.code);
-    const r = await checkClaudeKey({ fetch: ai.fetch, key: opened.key, model });
+    const s = await loadSettingsKey(/** @type {AiContext & { store: AiStore }} */ (ai));
+    if (!s.ok) return fail(s.status, s.code);
+    const r = await checkClaudeKey({ fetch: ai.fetch, key: s.key, model: s.model });
     if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
     log({ event: "ai_settings", id, action: "test", code: "ok" });
     return sendJson(res, 200, { ok: true });

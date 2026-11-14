@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { importKek, openKey, sealKey } from "./crypto.js";
+import { loadSettingsKey } from "./routes.js";
 import type { AiStore } from "./store.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
@@ -569,5 +570,53 @@ describe("POST /test sentinel never leaves the server", () => {
       expect(JSON.stringify([c.url, rest])).not.toContain(SENTINEL);
     }
     expect(JSON.stringify([seen, logsAll])).not.toContain(SENTINEL);
+  });
+});
+
+describe("loadSettingsKey", () => {
+  const ai = async (
+    secret: { provider: string; model: string; ciphertext: string } | null,
+    kek?: Awaited<ReturnType<typeof newKek>>,
+  ) => ({
+    kek: kek ?? (await newKek()),
+    fetch: globalThis.fetch,
+    limiter: { check: () => true },
+    store: fakeStore(null, undefined, secret).store,
+  });
+
+  it("no row -> 409 not_configured", async () => {
+    expect(await loadSettingsKey(await ai(null))).toEqual({
+      ok: false,
+      status: 409,
+      code: "not_configured",
+    });
+  });
+
+  it("gemini or unknown model -> 400 invalid_model without decrypting", async () => {
+    for (const s of [
+      { provider: "gemini", model: "x", ciphertext: "garbage" },
+      { provider: "claude", model: "nope", ciphertext: "garbage" },
+    ]) {
+      expect(await loadSettingsKey(await ai(s))).toEqual({
+        ok: false,
+        status: 400,
+        code: "invalid_model",
+      });
+    }
+  });
+
+  it("wrong KEK -> 409 key_unreadable; valid -> the key", async () => {
+    const { kek, secret } = await withSecret();
+    expect(await loadSettingsKey(await ai(secret))).toMatchObject({
+      ok: false,
+      status: 409,
+      code: "key_unreadable",
+    });
+    expect(await loadSettingsKey(await ai(secret, kek))).toEqual({
+      ok: true,
+      provider: "claude",
+      model: "claude-haiku-5-5",
+      key: SENTINEL,
+    });
   });
 });

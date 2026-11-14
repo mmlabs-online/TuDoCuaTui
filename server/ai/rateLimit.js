@@ -3,18 +3,19 @@
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** @typedef {"save" | "test"} CallKind */
+/** @typedef {"save" | "test" | "tag"} CallKind */
 
 /** @type {Record<CallKind, { max: number, windowMs: number }>} */
 export const LIMITS = {
   test: { max: 20, windowMs: HOUR_MS },
   save: { max: 30, windowMs: HOUR_MS },
+  tag: { max: 100, windowMs: 24 * HOUR_MS },
 };
 
 /** @param {{ now?: () => number }} [opts] */
 export function createLimiter({ now = () => Date.now() } = {}) {
   /** @type {Record<CallKind, number[]>} */
-  const calls = { save: [], test: [] };
+  const calls = { save: [], test: [], tag: [] };
   return {
     /**
      * Counts an attempt. Returns false (and records nothing) at the limit.
