@@ -42,6 +42,7 @@ proposal* → T-019.4). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.4 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14: **Plan approval waived** (Ming, in session: "bỏ qua bước xem plan T-019.4"). If plan.md comes back READY with no new High-tier decision beyond the approved umbrella plan (A3; D24, D32, D37) — in particular no new DB role or other Ming step — the loop goes straight to implement; otherwise it stops and asks.
 - 2026-11-14 (T-019.2 security review): (1) recreate `items_with_stats` `with (security_invoker = true)` — as a normal view it runs with the owner's rights and bypasses RLS; test that it returns no rows of another user under RLS. (2) Under `FORCE` RLS the unscoped photo sweep would see only one user's rows and treat other users' Drive files as orphans: run the sweep as a `BYPASSRLS` role or give it a dedicated policy, plus a two-user sweep test under RLS.
 - 2026-11-14 (T-019.2 plan A17, recommendation): RLS must be live before multi-user sign-up (T-019.7) reaches production.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
