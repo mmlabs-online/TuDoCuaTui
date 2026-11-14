@@ -42,6 +42,7 @@ proposal* → T-019.10). Decisions D31–D34. Ming items in the plan are numbere
 - See the umbrella plan *Tests to write* (T-019.10 rows).
 
 ## Notes / answers from Ming
+- 2026-11-14: upstream ready — org-admin-api USR-03b (join for open apps) is live in v0.1.3; see its `docs/consumers.md` "Accounts" / "Join".
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff

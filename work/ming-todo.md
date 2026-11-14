@@ -229,19 +229,21 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       (sign-up exists, USR-01); read `user.id` from the login response (or ask the org-admin-api operator). Paste it
       under T-019 *Notes / answers from Ming*. Not secret. Double-check it: a wrong value hands the wardrobe to
       another account.
+      Note 2026-11-14: sign-up needs a registered app origin **and** a Turnstile token, so the realistic path is TuDo's own
+      sign-up page (T-019.7) or another registered app with a sign-up UI. See T-019.1 note: the `sub` is only needed when
+      the T-019.1 migration runs in production (M-18), not to write the code.
 - [ ] **M-18 — Backup before the ownership migration** (before merging the first release PR that contains T-019.1):
       take a manual `pg_dump` of `tudocuatui` on the Mac (in addition to the deploy's `backup` step) and keep it;
       after deploy, run the read-only `user_id is null` count (expect 0).
 - [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
-      Status 2026-11-13: USR-07 is DONE on org-admin-api branch `claude/blissful-wozniak-fx4lm9`, not yet merged to
-      its `main`. Once merged and deployed: Actions → `ops-org-admin-api` → command `register-app`, inputs
+      Status 2026-11-14: USR-07 is merged and live (org-admin-api v0.1.3, deployment#63). **Can be done now:** Actions → `ops-org-admin-api` → command `register-app`, inputs
       `key=tudocuatui`, `name=TuDoCuaTui`, `origins=https://tudocuatui.mmlabs.online`, `join_policy=open`,
       `org_mode=none`; run with `dry_run` on first, approve the `org-admin-api-ops` environment, then again with
       `dry_run` off (org-admin-api `docs/deploy.md`, "Register an app"). After this, M-17 (your `sub`) becomes possible:
       sign up from TuDo's sign-up page once T-019.7 is live, or from another registered app.
-- [ ] **M-20 — Make your account usable:** verify your email (after org-admin-api USR-04) and become a member of
-      `tudocuatui` through the staff role assignment (USR-02c) until USR-03b ships the join flow (A9).
+- [ ] **M-20 — Make your account usable:** verify your email (USR-04, live) and join `tudocuatui` with the USR-03b join
+      endpoint (live in v0.1.3; `join_policy=open`). No staff role assignment needed any more (A9 superseded 2026-11-14).
 - [ ] **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
       `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` in the release PR's compose;
       verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
