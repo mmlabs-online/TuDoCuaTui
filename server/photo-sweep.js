@@ -2,6 +2,8 @@
 // Orphan sweep for Drive photos (T-005.6): node server/photo-sweep.js [--apply] [--grace-minutes N] [--max-delete N].
 // Dry-run by default. Deletes only files tagged app=tudo that no item_photos row references and that are older than
 // the grace period; re-checks the DB before each delete. Exit codes: 0 ok, 1 something failed, 2 bad usage or config.
+// Global on purpose, never scoped by user_id: one Drive folder holds every user's files and the DB (all users) is the
+// authority on what is referenced (T-019.2; allow-listed in scoping.test.ts).
 // Prints counts, codes and photo row uuids only: never a Drive id, page token, secret or Google text.
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";

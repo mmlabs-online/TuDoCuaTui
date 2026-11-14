@@ -9,7 +9,14 @@ import {
   type JWTVerifyGetKey,
 } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
-import { AccessConfigError, createAccessVerifier, loadAccessConfig } from "./access.js";
+import {
+  AccessConfigError,
+  createAccessAuth,
+  createAccessVerifier,
+  createFixedAuth,
+  loadAccessConfig,
+} from "./access.js";
+import { OWNER_A, OWNER_B } from "./test/auth.js";
 
 const issuer = "https://team.cloudflareaccess.com";
 const aud = "aud-tag-123";
@@ -39,6 +46,7 @@ const sign = (
   return j.sign(opts.key ?? priv);
 };
 
+const OWNER_RAW = OWNER_A.toUpperCase();
 const req = (headers: Record<string, string>) => ({ headers }) as unknown as IncomingMessage;
 const verifier = () => createAccessVerifier({ issuer, aud, jwks });
 
@@ -123,12 +131,14 @@ describe("loadAccessConfig", () => {
       loadAccessConfig({
         CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com",
         CF_ACCESS_AUD: "abc",
+        TUDO_OWNER_SUB: OWNER_RAW,
       }),
     ).toEqual({
       mode: "on",
       issuer,
       certsUrl: `${issuer}/cdn-cgi/access/certs`,
       aud: "abc",
+      ownerSub: OWNER_A,
     });
   });
 
@@ -138,7 +148,31 @@ describe("loadAccessConfig", () => {
     expect(() => loadAccessConfig({ CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com" })).toThrow(
       AccessConfigError,
     );
-    expect(loadAccessConfig({ TUDO_ACCESS_DISABLED: "1" })).toEqual({ mode: "off" });
+    expect(loadAccessConfig({ TUDO_ACCESS_DISABLED: "1", TUDO_OWNER_SUB: OWNER_A })).toEqual({
+      mode: "off",
+      ownerSub: OWNER_A,
+    });
+  });
+
+  it("TUDO_OWNER_SUB: missing -> must be set; malformed or nil -> must be a valid UUID; never echoed", () => {
+    const on = { CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com", CF_ACCESS_AUD: "abc" };
+    const off = { TUDO_ACCESS_DISABLED: "1" };
+    for (const base of [on, off]) {
+      expect(() => loadAccessConfig(base)).toThrow("TUDO_OWNER_SUB must be set");
+      expect(() => loadAccessConfig({ ...base, TUDO_OWNER_SUB: "  " })).toThrow(
+        "TUDO_OWNER_SUB must be set",
+      );
+      for (const bad of ["SECRETISH", "00000000-0000-0000-0000-000000000000"]) {
+        const err = (() => {
+          try {
+            loadAccessConfig({ ...base, TUDO_OWNER_SUB: bad });
+          } catch (e) {
+            return e as Error;
+          }
+        })();
+        expect(err?.message).toBe("TUDO_OWNER_SUB must be a valid UUID");
+      }
+    }
   });
 
   it("TUDO_ACCESS_DISABLED=1 with NODE_ENV=production -> config error", () => {
@@ -165,5 +199,32 @@ describe("loadAccessConfig", () => {
     } catch (e) {
       expect((e as Error).message).not.toContain("secretaud");
     }
+  });
+});
+
+describe("auth objects", () => {
+  it("createAccessAuth returns the owner and ignores x-user-id / query / body", async () => {
+    const auth = createAccessAuth({ verifier: verifier(), ownerSub: OWNER_A });
+    const r = await auth.authenticate({
+      headers: {
+        "cf-access-jwt-assertion": await sign(),
+        "x-user-id": OWNER_B,
+      },
+      url: `/api/items?user_id=${OWNER_B}`,
+      body: { user_id: OWNER_B },
+    } as unknown as IncomingMessage);
+    expect(r).toEqual({ ok: true, userId: OWNER_A });
+  });
+
+  it("createAccessAuth: a failing verifier gives { ok: false, code } and no userId", async () => {
+    const auth = createAccessAuth({ verifier: verifier(), ownerSub: OWNER_A });
+    expect(await auth.authenticate(req({}))).toEqual({ ok: false, code: "missing" });
+  });
+
+  it("createFixedAuth always returns the owner", async () => {
+    expect(await createFixedAuth(OWNER_B).authenticate(req({}))).toEqual({
+      ok: true,
+      userId: OWNER_B,
+    });
   });
 });

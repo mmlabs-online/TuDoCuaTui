@@ -33,19 +33,21 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   });
 
   const newItem = async (name = "Áo thun") =>
-    (await pool.query("insert into items (name) values ($1) returning id", [name])).rows[0]
-      .id as string;
+    (
+      await pool.query(`insert into items (user_id, name) values ('${OWNER}', $1) returning id`, [
+        name,
+      ])
+    ).rows[0].id as string;
   const wearPlus = (id: string, day: string) =>
     pool.query(
-      "insert into wear_logs (item_id, worn_on) values ($1, $2) on conflict (item_id, worn_on) do nothing returning id",
+      `insert into wear_logs (user_id, item_id, worn_on) values ('${OWNER}', $1, $2) on conflict (item_id, worn_on) do nothing returning id`,
       [id, day],
     );
   const stats = async (id: string) =>
     (await pool.query("select * from items_with_stats where id = $1", [id])).rows[0];
 
   it("location get-or-create by name is race-free", async () => {
-    const sql =
-      "insert into locations (name) values ($1) on conflict (name) do update set name = excluded.name returning id";
+    const sql = `insert into locations (user_id, name) values ('${OWNER}', $1) on conflict (user_id, name) do update set name = excluded.name returning id`;
     const results = await Promise.all(
       Array.from({ length: 8 }, () => pool.query(sql, ["Tủ phòng ngủ"])),
     );
@@ -55,9 +57,14 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
 
   it("item insert with client uuid and with server default", async () => {
     const id = "11111111-1111-4111-8111-111111111111";
-    const r = await pool.query("insert into items (id, name) values ($1, 'A') returning id", [id]);
+    const r = await pool.query(
+      `insert into items (user_id, id, name) values ('${OWNER}', $1, 'A') returning id`,
+      [id],
+    );
     expect(r.rows[0].id).toBe(id);
-    const s = await pool.query("insert into items (name) values ('B') returning *");
+    const s = await pool.query(
+      `insert into items (user_id, name) values ('${OWNER}', 'B') returning *`,
+    );
     expect(s.rows[0].id).toMatch(/^[0-9a-f-]{36}$/);
     expect(s.rows[0]).toMatchObject({ category: "other", status: "active", seasons: [] });
   });
@@ -111,18 +118,16 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     ]);
   });
 
-  it("view still returns location_name for a null-user_id item", async () => {
-    const loc = (await pool.query("insert into locations (name) values ('Tủ A') returning id"))
-      .rows[0].id;
-    await pool.query("insert into items (name, location_id) values ('x', $1)", [loc]);
-    const row = (await pool.query("select location_name, user_id from items_with_stats")).rows[0];
-    expect(row).toEqual({ location_name: "Tủ A", user_id: null });
+  it("view joins locations on id and user_id", async () => {
+    const def = (await pool.query("select pg_get_viewdef('items_with_stats'::regclass) as d"))
+      .rows[0].d as string;
+    expect(def.replace(/\s+/g, " ")).toContain("l.user_id = i.user_id");
   });
 
   it("pg JS shapes: seasons string[], wear_count number, price string; last_worn 'YYYY-MM-DD' with a per-client 1082 parser", async () => {
     const id = (
       await pool.query(
-        "insert into items (name, seasons, price, purchase_date) values ('X', '{summer,winter}', 150000, '2026-01-02') returning id",
+        `insert into items (user_id, name, seasons, price, purchase_date) values ('${OWNER}', 'X', '{summer,winter}', 150000, '2026-01-02') returning id`,
       )
     ).rows[0].id;
     await wearPlus(id, "2026-11-10");
@@ -137,7 +142,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   it("primary photo pick: is_primary first, else oldest", async () => {
     const id = await newItem();
     await pool.query(
-      "insert into item_photos (item_id, storage_path, created_at) values ($1, 'old', now() - interval '2 day'), ($1, 'new', now())",
+      `insert into item_photos (user_id, item_id, storage_path, created_at) values ('${OWNER}', $1, 'old', now() - interval '2 day'), ('${OWNER}', $1, 'new', now())`,
       [id],
     );
     expect((await stats(id)).primary_photo_path).toBe("old");
@@ -148,7 +153,10 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   it("deleting an item cascades photos and wear logs", async () => {
     const id = await newItem();
     await wearPlus(id, "2026-11-10");
-    await pool.query("insert into item_photos (item_id, storage_path) values ($1, 'p')", [id]);
+    await pool.query(
+      `insert into item_photos (user_id, item_id, storage_path) values ('${OWNER}', $1, 'p')`,
+      [id],
+    );
     await pool.query("delete from items where id = $1", [id]);
     const n = await pool.query(
       "select (select count(*) from wear_logs)::int as w, (select count(*) from item_photos)::int as p",
@@ -157,17 +165,22 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   });
 
   it("deleting a location nulls items.location_id and child parent_id", async () => {
-    const parent = (await pool.query("insert into locations (name) values ('P') returning id"))
-      .rows[0].id;
+    const parent = (
+      await pool.query(
+        `insert into locations (user_id, name) values ('${OWNER}', 'P') returning id`,
+      )
+    ).rows[0].id;
     const child = (
-      await pool.query("insert into locations (name, parent_id) values ('C', $1) returning id", [
-        parent,
-      ])
+      await pool.query(
+        `insert into locations (user_id, name, parent_id) values ('${OWNER}', 'C', $1) returning id`,
+        [parent],
+      )
     ).rows[0].id;
     const item = (
-      await pool.query("insert into items (name, location_id) values ('I', $1) returning id", [
-        parent,
-      ])
+      await pool.query(
+        `insert into items (user_id, name, location_id) values ('${OWNER}', 'I', $1) returning id`,
+        [parent],
+      )
     ).rows[0].id;
     await pool.query("delete from locations where id = $1", [parent]);
     expect(
@@ -182,19 +195,22 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
   it("constraints reject: price < 0, empty/too-long name, bad category/status, bad season, parent_id = id, second primary photo, duplicate location name, null worn_on", async () => {
     const id = await newItem();
     const bad: Array<[string, unknown[]]> = [
-      ["insert into items (name, price) values ('x', -1)", []],
-      ["insert into items (name) values ('')", []],
-      ["insert into items (name) values ($1)", ["x".repeat(121)]],
-      ["insert into items (name, category) values ('x', 'nope')", []],
-      ["insert into items (name, status) values ('x', 'nope')", []],
-      ["insert into items (name, seasons) values ('x', '{monsoon}')", []],
-      ["insert into locations (name) values ('')", []],
+      [`insert into items (user_id, name, price) values ('${OWNER}', 'x', -1)`, []],
+      [`insert into items (user_id, name) values ('${OWNER}', '')`, []],
+      [`insert into items (user_id, name) values ('${OWNER}', $1)`, ["x".repeat(121)]],
+      [`insert into items (user_id, name, category) values ('${OWNER}', 'x', 'nope')`, []],
+      [`insert into items (user_id, name, status) values ('${OWNER}', 'x', 'nope')`, []],
+      [`insert into items (user_id, name, seasons) values ('${OWNER}', 'x', '{monsoon}')`, []],
+      [`insert into locations (user_id, name) values ('${OWNER}', '')`, []],
       [
-        "insert into locations (id, name, parent_id) values ('22222222-2222-4222-8222-222222222222', 'S', '22222222-2222-4222-8222-222222222222')",
+        `insert into locations (user_id, id, name, parent_id) values ('${OWNER}', '22222222-2222-4222-8222-222222222222', 'S', '22222222-2222-4222-8222-222222222222')`,
         [],
       ],
-      ["insert into wear_logs (item_id, worn_on) values ($1, null)", [id]],
-      ["insert into item_photos (item_id, storage_path, width) values ($1, 'w', 0)", [id]],
+      [`insert into wear_logs (user_id, item_id, worn_on) values ('${OWNER}', $1, null)`, [id]],
+      [
+        `insert into item_photos (user_id, item_id, storage_path, width) values ('${OWNER}', $1, 'w', 0)`,
+        [id],
+      ],
     ];
     for (const [sql, params] of bad) {
       await expect(pool.query(sql, params), sql).rejects.toMatchObject({
@@ -202,17 +218,19 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       });
     }
     await pool.query(
-      "insert into item_photos (item_id, storage_path, is_primary) values ($1, 'a', true)",
+      `insert into item_photos (user_id, item_id, storage_path, is_primary) values ('${OWNER}', $1, 'a', true)`,
       [id],
     );
     await expect(
       pool.query(
-        "insert into item_photos (item_id, storage_path, is_primary) values ($1, 'b', true)",
+        `insert into item_photos (user_id, item_id, storage_path, is_primary) values ('${OWNER}', $1, 'b', true)`,
         [id],
       ),
     ).rejects.toMatchObject({ code: "23505" });
-    await pool.query("insert into locations (name) values ('dup')");
-    await expect(pool.query("insert into locations (name) values ('dup')")).rejects.toMatchObject({
+    await pool.query(`insert into locations (user_id, name) values ('${OWNER}', 'dup')`);
+    await expect(
+      pool.query(`insert into locations (user_id, name) values ('${OWNER}', 'dup')`),
+    ).rejects.toMatchObject({
       code: "23505",
     });
   });
@@ -225,7 +243,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(Date.now() - row.updated_at.getTime()).toBeLessThan(60_000);
   });
 
-  it("no table has RLS; user_id is a nullable uuid on exactly the five tables", async () => {
+  it("no table has RLS; user_id is NOT NULL on four tables and nullable on ai_settings", async () => {
     const rls = await pool.query(
       "select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity",
     );
@@ -237,9 +255,124 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       ["ai_settings", "item_photos", "items", "locations", "wear_logs"].map((table_name) => ({
         table_name,
         data_type: "uuid",
-        is_nullable: "YES",
+        is_nullable: table_name === "ai_settings" ? "YES" : "NO",
       })),
     );
+  });
+
+  describe("contract (T-019.2)", () => {
+    const OTHER = "0190a6f2-7c3e-7b8a-9d4e-aaaaaaaaaaaa";
+    const loc = async (user: string, name: string, parent: string | null = null) =>
+      (
+        await pool.query(
+          "insert into locations (user_id, name, parent_id) values ($1, $2, $3) returning id",
+          [user, name, parent],
+        )
+      ).rows[0].id as string;
+    const item = async (user: string, location: string | null = null) =>
+      (
+        await pool.query(
+          "insert into items (user_id, name, location_id) values ($1, 'x', $2) returning id",
+          [user, location],
+        )
+      ).rows[0].id as string;
+
+    it("insert without user_id -> 23502 on the four tables", async () => {
+      const id = await item(OWNER);
+      for (const sql of [
+        "insert into locations (name) values ('a')",
+        "insert into items (name) values ('a')",
+        `insert into item_photos (item_id, storage_path) values ('${id}', 'p')`,
+        `insert into wear_logs (item_id, worn_on) values ('${id}', '2026-11-10')`,
+      ]) {
+        await expect(pool.query(sql), sql).rejects.toMatchObject({ code: "23502" });
+      }
+    });
+
+    it("same location name for two users is fine; twice for one user -> 23505", async () => {
+      await loc(OWNER, "Tủ 1");
+      await loc(OTHER, "Tủ 1");
+      await expect(loc(OWNER, "Tủ 1")).rejects.toMatchObject({ code: "23505" });
+    });
+
+    it("cross-owner references -> 23503", async () => {
+      const l = await loc(OWNER, "Tủ 1");
+      const i = await item(OWNER);
+      await expect(item(OTHER, l)).rejects.toMatchObject({ code: "23503" });
+      await expect(loc(OTHER, "con", l)).rejects.toMatchObject({ code: "23503" });
+      await expect(
+        pool.query(
+          "insert into item_photos (user_id, item_id, storage_path) values ($1, $2, 'p')",
+          [OTHER, i],
+        ),
+      ).rejects.toMatchObject({ code: "23503" });
+      await expect(
+        pool.query(
+          "insert into wear_logs (user_id, item_id, worn_on) values ($1, $2, '2026-11-10')",
+          [OTHER, i],
+        ),
+      ).rejects.toMatchObject({ code: "23503" });
+    });
+
+    it("deleting a location nulls only the reference columns; deleting an item cascades", async () => {
+      const parent = await loc(OWNER, "P");
+      const child = await loc(OWNER, "C", parent);
+      const i = await item(OWNER, parent);
+      await pool.query(
+        "insert into wear_logs (user_id, item_id, worn_on) values ($1, $2, '2026-11-10')",
+        [OWNER, i],
+      );
+      await pool.query(
+        "insert into item_photos (user_id, item_id, storage_path) values ($1, $2, 'p')",
+        [OWNER, i],
+      );
+      await pool.query("delete from locations where id = $1", [parent]);
+      expect(
+        (await pool.query("select parent_id, user_id from locations where id = $1", [child]))
+          .rows[0],
+      ).toEqual({ parent_id: null, user_id: OWNER });
+      expect(
+        (await pool.query("select location_id, user_id from items where id = $1", [i])).rows[0],
+      ).toEqual({ location_id: null, user_id: OWNER });
+      await pool.query("delete from items where id = $1", [i]);
+      const n = await pool.query(
+        "select (select count(*) from wear_logs)::int as w, (select count(*) from item_photos)::int as p",
+      );
+      expect(n.rows[0]).toEqual({ w: 0, p: 0 });
+    });
+
+    it("constraint names", async () => {
+      const r = await pool.query(
+        "select conname from pg_constraint where connamespace = 'public'::regnamespace and conname = any($1)",
+        [
+          [
+            "locations_user_id_name_key",
+            "locations_user_id_id_key",
+            "items_user_id_id_key",
+            "locations_parent_fk",
+            "items_location_fk",
+            "item_photos_item_fk",
+            "wear_logs_item_fk",
+            "locations_name_key",
+            "locations_parent_id_fkey",
+            "items_location_id_fkey",
+            "item_photos_item_id_fkey",
+            "wear_logs_item_id_fkey",
+          ],
+        ],
+      );
+      expect(r.rows.map((x) => x.conname).sort()).toEqual(
+        [
+          "locations_user_id_name_key",
+          "locations_user_id_id_key",
+          "items_user_id_id_key",
+          "locations_parent_fk",
+          "items_location_fk",
+          "item_photos_item_fk",
+          "wear_logs_item_fk",
+        ].sort(),
+      );
+    });
   });
 
   it("ownership indexes exist", async () => {
@@ -310,7 +443,9 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       expect(by.top.category).toBe("top");
       expect(by.other.category).toBe("other");
       for (const cat of CATEGORIES)
-        await c.query("insert into items (name, category) values ('n', $1)", [cat]);
+        await c.query(`insert into items (user_id, name, category) values ('${OWNER}', 'n', $1)`, [
+          cat,
+        ]);
       await runMigrations({ connectionString: tmp.url, dir: realDir, ownerSub: OWNER }); // second run is a no-op
       expect((await c.query("select 1 from items")).rowCount).toBe(15);
       await c.end();
@@ -324,7 +459,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     const id = await newItem();
     const ins = (path: string | null, drive: string | null) =>
       pool.query(
-        "insert into item_photos (item_id, storage_path, drive_file_id) values ($1, $2, $3)",
+        `insert into item_photos (user_id, item_id, storage_path, drive_file_id) values ('${OWNER}', $1, $2, $3)`,
         [id, path, drive],
       );
     await ins(null, "fakefile0000000001");
@@ -338,7 +473,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     const id = await newItem();
     const ins = (drive: string, primary: boolean) =>
       pool.query(
-        "insert into item_photos (item_id, drive_file_id, is_primary) values ($1, $2, $3)",
+        `insert into item_photos (user_id, item_id, drive_file_id, is_primary) values ('${OWNER}', $1, $2, $3)`,
         [id, drive, primary],
       );
     await ins("fakefile0000000001", true);
@@ -351,12 +486,12 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     const id = await newItem();
     expect((await stats(id)).primary_photo_id).toBeNull();
     await pool.query(
-      "insert into item_photos (item_id, drive_file_id, created_at) values ($1, 'fakefile0000000001', now() - interval '2 day')",
+      `insert into item_photos (user_id, item_id, drive_file_id, created_at) values ('${OWNER}', $1, 'fakefile0000000001', now() - interval '2 day')`,
       [id],
     );
     const prim = (
       await pool.query(
-        "insert into item_photos (item_id, drive_file_id, is_primary) values ($1, 'fakefile0000000002', true) returning id",
+        `insert into item_photos (user_id, item_id, drive_file_id, is_primary) values ('${OWNER}', $1, 'fakefile0000000002', true) returning id`,
         [id],
       )
     ).rows[0].id;

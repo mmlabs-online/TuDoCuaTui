@@ -6,14 +6,21 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fakeEnv } from "./test/fake-drive.js";
 
+const OWNER = "11111111-1111-4111-8111-111111111111";
 const entry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "index.js");
 
 function run(env: Record<string, string>) {
-  return spawnSync(process.execPath, [entry], { env, encoding: "utf8", timeout: 10_000 });
+  return spawnSync(process.execPath, [entry], {
+    env: { TUDO_OWNER_SUB: OWNER, ...env },
+    encoding: "utf8",
+    timeout: 10_000,
+  });
 }
 
 async function start(env: Record<string, string>) {
-  const child = spawn(process.execPath, [entry], { env: { PORT: "0", ...env } });
+  const child = spawn(process.execPath, [entry], {
+    env: { PORT: "0", TUDO_OWNER_SUB: OWNER, ...env },
+  });
   let out = "";
   let err = "";
   child.stderr.on("data", (c) => (err += c));
@@ -37,6 +44,25 @@ describe("entry point", () => {
     const r = run({ NODE_ENV: "production" });
     expect(r.status).toBe(2);
     expect(r.stderr).toContain("CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD must be set");
+  });
+
+  it("TUDO_OWNER_SUB missing, malformed or nil -> exit 2 in both modes, value never printed", () => {
+    const on = { CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com", CF_ACCESS_AUD: "aud" };
+    const cases: Array<[Record<string, string>, string]> = [
+      [{ ...on, TUDO_OWNER_SUB: "" }, "TUDO_OWNER_SUB must be set"],
+      [{ TUDO_ACCESS_DISABLED: "1", TUDO_OWNER_SUB: "" }, "TUDO_OWNER_SUB must be set"],
+      [{ ...on, TUDO_OWNER_SUB: "SECRETISH-not-a-uuid" }, "TUDO_OWNER_SUB must be a valid UUID"],
+      [
+        { ...on, TUDO_OWNER_SUB: "00000000-0000-0000-0000-000000000000" },
+        "TUDO_OWNER_SUB must be a valid UUID",
+      ],
+    ];
+    for (const [env, msg] of cases) {
+      const r = run(env);
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain(msg);
+      expect(r.stdout + r.stderr).not.toContain("SECRETISH");
+    }
   });
 
   it("TUDO_ACCESS_DISABLED=1 is refused in production (exit 2)", () => {

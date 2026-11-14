@@ -23,14 +23,17 @@
 # but is only on the internal `db` network (no egress) and never reads them.
 # No volumes here: all data lives in the shared `pgdata` volume.
 #
-# TUDO_OWNER_SUB (T-019.1, D37): not secret, so it lives here and not in the env file. M-17/M-18: set Ming's Identity
-# `sub` in the release PR that first contains the T-019.1 migration. Empty is valid only while the database has no
-# rows (the migration then fails and the deploy stops). The app service does not get it until T-019.2.
+# TUDO_OWNER_SUB (T-019.1/.2, D37): not secret, so it lives here and not in the env file. M-17/M-18: set Ming's
+# Identity `sub` ONCE, in `x-owner-sub` below, in the release PR that first contains the T-019.1 migration. The one
+# value feeds both `migrate` and the app. Empty: the app exits 2, and `migrate` fails while the database has rows
+# (the deploy then stops).
 #
 # migrate: one-shot `node server/migrate.js` (profile `migrate`), run by the deploy before the app is
 # replaced, never by `up -d` and never on a restore. The app container itself never migrates.
 
 name: tudocuatui
+
+x-owner-sub: &owner_sub ""
 
 x-app: &app
   image: ${TUDOCUATUI_IMAGE:?TUDOCUATUI_IMAGE is unset - pass --env-file apps/tudocuatui/release.env}
@@ -42,6 +45,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      TUDO_OWNER_SUB: *owner_sub
       CF_ACCESS_TEAM_DOMAIN: figen.cloudflareaccess.com
       CF_ACCESS_AUD: dc2cd11d34339393549e3d3325512e49d2f44f8ae2dd0403ccf701152d77cfa7
     cap_drop: [ALL]
@@ -73,7 +77,7 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     environment:
-      TUDO_OWNER_SUB: ""
+      TUDO_OWNER_SUB: *owner_sub
     command: ["node", "server/migrate.js"]
     networks: [db]
 

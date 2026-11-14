@@ -12,6 +12,7 @@ import {
   GOOGLE_TEXT_SENTINEL,
   startFakeDrive,
 } from "./test/fake-drive.js";
+import { OWNER_A, OWNER_B } from "./test/auth.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
@@ -42,7 +43,7 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   const addRow = async (n: number, agoMin = 600) =>
     (
       await pool.query(
-        "insert into item_photos (id, item_id, drive_file_id, created_at) values ($1, $2, $3, $4) returning id",
+        `insert into item_photos (user_id, id, item_id, drive_file_id, created_at) values ('${OWNER_A}', $1, $2, $3, $4) returning id`,
         [uuid(n), ITEM, fid(n), iso(agoMin)],
       )
     ).rows[0].id as string;
@@ -80,7 +81,9 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
   beforeEach(async () => {
     fake = await startFakeDrive();
     await pool.query("truncate wear_logs, item_photos, items, locations cascade");
-    await pool.query("insert into items (id, name) values ($1, 'x')", [ITEM]);
+    await pool.query(`insert into items (user_id, id, name) values ('${OWNER_A}', $1, 'x')`, [
+      ITEM,
+    ]);
   });
   afterEach(() => fake?.close());
 
@@ -92,6 +95,27 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     expect(fake.files.has(fid(1))).toBe(false);
     expect(lines).toContain(`delete ${uuid(1)}: ok`);
     expect(lines.at(-1)).toContain("deleted 1");
+  });
+
+  it("files referenced by two users' rows are both kept; an unreferenced file is still a candidate", async () => {
+    const itemB = uuid(901);
+    await pool.query(`insert into items (user_id, id, name) values ('${OWNER_B}', $1, 'y')`, [
+      itemB,
+    ]);
+    await anchor();
+    putFile(1, 600);
+    await addRow(1);
+    putFile(2, 600);
+    await pool.query(
+      `insert into item_photos (user_id, id, item_id, drive_file_id, created_at) values ('${OWNER_B}', $1, $2, $3, $4)`,
+      [uuid(2), itemB, fid(2), iso(600)],
+    );
+    putFile(3, 120);
+    const { code } = await run({ apply: true });
+    expect(code).toBe(0);
+    expect(fake.files.has(fid(1))).toBe(true);
+    expect(fake.files.has(fid(2))).toBe(true);
+    expect(fake.files.has(fid(3))).toBe(false);
   });
 
   it("apply keeps a file referenced by an item_photos row", async () => {

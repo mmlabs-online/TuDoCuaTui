@@ -17,6 +17,8 @@ const APPLIED = [
   "20261112160000_ai_settings.sql",
 ];
 const EXPAND = "20261113120000_user_ownership_expand.sql";
+const CONTRACT = "20261114120000_user_ownership_contract.sql";
+const OWNER_B = "0190a6f2-7c3e-7b8a-9d4e-aaaaaaaaaaaa";
 const fixture = (name: string) => path.join(here, "test/fixtures", name);
 
 async function query(url: string, sql: string) {
@@ -152,6 +154,14 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     }
   });
 
+  /** A temp dir with the first five files (up to and including the expand). */
+  async function expandDir() {
+    const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+    tmpDirs.push(dir);
+    for (const f of [...APPLIED, EXPAND]) await copyFile(path.join(realDir, f), path.join(dir, f));
+    return dir;
+  }
+
   /** Applies the four pre-ownership files, then inserts one row in each of the five tables. */
   async function seedBeforeExpand(url: string) {
     const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
@@ -173,13 +183,14 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
 
   it("ownership expand: rows in all five tables get the owner; updated_at unchanged; triggers re-enabled", async () => {
     await seedBeforeExpand(db.url);
+    const dir = await expandDir();
     const ts = () =>
       query(
         db.url,
         "select (select updated_at from items)::text as i, (select updated_at from ai_settings)::text as a",
       );
     const before = await ts();
-    await run(realDir, { ownerSub: OWNER });
+    await run(dir, { ownerSub: OWNER });
     for (const t of ["locations", "items", "item_photos", "wear_logs", "ai_settings"]) {
       const rows = await query(db.url, `select user_id from ${t}`);
       expect(rows, t).toEqual([{ user_id: OWNER }]);
@@ -218,7 +229,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(5);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(6);
         expect(
           (
             await query(
@@ -252,14 +263,135 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     }
   });
 
-  it("null user_id inserts still accepted", async () => {
-    await run(realDir);
+  it("expand state: null user_id inserts still accepted", async () => {
+    await run(await expandDir());
     await query(db.url, "insert into locations (name) values ('L')");
     await query(db.url, "insert into items (name) values ('I')");
     const id = (await query(db.url, "select id from items"))[0].id;
     await query(db.url, `insert into item_photos (item_id, storage_path) values ('${id}', 'p')`);
     await query(db.url, `insert into wear_logs (item_id, worn_on) values ('${id}', '2026-11-10')`);
     await query(db.url, "insert into ai_settings (provider, model) values ('claude', 'm')");
+  });
+
+  describe("contract (T-019.2)", () => {
+    const TABLES = ["locations", "items", "item_photos", "wear_logs"];
+    /** Expand applied on an empty DB, then owned rows (owner `owned`) and optional null-user_id stragglers. */
+    async function seedExpanded(opts: { owned?: string; stragglers?: boolean; aiOwner?: string }) {
+      await run(await expandDir());
+      const q = (sql: string) => query(db.url, sql);
+      const u = (v: string | null | undefined) => (v ? `'${v}'` : "null");
+      const owned = opts.owned;
+      if (owned) {
+        const loc = (
+          await q(`insert into locations (user_id, name) values ('${owned}', 'L') returning id`)
+        )[0].id;
+        const item = (
+          await q(
+            `insert into items (user_id, name, location_id) values ('${owned}', 'I', '${loc}') returning id`,
+          )
+        )[0].id;
+        await q(
+          `insert into item_photos (user_id, item_id, storage_path) values ('${owned}', '${item}', 'a')`,
+        );
+        await q(
+          `insert into wear_logs (user_id, item_id, worn_on) values ('${owned}', '${item}', '2026-11-10')`,
+        );
+      }
+      if (opts.stragglers) {
+        const loc = (await q("insert into locations (name) values ('S') returning id"))[0].id;
+        const item = (
+          await q(`insert into items (name, location_id) values ('J', '${loc}') returning id`)
+        )[0].id;
+        await q(`insert into item_photos (item_id, storage_path) values ('${item}', 'b')`);
+        await q(`insert into wear_logs (item_id, worn_on) values ('${item}', '2026-11-11')`);
+      }
+      if (opts.aiOwner !== undefined || owned) {
+        await q(
+          `insert into ai_settings (provider, model, user_id) values ('claude', 'm', ${u(opts.aiOwner)})`,
+        );
+      }
+    }
+    const notNull = async () =>
+      (
+        await query(
+          db.url,
+          "select table_name, is_nullable from information_schema.columns where column_name = 'user_id' and table_name = any('{locations,items,item_photos,wear_logs}') order by table_name",
+        )
+      ).map((r) => r.is_nullable);
+    const contractApplied = async () => (await versions()).includes("20261114120000");
+
+    it("owned rows and stragglers -> every row owned, updated_at kept, trigger enabled, NOT NULL", async () => {
+      await seedExpanded({ owned: OWNER, stragglers: true });
+      const before = await query(db.url, "select id, updated_at::text as t from items order by id");
+      await run(realDir, { ownerSub: OWNER });
+      for (const t of TABLES) {
+        expect(await query(db.url, `select distinct user_id from ${t}`), t).toEqual([
+          { user_id: OWNER },
+        ]);
+      }
+      expect(
+        await query(db.url, "select id, updated_at::text as t from items order by id"),
+      ).toEqual(before);
+      expect(
+        await query(db.url, "select tgenabled from pg_trigger where tgname = 'items_updated_at'"),
+      ).toEqual([{ tgenabled: "O" }]);
+      expect(await notNull()).toEqual(["NO", "NO", "NO", "NO"]);
+    });
+
+    it("stragglers and no owner -> fails with a constant message; contract not applied", async () => {
+      await seedExpanded({ stragglers: true });
+      const err = await run(realDir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/rows exist but TUDO_OWNER_SUB is not set/);
+      expect(await contractApplied()).toBe(false);
+      expect(await notNull()).toEqual(["YES", "YES", "YES", "YES"]);
+    });
+
+    it("all rows owned and no owner -> same failure (owner required whenever rows exist)", async () => {
+      await seedExpanded({ owned: OWNER });
+      await expect(run(realDir)).rejects.toThrow(/rows exist but TUDO_OWNER_SUB is not set/);
+      expect(await contractApplied()).toBe(false);
+    });
+
+    it("two owners, or an owner that differs from the GUC -> constant messages, no uuid echoed", async () => {
+      await seedExpanded({ owned: OWNER });
+      await query(db.url, `insert into locations (user_id, name) values ('${OWNER_B}', 'B')`);
+      const two = await run(realDir, { ownerSub: OWNER }).catch((e) => e);
+      expect(two.message).toMatch(/rows belong to more than one owner/);
+      await db.drop();
+      db = await createTestDb();
+      await seedExpanded({ owned: OWNER });
+      const differs = await run(realDir, { ownerSub: OWNER_B }).catch((e) => e);
+      expect(differs.message).toMatch(/existing owner differs from TUDO_OWNER_SUB/);
+      await db.drop();
+      db = await createTestDb();
+      await seedExpanded({ owned: OWNER, aiOwner: OWNER_B });
+      const ai = await run(realDir, { ownerSub: OWNER }).catch((e) => e);
+      expect(ai.message).toMatch(/rows belong to more than one owner/);
+      for (const m of [two.message, differs.message, ai.message]) {
+        expect(m).not.toContain(OWNER);
+        expect(m).not.toContain(OWNER_B);
+      }
+      expect(await contractApplied()).toBe(false);
+    });
+
+    it("empty DB passes with and without owner; an ai_settings row with null user_id is ignored", async () => {
+      await run(realDir);
+      expect(await contractApplied()).toBe(true);
+      await db.drop();
+      db = await createTestDb();
+      await run(await expandDir());
+      await query(db.url, "insert into ai_settings (provider, model) values ('claude', 'm')");
+      await expect(run(realDir, { ownerSub: OWNER })).resolves.toBeUndefined();
+      expect(await notNull()).toEqual(["NO", "NO", "NO", "NO"]);
+    });
+
+    it("the file guards server_version_num < 150000 with a constant message", async () => {
+      const sql = await readFile(path.join(realDir, CONTRACT), "utf8");
+      expect(sql).toContain("server_version_num");
+      expect(sql).toContain("150000");
+      expect(sql).toContain("'PostgreSQL 15 or newer is required'");
+    });
   });
 
   it("applies as a NOSUPERUSER database owner", async () => {

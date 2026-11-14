@@ -7,6 +7,7 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | `DATABASE_URL` | `postgres://tudocuatui:<pw>@postgres:5432/tudocuatui` (D24). Unset: starts without a DB, `/readyz` is 503. |
 | `CF_ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com` (not secret) |
 | `CF_ACCESS_AUD` | Access application AUD tag (not secret) |
+| `TUDO_OWNER_SUB` | The owner's Identity `sub` (a UUID; not secret; never printed). Required in every mode; every request runs as this user. Same value for the app and `migrate`; a malformed or missing value exits 2. |
 | `TUDO_ACCESS_DISABLED` | `1` turns the `/api` JWT check off. Dev only; refused when `NODE_ENV=production`. |
 | `GOOGLE_CLIENT_ID` | OAuth client id of "TuDoCuaTui" (ends `.apps.googleusercontent.com`). Photos (D27). |
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
@@ -59,7 +60,8 @@ Image (T-015): `/app/{package.json,node_modules,dist,server,db/migrations}`, roo
 baked in, `CMD ["node","server/index.js"]`. The image `HEALTHCHECK` probes `/healthz`; the compose file overrides it with
 `/readyz`. `CF_ACCESS_*` come from the compose file, `DATABASE_URL` from the host env file; neither is in the image.
 
-Local run: `pnpm build && TUDO_ACCESS_DISABLED=1 DATABASE_URL=... pnpm start`.
+Local run: `pnpm build && TUDO_ACCESS_DISABLED=1 TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start`.
+The T-019.2 contract migration needs `TUDO_OWNER_SUB` (same value) when the dev database has rows, and fails if they belong to another owner.
 
 Logging: one JSON line per request (method, route template, status, ms, id). Never log `DATABASE_URL`, tokens, raw URLs or whole error objects; only `err.code`.
 

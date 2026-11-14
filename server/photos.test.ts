@@ -2,6 +2,7 @@
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { servePhoto } from "./photos.js";
+import { OWNER_A } from "./test/auth.js";
 
 const PHOTO = "11111111-1111-4111-8111-111111111111";
 const DRIVE_ID = "fakefile00000001";
@@ -33,6 +34,7 @@ function setup(body: ReadableStream<Uint8Array>) {
   const run = (res: unknown, deadlineMs?: number) =>
     servePhoto({ headers: {} } as never, res as never, {
       pool: pool as never,
+      userId: OWNER_A,
       drive: drive as never,
       photoId: PHOTO,
       id: "req",
