@@ -96,3 +96,69 @@ Hand checks as a NOSUPERUSER, NOBYPASSRLS database owner (`rolsuper=f, rolbypass
 - The DB tests ran on Postgres 16 locally; CI covers 17.
 - Least-privilege runtime role (D24 follow-up) would remove the A1/A4 residual: any session can set
   `tudo.maintenance` or `no force`.
+
+## Attempt 2 — 2026-11-14
+Verdict: PASS
+
+### Checks (run by reviewer)
+Branch `claude/magical-cori-2ssw8l`, diff base `origin/main`. Fresh throwaway Postgres 16 cluster (scram-sha-256
+password auth, port 54333), `TEST_DATABASE_URL` set so every `*.db.test.ts` ran. Removed afterwards.
+- typecheck: `pnpm typecheck` exit 0
+- format:check: exit 0, "Finished in 23ms on 207 files"
+- test: `Test Files 83 passed (83)`, `Tests 1049 passed (1049)`, which matches impl-log attempt 2
+- build: `✓ built in 363ms`
+- Verbose run of rls / migrator / photo-sweep / isolation / items / db / scoping: 103/103 passed, including the
+  three owner-role guard tests (rls, isolation and now photo-sweep).
+
+### Attempt-1 issue and nits
+- Issue 1 fixed. `server/items.test.ts` (new) covers the 42501 → `NotOwned` → `null` branch: rollback sent, commit not,
+  released once. A 23505 is rethrown. The second case proves the stub really throws on the item upsert, so the first
+  case is not passing through the `rowCount 0` path. The doc comment at `server/items.js:74-76` is accurate. The
+  `rls.db.test.ts` test is relabelled "via the upsert's WHERE (rowCount 0)", and the WHERE clause is kept.
+- Nit 1 fixed: `photo-sweep.db.test.ts` has the rolsuper/rolbypassrls guard.
+- Nit 2 fixed: `server/db.js` `inTx` releases after the try. `db.test.ts` asserts that a throwing `release()` gives no
+  rollback and no second release.
+
+### Security-review items (orchestrator request), checked for correctness
+- 🟡1 `server/migrator.js:111-121`: the guard is active when `file.version >= "20261114200000"`, not when the items
+  flag is set. Versions are 14-digit strings (`FILENAME_RE`), so the string comparison is sound. The new test
+  "a later file that disables RLS fails the guard" fails as expected and rolls back.
+- 🟡2 `rls.db.test.ts` "pg_policies: exactly …" pins all six policies (table, name, cmd, permissive, qual,
+  with_check). This passes on PG 16.
+- 🟡3 `server/db.js`: `withUser` sets `app.user_id` and clears `tudo.maintenance`, and `withMaintenance` sets the task
+  and clears `app.user_id`, each in one `set_config` statement. These are local to the transaction. `fake-pool.ts` and
+  `db.test.ts` are updated.
+- 🟢 `inTx` throws when COMMIT returns the ROLLBACK tag (the rollback that follows is a harmless no-op), and this has
+  a unit test. The rls "writes" test was adjusted correctly: it used to swallow an error inside `fn`, which the new
+  check now rejects. The scoping test limits `withMaintenance` to `db.js` and `photo-sweep.js`.
+- Scope: every file touched in attempt 2 is in the plan's file list or is the test file attempt 1 asked for
+  (`server/items.test.ts`). The migration SQL is unchanged.
+
+### Acceptance criteria
+- [x] ENABLE + FORCE on five tables, view security_invoker: migration unchanged since attempt 1. `rls.db.test.ts`
+  catalog, view and pg_policies tests pass. `schema.db.test.ts` passes.
+- [x] Scoped calls only through `withUser`, no GUC → 0 rows, foreign GUC → 0 rows: `scoping.test.ts` and
+  `rls.db.test.ts` pass.
+- [x] Sweep and migrations work through the documented maintenance path: `photo-sweep.db.test.ts` and
+  `migrator.db.test.ts` › row level security (T-019.4) pass, including the new disable-RLS test.
+- [x] T-019.2/T-019.3 isolation green and all checks pass. A foreign-id save → null is now evidenced on both paths:
+  WHERE/rowCount 0 (`rls.db.test.ts`) and 42501 (`items.test.ts`).
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. `src/` is untouched (R1). There is one new migration and no applied migration was edited (R2).
+No secrets or `VITE_*` changes (R3). The new repo branch is tested (R8). No Figma Make files were touched (R10).
+
+### Nits (do not block)
+- No DB-level test that a session-level `tudo.maintenance` (e.g. `set tudo.maintenance = 'photo-sweep'` on the
+  connection) is neutralised inside `withUser`. Only the SQL text is unit-tested. Postgres semantics make the
+  behaviour correct.
+- The `pg_policies` test compares deparsed `qual` text. If PG 17 in CI deparses differently, adjust the expected
+  strings; this would not mean a security change.
+
+### Follow-ups (out of scope)
+- CI on PG 17: confirm the pg_policies text and the `create or replace view` guard test (open question from the
+  security review).
+- Least-privilege runtime role (D24 follow-up); pin `search_path` on `app_user_id()` at that time.
