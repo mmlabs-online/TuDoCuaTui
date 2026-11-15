@@ -39,6 +39,11 @@ Slice of T-019 (D31). From the T-019.3 security review F8/F9 and the T-019.2 sec
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
+- 2026-11-15 (Ming, after the architect consult — see `consult-software-architect.md` open questions):
+  1. **Drive: Ming's Drive for everyone** (option B), not owner-only photo storage. The consult notes this needs per-user quotas (umbrella A7) and a privacy notice (Ming can see users' photos) before strangers can upload; planner decides whether quotas fit this ticket or become a new slice that also gates T-019.9 / M-22.
+  2. **Owner lane: yes** — owner exempt from the global AI ceilings and gets its own upload/tag slots; per-user limits still apply (R1, R2).
+  3. **Upload body deadline: 15 s total + 5 s idle** (not the recommended 10 s + 4 s).
+  4. **Join policy `open` at M-19; no per-IP limits now.** Do not run M-22 until T-019.13 is released (R7 as a ming-todo note).
 - 2026-11-14 (T-019.5 security review): also decide here, before M-22 / T-019.10, **whose Google Drive holds other users' photos** — today `server/photos.js` writes every user's photos through the one configured Drive client (Ming's Drive, D27). Options: keep Ming's Drive with per-user quotas, per-user folders, or photos only for allow-listed users until a storage decision.
 - 2026-11-14: created by the orchestrator per T-019.5 plan A-T5; gates T-019.9 (and so M-22, Access removal) and T-019.10 (join UX).
 
