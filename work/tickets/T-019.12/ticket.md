@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T10:13:54Z |
 | PR | — |
 
 ## Goal
@@ -41,7 +41,7 @@ Slice of T-019 (D31, D35). org-admin-api USR-04b (live in v0.1.3): every registe
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-15 (Ming: "duyệt T-019.12"): **Plan approved**, one ticket (no split), Vietnamese copy as proposed.
 - 2026-11-14: added because org-admin-api USR-04b requires every app origin to serve `/reset-password`.
 
 ## Handoff
