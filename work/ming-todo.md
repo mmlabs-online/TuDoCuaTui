@@ -225,7 +225,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Turn AI off: `gh secret delete TUDOCUATUI_AI_KEK -R mmlabs-online/deployment`, then Run workflow.
 
 ### T-019 — sign in with mmlabs Identity (D31; plan `work/tickets/T-019/plan.md`, where these are numbered M-16–M-21)
-- [ ] **M-17 — Your mmlabs `sub`** (before the first production release that contains T-019.1; no longer blocks writing or merging the code, D37). Create / use your account on `api.mmlabs.online`
+- [x] (2026-11-15) **M-17 — Your mmlabs `sub`** (before the first production release that contains T-019.1; no longer blocks writing or merging the code, D37). Create / use your account on `api.mmlabs.online`
       (sign-up exists, USR-01); read `user.id` from the login response (or ask the org-admin-api operator). Paste it
       under T-019 *Notes / answers from Ming*. Not secret. Double-check it: a wrong value hands the wardrobe to
       another account.
@@ -243,14 +243,14 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       2026-11-14 (T-019.4 plan A9): after this release RLS is FORCEd, so run the read-only checks above as `postgres` (or `set app.user_id = '<your sub>'` first) — as the `tudocuatui` role they return 0 rows. Extra read-only check: `select relname, relrowsecurity, relforcerowsecurity from pg_class where relname in ('locations','items','item_photos','wear_logs','ai_settings')` → all `t`.
 - [ ] **M-24 — Check the production Postgres version** (before the first release containing T-019.2): read-only `select current_setting('server_version_num');` on the `tudocuatui` database must be ≥ 150000 (PG 15+; the contract migration uses `on delete set null (col)` and refuses older versions).
 - [x] (2026-11-15, done by Ming; site key recorded on T-019.7) **M-25 — Turnstile site key for TuDo** (blocks T-019.7). In Cloudflare Turnstile, on the widget whose secret org-admin-api uses (`TURNSTILE_SECRET_KEY`): add hostname `tudocuatui.mmlabs.online`; in org-admin-api add `tudocuatui.mmlabs.online` to `TURNSTILE_ALLOWED_HOSTNAMES` and redeploy. Then paste the widget's **public site key** (not the secret) under T-019.7 *Notes / answers from Ming*.
-- [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
+- [x] (2026-11-15) **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
       Status 2026-11-14: USR-07 is merged and live (org-admin-api v0.1.3, deployment#63). **Can be done now:** Actions → `ops-org-admin-api` → command `register-app`, inputs
       `key=tudocuatui`, `name=TuDoCuaTui`, `origins=https://tudocuatui.mmlabs.online`, `join_policy=open`,
       `org_mode=none`; run with `dry_run` on first, approve the `org-admin-api-ops` environment, then again with
       `dry_run` off (org-admin-api `docs/deploy.md`, "Register an app"). After this, M-17 (your `sub`) becomes possible:
       sign up from TuDo's sign-up page once T-019.7 is live, or from another registered app.
-- [ ] **M-20 — Make your account usable:** verify your email (USR-04, live) and join `tudocuatui` with the USR-03b join
+- [x] (2026-11-15) **M-20 — Make your account usable:** verify your email (USR-04, live) and join `tudocuatui` with the USR-03b join
       endpoint (live in v0.1.3; `join_policy=open`). No staff role assignment needed any more (A9 superseded 2026-11-14).
 - [ ] **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
       `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` in the release PR's compose;

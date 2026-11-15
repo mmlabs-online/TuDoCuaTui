@@ -79,6 +79,7 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 - Manual: sign in / out on a phone and desktop against production Identity, after Ming registers the app.
 
 ## Notes / answers from Ming
+- 2026-11-15 (Ming): **M-17 done — owner `sub` = `1a0b7893-7be5-471c-8739-49be84898e7c`** (from org-admin-api `create-account --join tudocuatui`, USR-09; output `joined: tudocuatui`). Not secret. Goes into `TUDO_OWNER_SUB` in the deployment compose (M-18). Also done by that run: M-19 (app `tudocuatui` registered, the join succeeded) and M-20 (email verified at creation, member of `tudocuatui`).
 - 2026-11-15 (Ming): bootstrap of the owner account (M-17) goes through a new org-admin-api CLI `create-account` (option B; options A localhost sign-up and a TuDo setup mode were declined). Draft upstream ticket: `upstream-USR-09-create-account.md`.
 - 2026-11-14 (Ming): `mmlabs-online/deployment` is private, so committing the owner `sub` in its compose (M-18) is fine.
 - 2026-11-14 (Ming: "đồng ý gỡ M-17 khỏi T-019"): M-17 is no longer a prerequisite to write or merge T-019.x code. `TUDO_OWNER_SUB` is only needed when the T-019.1 migration runs in production (M-18). The production release of T-019.1 waits until Ming has an Identity account (via TuDo's own sign-up from T-019.7, or another registered app); until then T-019.1+ can merge to `main` but no release that contains T-019.1 is cut (D37).
