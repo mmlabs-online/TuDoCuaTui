@@ -19,6 +19,10 @@ export interface TokenStore {
   /** Failures of a background refresh (`getToken`); sign-in and restore reject to their caller. */
   subscribe: (fn: (e: AuthError) => void) => () => void;
   accountId: () => string | null;
+  /** Email of the current account: memory after sign-in, else one `accounts` call. */
+  accountEmail: () => Promise<string | null>;
+  /** Joins the app, then fetches the token. Only ever called from the user's click (D8). */
+  join: () => Promise<void>;
 }
 
 const REFRESH_MARGIN_S = 60;
@@ -40,6 +44,7 @@ export function createTokenStore({
   now?: () => number;
 }): TokenStore {
   let id = storage.read();
+  let email: string | null = null;
   let token: string | null = null;
   let validUntil = 0;
   let generation = 0;
@@ -66,6 +71,7 @@ export function createTokenStore({
           token = null;
           if (isAuthError(err) && err.code === "session_invalid") {
             id = null;
+            email = null;
             storage.clear();
           }
           throw err;
@@ -99,6 +105,7 @@ export function createTokenStore({
       inflight = null;
       token = null;
       id = r.accountId;
+      email = r.email;
       storage.write(id);
       await fetchToken();
     },
@@ -111,6 +118,7 @@ export function createTokenStore({
       inflight = null;
       token = null;
       id = null;
+      email = null;
       storage.clear(); // the local session ends first; /logout is best effort and may hang
       try {
         if (gone) await client.logout(gone);
@@ -123,6 +131,7 @@ export function createTokenStore({
       inflight = null;
       token = null;
       id = null;
+      email = null;
       storage.clear();
     },
     subscribe(fn) {
@@ -130,5 +139,31 @@ export function createTokenStore({
       return () => void listeners.delete(fn);
     },
     accountId: () => id,
+    async accountEmail() {
+      if (!id) return null;
+      if (email) return email;
+      const gen = generation;
+      const wanted = id;
+      const list = await client.accounts();
+      if (gen !== generation) return null;
+      email = list.find((a) => a.accountId.toLowerCase() === wanted.toLowerCase())?.email ?? null;
+      return email;
+    },
+    async join() {
+      if (!id) return;
+      const gen = generation;
+      try {
+        await client.join(id);
+      } catch (err) {
+        if (gen === generation && isAuthError(err) && err.code === "session_invalid") {
+          id = null;
+          email = null;
+          storage.clear();
+        }
+        throw err;
+      }
+      if (gen !== generation) return;
+      await fetchToken();
+    },
   };
 }

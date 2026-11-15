@@ -135,6 +135,11 @@ export function Editor({
                 {EDITOR_COPY.photo.pickFromLibrary}
               </Btn>
             </div>
+            {photoById && (
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                {EDITOR_COPY.photo.privacy}
+              </p>
+            )}
             <div className="photo-caption">
               <div>
                 <small>MÓN ĐỒ CỦA BẠN</small>

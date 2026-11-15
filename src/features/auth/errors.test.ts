@@ -68,3 +68,31 @@ describe("toAuthError", () => {
     expect(networkError()).toEqual({ code: "network" });
   });
 });
+
+describe("join", () => {
+  it("not_member joinAvailable only for details.join_available === true ('true', 1, missing, null -> absent)", () => {
+    expect(toAuthError(403, h(), body("not_member", { join_available: true }))).toEqual({
+      code: "not_member",
+      joinAvailable: true,
+    });
+    for (const details of [
+      { join_available: "true" },
+      { join_available: 1 },
+      {},
+      null,
+      undefined,
+    ]) {
+      expect(toAuthError(403, h(), body("not_member", details))).toEqual({ code: "not_member" });
+    }
+    expect(toAuthError(403, h(), body("not_member", { join_available: false }))).toEqual({
+      code: "not_member",
+    });
+  });
+
+  it("join codes are accepted; app_mismatch -> unknown", () => {
+    for (const code of ["join_closed", "join_approval_unavailable", "join_unavailable"]) {
+      expect(toAuthError(403, h(), body(code)).code).toBe(code);
+    }
+    expect(toAuthError(403, h(), body("app_mismatch")).code).toBe("unknown");
+  });
+});

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
 import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
 import type { PhotoLoader } from "@/data/photoUrls";
@@ -204,5 +205,16 @@ describe("photo loader (identity mode)", () => {
       "data:image/jpeg;base64,AAAA",
     );
     expect(acquire).not.toHaveBeenCalled();
+  });
+});
+
+describe("photo privacy notice", () => {
+  test("photoById shows the photo privacy notice; without it there is no notice", () => {
+    renderEditor(vi.fn(), true, true);
+    expect(screen.getByText(EDITOR_COPY.photo.privacy)).toBeTruthy();
+    expect(EDITOR_COPY.photo.privacy).toBe(PHOTO_PRIVACY_NOTICE);
+    cleanup();
+    renderEditor(vi.fn(), true, false);
+    expect(screen.queryByText(EDITOR_COPY.photo.privacy)).toBeNull();
   });
 });

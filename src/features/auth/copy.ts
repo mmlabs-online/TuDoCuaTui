@@ -1,3 +1,4 @@
+import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
 import type { AuthError, AuthErrorCode } from "./types";
 
 export type FieldErrorCode = "required" | "invalid" | "tooShort" | "tooLong" | "mismatch";
@@ -31,6 +32,14 @@ export const AUTH_COPY = {
     continue: "Tiếp tục",
     goSignIn: "Đăng nhập để gửi lại email",
   },
+  join: {
+    title: "Tham gia Tủ đồ của tôi",
+    body: "Tài khoản của bạn chưa dùng Tủ đồ của tôi. Nhấn nút bên dưới để bắt đầu.",
+    continue: (email: string) => `Tiếp tục với ${email}`,
+    joining: "Đang tham gia…",
+    otherAccount: "Dùng tài khoản khác",
+    privacy: PHOTO_PRIVACY_NOTICE,
+  },
   gate: {
     checking: "Đang kiểm tra phiên đăng nhập…",
   },
@@ -57,6 +66,9 @@ export const AUTH_COPY = {
     invalid_credentials: "Email hoặc mật khẩu không đúng.",
     email_unverified: "Email của bạn chưa được xác minh. Mở link trong email chúng tôi đã gửi.",
     not_member: "Tài khoản này chưa có quyền dùng Tủ đồ của tôi.",
+    join_closed: "Tủ đồ của tôi hiện không nhận thành viên mới.",
+    join_approval_unavailable: "Tủ đồ của tôi chưa mở cho thành viên mới. Vui lòng thử lại sau.",
+    join_unavailable: "Chưa thể tham gia Tủ đồ của tôi lúc này. Vui lòng liên hệ người vận hành.",
     no_access:
       "Tài khoản này chưa được cấp quyền dùng Tủ đồ của tôi. Hãy đăng nhập bằng tài khoản khác hoặc thử lại sau.",
     session_invalid: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
@@ -86,6 +98,7 @@ export const AUTH_COPY = {
     signIn: "Đăng nhập",
     signUp: "Đăng ký",
     verify: "Xác minh email",
+    join: "Tham gia",
   },
 };
 
