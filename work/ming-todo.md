@@ -147,6 +147,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 - [ ] **M-15 — Connect Google Drive for TuDo photos** (D27; after T-005.1 and T-005.5 are merged). Never paste a
       client secret or token into chat, a ticket, the TuDo repo or a command line.
+      2026-11-15: photos worked in production, then `photo_read_failed {code: drive_auth}` (503 photos_unavailable): the refresh token is dead. Do the Recovery below (consent screen **In production**, re-run drive-connect, overwrite the 4 secrets, redeploy, smoke).
       1. Google Cloud console, Ricotdin's project: APIs & Services → enable **Google Drive API** (if not on).
          OAuth consent screen → Publishing status **In production** (in "Testing" the token dies after 7 days).
          Credentials → Create credentials → OAuth client ID → type **Desktop app**, name `TuDoCuaTui` →
