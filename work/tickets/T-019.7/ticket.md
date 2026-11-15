@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T03:29:05Z |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+- 2026-11-15 (Ming): **M-25 done.** Turnstile public site key: `0x4AAAAAAF_LLtCloZlzY0MY` (public by design; goes into `src/features/auth/config.ts` as a constant per consult R8). Hostname `tudocuatui.mmlabs.online` registered on the widget and in org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES`.
 - 2026-11-15 (T-019.6 security review — must keep): (1) unmount App on sign-out and account switch (e.g. `key={userId}` under AuthGate) or call `wardrobe.photos.clear()` before the next user's token is used; (2) pass a stable `getToken` that reads the current token (not a closure over one value); (3) pass it on App's first render in API mode (a later getter leaves the loader `null`). Bearer only in `Authorization`, only to `apiPhotoId`-validated same-origin `/api/photos/<uuid>`, `redirect: "manual"`, no query/cookie fallback; a 401 retry uses a fresh token, never loops, never leaks the token in errors; `item.photo` never holds a `blob:` URL; never reintroduce `max-age`/`immutable` on photos.
 - 2026-11-13 (Ming): verify-email waits for a button press ("chờ bấm nút"), D36.
 - 2026-11-13 (Ming): screens come from T-019.11 (UI first); this slice integrates them with the Identity API once org-admin-api is ready.
