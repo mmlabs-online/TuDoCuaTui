@@ -12,6 +12,29 @@ export const AUTH_COPY = {
     toSignUp: "Chưa có tài khoản? Tạo tài khoản",
     verified: "Email đã được xác minh. Hãy đăng nhập để tiếp tục.",
     signedOut: "Bạn đã đăng xuất.",
+    forgot: "Quên mật khẩu?",
+    passwordReset: "Mật khẩu đã được đổi. Hãy đăng nhập bằng mật khẩu mới.",
+  },
+  forgot: {
+    title: "Quên mật khẩu",
+    intro: "Nhập email của bạn. Chúng tôi sẽ gửi link để đặt lại mật khẩu.",
+    submit: "Gửi link đặt lại mật khẩu",
+    submitting: "Đang gửi…",
+    sentTitle: "Kiểm tra email của bạn",
+    sentBody: "Nếu email này đã có tài khoản, chúng tôi đã gửi link đặt lại mật khẩu tới đó.",
+    sentNote: "Link có hiệu lực 30 phút và chỉ dùng được một lần.",
+    toSignIn: "Quay lại đăng nhập",
+  },
+  reset: {
+    title: "Đặt lại mật khẩu",
+    intro: "Nhập mật khẩu mới cho tài khoản của bạn.",
+    submit: "Đổi mật khẩu",
+    submitting: "Đang đổi mật khẩu…",
+    done: "Mật khẩu đã được đổi. Tài khoản đã được đăng xuất trên mọi thiết bị, hãy đăng nhập lại bằng mật khẩu mới.",
+    continue: "Tiếp tục",
+    invalid:
+      "Link đặt lại mật khẩu không hợp lệ, đã được dùng hoặc đã hết hạn (link có hiệu lực 30 phút).",
+    requestNew: "Gửi link mới",
   },
   signUp: {
     title: "Tạo tài khoản",
@@ -46,6 +69,7 @@ export const AUTH_COPY = {
   fields: {
     email: "Email",
     password: "Mật khẩu",
+    newPassword: "Mật khẩu mới",
     confirm: "Nhập lại mật khẩu",
   },
   fieldErrors: {
@@ -99,6 +123,8 @@ export const AUTH_COPY = {
     signUp: "Đăng ký",
     verify: "Xác minh email",
     join: "Tham gia",
+    forgot: "Quên mật khẩu",
+    reset: "Đặt lại mật khẩu",
   },
 };
 

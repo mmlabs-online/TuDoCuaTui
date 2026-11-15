@@ -17,6 +17,10 @@ export interface IdentityClient {
     turnstileToken: string;
   }): Promise<{ email: string }>;
   verifyEmail(token: string): Promise<void>;
+  /** Always 202 for any email (no enumeration); Turnstile is always required. */
+  forgotPassword(v: { email: string; turnstileToken: string }): Promise<void>;
+  /** Public endpoint: the token goes in the POST body only. */
+  resetPassword(v: { token: string; newPassword: string }): Promise<void>;
   resendVerification(accountId: string): Promise<void>;
   /** Joins the app as the given account. Call only after the user's click (D8). */
   join(accountId: string): Promise<void>;
@@ -147,6 +151,12 @@ export function createIdentityClient({
     },
     async verifyEmail(token) {
       await post("/auth/verify-email", { token }, false);
+    },
+    async forgotPassword({ email, turnstileToken }) {
+      await post("/auth/password/forgot", { email, turnstile_token: turnstileToken }, true);
+    },
+    async resetPassword({ token, newPassword }) {
+      await post("/auth/password/reset", { token, new_password: newPassword }, false);
     },
     async resendVerification(accountId) {
       await post("/auth/verify-email/resend", { account_id: accountId }, true);

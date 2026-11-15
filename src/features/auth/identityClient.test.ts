@@ -231,3 +231,63 @@ describe("join and accounts", () => {
     ).toEqual({ code: "session_invalid" });
   });
 });
+
+describe("forgotPassword", () => {
+  const call = (c: ReturnType<typeof setup>["client"]) =>
+    c.forgotPassword({ email: "a@b.co", turnstileToken: "ts" });
+
+  it("is a cookie-class call with exactly {email, turnstile_token}", async () => {
+    const { client, req } = setup(() => new Response(null, { status: 202 }));
+    await expect(call(client)).resolves.toBeUndefined();
+    expect(req().url).toBe(`${BASE}/auth/password/forgot`);
+    expect(req().init.method).toBe("POST");
+    expect(req().init.credentials).toBe("include");
+    expect(req().headers).toEqual({ "Content-Type": "application/json", "X-MM-App": "tudocuatui" });
+    expect(req().body).toEqual({ email: "a@b.co", turnstile_token: "ts" });
+  });
+
+  it("maps errors", async () => {
+    expect(
+      await reject(call(setup(() => json({ error: { code: "turnstile_failed" } }, 403)).client)),
+    ).toEqual({ code: "turnstile_failed" });
+    expect(
+      await reject(call(setup(() => json({ error: { code: "origin_not_allowed" } }, 403)).client)),
+    ).toEqual({ code: "unknown" });
+    const limited = await reject(
+      call(
+        setup(() => json({ error: { code: "rate_limited" } }, 429, { "Retry-After": "60" })).client,
+      ),
+    );
+    expect(limited).toMatchObject({ code: "rate_limited", retryAfterSeconds: 60 });
+  });
+});
+
+describe("resetPassword", () => {
+  const call = (c: ReturnType<typeof setup>["client"]) =>
+    c.resetPassword({ token: "tok-in-body", newPassword: "new password 123" });
+
+  it("is the public call: omit credentials, no app header, body only", async () => {
+    const { client, req } = setup(() => new Response(null, { status: 204 }));
+    await expect(call(client)).resolves.toBeUndefined();
+    expect(req().url).toBe(`${BASE}/auth/password/reset`);
+    expect(req().url).not.toContain("?");
+    expect(req().init.method).toBe("POST");
+    expect(req().init.credentials).toBe("omit");
+    expect(req().headers).toEqual({ "Content-Type": "application/json" });
+    expect(req().body).toEqual({ token: "tok-in-body", new_password: "new password 123" });
+  });
+
+  it("maps weak_password with reasons and token_invalid", async () => {
+    const weak = await reject(
+      call(
+        setup(() =>
+          json({ error: { code: "weak_password", details: { reasons: ["too_common"] } } }, 422),
+        ).client,
+      ),
+    );
+    expect(weak).toMatchObject({ code: "weak_password", reasons: ["too_common"] });
+    expect(
+      await reject(call(setup(() => json({ error: { code: "token_invalid" } }, 422)).client)),
+    ).toEqual({ code: "token_invalid" });
+  });
+});

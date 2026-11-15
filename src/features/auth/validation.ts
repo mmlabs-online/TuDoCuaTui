@@ -75,6 +75,14 @@ export function validateSignUp(v: { email: string; password: string; confirm: st
   ]);
 }
 
+/** Reset policy is the sign-up policy (consumers.md: same rules). */
+export function validateNewPassword(v: { password: string; confirm: string }) {
+  return compact<"password" | "confirm">([
+    ["password", passwordError(v.password)],
+    ["confirm", v.confirm ? confirmError(v.password, v.confirm) : "required"],
+  ]);
+}
+
 /**
  * Token from a `#token=<32-128 url-safe chars>` fragment, else null.
  * T-019.7 must: strip (replaceState) the fragment before any network call; send the
@@ -83,3 +91,6 @@ export function validateSignUp(v: { email: string; password: string; confirm: st
 export function parseVerifyToken(hash: string): string | null {
   return VERIFY_HASH_RE.exec(hash)?.[1] ?? null;
 }
+
+/** org-admin-api ResetPasswordRequest.token is the same EMAIL_TOKEN_RE as the verify token. */
+export const parseResetToken = parseVerifyToken;

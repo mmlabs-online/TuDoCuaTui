@@ -8,7 +8,17 @@ import type { SignInScreenProps } from "./types";
 import { hasErrors, validateSignIn, type FieldErrors } from "./validation";
 
 export function SignInScreen(props: SignInScreenProps) {
-  const { status, error, notice, onSignIn, onGoSignUp, onResend, resend, turnstileSlot } = props;
+  const {
+    status,
+    error,
+    notice,
+    onSignIn,
+    onGoSignUp,
+    onGoForgot,
+    onResend,
+    resend,
+    turnstileSlot,
+  } = props;
   const [email, setEmail] = useState(props.initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors<"email" | "password">>({});
@@ -37,7 +47,11 @@ export function SignInScreen(props: SignInScreenProps) {
     <AuthLayout title={copy.signIn.title}>
       {notice && (
         <AuthNotice kind="info">
-          {notice === "verified" ? copy.signIn.verified : copy.signIn.signedOut}
+          {notice === "verified"
+            ? copy.signIn.verified
+            : notice === "password_reset"
+              ? copy.signIn.passwordReset
+              : copy.signIn.signedOut}
         </AuthNotice>
       )}
       {error && (
@@ -91,6 +105,7 @@ export function SignInScreen(props: SignInScreenProps) {
           {submitting ? copy.signIn.submitting : copy.signIn.submit}
         </Btn>
       </form>
+      {onGoForgot && <LinkButton onClick={onGoForgot}>{copy.signIn.forgot}</LinkButton>}
       <LinkButton onClick={onGoSignUp}>{copy.signIn.toSignUp}</LinkButton>
     </AuthLayout>
   );

@@ -5,6 +5,7 @@ import type { GetToken } from "@/data/authFetch";
 import { AuthLayout } from "./AuthLayout";
 import { AuthNotice } from "./AuthNotice";
 import { SignInScreen } from "./SignInScreen";
+import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 import { JoinScreen } from "./JoinScreen";
 import { SignUpScreen } from "./SignUpScreen";
 import { TurnstileWidget, type TurnstileHandle } from "./TurnstileWidget";
@@ -22,7 +23,11 @@ export type AppAuthProps = {
 type View =
   | { kind: "checking" }
   | { kind: "ready"; generation: number; app: AppAuthProps }
-  | { kind: "signed_out"; error?: AuthError | null; notice?: "verified" | "signed_out" | null }
+  | {
+      kind: "signed_out";
+      error?: AuthError | null;
+      notice?: "verified" | "signed_out" | "password_reset" | null;
+    }
   | { kind: "join"; email: string; error?: AuthError | null }
   | { kind: "retry"; error: AuthError };
 
@@ -35,16 +40,22 @@ export function AuthGate({
   client,
   renderApp,
   notice = null,
+  initialScreen = "signIn",
 }: {
   store: TokenStore;
   client: IdentityClient;
   renderApp: (p: AppAuthProps) => ReactNode;
-  notice?: "verified" | null;
+  notice?: "verified" | "password_reset" | null;
+  /** Used only when the device has no stored account. */
+  initialScreen?: "signIn" | "forgot";
 }) {
   const [view, setView] = useState<View>(() =>
     store.accountId() ? { kind: "checking" } : { kind: "signed_out", notice },
   );
-  const [screen, setScreen] = useState<"signIn" | "signUp">("signIn");
+  const [screen, setScreen] = useState<"signIn" | "signUp" | "forgot">(() =>
+    store.accountId() ? "signIn" : initialScreen,
+  );
+  const [forgotSent, setForgotSent] = useState(false);
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [signUpSent, setSignUpSent] = useState<string | null>(null);
   const [signUpKey, setSignUpKey] = useState(0);
@@ -171,13 +182,14 @@ export function AuthGate({
       }}
     />
   );
-  const goto = (s: "signIn" | "signUp") => {
+  const goto = (s: "signIn" | "signUp" | "forgot") => {
     tsToken.current = null;
     setTsFailed(false);
     setResend({ status: "idle" });
     setView((v) => (v.kind === "signed_out" ? { ...v, error: null, notice: null } : v));
     setStatus("idle");
     setSignUpSent(null);
+    setForgotSent(false);
     setScreen(s);
   };
 
@@ -224,6 +236,26 @@ export function AuthGate({
       setStatus("idle");
       setSignUpKey((k) => k + 1); // remount: the typed password does not survive the "sent" screen
       setSignUpSent(r.email);
+    } catch (e) {
+      spendTurnstile();
+      setStatus("idle");
+      setView({ kind: "signed_out", error: e as AuthError });
+    }
+  };
+
+  const forgot = async (forgotEmail: string) => {
+    if (!tsToken.current) {
+      setView({ kind: "signed_out", error: { code: "turnstile_required" } });
+      return;
+    }
+    setEmail(forgotEmail);
+    setStatus("submitting");
+    const turnstileToken = tsToken.current;
+    try {
+      await client.forgotPassword({ email: forgotEmail, turnstileToken });
+      spendTurnstile();
+      setStatus("idle");
+      setForgotSent(true);
     } catch (e) {
       spendTurnstile();
       setStatus("idle");
@@ -315,10 +347,23 @@ export function AuthGate({
   }
 
   const error =
-    tsFailed && (screen === "signUp" || needTurnstile)
+    tsFailed && (screen !== "signIn" || needTurnstile)
       ? { code: "turnstile_failed" as const }
       : view.error;
   const canResend = store.accountId() !== null;
+  if (screen === "forgot") {
+    return (
+      <ForgotPasswordScreen
+        status={forgotSent ? "sent" : status}
+        error={error}
+        initialEmail={email}
+        turnstileSlot={slot}
+        turnstileReady={!tsFailed}
+        onSubmit={forgot}
+        onGoSignIn={() => goto("signIn")}
+      />
+    );
+  }
   if (screen === "signUp") {
     return (
       <SignUpScreen
@@ -345,6 +390,7 @@ export function AuthGate({
       turnstileRequired={needTurnstile}
       onSignIn={signIn}
       onGoSignUp={() => goto("signUp")}
+      onGoForgot={() => goto("forgot")}
       onResend={canResend ? resendVerification : undefined}
       resend={resend}
     />

@@ -80,4 +80,69 @@ describe("AuthRoot", () => {
     expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
     expect(fetchFn).not.toHaveBeenCalled();
   });
+
+  describe("reset", () => {
+    const RESET = `#token=${"B".repeat(43)}`;
+    const fillAndReset = async () => {
+      fireEvent.change(screen.getByLabelText(AUTH_COPY.fields.newPassword), {
+        target: { value: "correct horse battery" },
+      });
+      fireEvent.change(screen.getByLabelText(AUTH_COPY.fields.confirm), {
+        target: { value: "correct horse battery" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.submit }));
+      });
+    };
+
+    it("reset hash + identity -> no request until submit; 204 -> Tiếp tục -> replaceState(/) -> sign-in with the notice", async () => {
+      const fetchFn = vi.fn(
+        async (_u: string, _i?: RequestInit) => new Response(null, { status: 204 }),
+      );
+      vi.stubGlobal("fetch", fetchFn);
+      const replace = vi.spyOn(history, "replaceState");
+      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity />);
+      expect(fetchFn).not.toHaveBeenCalled();
+      await fillAndReset();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.continue }));
+      });
+      expect(replace).toHaveBeenCalledWith(null, "", "/");
+      expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
+      expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
+      expect(renderApp).not.toHaveBeenCalled();
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn.mock.calls[0][0]).toBe("https://api.mmlabs.online/api/v1/auth/password/reset");
+      expect(fetchFn.mock.calls[0][1]?.credentials).toBe("omit");
+    });
+
+    it("reset hash + access -> reset page, then renderApp() with no props", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(null, { status: 204 })),
+      );
+      renderApp.mockClear();
+      render(
+        <AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity={false} />,
+      );
+      await fillAndReset();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.continue }));
+      });
+      expect(await screen.findByText("app-plain")).toBeTruthy();
+    });
+
+    it("token_invalid + identity -> Gửi link mới -> forgot screen", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => json({ error: { code: "token_invalid" } }, 422)),
+      );
+      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity />);
+      await fillAndReset();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.requestNew }));
+      });
+      expect(screen.getByRole("heading", { name: AUTH_COPY.forgot.title })).toBeTruthy();
+    });
+  });
 });

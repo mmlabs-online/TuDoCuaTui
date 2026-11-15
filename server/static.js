@@ -54,8 +54,11 @@ export async function resolveStaticPath(distDir, rawPath) {
   }
 }
 
-/** Pages whose URL carries a token in the fragment: send no Referer at all. */
-const NO_REFERRER_PATHS = new Set(["/verify-email", "/reset-password"]);
+/**
+ * Pages whose URL carries a token in the fragment: send no Referer at all.
+ * Mirrors src/shared/tokenPages.ts (server/tokenPages.parity.test.ts keeps them equal).
+ */
+export const NO_REFERRER_PATHS = new Set(["/verify-email", "/reset-password"]);
 
 /** @param {string} urlPath @returns {string | undefined} */
 export function referrerPolicyFor(urlPath) {

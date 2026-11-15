@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { ResetPasswordScreen } from "../ResetPasswordScreen";
 import { SignInScreen } from "../SignInScreen";
+import { ForgotPasswordScreen } from "../ForgotPasswordScreen";
 import { JoinScreen } from "../JoinScreen";
 import { SignUpScreen } from "../SignUpScreen";
 import { VerifyEmailScreen } from "../VerifyEmailScreen";
 import { AUTH_COPY, authErrorMessage } from "../copy";
-import type { AuthError, AuthErrorCode, SubmitStatus, VerifyState } from "../types";
+import type { AuthError, AuthErrorCode, ResetState, SubmitStatus, VerifyState } from "../types";
 
-type Screen = "signIn" | "signUp" | "verify" | "join";
+type Screen = "signIn" | "signUp" | "verify" | "join" | "forgot" | "reset";
 const ERROR_CODES = Object.keys(AUTH_COPY.errors).filter(
   (k) => !k.startsWith("weak_too"),
 ) as AuthErrorCode[];
@@ -14,6 +16,8 @@ const STATES: Record<Screen, string[]> = {
   signIn: ["idle", "submitting"],
   signUp: ["idle", "submitting", "sent"],
   join: ["idle", "submitting"],
+  forgot: ["idle", "submitting", "sent"],
+  reset: ["ready", "submitting", "done", "invalid"],
   verify: ["ready", "verifying", "verified", "invalid", "rate_limited"],
 };
 
@@ -93,6 +97,7 @@ export function AuthPreview() {
             turnstileSlot={slot}
             onSignIn={(v) => say(`signIn ${v.email} (${[...v.password].length})`)}
             onGoSignUp={() => say("goSignUp")}
+            onGoForgot={() => say("goForgot")}
             onResend={() => say("resend")}
           />
         )}
@@ -105,6 +110,24 @@ export function AuthPreview() {
             onSignUp={(v) => say(`signUp ${v.email} (${[...v.password].length})`)}
             onGoSignIn={() => say("goSignIn")}
             onResend={() => say("resend")}
+          />
+        )}
+        {screen === "forgot" && (
+          <ForgotPasswordScreen
+            status={state === "sent" ? "sent" : status}
+            error={error}
+            turnstileSlot={slot}
+            onSubmit={(email) => say(`forgot ${email}`)}
+            onGoSignIn={() => say("goSignIn")}
+          />
+        )}
+        {screen === "reset" && (
+          <ResetPasswordScreen
+            state={state as ResetState}
+            error={state === "ready" ? error : null}
+            onReset={(pw) => say(`reset (${[...pw].length})`)}
+            onContinue={() => say("continue")}
+            onRequestNew={() => say("requestNew")}
           />
         )}
         {screen === "join" && (
