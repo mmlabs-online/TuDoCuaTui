@@ -1,4 +1,6 @@
 import type { AiSettingsView } from "@/shared/ai/catalog";
+import { ApiError } from "./apiErrors";
+import { createAuthedFetch, type AuthOptions } from "./authFetch";
 import { isServerErrorCode, type AiErrorCode } from "@/shared/ai/errors";
 
 type FetchFn = typeof fetch;
@@ -31,11 +33,13 @@ export interface AiSettingsClient {
 export function createHttpAiSettings(
   fetchFn: FetchFn = (...a) => fetch(...a),
   base = "/api",
+  auth: AuthOptions = {},
 ): AiSettingsClient {
+  const authedFetch = createAuthedFetch({ fetchFn, ...auth });
   const call = async (method: string, path: string, body?: unknown): Promise<unknown> => {
     let res: Response;
     try {
-      res = await fetchFn(`${base}/ai-settings${path}`, {
+      res = await authedFetch(`${base}/ai-settings${path}`, {
         method,
         headers: {
           Accept: "application/json",
@@ -46,7 +50,8 @@ export function createHttpAiSettings(
         credentials: "same-origin",
         redirect: "manual",
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) throw new AiSettingsError(401, "unauthorized");
       throw new AiSettingsError(0, "network");
     }
     if (res.type === "opaqueredirect") throw new AiSettingsError(401, "unauthorized");
@@ -101,5 +106,3 @@ export const localAiSettings: AiSettingsClient = {
   deleteKey: unavailable,
   test: unavailable,
 };
-
-export const httpAiSettings = createHttpAiSettings();

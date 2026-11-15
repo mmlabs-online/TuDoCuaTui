@@ -3,6 +3,7 @@ import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
 import { runImport } from "./importRunner";
 import type { DataMode } from "./mode";
+import type { GetToken } from "./authFetch";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
 import { createLocalRepo } from "./repo";
 import { createHttpRepo } from "./repo.http";
@@ -23,15 +24,18 @@ export function useWardrobe(
   starter: Item[],
   defaultLocations: string[],
   mode: DataMode = "local",
-  { getToken }: { getToken?: () => Promise<string | null> } = {},
+  { getToken, onAuthLost }: { getToken?: GetToken; onAuthLost?: () => void } = {},
 ) {
   const repo = useMemo(
-    () => (mode === "api" ? createHttpRepo() : createLocalRepo(starter, defaultLocations)),
+    () =>
+      mode === "api"
+        ? createHttpRepo(undefined, undefined, undefined, { getToken, onAuthLost })
+        : createLocalRepo(starter, defaultLocations),
     [], // starter/defaultLocations are module constants
   );
   // Identity mode only: photos are fetched with the bearer and shown as blob: URLs (D34).
   const photos = useMemo<PhotoLoader | null>(
-    () => (mode === "api" && getToken ? createPhotoLoader({ getToken }) : null),
+    () => (mode === "api" && getToken ? createPhotoLoader({ getToken, onAuthLost }) : null),
     [], // getToken is injected once
   );
   useEffect(() => () => photos?.clear(), [photos]);

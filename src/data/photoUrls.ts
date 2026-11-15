@@ -1,4 +1,5 @@
 import { ApiError } from "./apiErrors";
+import { createAuthedFetch, type GetToken } from "./authFetch";
 import { apiPhotoId } from "./mappers";
 
 export interface PhotoHandle {
@@ -13,7 +14,9 @@ export interface PhotoLoader {
 }
 
 export interface PhotoLoaderOptions {
-  getToken: () => Promise<string | null>;
+  getToken: GetToken;
+  /** A request got 401 again with a freshly fetched token. */
+  onAuthLost?: () => void;
   fetchFn?: typeof fetch;
   base?: string;
   maxConcurrent?: number;
@@ -39,6 +42,7 @@ interface Entry {
  */
 export function createPhotoLoader({
   getToken,
+  onAuthLost,
   fetchFn = (...a) => fetch(...a),
   base = "/api",
   maxConcurrent = 4,
@@ -46,6 +50,7 @@ export function createPhotoLoader({
   createUrl = (b) => URL.createObjectURL(b),
   revokeUrl = (u) => URL.revokeObjectURL(u),
 }: PhotoLoaderOptions): PhotoLoader {
+  const authedFetch = createAuthedFetch({ fetchFn, getToken, onAuthLost });
   let entries = new Map<string, Entry>();
   let queue: Entry[] = [];
   let unused = new Set<string>(); // insertion order = LRU
@@ -60,10 +65,7 @@ export function createPhotoLoader({
 
   const run = async (e: Entry, gen: number) => {
     try {
-      const token = await getToken();
-      if (!token) throw new ApiError(401, "unauthorized");
-      const res = await fetchFn(`${base}/photos/${e.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await authedFetch(`${base}/photos/${e.id}`, {
         credentials: "same-origin",
         redirect: "manual",
         signal: e.ctrl.signal,

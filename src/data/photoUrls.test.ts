@@ -130,7 +130,6 @@ describe("createPhotoLoader", () => {
   });
 
   test.each([
-    ["401", async () => new Response("", { status: 401 })],
     ["404", async () => new Response("", { status: 404 })],
     ["500", async () => new Response("", { status: 500 })],
     [
@@ -165,8 +164,34 @@ describe("createPhotoLoader", () => {
         throw new Error("no token");
       },
     });
-    await expect(b.loader.acquire(src(1)).promise).rejects.toThrow("no token");
+    await expect(b.loader.acquire(src(1)).promise).rejects.toMatchObject({
+      status: 0,
+      code: "network",
+    });
     expect(b.fetchFn).not.toHaveBeenCalled();
+  });
+
+  test("401 -> one retry with getToken(stale); the fresh token is used", async () => {
+    const tokens = ["old", "new"];
+    const getToken = vi.fn(async (_r?: string) => tokens.shift() ?? null);
+    const { loader, fetchFn } = setup({ getToken });
+    fetchFn.mockImplementationOnce(async () => new Response("", { status: 401 }));
+    await expect(loader.acquire(src(1)).promise).resolves.toBe("blob:test/0");
+    expect(getToken.mock.calls).toEqual([[undefined], ["old"]]);
+    const auth = (n: number) =>
+      ((fetchFn.mock.calls[n] as [string, RequestInit])[1].headers as Record<string, string>)
+        .Authorization;
+    expect(auth(0)).toBe("Bearer old");
+    expect(auth(1)).toBe("Bearer new");
+  });
+
+  test("second 401 -> onAuthLost once, entry rejected, no third fetch", async () => {
+    const onAuthLost = vi.fn();
+    const { loader, fetchFn } = setup({ onAuthLost });
+    fetchFn.mockImplementation(async () => new Response("", { status: 401 }));
+    await expect(loader.acquire(src(1)).promise).rejects.toMatchObject({ status: 401 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(onAuthLost).toHaveBeenCalledTimes(1);
   });
 
   test("clear revokes every URL, aborts in-flight and rejects queued; late responses leave no URL; usable again", async () => {

@@ -1,6 +1,7 @@
 import { localToday } from "@/lib/dates";
 import type { Item } from "@/types/item";
 import { ApiError, PhotoSaveError } from "./apiErrors";
+import { createAuthedFetch, type AuthOptions } from "./authFetch";
 import { apiPhotoUrl, isUuid, itemToRow, rowToItem } from "./mappers";
 import { resizeImage, urlToBlob } from "./photos";
 import type { WardrobeRepo, WearOutcome } from "./repo";
@@ -13,7 +14,9 @@ export function createHttpRepo(
   fetchFn: FetchFn = (...a) => fetch(...a),
   base = "/api",
   resize: (src: Blob) => Promise<{ blob: Blob }> = resizeImage,
+  auth: AuthOptions = {},
 ): WardrobeRepo {
+  const authedFetch = createAuthedFetch({ fetchFn, ...auth });
   /** `photo` is the same-origin `/api/photos/<id>` URL; `photoPath` is the item_photos id. */
   const toItem = (row: ApiItemRow): Item => ({
     ...rowToItem(row, apiPhotoUrl(row.primary_photo_id, base)),
@@ -27,7 +30,7 @@ export function createHttpRepo(
     const isBlob = body instanceof Blob;
     let res: Response;
     try {
-      res = await fetchFn(base + path, {
+      res = await authedFetch(base + path, {
         method,
         headers: {
           Accept: "application/json",
@@ -38,8 +41,8 @@ export function createHttpRepo(
         credentials: "same-origin",
         redirect: "manual",
       });
-    } catch {
-      throw new ApiError(0, "network");
+    } catch (e) {
+      throw e instanceof ApiError ? e : new ApiError(0, "network");
     }
     if (res.type === "opaqueredirect") throw new ApiError(401, "unauthorized");
     if (res.status === 204) return null;
