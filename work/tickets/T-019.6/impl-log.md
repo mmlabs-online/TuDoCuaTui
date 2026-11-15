@@ -62,3 +62,26 @@ None new.
 
 ### Scope self-check
 Only the listed issues fixed; the optional nit about `setNode` was not touched.
+
+## Attempt 3 (REWORK)
+
+### Correction
+Attempt 2 reported "962 passed" in its Checks line. That number was wrong. The committed tree gives 960 passed, 167 skipped (matches the reviewer). No code change in this attempt; the attempt-2 section above is left as written, this note supersedes its test count.
+
+### Files touched
+None (documentation correction only).
+
+### Checks (run on the current tree)
+- typecheck: green (`tsc --noEmit && tsc -p tsconfig.server.json`).
+- format:check: all matched files use the correct format (214 files).
+- test: `Tests  960 passed | 167 skipped (1127)`.
+- build: OK (built in 305ms).
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None.
+
+### Scope self-check
+Only the reported test-count error was corrected.
