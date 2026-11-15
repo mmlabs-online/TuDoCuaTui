@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -43,7 +43,13 @@ proposal* → T-019.10). Decisions D31–D34. Ming items in the plan are numbere
 - See the umbrella plan *Tests to write* (T-019.10 rows).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-14: upstream ready — org-admin-api USR-03b (join for open apps) is live in v0.1.3; see its `docs/consumers.md` "Accounts" / "Join".
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-15 — claude — BLOCKED
+- Done: plan.md READY (no consult areas): `join()` / `accounts()` in identityClient, join codes in errors, `tokenStore.join()` (token only after a successful join), new `JoinScreen.tsx`, AuthGate routes `not_member` + `join_available` from sign-in, reload and background refresh; privacy text in `src/constants/privacy.ts`, shown on the join screen and in the editor's photo picker (API mode only).
+- In progress / next: Ming approves the plan and the Vietnamese copy (plan Approach step 4 + privacy text); then implement.
+- Gotchas: T-019.12 edits the same auth files; whichever runs second rebases.
