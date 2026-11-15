@@ -77,3 +77,61 @@ No violations found.
 ### Follow-ups (out of scope)
 - 401 retry or token refresh in the loader (plan A3), for T-019.7.
 - Ming, after merge: see plan *Ming verification after merge* (production photos still load in Access mode with a 304 revalidation; M-20: `blob:` sources, bearer-only requests, no cross-account photo after switching user).
+
+## Attempt 2 — 2026-11-15
+Verdict: REWORK
+
+The code is ready to pass. The only blocker is a wrong test count in `impl-log.md`. Under the reviewer rules, a mismatch between the implementer's reported checks and the reviewer's own run is a blocker.
+
+### Checks (run by reviewer)
+Branch `claude/magical-cori-2ssw8l`, base `origin/main`. The working tree is clean.
+- typecheck: green (`tsc --noEmit && tsc -p tsconfig.server.json`).
+- format:check: "All matched files use the correct format."
+- test (no DB, run twice): 78 files passed, 8 skipped. **960 passed**, 167 skipped. That is attempt 1's 957 plus the 3 new tests (2 in `ItemPhoto.test.tsx`, 1 in `photoUrls.test.ts`), so no test was dropped. The DB suite was not re-run because no `server/` file changed since attempt 1, where it was green with 1124 tests on real Postgres.
+- build: `✓ built`.
+- Playwright (Chromium, 390×844, Vite dev, API harness with `getToken` → `tok-123`, 40 items, photo responses delayed 600 ms). Each run did a fast scroll to the bottom, a 4 s wait, then a slow scroll back to the top. It ran in **light and dark** (`<html class="dark">` confirmed in dark):
+  - Light: 0 cards on the "Chưa có ảnh" placeholder (attempt 1 had 24). After the scroll, the cards near the viewport were `<img>` with `blob:` sources and the rest were `.photo-pending`. 40/40 photos were fetched and 40 `blob:` URLs were created. All 40 requests were `GET /api/photos/<uuid>` with `Authorization: Bearer tok-123`, no query string and no cookie. No horizontal overflow. The editor `<img>` was `blob:` (naturalWidth 1). Saving sent only `PUT /api/items/<id>`, and the grid kept the same `blob:` URL afterwards.
+  - Dark: identical results (0 stuck, 40/40 bearer, no query, no cookie, no overflow).
+
+### Acceptance criteria
+- [x] "In API + identity mode the SPA fetches photos with the bearer and renders `blob:` URLs, revoked on sign-out." Evidence:
+  - The attempt-1 evidence still holds.
+  - The Issue 1 fix in `src/data/usePhotoUrl.ts:23-63` gives each `start()` its own token (`mine`). `stop()` and both cleanups set `current = null`, so the result of a released handle can no longer set `failed` or flip the card to `<img>`. The element stays observed.
+  - Regression tests in `ItemPhoto.test.tsx`: "scrolling away while queued behind the cap returns to pending, then loads on return" and "scrolling away while loading: a late response does not flip the card". Both use the real `createPhotoLoader` with `maxConcurrent: 1`, and both are green.
+  - The Playwright run above, in light and dark.
+- [x] "Local mode unchanged (demo URLs)." The attempt-1 evidence holds. The hook change only takes effect when a loader is present.
+- [x] "Server photo responses are `private, no-cache` + ETag; 304 only after the ownership check." No server changes since attempt 1, so the attempt-1 evidence holds.
+- [x] "All checks pass; 390px and dark mode." All checks are green (see above), and the layout holds at 390px in light and dark.
+
+### Blob type pin (security-review 🟢)
+- `src/data/photoUrls.ts:76`: `new Blob([await res.blob()], { type: "image/jpeg" })`. This is correct:
+  - The `Content-Type: image/*` check at `:73` still runs first.
+  - The generation check at `:77` still runs straight after, with no extra `await` between it and `createUrl`.
+  - Stored photos are JPEG under R4.
+- Test: `photoUrls.test.ts` › "the blob handed to createUrl is pinned to image/jpeg" (the server responds `image/svg+xml`, and the blob handed over is `image/jpeg`). Green.
+- It is in scope: the orchestrator asked for it from `security-review.md`, it touches only a planned file, and it closes the SVG-as-blob path.
+
+### Issues
+#### Issue 1 — 🔴 blocker — the reported checks do not match the reviewer's run
+- **Where**: `work/tickets/T-019.6/impl-log.md:54` (Attempt 2 › Checks).
+- **Expected**: The test count matches a real run: `960 passed, 167 skipped`.
+- **Actual**: The log says `962 passed, 167 skipped`. Two reviewer runs on the committed tree both give 960, and 957 + 3 new tests = 960.
+- **Fix instruction**: Re-run `pnpm test` and correct the count on line 54 to the real output. No code change is needed.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found.
+- R1: local mode is untouched.
+- R3: the bearer appears only in the `Authorization` header.
+- R4: photos are shown only as `blob:` URLs.
+- R7: every changed file is in the plan.
+- R8: regression tests were added.
+- R9: 390px works in light and dark.
+- R10: no Figma Make files touched.
+
+### Nits (do not block)
+- The `setNode` extra-render nit from attempt 1 is still open. It is optional.
+- `usePhotoUrl.ts`: on a real (non-release) failure, the fallback has no `ref`, so the card is never retried until it remounts. This is the intended behaviour for a failed photo, but the reason is worth a comment.
+
+### Follow-ups (out of scope)
+- 401 retry or token refresh in the loader (plan A3), for T-019.7.
+- Ming, after merge: see plan *Ming verification after merge* (production photos load in Access mode with a 304 revalidation; M-20: `blob:` sources, bearer-only requests, no cross-account photo after switching user).
