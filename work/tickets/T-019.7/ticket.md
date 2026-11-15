@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | PLANNING |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | M-25 |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T03:29:17Z |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+- 2026-11-15 (Ming): **M-25 done.** Turnstile public site key: `0x4AAAAAAF_LLtCloZlzY0MY` (public by design; goes into `src/features/auth/config.ts` as a constant per consult R8). Hostname `tudocuatui.mmlabs.online` registered on the widget and in org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES`.
 - 2026-11-15 (Ming, after the architect consult):
   1. **Bootstrap (consult F8):** Ming gets his mmlabs account and `sub` **through another registered app** (or an org-admin-api staff step); TuDo needs no change for that (M-17).
   2. **Turnstile:** **wait for the site key before implementing** — no merge with an empty key. Ming supplies the public site key paired with org-admin-api's `TURNSTILE_SECRET_KEY` and registers `tudocuatui.mmlabs.online` in the widget hostnames and org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES` (M-25). The key goes in as a public constant (consult R8).
