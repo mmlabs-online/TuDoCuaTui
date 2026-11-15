@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-15 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T07:15:27Z |
 | PR | — |
 
 ## Goal
@@ -43,7 +43,7 @@ Slice of T-019 (D31, D38). Umbrella plan A7; T-019.13 plan A1 and *Split proposa
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-15 (Ming: "duyệt T-019.14"): **Plan approved**, including A1 (500 stored photos / 50 uploads per 24 h per user, owner exempt), 409 `photo_quota_exceeded` and the two proposed Vietnamese strings.
 - 2026-11-15: created by the orchestrator from the T-019.13 plan *Split proposal* after Ming approved that plan. The numbers (500 / 50, owner exempt) are proposed defaults; Ming confirms or changes them at this ticket's plan approval.
 
 ## Handoff
