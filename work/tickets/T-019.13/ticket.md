@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -39,7 +39,18 @@ Slice of T-019 (D31). From the T-019.3 security review F8/F9 and the T-019.2 sec
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- 2026-11-15 (Ming, after the architect consult — see `consult-software-architect.md` open questions):
+  1. **Drive: Ming's Drive for everyone** (option B), not owner-only photo storage. The consult notes this needs per-user quotas (umbrella A7) and a privacy notice (Ming can see users' photos) before strangers can upload; planner decides whether quotas fit this ticket or become a new slice that also gates T-019.9 / M-22.
+  2. **Owner lane: yes** — owner exempt from the global AI ceilings and gets its own upload/tag slots; per-user limits still apply (R1, R2).
+  3. **Upload body deadline: 15 s total + 5 s idle** (not the recommended 10 s + 4 s).
+  4. **Join policy `open` at M-19; no per-IP limits now.** Do not run M-22 until T-019.13 is released (R7 as a ming-todo note).
 - 2026-11-14 (T-019.5 security review): also decide here, before M-22 / T-019.10, **whose Google Drive holds other users' photos** — today `server/photos.js` writes every user's photos through the one configured Drive client (Ming's Drive, D27). Options: keep Ming's Drive with per-user quotas, per-user folders, or photos only for allow-listed users until a storage decision.
 - 2026-11-14: created by the orchestrator per T-019.5 plan A-T5; gates T-019.9 (and so M-22, Access removal) and T-019.10 (join UX).
 
 ## Handoff
+
+### 2026-11-15 — claude — BLOCKED
+- Done: architect consult; Ming's answers (owner lane, 15 s + 5 s, open join, no per-IP, Ming's Drive for everyone); plan.md READY: owner lane on AI ceilings and slots, body deadline, `TUDO_OWNER_SUB` required in identity mode, `check-image.sh` update. Quotas split to a new slice T-019.14 (text in plan); privacy notice goes to T-019.10; shared Drive rate limit accepted as residual.
+- In progress / next: Ming approves the plan. Then on `main`: create T-019.14 (from plan), add it to T-019.9 `Depends on`, add the privacy-notice AC to T-019.10, record D38, extend the M-22 note; then implement.
+- Gotchas: T-019.9 and F-701.1 touch the same server files; whichever merges second rebases.
