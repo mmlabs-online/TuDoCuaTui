@@ -348,3 +348,39 @@ describe("createHttpRepo errors", () => {
     ).toBe(API_ERROR_COPY.network);
   });
 });
+
+describe("identity mode (getToken)", () => {
+  const withAuth = (statuses: number[], auth: Parameters<typeof createHttpRepo>[3]) => {
+    const q = [...statuses];
+    const fetchFn = vi.fn(async (..._a: Parameters<typeof fetch>) => {
+      const st = q.shift() ?? 200;
+      return st === 401 ? new Response("", { status: 401 }) : json({ locations: ["A"] });
+    });
+    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize, auth);
+    return { fetchFn, repo };
+  };
+
+  test("bearer + one retry after a 401", async () => {
+    const tokens = ["old", "new"];
+    const getToken = vi.fn(async (_r?: string) => tokens.shift() ?? null);
+    const { fetchFn, repo } = withAuth([401, 200], { getToken });
+    expect(await repo.locations()).toEqual(["A"]);
+    expect(call(fetchFn, 0).headers.Authorization).toBe("Bearer old");
+    expect(call(fetchFn, 1).headers.Authorization).toBe("Bearer new");
+    expect(getToken.mock.calls[1]).toEqual(["old"]);
+  });
+
+  test("second 401 -> onAuthLost and ApiError(401)", async () => {
+    const onAuthLost = vi.fn();
+    const { fetchFn, repo } = withAuth([401, 401], { getToken: async () => "t", onAuthLost });
+    await expect(repo.locations()).rejects.toMatchObject({ status: 401 });
+    expect(onAuthLost).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  test("no header without getToken", async () => {
+    const { fetchFn, repo } = withAuth([200], {});
+    await repo.locations();
+    expect(call(fetchFn).headers.Authorization).toBeUndefined();
+  });
+});

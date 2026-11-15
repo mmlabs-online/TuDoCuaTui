@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import * as aiSettings from "./aiSettings";
 import { AiSettingsError, createHttpAiSettings, localAiSettings } from "./aiSettings";
 
 const VIEW = {
@@ -121,5 +122,45 @@ describe("localAiSettings", () => {
     }
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+describe("identity mode (getToken)", () => {
+  const withAuth = (statuses: number[], auth: Parameters<typeof createHttpAiSettings>[2]) => {
+    const q = [...statuses];
+    const fetchFn = vi.fn(async (..._a: Parameters<typeof fetch>) =>
+      (q.shift() ?? 200) === 401 ? new Response("", { status: 401 }) : json({ settings: VIEW }),
+    );
+    return {
+      fetchFn,
+      client: createHttpAiSettings(fetchFn as unknown as typeof fetch, "/api", auth),
+    };
+  };
+  const bearer = (fn: ReturnType<typeof vi.fn>, n: number) =>
+    ((fn.mock.calls[n] as unknown as [string, RequestInit])[1].headers as Record<string, string>)
+      .Authorization;
+
+  it("bearer + one retry after a 401", async () => {
+    const tokens = ["old", "new"];
+    const { fetchFn, client } = withAuth([401, 200], {
+      getToken: async () => tokens.shift() ?? null,
+    });
+    expect(await client.get()).toEqual(VIEW);
+    expect(bearer(fetchFn, 0)).toBe("Bearer old");
+    expect(bearer(fetchFn, 1)).toBe("Bearer new");
+  });
+
+  it("second 401 -> onAuthLost once and an unauthorized AiSettingsError", async () => {
+    const onAuthLost = vi.fn();
+    const { client } = withAuth([401, 401], { getToken: async () => "t", onAuthLost });
+    expect((await codeOf(client.get())).code).toBe("unauthorized");
+    expect(onAuthLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("no header without getToken; the httpAiSettings singleton is gone", async () => {
+    const { fetchFn, client } = withAuth([200], {});
+    await client.get();
+    expect(bearer(fetchFn, 0)).toBeUndefined();
+    expect("httpAiSettings" in aiSettings).toBe(false);
   });
 });

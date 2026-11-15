@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "@/types/item";
 import type { DataMode } from "@/data/mode";
@@ -23,7 +23,8 @@ import { Hero } from "@/features/layout/Hero";
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
-import { httpAiSettings } from "@/data/aiSettings";
+import { createHttpAiSettings } from "@/data/aiSettings";
+import type { GetToken } from "@/data/authFetch";
 import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
@@ -31,8 +32,20 @@ import { APP_VERSION } from "@/lib/version";
 function App({
   mode,
   getToken,
-}: { mode?: DataMode; getToken?: () => Promise<string | null> } = {}) {
-  const wardrobe = useWardrobe(starter, locations, mode, { getToken });
+  onSignOut,
+  onAuthLost,
+}: {
+  mode?: DataMode;
+  getToken?: GetToken;
+  onSignOut?: () => void;
+  onAuthLost?: () => void;
+} = {}) {
+  const wardrobe = useWardrobe(starter, locations, mode, { getToken, onAuthLost });
+  // One client per mounted App: it carries this sign-in's bearer provider.
+  const aiClient = useMemo(
+    () => createHttpAiSettings(undefined, undefined, { getToken, onAuthLost }),
+    [], // getToken/onAuthLost are injected once, as for useWardrobe
+  );
   const { items, loading } = wardrobe;
   const locationOptions = wardrobe.locations;
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === "dark");
@@ -104,6 +117,7 @@ function App({
           onExport={() => setExportOpen(true)}
           onAdd={openNew}
           onSettings={wardrobe.mode === "api" ? () => setSettingsOpen(true) : undefined}
+          onSignOut={onSignOut}
         />
 
         {wardrobe.error && (
@@ -254,7 +268,7 @@ function App({
           />
         )}
         {settingsOpen && wardrobe.mode === "api" && (
-          <AiSettingsModal client={httpAiSettings} onClose={() => setSettingsOpen(false)} />
+          <AiSettingsModal client={aiClient} onClose={() => setSettingsOpen(false)} />
         )}
         <Toast message={toast} />
       </div>

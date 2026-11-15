@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { detectMode, pickMode } from "./mode";
+import { detectMode, detectRuntime, pickMode } from "./mode";
 
 afterEach(() => vi.useRealTimers());
 
@@ -82,5 +82,41 @@ describe("detectMode", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(await p).toBe("local");
     expect(fn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("detectRuntime", () => {
+  const rt = (fn: ReturnType<typeof vi.fn>, dev = false) =>
+    detectRuntime({ fetchFn: fn as unknown as typeof fetch, dev });
+
+  test("auth identity / access from /healthz", async () => {
+    expect(await rt(mk(() => res('{"status":"ok","auth":"identity"}')))).toEqual({
+      mode: "api",
+      auth: "identity",
+    });
+    expect(await rt(mk(() => res('{"status":"ok","auth":"access"}')))).toEqual({
+      mode: "api",
+      auth: "access",
+    });
+  });
+
+  test("missing or unknown auth -> null", async () => {
+    expect((await rt(mk(okRes))).auth).toBeNull();
+    expect((await rt(mk(() => res('{"status":"ok","auth":"bogus"}')))).auth).toBeNull();
+    expect((await rt(mk(() => res('{"status":"ok","auth":1}')))).auth).toBeNull();
+  });
+
+  test("opaqueredirect -> api with null auth", async () => {
+    const r = await rt(
+      mk(() => Object.defineProperty(new Response(""), "type", { value: "opaqueredirect" })),
+    );
+    expect(r).toEqual({ mode: "api", auth: null });
+  });
+
+  test("SPA host (html) -> local; dev -> local without fetch", async () => {
+    expect(await rt(mk(() => res("<html>", "text/html")))).toEqual({ mode: "local", auth: null });
+    const fn = vi.fn();
+    expect(await rt(fn, true)).toEqual({ mode: "local", auth: null });
+    expect(fn).not.toHaveBeenCalled();
   });
 });

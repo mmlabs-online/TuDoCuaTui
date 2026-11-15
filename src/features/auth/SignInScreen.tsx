@@ -15,7 +15,10 @@ export function SignInScreen(props: SignInScreenProps) {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const submitting = status === "submitting";
-  const showTurnstile = error?.code === "turnstile_required" || error?.code === "turnstile_failed";
+  const showTurnstile =
+    props.turnstileRequired ||
+    error?.code === "turnstile_required" ||
+    error?.code === "turnstile_failed";
   const copy = AUTH_COPY;
 
   function submit(e: React.FormEvent) {

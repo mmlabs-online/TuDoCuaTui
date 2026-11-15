@@ -15,37 +15,61 @@ function walk(dir: string): string[] {
 
 const isTest = (f: string) => /\.test\.(ts|tsx)$/.test(f);
 const rel = (f: string) => path.relative(root, f);
+const authFiles = () => walk(authDir).filter((f) => !isTest(f));
+
+/** Each sensitive token may appear only in the listed files (basename relative to src/features/auth). */
+const ALLOWED: Record<string, string[]> = {
+  "fetch(": ["identityClient.ts"],
+  "api.mmlabs": ["config.ts"],
+  localStorage: ["accountId.ts"],
+  mm_account_id: ["accountId.ts"],
+  'createElement("script")': ["turnstile.ts"],
+  "challenges.cloudflare.com": ["turnstile.ts"],
+  "history.": ["AuthRoot.tsx"],
+};
+const NOWHERE = [
+  "console.",
+  "sessionStorage",
+  "document.cookie",
+  "XMLHttpRequest",
+  "sendBeacon",
+  "WebSocket",
+  "EventSource",
+  "dangerouslySetInnerHTML",
+  "innerHTML",
+];
 
 describe("auth slice boundary", () => {
-  it("auth sources make no network or storage call", () => {
-    const forbidden = [
-      "fetch(",
-      "XMLHttpRequest",
-      "sendBeacon",
-      "WebSocket",
-      "EventSource",
-      "localStorage",
-      "sessionStorage",
-      "document.cookie",
-      "api.mmlabs",
-      "console.",
-    ];
-    const files = walk(authDir).filter((f) => !isTest(f));
+  it("sensitive calls live only in their one file", () => {
+    const files = authFiles();
     expect(files.length).toBeGreaterThan(0);
     const hits = files.flatMap((f) => {
       const text = readFileSync(f, "utf8");
-      return forbidden.filter((w) => text.includes(w)).map((w) => `${rel(f)}: ${w}`);
+      const name = path.relative(authDir, f);
+      return [
+        ...Object.entries(ALLOWED)
+          .filter(([w, ok]) => text.includes(w) && !ok.includes(name))
+          .map(([w]) => `${rel(f)}: ${w}`),
+        ...NOWHERE.filter((w) => text.includes(w)).map((w) => `${rel(f)}: ${w}`),
+      ];
     });
     expect(hits).toEqual([]);
   });
 
-  it("no app module imports features/auth", () => {
-    const files = walk(path.join(root, "src")).filter((f) => !f.startsWith(authDir + path.sep));
+  it("only src/main.tsx mentions features/auth, and only through a dynamic import()", () => {
+    const files = walk(path.join(root, "src")).filter(
+      (f) => !f.startsWith(authDir + path.sep) && !isTest(f),
+    );
     const hits = [...files, path.join(root, "index.html")].filter((f) => {
       const text = readFileSync(f, "utf8");
       return text.includes("features/auth") || text.includes("auth-preview");
     });
-    expect(hits.map(rel)).toEqual([]);
+    expect(hits.map(rel).filter((f) => f !== "src/main.tsx")).toEqual([]);
+    const main = readFileSync(path.join(root, "src/main.tsx"), "utf8");
+    expect(main).not.toMatch(/from\s+["'][^"']*features\/auth/);
+    for (const m of main.matchAll(/features\/auth[^"']*/g)) {
+      expect(main).toContain(`import("./${m[0]}`);
+    }
   });
 
   it("auth UI uses theme variables, no fixed wide widths", () => {

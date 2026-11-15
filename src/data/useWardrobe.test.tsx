@@ -298,4 +298,46 @@ describe("useWardrobe", () => {
       expect(result.current.items.map((i) => i.name).sort()).toEqual(["X1", "X3"]);
     });
   });
+
+  describe("identity mode", () => {
+    afterEach(() => vi.unstubAllGlobals());
+    test("repo and photo loader both get getToken on the first render; onAuthLost is forwarded", async () => {
+      const calls: string[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: RequestInit) => {
+          const auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+          calls.push(`${url} ${auth}`);
+          if (url.includes("/photos/")) {
+            return new Response(new Blob(["x"]), {
+              status: 200,
+              headers: { "Content-Type": "image/jpeg" },
+            });
+          }
+          return new Response("", { status: 401 });
+        }),
+      );
+      vi.stubGlobal(
+        "URL",
+        class extends URL {
+          static createObjectURL = () => "blob:x";
+          static revokeObjectURL = () => {};
+        },
+      );
+      const getToken = vi.fn(async (_r?: string) => "tok");
+      const onAuthLost = vi.fn();
+      const { result, rerender } = renderHook(() =>
+        useWardrobe(starter, defaults, "api", { getToken, onAuthLost }),
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(calls.some((c) => c.endsWith("Bearer tok"))).toBe(true);
+      expect(onAuthLost).toHaveBeenCalled();
+      const photos = result.current.photos;
+      expect(photos).not.toBeNull();
+      rerender();
+      expect(result.current.photos).toBe(photos);
+      await photos!.acquire("/api/photos/11111111-1111-4111-8111-111111111111").promise;
+      expect(calls.some((c) => c.includes("/photos/") && c.endsWith("Bearer tok"))).toBe(true);
+    });
+  });
 });

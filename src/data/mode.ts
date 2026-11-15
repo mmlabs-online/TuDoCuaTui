@@ -3,7 +3,9 @@ export type DataMode = "local" | "api";
 /** api (served by the Node server) or local (localStorage + demo data). */
 export const pickMode = (apiAvailable: boolean): DataMode => (apiAvailable ? "api" : "local");
 
-type Probe = "yes" | "no" | "error";
+export type AuthKind = "identity" | "access" | null;
+type Probe = { result: "yes" | "no" | "error"; auth: AuthKind };
+const probe = (result: Probe["result"], auth: AuthKind = null): Probe => ({ result, auth });
 
 /** Only the Node server answers /healthz with JSON {status:"ok"}; SPA hosts answer with HTML. */
 async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Probe> {
@@ -17,21 +19,28 @@ async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Prob
       redirect: "manual",
       signal: ctrl.signal,
     });
-    if (res.type === "opaqueredirect") return "yes";
+    if (res.type === "opaqueredirect") return probe("yes");
     if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("application/json")) {
-      return "no";
+      return probe("no");
     }
-    const body = (await res.json()) as { status?: string } | null;
-    return body?.status === "ok" ? "yes" : "no";
+    const body = (await res.json()) as { status?: string; auth?: unknown } | null;
+    if (body?.status !== "ok") return probe("no");
+    return probe("yes", body.auth === "identity" || body.auth === "access" ? body.auth : null);
   } catch (e) {
     // a body that is not JSON is a definite "no"; anything else (network, abort) may be transient
-    return e instanceof SyntaxError ? "no" : "error";
+    return probe(e instanceof SyntaxError ? "no" : "error");
   } finally {
     clearTimeout(timer);
   }
 }
 
-export async function detectMode({
+export interface Runtime {
+  mode: DataMode;
+  /** `/healthz` `auth` field; null when absent, unknown, or not api mode. */
+  auth: AuthKind;
+}
+
+export async function detectRuntime({
   fetchFn = (...a: Parameters<typeof fetch>) => fetch(...a),
   dev = import.meta.env.DEV,
   timeoutMs = 2000,
@@ -39,9 +48,15 @@ export async function detectMode({
   fetchFn?: typeof fetch;
   dev?: boolean;
   timeoutMs?: number;
-} = {}): Promise<DataMode> {
-  if (dev) return pickMode(false);
+} = {}): Promise<Runtime> {
+  if (dev) return { mode: pickMode(false), auth: null };
   let r = await probeOnce(fetchFn, timeoutMs);
-  if (r === "error") r = await probeOnce(fetchFn, timeoutMs);
-  return pickMode(r === "yes");
+  if (r.result === "error") r = await probeOnce(fetchFn, timeoutMs);
+  return { mode: pickMode(r.result === "yes"), auth: r.result === "yes" ? r.auth : null };
+}
+
+export async function detectMode(
+  opts: Parameters<typeof detectRuntime>[0] = {},
+): Promise<DataMode> {
+  return (await detectRuntime(opts)).mode;
 }

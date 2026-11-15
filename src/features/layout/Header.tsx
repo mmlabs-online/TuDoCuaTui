@@ -1,5 +1,6 @@
 import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
+import { LAYOUT_COPY } from "@/features/layout/copy";
 import { SETTINGS_COPY } from "@/features/settings/copy";
 
 export function Header({
@@ -10,6 +11,7 @@ export function Header({
   onExport,
   onAdd,
   onSettings,
+  onSignOut,
 }: {
   count: number;
   dark: boolean;
@@ -18,6 +20,7 @@ export function Header({
   onExport: () => void;
   onAdd: () => void;
   onSettings?: () => void;
+  onSignOut?: () => void;
 }) {
   return (
     <header className="topbar">
@@ -37,6 +40,11 @@ export function Header({
         {onSettings && (
           <button className="icon-btn" onClick={onSettings} aria-label={SETTINGS_COPY.open}>
             <Icon name="settings" />
+          </button>
+        )}
+        {onSignOut && (
+          <button className="icon-btn" onClick={onSignOut} aria-label={LAYOUT_COPY.signOut}>
+            <Icon name="logout" />
           </button>
         )}
         <Btn className="desktop-btn" onClick={onImport}>
