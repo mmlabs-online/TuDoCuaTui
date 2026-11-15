@@ -1,23 +1,26 @@
 import type { Runtime } from "@/data/mode";
+import { TOKEN_PAGES, tokenPageOf, type TokenPage } from "@/shared/tokenPages";
 
-const VERIFY_PATH = "/verify-email";
+export type TokenLink = { page: TokenPage; hash: string };
 
 /**
- * Must run synchronously before any fetch: copies `location.hash` on `/verify-email` and removes it from the
- * address bar at once (D36). Returns the copied hash (`"#token=…"`) or null.
+ * Must run synchronously before any fetch: copies `location.hash` on a token page (/verify-email,
+ * /reset-password) and removes it from the address bar at once (D36). Returns the page and the copied hash
+ * (`"#token=…"`) or null.
  */
-export function takeVerifyHash(
+export function takeTokenHash(
   loc: Pick<Location, "pathname" | "hash"> = location,
   hist: Pick<History, "replaceState"> = history,
-): string | null {
-  if (loc.pathname !== VERIFY_PATH || !loc.hash) return null;
+): TokenLink | null {
+  const page = tokenPageOf(loc.pathname);
+  if (!page || !loc.hash) return null;
   const hash = loc.hash;
-  hist.replaceState(null, "", VERIFY_PATH);
-  return hash;
+  hist.replaceState(null, "", TOKEN_PAGES[page]);
+  return { page, hash };
 }
 
-/** The auth chunk loads for the identity gate, or for a verify-email visit in api mode (identity or access). */
-export function needsAuth({ mode, auth }: Runtime, verifyHash: string | null): boolean {
+/** The auth chunk loads for the identity gate, or for a token-page visit in api mode (identity or access). */
+export function needsAuth({ mode, auth }: Runtime, link: TokenLink | null): boolean {
   if (mode !== "api") return false;
-  return auth === "identity" || verifyHash !== null;
+  return auth === "identity" || link !== null;
 }

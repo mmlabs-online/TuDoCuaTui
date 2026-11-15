@@ -41,10 +41,12 @@ export type SignInScreenProps = {
   status: SubmitStatus;
   error?: AuthError | null;
   /** Info banner, for example after /verify-email. */
-  notice?: "verified" | "signed_out" | null;
+  notice?: "verified" | "signed_out" | "password_reset" | null;
   initialEmail?: string;
   onSignIn: (values: Credentials) => void;
   onGoSignUp: () => void;
+  /** "Quên mật khẩu?" is shown only when provided. */
+  onGoForgot?: () => void;
   /** Offered with email_unverified only when provided. */
   onResend?: () => void;
   resend?: ResendState;
@@ -68,6 +70,32 @@ export type SignUpScreenProps = {
   turnstileReady?: boolean;
   onResend?: () => void;
   resend?: ResendState;
+};
+
+export type ForgotPasswordScreenProps = {
+  status: SubmitStatus | "sent";
+  error?: AuthError | null;
+  initialEmail?: string;
+  /** Trimmed email. */
+  onSubmit: (email: string) => void;
+  onGoSignIn: () => void;
+  /** Always rendered above submit (Turnstile is always required). */
+  turnstileSlot?: ReactNode;
+  /** Default true; false disables submit. */
+  turnstileReady?: boolean;
+};
+
+export type ResetState = "ready" | "submitting" | "done" | "invalid";
+export type ResetPasswordScreenProps = {
+  state: ResetState;
+  /** "ready": weak_password (reasons), rate_limited, network, unknown. */
+  error?: AuthError | null;
+  /** Called only from the form submit (button press or Enter); the confirm value is never passed out. */
+  onReset: (newPassword: string) => void;
+  /** "done", and "invalid" when onRequestNew is absent. */
+  onContinue: () => void;
+  /** "invalid": "Gửi link mới" shown only when provided (identity mode). */
+  onRequestNew?: () => void;
 };
 
 export type VerifyState = "ready" | "verifying" | "verified" | "invalid" | "rate_limited";

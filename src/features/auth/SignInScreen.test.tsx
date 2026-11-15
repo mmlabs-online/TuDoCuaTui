@@ -158,3 +158,29 @@ describe("SignInScreen", () => {
     ]);
   });
 });
+
+describe("SignInScreen forgot password", () => {
+  it("Quên mật khẩu? only with onGoForgot, and click calls it", () => {
+    const { unmount } = render(
+      <SignInScreen status="idle" onSignIn={vi.fn()} onGoSignUp={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: AUTH_COPY.signIn.forgot })).toBeNull();
+    unmount();
+    const onGoForgot = vi.fn();
+    render(
+      <SignInScreen
+        status="idle"
+        onSignIn={vi.fn()}
+        onGoSignUp={vi.fn()}
+        onGoForgot={onGoForgot}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.forgot }));
+    expect(onGoForgot).toHaveBeenCalledOnce();
+  });
+
+  it("notice=password_reset shows its copy in role=status", () => {
+    setup({ notice: "password_reset" });
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
+  });
+});

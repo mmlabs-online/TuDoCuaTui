@@ -41,7 +41,12 @@ function FakeApp(p: AppAuthProps) {
 }
 
 function setup(
-  opts: { id?: string | null; notice?: "verified" | null; firstTokenError?: AuthError } = {},
+  opts: {
+    id?: string | null;
+    notice?: "verified" | "password_reset" | null;
+    initialScreen?: "signIn" | "forgot";
+    firstTokenError?: AuthError;
+  } = {},
 ) {
   let stored = opts.id === undefined ? null : opts.id;
   const storage: AccountIdStorage = {
@@ -63,6 +68,7 @@ function setup(
     }),
     signup: vi.fn(async (v: { email: string }) => ({ email: v.email })),
     verifyEmail: vi.fn(),
+    forgotPassword: vi.fn(async (_v: unknown) => {}),
     resendVerification: vi.fn(async (_id: string) => {}),
     join: vi.fn(async (_id: string) => {
       events.push("join");
@@ -77,6 +83,7 @@ function setup(
       client={client as unknown as IdentityClient}
       renderApp={(p) => <FakeApp {...p} />}
       notice={opts.notice}
+      initialScreen={opts.initialScreen}
     />,
   );
   return { client, store, stored: () => stored, view };
@@ -628,5 +635,108 @@ describe("join flow", () => {
       expect(mounts).toBe(mountsBefore);
       expect(s.stored()).toBe(IDB);
     });
+  });
+});
+
+describe("forgot password", () => {
+  const goForgot = () =>
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.forgot }));
+  const giveToken = async (t: string) => {
+    await waitFor(() => expect(tsApi.render).toHaveBeenCalled());
+    const calls = tsApi.render.mock.calls;
+    act(() => (calls[calls.length - 1][1] as { callback: (t: string) => void }).callback(t));
+  };
+  const submit = () =>
+    act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.forgot.submit }));
+    });
+
+  it("Quên mật khẩu? opens the forgot screen with the last sign-in email and the Turnstile slot", async () => {
+    const { client } = setup();
+    client.login.mockRejectedValueOnce(err("invalid_credentials"));
+    await signInWith();
+    goForgot();
+    expect((screen.getByLabelText(AUTH_COPY.fields.email) as HTMLInputElement).value).toBe(
+      "a@b.co",
+    );
+    await waitFor(() => expect(tsApi.render).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { name: AUTH_COPY.forgot.title })).toBeTruthy();
+  });
+
+  it("without a Turnstile token no request is made", async () => {
+    const { client } = setup();
+    goForgot();
+    type(AUTH_COPY.fields.email, "a@b.co");
+    await submit();
+    expect(client.forgotPassword).not.toHaveBeenCalled();
+    expect(alertText()).toContain(AUTH_COPY.errors.turnstile_required);
+  });
+
+  it("two different emails, both 202 -> identical sent screen text, the email is not echoed", async () => {
+    const texts: string[] = [];
+    for (const email of ["known@b.co", "nobody@b.co"]) {
+      const { client } = setup();
+      goForgot();
+      type(AUTH_COPY.fields.email, email);
+      await giveToken("ts");
+      await submit();
+      expect(client.forgotPassword).toHaveBeenCalledOnce();
+      expect(client.forgotPassword).toHaveBeenCalledWith({ email, turnstileToken: "ts" });
+      expect(tsApi.reset).toHaveBeenCalled();
+      expect(document.querySelector("form")).toBeNull();
+      texts.push(document.body.textContent ?? "");
+      expect(texts[texts.length - 1]).not.toContain(email);
+      expect(texts[texts.length - 1]).toContain(AUTH_COPY.forgot.sentBody);
+      cleanup();
+      tsApi.reset.mockClear();
+      tsApi.render.mockClear();
+    }
+    expect(texts[0]).toBe(texts[1]);
+  });
+
+  it("turnstile_failed and rate_limited are shown, the widget is reset and the form is kept", async () => {
+    const { client } = setup();
+    client.forgotPassword.mockRejectedValueOnce(err("turnstile_failed"));
+    client.forgotPassword.mockRejectedValueOnce({ code: "rate_limited", retryAfterSeconds: 60 });
+    goForgot();
+    type(AUTH_COPY.fields.email, "a@b.co");
+    await giveToken("ts1");
+    await submit();
+    expect(alertText()).toContain(AUTH_COPY.errors.turnstile_failed);
+    expect(tsApi.reset).toHaveBeenCalled();
+    expect((screen.getByLabelText(AUTH_COPY.fields.email) as HTMLInputElement).value).toBe(
+      "a@b.co",
+    );
+    await giveToken("ts2");
+    await submit();
+    expect(alertText()).toContain(AUTH_COPY.errors.rate_limited("1 phút"));
+  });
+
+  it("back to sign-in clears the error and the sent state", async () => {
+    const { client } = setup();
+    client.forgotPassword.mockRejectedValueOnce(err("turnstile_failed"));
+    goForgot();
+    type(AUTH_COPY.fields.email, "a@b.co");
+    await giveToken("ts");
+    await submit();
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.forgot.toSignIn }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: AUTH_COPY.signIn.submit })).toBeTruthy();
+    goForgot();
+    await giveToken("ts");
+    await submit();
+    expect(screen.getByText(new RegExp(AUTH_COPY.forgot.sentTitle))).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.forgot.toSignIn }));
+    goForgot();
+    expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(screen.queryByText(new RegExp(AUTH_COPY.forgot.sentTitle))).toBeNull();
+  });
+
+  it("initialScreen=forgot with no stored id shows the forgot screen; password_reset shows the notice", () => {
+    setup({ initialScreen: "forgot" });
+    expect(screen.getByRole("heading", { name: AUTH_COPY.forgot.title })).toBeTruthy();
+    cleanup();
+    setup({ notice: "password_reset" });
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
   });
 });

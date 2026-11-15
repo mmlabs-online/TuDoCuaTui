@@ -4,10 +4,12 @@ import {
   confirmError,
   emailError,
   hasErrors,
+  parseResetToken,
   parseVerifyToken,
   passwordError,
   signInPasswordError,
   validateSignIn,
+  validateNewPassword,
   validateSignUp,
 } from "./validation";
 
@@ -132,5 +134,47 @@ describe("parseVerifyToken", () => {
     ["query", "?token=" + token],
   ])("%s → null", (_, v) => {
     expect(parseVerifyToken(v)).toBeNull();
+  });
+});
+
+describe("validateNewPassword (same rules as sign-up)", () => {
+  it("empty -> required / required", () => {
+    expect(validateNewPassword({ password: "", confirm: "" })).toEqual({
+      password: "required",
+      confirm: "required",
+    });
+  });
+  it("11 chars -> tooShort, 12 -> ok", () => {
+    expect(validateNewPassword({ password: "a".repeat(11), confirm: "a".repeat(11) })).toEqual({
+      password: "tooShort",
+    });
+    expect(
+      hasErrors(validateNewPassword({ password: "a".repeat(12), confirm: "a".repeat(12) })),
+    ).toBe(false);
+  });
+  it("NFKC: full-width digits count as the same characters, NFC and NFD match", () => {
+    expect(passwordError("１".repeat(12))).toBeNull();
+    const nfc = "caf\u00e9 caf\u00e9 caf\u00e9";
+    expect(hasErrors(validateNewPassword({ password: nfc, confirm: nfc.normalize("NFD") }))).toBe(
+      false,
+    );
+  });
+  it("mismatch and tooLong", () => {
+    expect(validateNewPassword({ password: "a".repeat(12), confirm: "b".repeat(12) })).toEqual({
+      confirm: "mismatch",
+    });
+    expect(validateNewPassword({ password: "a".repeat(129), confirm: "a".repeat(129) })).toEqual({
+      password: "tooLong",
+    });
+  });
+});
+
+describe("parseResetToken", () => {
+  it("reads a 43-char #token= and rejects malformed hashes", () => {
+    const token = "Ab_-".repeat(11).slice(0, 43);
+    expect(parseResetToken("#token=" + token)).toBe(token);
+    for (const bad of ["", "#", "#token=", "#token=" + "a".repeat(31), "?token=" + token]) {
+      expect(parseResetToken(bad)).toBeNull();
+    }
   });
 });
