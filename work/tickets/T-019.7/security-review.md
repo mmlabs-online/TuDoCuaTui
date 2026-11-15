@@ -65,3 +65,12 @@ Read-only re-check of S1, S2 and the Turnstile change. Checks not run by the aud
 - 🟢 **Note:** a late logout of A racing a quick re-sign-in to A can end the new server session; fails closed (next `/token` → `session_invalid` → signed out). No fix needed; mention to Ming.
 
 S3 and the attempt-1 🟢 items were not re-checked.
+
+## Attempt 3 — 2026-11-15 (security-ai-generated-code-auditor)
+
+Read-only; checks not run. **🟢 S2 closed; no new 🔴/🟡.**
+- `retireApp()` (`AuthGate.tsx:69-71`) bumps `generation.current` synchronously before any state change on all three exits from `ready`: onSignOut (`:112`), onAuthLost (`:121`), subscribe background failure (`:99`). No other `setView` can run from `ready` (`signIn` catch `:176` only from sign-in; `goto` `:152` only from `signed_out`; retry `:234` only from `retry`; restore effect keyed on `[attempt]` `:92`). A's `getToken` returns `null` before B's `signIn` starts, so it cannot join B's in-flight `/token`; `authFetch.tokenFor` throws 401 without sending (`authFetch.ts:37`).
+- A call already waiting on A's own `/token` resolves `null` after `signOut`/`forget` bump the store generation (`tokenStore.ts:59,65,110-111,122-123`).
+- No cached token bypasses `getToken`: `authFetch.ts:30-46` (incl. 401 retry), `repo.http.ts:19,33,76,84,87`, `photoUrls.ts:53,68`, `aiSettings.ts:38,42`; App remounted per generation (`AuthGate.tsx:215`).
+- 🟢 Test gaps (optional): `AuthGate.test.tsx:314` would pass without the fix (the regression shows as a timeout at `:313`, not an assertion); the subscribe path is not in the test loop.
+- Residual risks unchanged: 15-min token lifetime after logout (A15); late logout vs quick re-sign-in to the same account fails closed.
