@@ -30,6 +30,7 @@ describe("authErrorMessage", () => {
       invalid_credentials: true,
       email_unverified: true,
       not_member: true,
+      no_access: true,
       session_invalid: true,
       turnstile_required: true,
       turnstile_failed: true,
@@ -71,6 +72,11 @@ describe("authErrorMessage", () => {
     for (const code of ["__proto__", "bogus", "constructor"]) {
       expect(authErrorMessage({ code } as unknown as AuthError)).toBe(AUTH_COPY.errors.unknown);
     }
+  });
+
+  it("weak_password reasons that are not an array fall back to the generic copy", () => {
+    const err = { code: "weak_password", reasons: "too_short" } as unknown as AuthError;
+    expect(authErrorMessage(err)).toBe(AUTH_COPY.errors.weak_password);
   });
 
   it("filters unknown weak_password reasons", () => {

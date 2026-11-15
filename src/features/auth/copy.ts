@@ -24,6 +24,8 @@ export const AUTH_COPY = {
   },
   verify: {
     title: "Xác minh email",
+    ready: "Nhấn nút bên dưới để xác minh email của bạn.",
+    submit: "Xác minh email",
     verifying: "Đang xác minh email của bạn…",
     verified: "Email đã được xác minh.",
     continue: "Tiếp tục",
@@ -46,11 +48,14 @@ export const AUTH_COPY = {
     resending: "Đang gửi…",
     resendSent: "Đã gửi lại email xác minh. Vui lòng kiểm tra hộp thư.",
     goSignIn: "Đăng nhập",
+    retry: "Thử lại",
   },
   errors: {
     invalid_credentials: "Email hoặc mật khẩu không đúng.",
     email_unverified: "Email của bạn chưa được xác minh. Mở link trong email chúng tôi đã gửi.",
     not_member: "Tài khoản này chưa có quyền dùng Tủ đồ của tôi.",
+    no_access:
+      "Tài khoản này chưa được cấp quyền dùng Tủ đồ của tôi. Hãy đăng nhập bằng tài khoản khác hoặc thử lại sau.",
     session_invalid: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     turnstile_required: "Vui lòng hoàn tất bước xác minh bên dưới rồi thử lại.",
     turnstile_failed: "Xác minh không thành công, vui lòng thử lại.",
@@ -99,7 +104,7 @@ export function authErrorMessage(error: AuthError): string {
     case "rate_limited":
       return e.rate_limited(formatWait(error.retryAfterSeconds ?? NaN));
     case "weak_password": {
-      const parts = (error.reasons ?? [])
+      const parts = (Array.isArray(error.reasons) ? error.reasons : [])
         .filter((r) => r === "too_short" || r === "too_common")
         .map((r) => (r === "too_short" ? e.weak_too_short : e.weak_too_common));
       return parts.length ? parts.join(" ") : e.weak_password;

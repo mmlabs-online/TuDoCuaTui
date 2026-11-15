@@ -15,6 +15,8 @@ export type AuthErrorCode =
   | "validation_error"
   | "token_invalid"
   | "email_already_verified"
+  /** Client-only: a fresh token still got 401. Never accepted from a server body. */
+  | "no_access"
   | "unknown";
 
 export type AuthError = {
@@ -61,11 +63,15 @@ export type SignUpScreenProps = {
   resend?: ResendState;
 };
 
-export type VerifyState = "verifying" | "verified" | "invalid" | "rate_limited";
+export type VerifyState = "ready" | "verifying" | "verified" | "invalid" | "rate_limited";
 /** Token rules for the wiring (T-019.7): see parseVerifyToken in validation.ts. */
 export type VerifyEmailScreenProps = {
   state: VerifyState;
   retryAfterSeconds?: number;
+  /** "ready": the user presses the button; only then is the token sent (D36). */
+  onVerify?: () => void;
+  /** "ready": shown after a retryable failure. */
+  error?: AuthError | null;
   onContinue: () => void;
   onGoSignIn: () => void;
   /** "invalid": shown only when provided, else a sign-in button. */
