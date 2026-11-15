@@ -135,3 +135,32 @@ No violations found.
 ### Follow-ups (out of scope)
 - 401 retry or token refresh in the loader (plan A3), for T-019.7.
 - Ming, after merge: see plan *Ming verification after merge* (production photos load in Access mode with a 304 revalidation; M-20: `blob:` sources, bearer-only requests, no cross-account photo after switching user).
+
+## Attempt 3 — 2026-11-15
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: green (`pnpm typecheck`, exit 0).
+- format:check: green (oxfmt, 214 files, exit 0).
+- test: `Test Files 78 passed | 8 skipped (86)`, `Tests 960 passed | 167 skipped (1127)`. This matches the impl-log Attempt 3 Checks line exactly.
+- build: green (built in 339ms).
+
+### No code change since attempt 2
+- `git diff --stat c60a1d6 HEAD` (c60a1d6 is the attempt-2 code commit) touches only `work/tickets/T-019.6/{impl-log.md,review.md,ticket.md}`. No source, test or config file changed.
+- The attempt-3 commit c619671 adds only the "Attempt 3" section to `impl-log.md`. It corrects the count to 960 and leaves the attempt-2 text in place, marked as superseded.
+
+### Acceptance criteria
+- [x] Every criterion stays as verified in attempt 2. The code is unchanged, and the checks are green on the current tree.
+- Ming verification after merge (not for the reviewer to verify, so the PR must carry it): production photos load in Access mode with a 304 revalidation. M-20: `blob:` sources, bearer-only requests, and no cross-account photo after switching user.
+
+### Issues
+None. Attempt-2 Issue 1 (wrong test count) is resolved: the impl-log now says 960 / 167, which matches the reviewer's run.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. Nothing changed since attempt 2.
+
+### Nits (do not block)
+- These are carried over from attempt 2: the `setNode` extra render, and a missing comment explaining why a failed photo is not retried until it remounts.
+
+### Follow-ups (out of scope)
+- 401 retry or token refresh in the photo loader (plan A3), for T-019.7.
