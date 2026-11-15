@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.7, T-019.13 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-15T07:53:36Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/58 |
 
 ## Goal
 New users can join `tudocuatui` from the app once org-admin-api ships the join endpoint (USR-03b).
@@ -53,3 +53,8 @@ proposal* → T-019.10). Decisions D31–D34. Ming items in the plan are numbere
 - Done: plan.md READY (no consult areas): `join()` / `accounts()` in identityClient, join codes in errors, `tokenStore.join()` (token only after a successful join), new `JoinScreen.tsx`, AuthGate routes `not_member` + `join_available` from sign-in, reload and background refresh; privacy text in `src/constants/privacy.ts`, shown on the join screen and in the editor's photo picker (API mode only).
 - In progress / next: Ming approves the plan and the Vietnamese copy (plan Approach step 4 + privacy text); then implement.
 - Gotchas: T-019.12 edits the same auth files; whichever runs second rebases.
+
+### 2026-11-15 — claude — DONE
+- Done: plan approved; attempt 1 REWORK (long email wrap, editor notice contrast, plus security S1 stale join); attempt 2 PASS; security S1 resolved. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/58.
+- In progress / next: Ming merges. Next runnable: T-019.12 (forgot password; edits the same auth files).
+- Gotchas: reviewer scripts in the session scratchpad (`join-e2e.cjs`; section D needs a `:visible` selector).
