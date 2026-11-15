@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | claude@2026-11-15T10:03:11Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -41,6 +41,12 @@ Slice of T-019 (D31, D35). org-admin-api USR-04b (live in v0.1.3): every registe
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-14: added because org-admin-api USR-04b requires every app origin to serve `/reset-password`.
 
 ## Handoff
+
+### 2026-11-15 — claude — BLOCKED
+- Done: plan.md READY: shared token-page path list (`src/shared/tokenPages.ts` + server parity test), `takeTokenHash` in boot, ForgotPasswordScreen (Turnstile always, fixed "sent" copy), ResetPasswordScreen/Page (button-press POST, token cleared before any request), AuthGate/AuthRoot/SignInScreen wiring; works in access and identity mode; local mode unchanged.
+- In progress / next: Ming approves the plan and the Vietnamese copy (plan Approach, copy list); then implement.
+- Gotchas: ~430 + ~450 lines (fallback split 12a/12b in the plan); T-019.10 is merged now, so the plan's A9 rebase note is moot.
