@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -10,10 +10,10 @@
 | Areas | security, ui, architecture |
 | Gate | plan-approval |
 | Depends on | T-019.5, T-019.6, T-019.11 |
-| Needs Ming | M-25 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-15T03:29:17Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-15 (Ming): **M-25 done.** Turnstile public site key: `0x4AAAAAAF_LLtCloZlzY0MY` (public by design; goes into `src/features/auth/config.ts` as a constant per consult R8). Hostname `tudocuatui.mmlabs.online` registered on the widget and in org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES`.
 - 2026-11-15 (Ming, after the architect consult):
   1. **Bootstrap (consult F8):** Ming gets his mmlabs account and `sub` **through another registered app** (or an org-admin-api staff step); TuDo needs no change for that (M-17).
@@ -63,3 +64,8 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - Done: consult (software-architect); Ming's answers recorded (sub via another app, wait for Turnstile key, one ticket, verify-email in both modes).
 - In progress / next: Ming does M-25 (Turnstile site key + hostnames) and writes the site key under *Notes / answers from Ming*; then `/run T-019.7` plans (plan-approval gate) and implements.
 - Gotchas: replace `src/features/auth/boundary.test.ts` with a per-file allowlist; `createHttpRepo` signature change touches many tests; identity mode can't run in `pnpm dev`.
+
+### 2026-11-15 — claude — BLOCKED
+- Done: M-25 recorded (site key), plan.md (Status READY) as one ticket per Ming: identityClient, tokenStore, authFetch (bearer + one 401 retry), detectRuntime + boot.ts (`takeVerifyHash` before `/healthz`), AuthRoot/AuthGate, VerifyEmailPage (`ready` state, works in access and identity), Turnstile (site key constant), sign-out, boundary allowlist; A1–A16. Plan A1 refers to merge-conflict markers the planner saw mid-merge; they were resolved before this commit (no markers in ticket.md).
+- In progress / next: Ming approves the plan, then implement → review → PR. Ship with T-019.8.
+- Gotchas: ~700 product + ~900 test lines; identity mode not runnable in `pnpm dev`.
