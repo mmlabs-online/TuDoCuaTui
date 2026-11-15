@@ -112,3 +112,48 @@ No violations found. Rework touches only `src/features/auth/**` files from the p
 
 ### Orchestrator note (2026-11-15) — PASS overridden to REWORK
 The security re-check (security-review.md, Attempt 2, 🟡 S2) found the window this review's S2 judgement relies on: `generation.current` advances only in the next `enterReady`, so between sign-out of A and `enterReady` for B an unmounted A App's pending step (authFetch retry, later steps of a save) calls the old `getToken`, joins B's in-flight `/token` and sends A's request with B's bearer — a cross-account write, the exact risk multi-user ownership (T-019) exists to prevent. The fix is a few lines in a planned file, so it goes back as rework attempt 3 (the last allowed) rather than a follow-up.
+
+## Attempt 3 — 2026-11-15
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` clean (exit 0).
+- format:check: exit 0 (236 files).
+- test: Test Files 88 passed | 8 skipped (96); Tests 1084 passed | 167 skipped (1251). Matches impl-log Attempt 3 exactly (+1 over attempt 2: the new cross-account test).
+- build: ok; entry `index-BIsPCg6P.js` 264.84 kB, lazy `AuthRoot-DYg2dw8f.js` 21.36 kB.
+- Playwright `r2.cjs` re-run on the new `dist/` (390x844, light and dark): 28/28 PASS (Turnstile required, then invalid_credentials with the widget kept and reset, single-use token, hanging logout signs out in about 52 ms with the id removed, reload does not restore the session, width 390, `dark` class).
+- Mutation check: I deleted only the three `retireApp();` call sites (`AuthGate.tsx:99,112,121`) and ran `AuthGate.test.tsx`. Result: 1 failed | 26 passed. The failing test was "an old App's getToken is null as soon as the gate leaves ready…": the old `getToken` joined B's held `/token` promise and never resolved, so it hit the 5 s timeout, which is the bug itself. I restored the file with `git checkout -- src/features/auth/AuthGate.tsx`, and `git status` was clean.
+
+### Security S2 residual (attempt-2 security review, Orchestrator note)
+- Closed. `retireApp()` (`AuthGate.tsx:69-71`) moves `generation.current` forward synchronously. It runs before any state change in `onSignOut` (`:112`, before `flushSync` and `store.signOut()`), in `onAuthLost` (`:121`, before `store.forget()`) and in the background-failure subscriber (`:98-100`). So once the gate leaves `ready`, the old App's `current()` (`:107`) is false, and its `getToken` resolves `null` without reaching the store. That holds while B's `/token` is in flight (`tokenStore.signIn` sets `id = B` before `fetchToken`). The old `onSignOut` / `onAuthLost` stay no-ops: `current()` is false, and `enterReady` advances the counter again for B.
+- No other way out of `ready`: `view` becomes `ready` only in `enterReady`. While `ready`, the sign-in/sign-up screens, `goto`, the retry button and `failTo` are not rendered or reachable. `failTo` is reached only from `restore`, whose effect runs when `attempt` changes, from `checking`. `AuthRoot` cannot go from `app` back to `verify` (`leaveVerify` runs only from the verify page), and the gate is never unmounted while the app is open.
+- The subscriber path matters for `not_member` / `email_unverified`. `tokenStore` keeps the id for these codes (it clears it only on `session_invalid`, `tokenStore.ts:66-69`), so without the retire an old App could still have joined a later sign-in's `/token`. The fix covers this path.
+
+### Acceptance criteria
+- [x] All of them, unchanged from attempt 2 and re-verified by the full test run and the Playwright run above.
+- [x] 16 / T-019.6 obligation 1 (no token or session end through an old App): `AuthGate.test.tsx` › "an old App's getToken is null as soon as the gate leaves ready, even while the next sign-in is pending". It covers sign-out and auth-lost: `null`, no extra `client.token` call, and B's App gets `tok-b`. It passes, and it fails without the fix (mutation check above). The existing "a getToken from an old App generation resolves null…" test still passes.
+
+### Scope
+- Code diff: `src/features/auth/AuthGate.tsx` (+9/-1) and `AuthGate.test.tsx` (+27), both in the plan's file list. Other files changed: only `impl-log.md` and `ticket.md` (workflow files). No out-of-plan files.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations. The change is limited to identity-mode `src/features/auth/**`, and local and access mode do not load the auth chunk. No `VITE_*`, storage or migration change, and no Vietnamese literals added. 390px light and dark were re-checked in the browser. `vite.config.ts`, `AGENTS.md` and `.figma/` are untouched.
+
+### Nits (do not block)
+- No test covers the subscriber path's `retireApp()` (`AuthGate.tsx:99`). Deleting only that call leaves all 193 auth tests green. By reading the code it is correct, and it uses the same helper as the two tested paths. Possible follow-up: fire a `not_member` background failure from the store mock, then hold B's `/token` and check that the old `getToken` returns `null`.
+- The new test fails by timeout rather than by an assertion when the fix is missing. That still catches the regression; a `Promise.race` with a short sentinel would make the failure clearer.
+- Nits from attempts 1 and 2 are still open (a late logout racing a quick re-sign-in, lazy chunk load failure, `VerifyEmailPage` resend `session_invalid`, sticky `tsFailed`).
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 2 (`authFetch` same-origin check through `new URL(...)` and `new Headers(...)`, a reload notice when the auth chunk fails to load), plus the subscriber-path test above.
+- Ship with T-019.8 (CSP `connect-src 'self' https://api.mmlabs.online`, Turnstile only in `script-src`/`frame-src`, `Referrer-Policy: no-referrer` on `/verify-email`).
+
+### Ming verification after merge (carried to the PR)
+- M-21 checks 1–11 from plan.md *Ming verification after merge*.
+- Sign out, sign in again at once, and confirm the session survives a reload.
+- Ship with T-019.8. Rollback: `TUDO_AUTH_MODE: access`.
+
+Verdict: PASS
