@@ -173,6 +173,14 @@ export const isUuid = (s: string) => UUID.test(s);
 export const apiPhotoUrl = (id: string | null | undefined, base = "/api"): string =>
   id && isUuid(id) ? `${base}/photos/${id}` : "";
 
+/** Inverse of `apiPhotoUrl`: the photo id only for exactly `${base}/photos/<uuid>`, else null. */
+export const apiPhotoId = (src: string, base = "/api"): string | null => {
+  const prefix = `${base}/photos/`;
+  if (!src.startsWith(prefix)) return null;
+  const id = src.slice(prefix.length);
+  return isUuid(id) ? id : null;
+};
+
 export function itemToRow(it: Item, locationId: string | null): ItemInsert {
   const row: ItemInsert = {
     name: it.name.trim(),

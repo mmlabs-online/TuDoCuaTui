@@ -240,7 +240,8 @@ async function putPhoto(req, res, { pool, userId, drive, itemId, log }) {
 
 const PHOTO_HEADERS = {
   "Content-Type": "image/jpeg",
-  "Cache-Control": "private, max-age=31536000, immutable",
+  // no-cache: the browser revalidates every use, so a 304 is only ever reached through the owner check below (D34).
+  "Cache-Control": "private, no-cache",
   "Content-Security-Policy": "default-src 'none'; sandbox",
   "Content-Disposition": "inline",
   "Cross-Origin-Resource-Policy": "same-origin",

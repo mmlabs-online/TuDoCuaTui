@@ -199,6 +199,41 @@ describe("useWardrobe", () => {
   describe("api mode", () => {
     afterEach(() => vi.unstubAllGlobals());
 
+    const photoFetch = () =>
+      vi.fn(async (url: string) =>
+        url.startsWith("/api/photos/")
+          ? new Response(new Blob(["x"]), { headers: { "Content-Type": "image/jpeg" } })
+          : new Response(
+              JSON.stringify(url.endsWith("/locations") ? { locations: [] } : { items: [] }),
+              { headers: { "Content-Type": "application/json" } },
+            ),
+      );
+
+    test("photo loader: null in local mode and without getToken; present with getToken; unmount revokes", async () => {
+      vi.stubGlobal("fetch", photoFetch());
+      const getToken = async () => "t";
+      const local = renderHook(() => useWardrobe(starter, defaults, "local", { getToken }));
+      expect(local.result.current.photos).toBeNull();
+      await waitFor(() => expect(local.result.current.loading).toBe(false));
+      const noToken = renderHook(() => useWardrobe(starter, defaults, "api"));
+      expect(noToken.result.current.photos).toBeNull();
+      await waitFor(() => expect(noToken.result.current.loading).toBe(false));
+
+      let n = 0;
+      const create = vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:t/${n++}`);
+      const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+      const api = renderHook(() => useWardrobe(starter, defaults, "api", { getToken }));
+      await waitFor(() => expect(api.result.current.loading).toBe(false));
+      const loader = api.result.current.photos!;
+      expect(loader).not.toBeNull();
+      await loader.acquire("/api/photos/11111111-1111-4111-8111-111111111111").promise;
+      expect(create).toHaveBeenCalledTimes(1);
+      api.unmount();
+      expect(revoke).toHaveBeenCalledWith("blob:t/0");
+      create.mockRestore();
+      revoke.mockRestore();
+    });
+
     test("loads through the HTTP repo and reports mode api", async () => {
       vi.stubGlobal(
         "fetch",

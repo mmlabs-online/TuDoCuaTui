@@ -90,4 +90,67 @@ describe("servePhoto", () => {
     expect(res.destroyed).toBe(true);
     expect(logs).toEqual([{ event: "photo_read_failed", code: "stream" }]);
   });
+
+  describe("cache headers and ownership (D34)", () => {
+    const run = async (inm: string | undefined, rows: unknown[]) => {
+      let media = 0;
+      const drive = {
+        getMedia: async () => {
+          media++;
+          return {
+            body: new ReadableStream<Uint8Array>({
+              start: (c) => {
+                c.enqueue(new Uint8Array([1]));
+                c.close();
+              },
+            }),
+            contentType: "image/jpeg",
+            contentLength: "1",
+          };
+        },
+      };
+      const pool = fakePool({ query: async () => ({ rows, rowCount: rows.length }) });
+      const res = fakeRes();
+      const closed = new Promise((r) => res.once("finish", r));
+      await servePhoto(
+        { headers: inm === undefined ? {} : { "if-none-match": inm } } as never,
+        res as never,
+        {
+          pool: pool as never,
+          userId: OWNER_A,
+          drive: drive as never,
+          photoId: PHOTO,
+          id: "req",
+          log: () => {},
+        },
+      );
+      if (res.status === 200) await closed;
+      return { res, media };
+    };
+
+    it("200 carries private, no-cache and the ETag", async () => {
+      const { res, media } = await run(undefined, [{ drive_file_id: DRIVE_ID }]);
+      expect(res.status).toBe(200);
+      expect(res.headers["Cache-Control"]).toBe("private, no-cache");
+      expect(res.headers.ETag).toBe(`"${PHOTO}"`);
+      expect(media).toBe(1);
+    });
+
+    it("matching If-None-Match on an owned row -> 304, same headers, no Drive call", async () => {
+      const { res, media } = await run(`"${PHOTO}"`, [{ drive_file_id: DRIVE_ID }]);
+      expect(res.status).toBe(304);
+      expect(res.headers["Cache-Control"]).toBe("private, no-cache");
+      expect(res.headers.ETag).toBe(`"${PHOTO}"`);
+      expect(media).toBe(0);
+    });
+
+    it.each([`"${PHOTO}"`, "*"])(
+      "If-None-Match %s with no row for this user -> 404, never 304",
+      async (inm) => {
+        const { res, media } = await run(inm, []);
+        expect(res.status).toBe(404);
+        expect(media).toBe(0);
+      },
+    );
+  });
 });
