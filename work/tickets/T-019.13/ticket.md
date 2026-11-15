@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | claude@2026-11-15T06:56:10Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/56 |
 
 ## Goal
 Before Cloudflare Access is removed and strangers can sign up and join (`join_policy = open`), a handful of accounts must not be able to lock everyone out of AI calls or photo uploads.
@@ -54,3 +54,8 @@ Slice of T-019 (D31). From the T-019.3 security review F8/F9 and the T-019.2 sec
 - Done: architect consult; Ming's answers (owner lane, 15 s + 5 s, open join, no per-IP, Ming's Drive for everyone); plan.md READY: owner lane on AI ceilings and slots, body deadline, `TUDO_OWNER_SUB` required in identity mode, `check-image.sh` update. Quotas split to a new slice T-019.14 (text in plan); privacy notice goes to T-019.10; shared Drive rate limit accepted as residual.
 - In progress / next: Ming approves the plan. Then on `main`: create T-019.14 (from plan), add it to T-019.9 `Depends on`, add the privacy-notice AC to T-019.10, record D38, extend the M-22 note; then implement.
 - Gotchas: T-019.9 and F-701.1 touch the same server files; whichever merges second rebases.
+
+### 2026-11-15 — claude — DONE
+- Done: plan approved by Ming; step 6 done on `main` (T-019.14, D38, T-019.9/T-019.10, M-22 note); implement attempt 1; review PASS (DB suites run on a throwaway Postgres 16: 75/75); security no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/56.
+- In progress / next: Ming merges. Next runnable: T-019.14 (plan approval) or T-019.12.
+- Gotchas: `/tmp/claude-0` can be reset to mode 700 mid-run; a Postgres cluster for review needs its own `mktemp -d /tmp/...` dir owned by `postgres`.
