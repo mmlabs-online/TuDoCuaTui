@@ -5,10 +5,23 @@ import { AUTH_COPY, authErrorMessage } from "./copy";
 import type { VerifyEmailScreenProps } from "./types";
 
 export function VerifyEmailScreen(props: VerifyEmailScreenProps) {
-  const { state, retryAfterSeconds, onContinue, onGoSignIn, onResend, resend } = props;
+  const { state, retryAfterSeconds, onVerify, error, onContinue, onGoSignIn, onResend, resend } =
+    props;
   const copy = AUTH_COPY;
   return (
     <AuthLayout title={copy.verify.title}>
+      {state === "ready" && (
+        <>
+          {error ? (
+            <AuthNotice kind="error">{authErrorMessage(error)}</AuthNotice>
+          ) : (
+            <AuthNotice kind="info">{copy.verify.ready}</AuthNotice>
+          )}
+          <Btn type="button" kind="primary" onClick={onVerify}>
+            {copy.verify.submit}
+          </Btn>
+        </>
+      )}
       {state === "verifying" && (
         <AuthNotice kind="info" busy>
           {copy.verify.verifying}

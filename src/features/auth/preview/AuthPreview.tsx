@@ -12,7 +12,7 @@ const ERROR_CODES = Object.keys(AUTH_COPY.errors).filter(
 const STATES: Record<Screen, string[]> = {
   signIn: ["idle", "submitting"],
   signUp: ["idle", "submitting", "sent"],
-  verify: ["verifying", "verified", "invalid", "rate_limited"],
+  verify: ["ready", "verifying", "verified", "invalid", "rate_limited"],
 };
 
 export function AuthPreview() {
@@ -109,6 +109,8 @@ export function AuthPreview() {
           <VerifyEmailScreen
             state={state as VerifyState}
             retryAfterSeconds={45}
+            error={state === "ready" ? error : null}
+            onVerify={() => say("verify")}
             onContinue={() => say("continue")}
             onGoSignIn={() => say("goSignIn")}
             onResend={() => say("resend")}

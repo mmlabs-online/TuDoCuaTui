@@ -70,4 +70,18 @@ describe("VerifyEmailScreen", () => {
     setup({ state: "rate_limited", retryAfterSeconds: 45 });
     expect(screen.getByRole("alert").textContent).toContain("45 giây");
   });
+
+  it("ready shows the verify button, which calls onVerify", () => {
+    const onVerify = vi.fn();
+    setup({ state: "ready", onVerify });
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.verify.ready);
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.verify.submit }));
+    expect(onVerify).toHaveBeenCalledOnce();
+  });
+
+  it("ready shows the error notice when given", () => {
+    setup({ state: "ready", error: { code: "network" } });
+    expect(screen.getByRole("alert").textContent).toContain(AUTH_COPY.errors.network);
+    expect(screen.getByRole("button", { name: AUTH_COPY.verify.submit })).toBeTruthy();
+  });
 });

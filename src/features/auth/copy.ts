@@ -31,6 +31,9 @@ export const AUTH_COPY = {
     continue: "Tiếp tục",
     goSignIn: "Đăng nhập để gửi lại email",
   },
+  gate: {
+    checking: "Đang kiểm tra phiên đăng nhập…",
+  },
   fields: {
     email: "Email",
     password: "Mật khẩu",
