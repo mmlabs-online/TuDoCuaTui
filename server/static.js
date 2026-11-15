@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream";
+import { HSTS, SPA_CSP } from "./http.js";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -53,6 +54,15 @@ export async function resolveStaticPath(distDir, rawPath) {
   }
 }
 
+/** Pages whose URL carries a token in the fragment: send no Referer at all. */
+const NO_REFERRER_PATHS = new Set(["/verify-email", "/reset-password"]);
+
+/** @param {string} urlPath @returns {string | undefined} */
+export function referrerPolicyFor(urlPath) {
+  const p = urlPath.length > 1 && urlPath.endsWith("/") ? urlPath.slice(0, -1) : urlPath;
+  return NO_REFERRER_PATHS.has(p) ? "no-referrer" : undefined;
+}
+
 /** @param {string} urlPath @param {string} file */
 function cacheControlFor(urlPath, file) {
   if (urlPath.startsWith("/assets/")) return "public, max-age=31536000, immutable";
@@ -84,7 +94,14 @@ export async function serveStatic(req, res, distDir, urlPath) {
   }
   const size = (await fs.promises.stat(file)).size;
   /** @type {Record<string, string | number>} */
-  const headers = { "Content-Type": mimeFor(file), "Content-Length": size };
+  const headers = {
+    "Content-Type": mimeFor(file),
+    "Content-Length": size,
+    "Content-Security-Policy": SPA_CSP,
+    "Strict-Transport-Security": HSTS,
+  };
+  const rp = referrerPolicyFor(urlPath);
+  if (rp) headers["Referrer-Policy"] = rp;
   const cc = cacheControlFor(cacheTarget, file);
   if (cc) headers["Cache-Control"] = cc;
   res.writeHead(200, headers);
@@ -98,6 +115,8 @@ function notFound(res) {
   res.writeHead(404, {
     "Content-Type": "text/plain; charset=utf-8",
     "Content-Length": body.length,
+    "Content-Security-Policy": SPA_CSP,
+    "Strict-Transport-Security": HSTS,
   });
   res.end(body);
 }

@@ -1,10 +1,30 @@
 // @ts-check
 // Small response helpers shared by the router and (later) the API handlers.
 
+export const HSTS = "max-age=31536000; includeSubDomains";
+
+const CSP_DIRECTIVES = [
+  ["default-src", "'self'"],
+  ["script-src", "'self'", "https://challenges.cloudflare.com"],
+  ["style-src", "'self'", "https://fonts.googleapis.com"],
+  ["font-src", "'self'", "https://fonts.gstatic.com"],
+  ["img-src", "'self'", "blob:", "data:"],
+  ["connect-src", "'self'", "https://api.mmlabs.online"],
+  ["frame-src", "https://challenges.cloudflare.com"],
+  ["object-src", "'none'"],
+  ["base-uri", "'none'"],
+  ["form-action", "'self'"],
+  ["frame-ancestors", "'none'"],
+];
+
+/** CSP for SPA (static) responses only; /api/photos keeps its own. */
+export const SPA_CSP = CSP_DIRECTIVES.map((d) => d.join(" ")).join("; ");
+
 export const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-Frame-Options": "DENY",
+  "Strict-Transport-Security": HSTS,
 };
 
 /**

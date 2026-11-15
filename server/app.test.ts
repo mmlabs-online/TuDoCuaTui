@@ -8,6 +8,7 @@ import type { AddressInfo } from "node:net";
 import { exportJWK, generateKeyPair, SignJWT, createLocalJWKSet } from "jose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { SPA_CSP } from "./http.js";
 import { createIdentityAuth, createIdentityVerifier } from "./identity.js";
 import { fixedAuth, OWNER_A } from "./test/auth.js";
 import { fakePool } from "./test/fake-pool.js";
@@ -122,16 +123,41 @@ describe("app", () => {
     }
   });
 
-  it("every response has nosniff, Referrer-Policy, X-Frame-Options DENY and an X-Request-Id", async () => {
+  it("every response has nosniff, Referrer-Policy, X-Frame-Options DENY, HSTS and an X-Request-Id", async () => {
     const base = await start({ allow: false });
     for (const p of ["/", "/healthz", "/readyz", "/api/x", "/assets/nope.js"]) {
       const res = await fetch(base + p);
       expect(res.headers.get("x-content-type-options")).toBe("nosniff");
       expect(res.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
       expect(res.headers.get("x-frame-options")).toBe("DENY");
+      expect(res.headers.get("strict-transport-security")).toBe(
+        "max-age=31536000; includeSubDomains",
+      );
       expect(res.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
       await res.text();
     }
+  });
+
+  it("SPA CSP only on static responses", async () => {
+    const base = await start({ allow: false });
+    const spa = await fetch(base + "/");
+    expect(spa.headers.get("content-security-policy")).toBe(SPA_CSP);
+    await spa.text();
+    for (const p of ["/healthz", "/api/x"]) {
+      const res = await fetch(base + p);
+      expect(res.headers.get("content-security-policy")).toBeNull();
+      await res.text();
+    }
+  });
+
+  it("`/verify-email` through the app -> `no-referrer`; `/` -> `strict-origin-when-cross-origin`", async () => {
+    const base = await start({ allow: false });
+    const v = await fetch(base + "/verify-email");
+    expect(v.headers.get("referrer-policy")).toBe("no-referrer");
+    await v.text();
+    const root = await fetch(base + "/");
+    expect(root.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+    await root.text();
   });
 
   it("log: route template; never the raw URL, id, query, headers or token", async () => {
