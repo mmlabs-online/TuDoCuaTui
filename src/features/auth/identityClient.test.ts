@@ -76,6 +76,7 @@ describe("request shapes", () => {
     expect(a.req().url).toBe(`${BASE}/auth/logout`);
     expect(a.req().body).toEqual({ account_id: ID });
     expect(a.req().init.credentials).toBe("include");
+    expect(a.req().init.signal).toBeInstanceOf(AbortSignal);
     const b = setup(() => json({}, 202));
     await b.client.resendVerification(ID);
     expect(b.req().url).toBe(`${BASE}/auth/verify-email/resend`);

@@ -180,7 +180,7 @@ describe("restore outcomes", () => {
 
 describe("sign-in", () => {
   it("login -> token -> App rendered with a stable getToken", async () => {
-    const { client, store } = setup();
+    const { client } = setup();
     await signInWith();
     expect(await screen.findByText("app-ready")).toBeTruthy();
     expect(client.login).toHaveBeenCalledWith({
@@ -188,7 +188,7 @@ describe("sign-in", () => {
       password: PASSWORD,
       turnstileToken: undefined,
     });
-    expect(seenProps[0].getToken).toBe(store.getToken);
+    expect(new Set(seenProps.map((p) => p.getToken)).size).toBe(1); // stable within one App instance
     expect(await seenProps[0].getToken()).toBe("tok");
   });
 
@@ -219,22 +219,33 @@ describe("sign-in", () => {
     expect(await screen.findByText("app-ready")).toBeTruthy();
   });
 
-  it("the Turnstile token is single-use: widget reset after a failed login with it", async () => {
+  it("the Turnstile token is single-use; a wrong password is reported as such and the widget stays", async () => {
     const { client } = setup();
+    const widgetCallback = () =>
+      (tsApi.render.mock.calls.at(-1)![1] as { callback: (t: string) => void }).callback;
     client.login.mockRejectedValueOnce(err("turnstile_required"));
     await signInWith();
     await waitFor(() => expect(tsApi.render).toHaveBeenCalled());
-    act(() => (tsApi.render.mock.calls[0][1] as { callback: (t: string) => void }).callback("ts"));
+    act(() => widgetCallback()("ts"));
     client.login.mockRejectedValueOnce(err("invalid_credentials"));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.submit }));
     });
     expect(tsApi.reset).toHaveBeenCalled();
-    expect(alertText()).toContain(AUTH_COPY.errors.turnstile_required);
+    expect(alertText()).toContain(AUTH_COPY.errors.invalid_credentials);
+    expect(tsApi.render).toHaveBeenCalled();
+    expect(tsApi.remove).not.toHaveBeenCalled(); // the widget slot is still mounted
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.submit }));
     });
     expect(client.login).toHaveBeenCalledTimes(2); // spent token: no third call without a new one
+    expect(alertText()).toContain(AUTH_COPY.errors.turnstile_required);
+    act(() => widgetCallback()("ts2"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.submit }));
+    });
+    expect(client.login).toHaveBeenCalledTimes(3);
+    expect(client.login.mock.calls[2][0]).toMatchObject({ turnstileToken: "ts2" });
   });
 
   it("email_unverified -> resend -> sent", async () => {
@@ -261,8 +272,24 @@ describe("sign-in", () => {
     await screen.findByText("app-ready");
     expect(mounts).toBe(2);
     expect(client.login).toHaveBeenCalledTimes(2);
-    expect(seenProps[1].getToken).toBe(seenProps[0].getToken);
-    expect(seenProps[1].onSignOut).toBe(seenProps[0].onSignOut);
+  });
+
+  it("a getToken from an old App generation resolves null after sign-out -> sign-in", async () => {
+    setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    const old = seenProps[0];
+    expect(await old.getToken()).toBe("tok");
+    await act(async () => {
+      fireEvent.click(screen.getByText("out"));
+    });
+    await screen.findByText(AUTH_COPY.signIn.signedOut);
+    await signInWith();
+    await screen.findByText("app-ready");
+    expect(await old.getToken()).toBeNull();
+    expect(await seenProps[1].getToken()).toBe("tok");
+    act(() => old.onAuthLost());
+    expect(screen.getByText("app-ready")).toBeTruthy(); // old callbacks cannot end the new session
   });
 });
 
@@ -327,7 +354,7 @@ describe("sign-up", () => {
 });
 
 describe("sign-out and auth loss", () => {
-  it("order: App unmount -> logout -> id cleared, then the signed-out notice", async () => {
+  it("order: App unmount -> id cleared -> logout, then the signed-out notice", async () => {
     const { client, stored } = setup();
     await signInWith();
     await screen.findByText("app-ready");
@@ -335,11 +362,23 @@ describe("sign-out and auth loss", () => {
     await act(async () => {
       fireEvent.click(screen.getByText("out"));
     });
-    expect(events).toEqual(["app-unmounted", "logout", "id-cleared"]);
+    expect(events).toEqual(["app-unmounted", "id-cleared", "logout"]);
     expect(client.logout).toHaveBeenCalledWith(ID);
     expect(stored()).toBeNull();
     expect(screen.getByText(AUTH_COPY.signIn.signedOut)).toBeTruthy();
     expect(screen.queryByText("app-ready")).toBeNull();
+  });
+
+  it("a hanging logout does not hold the gate", async () => {
+    const { client, stored } = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    client.logout.mockReturnValueOnce(new Promise<void>(() => {}));
+    await act(async () => {
+      fireEvent.click(screen.getByText("out"));
+    });
+    expect(screen.getByText(AUTH_COPY.signIn.signedOut)).toBeTruthy();
+    expect(stored()).toBeNull();
   });
 
   it("logout failure still signs out", async () => {

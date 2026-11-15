@@ -44,10 +44,39 @@ Commits (plan Approach order): `a036fe8` pure logic, `c72e38d` data layer + App/
 - None. (`src/features/auth/validation.ts` is in the auth dir; only a comment was reworded.)
 
 ### Follow-ups (noticed, not done)
-- In sign-in after `turnstile_required`, a later `invalid_credentials` is shown as `turnstile_required` copy, because `SignInScreen` renders the widget slot only next to a turnstile error (its test pins that). A screen prop to keep the slot visible would show the real error; separate small ticket.
 - `rate_limited` state in `VerifyState` stays unused by the wiring (A7).
 - `useWardrobe.test.tsx` was reformatted on disk by `oxfmt` during the run (no content change beyond my added describe).
 
 ### Scope self-check
 - Could the diff be smaller? No: each file is in the plan's list; no extra abstractions added. `resetTurnstileLoaderForTests` is the only test-only export.
 - Diff size: about +2735 / -63 lines over 44 files (roughly half tests). `server/**`, `vite.config.ts`, `public/`, `Dockerfile`, CI: no diff.
+
+## Attempt 2 (REWORK: review Issue 1 + security-review S1, S2)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `src/features/auth/AuthGate.tsx` | Issue 1: removed the `shown` remap, passes `turnstileRequired={needTurnstile}`; S1: sign-out no longer awaits `store.signOut()`, goes to `signed_out` at once; S2: `getToken`/`onSignOut`/`onAuthLost` built per App generation (`appPropsFor`), old generation: `getToken` null, others no-op; clears the pre-filled email on sign-out and `no_access` (optional) |
+| `src/features/auth/SignInScreen.tsx`, `types.ts` | Issue 1: new optional prop `turnstileRequired` keeps the widget slot visible next to a non-turnstile error |
+| `src/features/auth/tokenStore.ts` | S1: `signOut` clears the stored id before awaiting `/logout` |
+| `src/features/auth/identityClient.ts` | S1: `logout` passes `AbortSignal.timeout(5000)` (optional `signal` on `post`) |
+| `AuthGate.test.tsx`, `tokenStore.test.ts`, `identityClient.test.ts` | updated/new tests below |
+
+### Tests
+- `AuthGate.test.tsx`: turnstile single-use test now expects `invalid_credentials`, widget still mounted, next submit makes no login call and shows `turnstile_required`, new widget token goes into the third login; order test is now "App unmounted, id cleared, logout"; new "a hanging logout does not hold the gate"; new "a getToken from an old App generation resolves null after sign-out -> sign-in" (also old `onAuthLost` is a no-op); stable-getToken assertion is now per App instance (the old cross-generation identity assertions were removed on purpose).
+- `tokenStore.test.ts`: signOut order is `["clear", "logout"]`.
+- `identityClient.test.ts`: logout request carries an `AbortSignal`.
+
+### Checks
+- `pnpm typecheck`: ok. `pnpm format:check`: "All matched files use the correct format." `pnpm build`: ok (`AuthRoot-D9Ev-EBC.js` 21.32 kB, entry 264.84 kB).
+- `pnpm test`: Test Files 88 passed | 8 skipped (96); Tests 1083 passed | 167 skipped (1250).
+- Playwright (system Chrome, 390x844, light and dark, 18/18 pass): login -> `turnstile_required` -> widget shown -> solve -> wrong password shows "Email hoặc mật khẩu không đúng." with the widget still visible; next submit without a new token makes no login call; new token -> signed in with `turnstile_token`. Sign-out with a never-answering `/logout`: signed-out notice appears at once, `mm_account_id` removed, logout request was sent, email field empty; `scrollWidth` <= 390.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+- Not done (optional 🟢): `authFetch` `new URL(...)` same-origin check and `new Headers(init.headers)` (touches `src/data/authFetch.ts` and its tests); a reload message when the lazy auth chunk fails (`src/main.tsx`). Both are outside this ticket's rework scope.
+
+### Scope self-check
+- Smallest diff: one new optional prop, one per-generation factory replacing `useCallback`/`appProps`; no new files.

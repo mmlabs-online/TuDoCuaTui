@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Btn } from "@/components/Btn";
 import type { GetToken } from "@/data/authFetch";
@@ -20,7 +20,7 @@ export type AppAuthProps = {
 
 type View =
   | { kind: "checking" }
-  | { kind: "ready"; generation: number }
+  | { kind: "ready"; generation: number; app: AppAuthProps }
   | { kind: "signed_out"; error?: AuthError | null; notice?: "verified" | "signed_out" | null }
   | { kind: "retry"; error: AuthError };
 
@@ -59,7 +59,11 @@ export function AuthGate({
 
   const enterReady = () => {
     generation.current += 1;
-    setView({ kind: "ready", generation: generation.current });
+    setView({
+      kind: "ready",
+      generation: generation.current,
+      app: appPropsFor(generation.current),
+    });
   };
   const failTo = (err: AuthError) => {
     if (err.code === "network" || err.code === "rate_limited" || err.code === "unknown") {
@@ -92,22 +96,27 @@ export function AuthGate({
     [store],
   );
 
-  const onSignOut = useCallback(() => {
-    if (viewRef.current.kind !== "ready") return;
-    flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
-    void store.signOut().then(() => {
-      setNeedTurnstile(false);
-      setView({ kind: "signed_out", notice: "signed_out" });
-    });
-  }, [store]);
-
-  const onAuthLost = useCallback(() => {
-    if (viewRef.current.kind !== "ready") return;
-    store.forget();
-    setView({ kind: "signed_out", error: { code: "no_access" } });
-  }, [store]);
-
-  const appProps = useRef<AppAuthProps>({ getToken: store.getToken, onSignOut, onAuthLost });
+  // Per App generation: a callback kept by an unmounted App can no longer read a token or end the new session.
+  const appPropsFor = (gen: number): AppAuthProps => {
+    const current = () => generation.current === gen;
+    return {
+      getToken: (rejected) => (current() ? store.getToken(rejected) : Promise.resolve(null)),
+      onSignOut: () => {
+        if (!current() || viewRef.current.kind !== "ready") return;
+        flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
+        void store.signOut(); // clears the id at once; /logout is best effort and never awaited here
+        setNeedTurnstile(false);
+        setEmail("");
+        setView({ kind: "signed_out", notice: "signed_out" });
+      },
+      onAuthLost: () => {
+        if (!current() || viewRef.current.kind !== "ready") return;
+        store.forget();
+        setEmail("");
+        setView({ kind: "signed_out", error: { code: "no_access" } });
+      },
+    };
+  };
 
   const spendTurnstile = () => {
     tsToken.current = null;
@@ -156,10 +165,7 @@ export function AuthGate({
       const err = e as AuthError;
       setStatus("idle");
       if (err.code === "turnstile_required") setNeedTurnstile(true);
-      // The widget lives in the sign-in screen only next to a turnstile error, so keep prompting for it.
-      const shown: AuthError =
-        needTurnstile && err.code === "invalid_credentials" ? { code: "turnstile_required" } : err;
-      setView({ kind: "signed_out", error: shown });
+      setView({ kind: "signed_out", error: err });
       if (needTurnstile || err.code === "turnstile_required") spendTurnstile();
     }
   };
@@ -198,7 +204,7 @@ export function AuthGate({
   };
 
   if (view.kind === "ready") {
-    return <div key={view.generation}>{renderApp(appProps.current)}</div>;
+    return <div key={view.generation}>{renderApp(view.app)}</div>;
   }
   if (view.kind === "checking") {
     return (
@@ -255,6 +261,7 @@ export function AuthGate({
       notice={view.notice}
       initialEmail={email}
       turnstileSlot={slot}
+      turnstileRequired={needTurnstile}
       onSignIn={signIn}
       onGoSignUp={() => goto("signUp")}
       onResend={canResend ? resendVerification : undefined}

@@ -43,8 +43,10 @@ export type SignInScreenProps = {
   /** Offered with email_unverified only when provided. */
   onResend?: () => void;
   resend?: ResendState;
-  /** Rendered only for turnstile_required / turnstile_failed. */
+  /** Rendered only for turnstile_required / turnstile_failed, or while `turnstileRequired`. */
   turnstileSlot?: ReactNode;
+  /** Keeps the slot visible next to other errors once the server has asked for Turnstile. */
+  turnstileRequired?: boolean;
 };
 
 export type SignUpScreenProps = {

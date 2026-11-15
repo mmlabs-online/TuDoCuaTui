@@ -22,6 +22,7 @@ export interface IdentityClient {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPIRES_MAX = 86400;
+const LOGOUT_TIMEOUT_MS = 5000;
 const unknownError = (): AuthError => ({ code: "unknown" });
 const asObject = (v: unknown): Record<string, unknown> =>
   typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
@@ -37,7 +38,12 @@ export function createIdentityClient({
   fetchFn?: FetchFn;
 }): IdentityClient {
   /** `cookie`: credentials + X-MM-App; otherwise the public endpoint (no cookie, no app header). */
-  const post = async (path: string, body: unknown, cookie: boolean): Promise<unknown> => {
+  const post = async (
+    path: string,
+    body: unknown,
+    cookie: boolean,
+    signal?: AbortSignal,
+  ): Promise<unknown> => {
     let res: Response;
     try {
       res = await fetchFn(baseUrl + path, {
@@ -46,6 +52,7 @@ export function createIdentityClient({
         headers: { "Content-Type": "application/json", ...(cookie && { "X-MM-App": app }) },
         body: JSON.stringify(body),
         cache: "no-store",
+        ...(signal && { signal }),
       });
     } catch {
       throw networkError();
@@ -100,7 +107,12 @@ export function createIdentityClient({
       return { accessToken: t, expiresIn: exp };
     },
     async logout(accountId) {
-      await post("/auth/logout", { account_id: accountId }, true);
+      await post(
+        "/auth/logout",
+        { account_id: accountId },
+        true,
+        AbortSignal.timeout(LOGOUT_TIMEOUT_MS),
+      );
     },
     async signup({ email, password, turnstileToken }) {
       const json = asObject(

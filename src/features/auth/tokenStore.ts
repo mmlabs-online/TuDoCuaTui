@@ -111,12 +111,11 @@ export function createTokenStore({
       inflight = null;
       token = null;
       id = null;
+      storage.clear(); // the local session ends first; /logout is best effort and may hang
       try {
         if (gone) await client.logout(gone);
       } catch {
-        // best effort: the local session ends regardless
-      } finally {
-        storage.clear();
+        // ignored
       }
     },
     forget() {

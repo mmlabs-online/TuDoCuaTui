@@ -200,14 +200,14 @@ describe("signIn / restore", () => {
 });
 
 describe("signOut / forget", () => {
-  it("calls logout with the id, then clears the id; getToken is null at once", async () => {
+  it("clears the id, then calls logout with it; getToken is null at once", async () => {
     const s = setup();
     await s.store.getToken();
     const p = s.store.signOut();
     expect(await s.store.getToken()).toBeNull();
     await p;
     expect(s.client.logout).toHaveBeenCalledWith(ID);
-    expect(s.calls).toEqual(["logout", "clear"]);
+    expect(s.calls).toEqual(["clear", "logout"]);
   });
 
   it("removes the id even when logout rejects", async () => {
