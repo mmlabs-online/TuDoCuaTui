@@ -695,7 +695,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; sandbox",
       "content-disposition": "inline",
-      "cache-control": "private, max-age=31536000, immutable",
+      "cache-control": "private, no-cache",
       etag: `"${photoId}"`,
       "cross-origin-resource-policy": "same-origin",
       "content-length": String(JPEG.length),
@@ -718,7 +718,7 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     const res = await getPhoto(photoId, { "If-None-Match": `"${photoId}"` });
     expect(res.status).toBe(304);
     expect(res.headers.get("etag")).toBe(`"${photoId}"`);
-    expect(res.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect(res.headers.get("cache-control")).toBe("private, no-cache");
     expect(fake.requests).toEqual([]);
   });
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | T-019.5 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/53 |
 
 ## Goal
 Photos keep working once `/api` needs a bearer token (D34).
@@ -46,3 +46,8 @@ proposal* → T-019.6). Decisions D31–D34. Ming items in the plan are numbered
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan.
 
 ## Handoff
+
+### 2026-11-15 — claude — DONE
+- Done: attempt 1 REWORK (stuck queued photos), attempt 2 REWORK (impl-log count), attempt 3 PASS; security review no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/53.
+- In progress / next: Ming merges PR #53; decide disk-cache residual (`no-cache` vs `no-store` in identity mode). Next: T-019.7 (obligations recorded there).
+- Gotchas: loader created once per App mount; T-019.7 must remount or `clear()` on sign-out / account switch.

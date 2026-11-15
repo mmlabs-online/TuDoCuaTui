@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
+import type { PhotoLoader } from "@/data/photoUrls";
+import { PhotoLoaderContext } from "@/data/usePhotoUrl";
 import { Editor } from "./Editor";
 import { blankItem } from "./blankItem";
 import { EDITOR_COPY } from "./copy";
@@ -149,5 +151,58 @@ describe("category select", () => {
     const select = screen.getByDisplayValue("Áo") as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.value)).toEqual(categoryNames);
     expect(categoryNames).toHaveLength(10);
+  });
+});
+
+describe("photo loader (identity mode)", () => {
+  const PID = "11111111-1111-4111-8111-111111111111";
+  const renderWithLoader = (photo: string, promise: Promise<string>) => {
+    const acquire = vi.fn(() => ({ promise, release: vi.fn() }));
+    const loader: PhotoLoader = {
+      handles: (s) => s.startsWith("/api/photos/"),
+      acquire,
+      clear: vi.fn(),
+    };
+    render(
+      <PhotoLoaderContext.Provider value={loader}>
+        <Editor
+          item={{ ...blankItem(), id: "x", photo, photoPath: PID }}
+          locations={[]}
+          isNew={false}
+          saving={false}
+          update={vi.fn()}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onWorn={vi.fn()}
+          showMockAi={false}
+          photoById
+        />
+      </PhotoLoaderContext.Provider>,
+    );
+    return acquire;
+  };
+
+  test("a stored photo is shown from the blob: URL", async () => {
+    renderWithLoader(`/api/photos/${PID}`, Promise.resolve("blob:x/1"));
+    await waitFor(() =>
+      expect(document.querySelector(".upload-zone.has-photo img")?.getAttribute("src")).toBe(
+        "blob:x/1",
+      ),
+    );
+  });
+
+  test("a loader failure shows the loadFailed copy", async () => {
+    renderWithLoader(`/api/photos/${PID}`, Promise.reject(new Error("x")));
+    expect(await screen.findByText(EDITOR_COPY.photo.loadFailed)).toBeTruthy();
+  });
+
+  test("a new data: photo is shown as is, with no acquire", () => {
+    const acquire = renderWithLoader("data:image/jpeg;base64,AAAA", new Promise(() => {}));
+    expect(document.querySelector(".upload-zone img")?.getAttribute("src")).toBe(
+      "data:image/jpeg;base64,AAAA",
+    );
+    expect(acquire).not.toHaveBeenCalled();
   });
 });

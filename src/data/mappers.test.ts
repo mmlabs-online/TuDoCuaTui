@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { Item } from "@/types/item";
 import {
   CATEGORY_ALIASES,
+  apiPhotoId,
   CATEGORY_FROM_DB,
   CATEGORY_TO_DB,
   COLOR_FROM_DB,
@@ -265,4 +266,25 @@ test("apiPhotoUrl builds /api/photos/<id> for a uuid and is empty otherwise", ()
   expect(apiPhotoUrl(null)).toBe("");
   expect(apiPhotoUrl(undefined)).toBe("");
   expect(apiPhotoUrl("not-a-uuid")).toBe("");
+});
+
+describe("apiPhotoId", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  test("returns the id for /api/photos/<uuid>", () => {
+    expect(apiPhotoId(`/api/photos/${id}`)).toBe(id);
+    expect(apiPhotoId(`/x/photos/${id}`, "/x")).toBe(id);
+  });
+  test.each([
+    "",
+    "https://example.com/a.jpg",
+    "data:image/jpeg;base64,AAAA",
+    `blob:http://localhost/${id}`,
+    `/api/photos/${id}?x=1`,
+    `/api/photos/${id}/x`,
+    "/api/photos/not-a-uuid",
+    `/other/photos/${id}`,
+    `//evil/api/photos/${id}`,
+  ])("null for %s", (src) => {
+    expect(apiPhotoId(src)).toBeNull();
+  });
 });

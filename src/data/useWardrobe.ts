@@ -3,6 +3,7 @@ import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
 import { runImport } from "./importRunner";
 import type { DataMode } from "./mode";
+import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
 import { createLocalRepo } from "./repo";
 import { createHttpRepo } from "./repo.http";
 
@@ -18,11 +19,22 @@ const message = (e: unknown) => {
  * Single source of truth for wardrobe data.
  * `mode` api → Node API; local (default) → localStorage + demo data.
  */
-export function useWardrobe(starter: Item[], defaultLocations: string[], mode: DataMode = "local") {
+export function useWardrobe(
+  starter: Item[],
+  defaultLocations: string[],
+  mode: DataMode = "local",
+  { getToken }: { getToken?: () => Promise<string | null> } = {},
+) {
   const repo = useMemo(
     () => (mode === "api" ? createHttpRepo() : createLocalRepo(starter, defaultLocations)),
     [], // starter/defaultLocations are module constants
   );
+  // Identity mode only: photos are fetched with the bearer and shown as blob: URLs (D34).
+  const photos = useMemo<PhotoLoader | null>(
+    () => (mode === "api" && getToken ? createPhotoLoader({ getToken }) : null),
+    [], // getToken is injected once
+  );
+  useEffect(() => () => photos?.clear(), [photos]);
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +117,7 @@ export function useWardrobe(starter: Item[], defaultLocations: string[], mode: D
 
   return {
     mode: repo.mode,
+    photos,
     items,
     locations,
     loading,

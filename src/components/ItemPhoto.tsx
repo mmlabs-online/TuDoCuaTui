@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { usePhotoUrl } from "@/data/usePhotoUrl";
 
 /** Lazy `<img>` that shows `fallback` once `src` fails; a new `src` tries again. */
 export function ItemPhoto({
@@ -11,8 +12,17 @@ export function ItemPhoto({
   fallback: ReactNode;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  if (failedSrc === src) return <>{fallback}</>;
+  const photo = usePhotoUrl(src, { lazy: true });
+  if (failedSrc === src || photo.failed) return <>{fallback}</>;
+  if (photo.src === null) return <span className="photo-pending" aria-hidden ref={photo.ref} />;
   return (
-    <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailedSrc(src)} />
+    <img
+      src={photo.src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailedSrc(src)}
+      ref={photo.ref}
+    />
   );
 }

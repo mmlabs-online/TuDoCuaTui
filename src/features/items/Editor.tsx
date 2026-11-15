@@ -6,6 +6,7 @@ import { Field } from "@/components/Field";
 import { Icon } from "@/components/Icon";
 import { Confirm } from "@/components/Confirm";
 import { Modal } from "@/components/Modal";
+import { usePhotoUrl } from "@/data/usePhotoUrl";
 import { categoryNames, colorMap, colors, seasons, statuses } from "@/constants/wardrobe";
 import { toDateOnly } from "@/features/import-export/csv/serialize";
 import { EDITOR_COPY } from "./copy";
@@ -64,7 +65,8 @@ export function Editor({
   const toggle = (key: "colors" | "seasons", v: string) =>
     update(key, item[key].includes(v) ? item[key].filter((x) => x !== v) : [...item[key], v]);
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
-  const loadFailed = !!item.photo && item.photo === brokenSrc;
+  const stored = usePhotoUrl(item.photo, { lazy: false });
+  const loadFailed = !!item.photo && (item.photo === brokenSrc || stored.failed);
   const upload = (f?: File) => {
     if (!f) return;
     const r = new FileReader();
@@ -94,9 +96,11 @@ export function Editor({
               }}
               onDragOver={(e) => e.preventDefault()}
             >
-              {item.photo && !loadFailed ? (
+              {item.photo && !loadFailed && stored.src === null ? (
+                <span className="photo-pending" aria-hidden />
+              ) : item.photo && !loadFailed ? (
                 <img
-                  src={item.photo}
+                  src={stored.src ?? undefined}
                   alt="Ảnh món đồ"
                   decoding="async"
                   onError={() => setBrokenSrc(item.photo)}
