@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T06:56:10Z |
 | PR | — |
 
 ## Goal
@@ -39,7 +39,7 @@ Slice of T-019 (D31). From the T-019.3 security review F8/F9 and the T-019.2 sec
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-15 (Ming: "duyệt T-019.13"): **Plan approved.** Orchestrator step 6 done on `main`: T-019.14 created, added to T-019.9 `Depends on`; privacy-notice AC on T-019.10; D38; M-22 note.
 - 2026-11-15 (Ming, after the architect consult — see `consult-software-architect.md` open questions):
   1. **Drive: Ming's Drive for everyone** (option B), not owner-only photo storage. The consult notes this needs per-user quotas (umbrella A7) and a privacy notice (Ming can see users' photos) before strangers can upload; planner decides whether quotas fit this ticket or become a new slice that also gates T-019.9 / M-22.
   2. **Owner lane: yes** — owner exempt from the global AI ceilings and gets its own upload/tag slots; per-user limits still apply (R1, R2).

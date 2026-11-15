@@ -32,6 +32,7 @@ proposal* → T-019.10). Decisions D31–D34. Ming items in the plan are numbere
 ## Acceptance criteria
 - [ ] `not_member` with `join_available` shows "Tiếp tục với <email>"; join, then token.
 - [ ] A refused join shows Vietnamese copy.
+- [ ] The join screen shows the photo privacy notice before "Tiếp tục với <email>" (D38, T-019.13 plan A2). Proposed copy (Ming may edit): "Ảnh bạn tải lên được lưu trong Google Drive cá nhân của Ming (người vận hành TuDo), và Ming có thể xem được. Đừng tải lên ảnh có thông tin nhạy cảm." Also in Settings or near the photo picker if cheap.
 - [ ] All checks pass; 390px and dark mode.
 
 ## Technical notes
