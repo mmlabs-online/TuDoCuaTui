@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -10,10 +10,10 @@
 | Areas | security, ui, architecture |
 | Gate | plan-approval |
 | Depends on | T-019.5, T-019.6, T-019.11 |
-| Needs Ming | — |
+| Needs Ming | M-25 |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-15T03:09:03Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -46,9 +46,19 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
+- 2026-11-15 (Ming, after the architect consult):
+  1. **Bootstrap (consult F8):** Ming gets his mmlabs account and `sub` **through another registered app** (or an org-admin-api staff step); TuDo needs no change for that (M-17).
+  2. **Turnstile:** **wait for the site key before implementing** — no merge with an empty key. Ming supplies the public site key paired with org-admin-api's `TURNSTILE_SECRET_KEY` and registers `tudocuatui.mmlabs.online` in the widget hostnames and org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES` (M-25). The key goes in as a public constant (consult R8).
+  3. **Keep one ticket** (no 7a/7b split).
+  4. **`/verify-email` works in both access and identity mode** (consult R4), so Ming can verify his email (M-20) before identity mode.
 - 2026-11-15 (T-019.6 security review — must keep): (1) unmount App on sign-out and account switch (e.g. `key={userId}` under AuthGate) or call `wardrobe.photos.clear()` before the next user's token is used; (2) pass a stable `getToken` that reads the current token (not a closure over one value); (3) pass it on App's first render in API mode (a later getter leaves the loader `null`). Bearer only in `Authorization`, only to `apiPhotoId`-validated same-origin `/api/photos/<uuid>`, `redirect: "manual"`, no query/cookie fallback; a 401 retry uses a fresh token, never loops, never leaks the token in errors; `item.photo` never holds a `blob:` URL; never reintroduce `max-age`/`immutable` on photos.
 - 2026-11-13 (Ming): verify-email waits for a button press ("chờ bấm nút"), D36.
 - 2026-11-13 (Ming): screens come from T-019.11 (UI first); this slice integrates them with the Identity API once org-admin-api is ready.
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-15 — claude — BLOCKED
+- Done: consult (software-architect); Ming's answers recorded (sub via another app, wait for Turnstile key, one ticket, verify-email in both modes).
+- In progress / next: Ming does M-25 (Turnstile site key + hostnames) and writes the site key under *Notes / answers from Ming*; then `/run T-019.7` plans (plan-approval gate) and implements.
+- Gotchas: replace `src/features/auth/boundary.test.ts` with a per-file allowlist; `createHttpRepo` signature change touches many tests; identity mode can't run in `pnpm dev`.

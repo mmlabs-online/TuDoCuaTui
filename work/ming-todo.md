@@ -232,6 +232,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       Note 2026-11-14: sign-up needs a registered app origin **and** a Turnstile token, so the realistic path is TuDo's own
       sign-up page (T-019.7) or another registered app with a sign-up UI. See T-019.1 note: the `sub` is only needed when
       the T-019.1 migration runs in production (M-18), not to write the code.
+      2026-11-15 (Ming): sign up **through another registered app** that has a sign-up page (or ask the org-admin-api operator), not through TuDo — TuDo's sign-up page ships in T-019.7, after the T-019.1 release that needs this `sub`.
 - [ ] **M-18 — Backup before the ownership migration** (before merging the first release PR that contains T-019.1; do not cut that release until M-17 is done, D37): set `TUDO_OWNER_SUB: <your sub>` on the `migrate` service in the release PR's `apps/tudocuatui/compose.yml` (empty = unset; a populated DB then fails the migrate step and the old app keeps running);
       take a manual `pg_dump` of `tudocuatui` on the Mac (in addition to the deploy's `backup` step) and keep it;
       after deploy, run the read-only `user_id is null` count (expect 0).
@@ -240,6 +241,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       2026-11-14 (T-019.3 plan A1, A12–A13): if the release also contains T-019.3, the saved AI key is cleared (v1 keys are not bound to a user). After the deploy: re-enter your Claude key in Settings and press Test; read-only check `select user_id, provider, key_hint is null from ai_settings` shows your `sub`.
       2026-11-14 (T-019.4 plan A9): after this release RLS is FORCEd, so run the read-only checks above as `postgres` (or `set app.user_id = '<your sub>'` first) — as the `tudocuatui` role they return 0 rows. Extra read-only check: `select relname, relrowsecurity, relforcerowsecurity from pg_class where relname in ('locations','items','item_photos','wear_logs','ai_settings')` → all `t`.
 - [ ] **M-24 — Check the production Postgres version** (before the first release containing T-019.2): read-only `select current_setting('server_version_num');` on the `tudocuatui` database must be ≥ 150000 (PG 15+; the contract migration uses `on delete set null (col)` and refuses older versions).
+- [ ] **M-25 — Turnstile site key for TuDo** (blocks T-019.7). In Cloudflare Turnstile, on the widget whose secret org-admin-api uses (`TURNSTILE_SECRET_KEY`): add hostname `tudocuatui.mmlabs.online`; in org-admin-api add `tudocuatui.mmlabs.online` to `TURNSTILE_ALLOWED_HOSTNAMES` and redeploy. Then paste the widget's **public site key** (not the secret) under T-019.7 *Notes / answers from Ming*.
 - [ ] **M-19 — Register app `tudocuatui`** in org-admin-api production (after its USR-07 CLI exists): origin
       `https://tudocuatui.mmlabs.online` only (no localhost), `join_policy = open`.
       Status 2026-11-14: USR-07 is merged and live (org-admin-api v0.1.3, deployment#63). **Can be done now:** Actions → `ops-org-admin-api` → command `register-app`, inputs
