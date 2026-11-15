@@ -65,6 +65,10 @@ export function AuthGate({
       app: appPropsFor(generation.current),
     });
   };
+  // Leaving `ready` retires the current App generation at once, before any new sign-in can start.
+  const retireApp = () => {
+    generation.current += 1;
+  };
   const failTo = (err: AuthError) => {
     if (err.code === "network" || err.code === "rate_limited" || err.code === "unknown") {
       setView({ kind: "retry", error: err });
@@ -91,7 +95,9 @@ export function AuthGate({
   useEffect(
     () =>
       store.subscribe((err) => {
-        if (viewRef.current.kind === "ready") setView({ kind: "signed_out", error: err });
+        if (viewRef.current.kind !== "ready") return;
+        retireApp();
+        setView({ kind: "signed_out", error: err });
       }),
     [store],
   );
@@ -103,6 +109,7 @@ export function AuthGate({
       getToken: (rejected) => (current() ? store.getToken(rejected) : Promise.resolve(null)),
       onSignOut: () => {
         if (!current() || viewRef.current.kind !== "ready") return;
+        retireApp();
         flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
         void store.signOut(); // clears the id at once; /logout is best effort and never awaited here
         setNeedTurnstile(false);
@@ -111,6 +118,7 @@ export function AuthGate({
       },
       onAuthLost: () => {
         if (!current() || viewRef.current.kind !== "ready") return;
+        retireApp();
         store.forget();
         setEmail("");
         setView({ kind: "signed_out", error: { code: "no_access" } });

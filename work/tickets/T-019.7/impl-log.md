@@ -80,3 +80,24 @@ None.
 
 ### Scope self-check
 - Smallest diff: one new optional prop, one per-generation factory replacing `useCallback`/`appProps`; no new files.
+
+## Attempt 3 (REWORK: security S2 residual)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `src/features/auth/AuthGate.tsx` | new `retireApp()` (advances `generation.current`) called in `onSignOut`, `onAuthLost` and the `store.subscribe` handler when the gate leaves `ready`, so an old App's `getToken` is `null` before any new sign-in starts |
+| `src/features/auth/AuthGate.test.tsx` | new test: A's captured `getToken` resolves `null` while B's `/token` is pending (no extra `client.token` call, B's App then gets `tok-b`); runs for both sign-out and auth-lost |
+
+### Checks
+- `pnpm typecheck`: ok. `pnpm format:check`: ok. `pnpm build`: ok.
+- `pnpm test`: Tests 1084 passed | 167 skipped (1251).
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+Unchanged from Attempt 2 (optional authFetch hardening, lazy chunk reload message).
+
+### Scope self-check
+- One helper and three call sites; one test.

@@ -291,6 +291,33 @@ describe("sign-in", () => {
     act(() => old.onAuthLost());
     expect(screen.getByText("app-ready")).toBeTruthy(); // old callbacks cannot end the new session
   });
+
+  it("an old App's getToken is null as soon as the gate leaves ready, even while the next sign-in is pending", async () => {
+    const B = "22222222-2222-4222-8222-222222222222";
+    for (const path of ["signOut", "authLost"] as const) {
+      const { client } = setup();
+      await signInWith();
+      await screen.findByText("app-ready");
+      const old = seenProps.at(-1)!;
+      await act(async () => {
+        fireEvent.click(screen.getByText(path === "signOut" ? "out" : "lost"));
+      });
+      await screen.findByLabelText(AUTH_COPY.fields.email);
+      let resolveB!: (v: { accessToken: string; expiresIn: number }) => void;
+      client.login.mockResolvedValueOnce({ accountId: B, email: "b@b.co" });
+      client.token.mockImplementationOnce(() => new Promise((r) => (resolveB = r)));
+      const before = client.token.mock.calls.length;
+      await signInWith(); // B's /token is held pending
+      expect(client.token).toHaveBeenCalledTimes(before + 1);
+      expect(client.token).toHaveBeenLastCalledWith(B);
+      expect(await old.getToken()).toBeNull();
+      expect(client.token).toHaveBeenCalledTimes(before + 1); // A's request did not join B's
+      await act(async () => resolveB({ accessToken: "tok-b", expiresIn: 900 }));
+      await screen.findByText("app-ready");
+      expect(await seenProps.at(-1)!.getToken()).toBe("tok-b");
+      cleanup();
+    }
+  });
 });
 
 describe("sign-up", () => {
