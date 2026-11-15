@@ -273,7 +273,8 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     await call("a", `/api/photos/${row.id}`);
     await delPhoto("a", uuid(1), row.id);
     await call("a", `/api/items/${uuid(1)}`, { method: "DELETE" });
-    const control = /^\s*(begin( read only)?|commit|rollback)\s*$/i;
+    const control =
+      /^\s*(begin( read only)?|commit|rollback|select pg_advisory_xact_lock\(hashtextextended\('photo-quota:' \|\| \$1::text, 0\)\))\s*$/i;
     const bad = statements.filter((s) => !control.test(s) && !s.includes("user_id"));
     expect(statements.length).toBeGreaterThan(10);
     expect(bad).toEqual([]);

@@ -248,6 +248,19 @@ describe("createHttpRepo", () => {
     expect(err.message).toContain(API_ERROR_COPY.photo_upload_failed);
   });
 
+  test.each([
+    [409, "photo_quota_exceeded"],
+    [429, "rate_limited"],
+  ] as const)("a %i %s photo step throws PhotoSaveError with that copy", async (status, code) => {
+    let n = 0;
+    const { repo } = setup(() =>
+      ++n === 1 ? json({ item: row }) : json({ error: { code } }, status),
+    );
+    const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
+    expect(err).toBeInstanceOf(PhotoSaveError);
+    expect(err.message).toContain(API_ERROR_COPY[code]);
+  });
+
   test("remove DELETEs and resolves on 204", async () => {
     const { repo, fetchFn } = setup(() => new Response(null, { status: 204 }));
     await expect(repo.remove(item())).resolves.toBeUndefined();

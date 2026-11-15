@@ -19,6 +19,8 @@ export const API_ERROR_COPY = {
   photos_unavailable: "Chưa lưu được ảnh lúc này, thử lại sau",
   photo_upload_failed: "Không tải ảnh lên được, thử lại nhé",
   request_timeout: "Tải ảnh quá lâu, thử lại nhé",
+  photo_quota_exceeded: "Bạn đã lưu đủ số ảnh tối đa — xoá bớt ảnh của món khác để thêm ảnh mới",
+  rate_limited: "Bạn đã tải lên nhiều ảnh trong 24 giờ qua, thử lại sau nhé",
   db_unavailable: "Máy chủ dữ liệu đang bận, thử lại sau",
   internal: (id?: string) => (id ? `Lỗi máy chủ (mã ${id})` : "Lỗi máy chủ"),
   photoNotSaved: "Đã lưu món đồ nhưng chưa lưu được ảnh",
