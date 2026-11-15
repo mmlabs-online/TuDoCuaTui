@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | claude@2026-11-15T10:13:54Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/59 |
 
 ## Goal
 A TuDo user who forgot their password can request a reset link and set a new password on TuDo's own `/reset-password` page.
@@ -50,3 +50,8 @@ Slice of T-019 (D31, D35). org-admin-api USR-04b (live in v0.1.3): every registe
 - Done: plan.md READY: shared token-page path list (`src/shared/tokenPages.ts` + server parity test), `takeTokenHash` in boot, ForgotPasswordScreen (Turnstile always, fixed "sent" copy), ResetPasswordScreen/Page (button-press POST, token cleared before any request), AuthGate/AuthRoot/SignInScreen wiring; works in access and identity mode; local mode unchanged.
 - In progress / next: Ming approves the plan and the Vietnamese copy (plan Approach, copy list); then implement.
 - Gotchas: ~430 + ~450 lines (fallback split 12a/12b in the plan); T-019.10 is merged now, so the plan's A9 rebase note is moot.
+
+### 2026-11-15 — claude — DONE
+- Done: plan approved; implement attempt 1; review PASS (Playwright identity/access/local, 390px light+dark, parity test mutation-checked); security no 🔴/🟡. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/59.
+- In progress / next: Ming merges; ship with T-019.10 in the M-21 release.
+- Gotchas: 429 copy needs `Retry-After` exposed by CORS (org-admin-api does).
