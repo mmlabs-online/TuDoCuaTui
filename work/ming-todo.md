@@ -258,8 +258,10 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` in the release PR's compose;
       verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
       the Access policy (A16). Rollback: `TUDO_AUTH_MODE: access`.
+      2026-11-15 (D39): Access is already gone; identity switch PR https://github.com/mmlabs-online/deployment/pull/71 (v0.2.6). After deploy: `/healthz` shows `auth: identity`, sign in in a private window, re-enter the Claude key.
 - [ ] **M-22 — Remove Cloudflare Access (last step):** only after T-019.9 is released and M-21 verified. **Do not run M-22 until T-019.13 and T-019.14 are released, and T-019.10 (with the photo privacy notice) is released** (D38). If Access must go earlier, register `tudocuatui` with `join_policy = closed` and amend D31. Then: delete the
       Access application for `tudocuatui.mmlabs.online`; check incognito shows TuDo's sign-in and `/api/items` → 401.
+      2026-11-15 (D39): the Access application is already gone (get-identity 404). Remaining: T-019.9 code cleanup; then tick.
 
 ### F-701 — photo tagging
 
