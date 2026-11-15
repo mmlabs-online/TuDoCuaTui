@@ -44,7 +44,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019.6 | Photos under bearer auth (blob URLs) | MERGED | P1 | S | security, ui | T-019.5 | none | 3 | 2026-11-15 |
 | T-019.7 | SPA sign-in and sign-out with the Identity token | MERGED | P1 | M | security, ui, architecture | T-019.5, T-019.6, T-019.11 | plan-approval | 2 | 2026-11-13 |
 | T-019.8 | CSP and HSTS for the SPA | MERGED | P1 | S | security | T-019.7 | none | 0 | 2026-11-13 |
-| T-019.13 | Abuse limits before Access removal | IN_PROGRESS | P1 | S | security, architecture | T-019.5 | plan-approval | 0 | 2026-11-14 |
+| T-019.13 | Abuse limits before Access removal | DONE | P1 | S | security, architecture | T-019.5 | plan-approval | 0 | 2026-11-14 |
 | T-019.14 | Per-user photo quotas (Ming's Drive for everyone) | BACKLOG | P1 | S | security, db | T-019.5 | plan-approval | 0 | 2026-11-15 |
 | T-019.9 | Cutover cleanup: remove Cloudflare Access code | BACKLOG | P1 | S | security, architecture | T-019.4, T-019.7, T-019.8, T-019.13, T-019.14; Ming M-21 | plan-approval | 0 | 2026-11-13 |
 | T-019.10 | Join flow UX | BACKLOG | P1 | S | security, ui | T-019.7, T-019.13 | plan-approval | 0 | 2026-11-13 |
