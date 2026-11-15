@@ -72,3 +72,61 @@ Browser checks (Playwright, Chromium, 390x844, light and dark):
 
 ### Security blockers (added by the orchestrator)
 Security S1 (🟡, `security-review.md` Attempt 1) is added to this rework: a late join result for account A after "Dùng tài khoản khác" can call `enterReady()` for B or set `signed_out` while B is ready without `retireApp()` (`AuthGate.tsx:245-261`, `:282-288`), reopening the T-019.7 generation window. Fix with a gate-level join marker, reset `joining.current` in `onUseOtherAccount`, and a test.
+
+## Attempt 2 — 2026-11-15
+Verdict: PASS
+
+Reviewed: branch `claude/magical-cori-2ssw8l` at 19d5822, diff `origin/main...HEAD` (attempt-2 delta: `671a7f0..19d5822`).
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` clean, exit 0.
+- format:check: "All matched files use the correct format." (242 files).
+- test: Tests 1165 passed | 176 skipped (1341). Matches the impl-log.
+- build: `✓ built in 385ms` (AuthRoot chunk 24.56 kB).
+
+Browser checks (Playwright, Chromium, 390x844, light and dark) against the new `dist/`, **without** the `FIX=1` style injection (scratchpad `join-e2e.cjs`, `local-check.cjs`, screenshots in `scratchpad/t01910/`):
+- Every PASS/FAIL assertion for flows A (sign-in → join → token → app → editor), B (reload with stored id → accounts → join screen; second reload; "Dùng tài khoản khác") and C (`join_closed`, `join_unavailable`) passes in both themes.
+- Section D of `join-e2e.cjs` (local mode) timed out on a hidden "Thêm" button. This is a harness selector problem that was already present in attempt 1; `local-check.cjs`, which clicks the visible button, covers that case: "local editor notice count: 0 identity calls: 0".
+
+### Acceptance criteria
+- [x] `not_member` + `join_available` → "Tiếp tục với <email>" → join → token. Evidence: unchanged from attempt 1, and re-verified in the browser (request order `POST /auth/login, POST /auth/token, POST /auth/apps/tudocuatui/join, POST /auth/token`; join body `{account_id}` only; storage holds only `mm_account_id` + theme; no token in the DOM or console).
+- [x] A refused join shows Vietnamese copy. Evidence: unit tests are unchanged and pass. In the browser, `join_closed` and `join_unavailable` show the Vietnamese alerts, the user stays on the join screen and no `/token` call follows.
+- [x] The privacy notice comes before the button (D38). Evidence: browser "notice precedes button" in every join state, both themes. The editor notice shows in identity mode and is absent in local mode.
+- [x] All checks pass; 390px and dark mode. Evidence:
+  - **Issue 1 fixed** (`JoinScreen.tsx:17`, `whitespace-normal break-all`). With `nguyễn.thị.phương.thảo.rất.dài.dài.dài@example.com`, the label scrollWidth/clientWidth is 322/322 and `documentElement.scrollWidth` = 390 in every join state, light and dark. The button is 324 px wide (x 33–357) and 39 px tall, and the label wraps to two lines (`join-signin-light.png`). New test: `JoinScreen.test.tsx` › "a long email label can wrap".
+  - **Issue 2 fixed** (`Editor.tsx:139`, `#fff8eb` at opacity 0.85, `mt-2`). The effective contrast is **9.76:1** on `rgb(59,42,34)` in light mode and **11.57:1** on `rgb(38,29,25)` in dark mode, both well above 4.5:1. The editor stays within 390 px (right edge at 371). In `editor-light.png` the notice is readable, with a gap below the photo buttons.
+
+### Security S1 (orchestrator blocker) — fixed
+- `AuthGate.tsx:58,249-264,288-289`:
+  - A `joinSeq` ref is captured when the join starts.
+  - `stale()` (seq changed, or view no longer `join`) makes both the success path and the error path return without touching the view.
+  - `enterReady()` runs only when `store.join()` returns `true`.
+  - `onUseOtherAccount` bumps `joinSeq` and resets `joining.current`, so B's own join click is not swallowed.
+- `tokenStore.ts:152-168`: `join()` returns `false` if the store generation moved during either the `/join` call or the token fetch.
+- **Tests fail without the fix.** I restored `AuthGate.tsx` and `tokenStore.ts` from 671a7f0 and ran `AuthGate.test.tsx`: `2 failed | 41 passed`. Both new tests fail ("A's join resolving later…" fails with `expected 2 to be 1` on mounts; "A's join rejecting session_invalid later…" also fails). After `git checkout --` the working tree was clean again and `git status` showed no changes.
+- **Other exits from the join view.** `onUseOtherAccount` is the only exit that bypasses `join()` itself:
+  - Sign-in and sign-up are not rendered while the view is `join`.
+  - The background-refresh subscriber returns unless the view is `ready` (`AuthGate.tsx:122`).
+  - The restore effect runs only on an `attempt` change, and only the `retry` view triggers that.
+  - `VerifyEmailPage` is handled in `AuthRoot.tsx:33-41` before the gate mounts, and nothing leads from the gate back to it.
+  - As a backstop, `stale()` also checks `viewRef.current.kind !== "join"`.
+- **`retireApp` (T-019.7) is unchanged.** It is still called on every exit from `ready` (`:124`, `:138`, `:147`). Joining enters `ready` through `enterReady()`, which bumps the generation. A `session_invalid` from a join leaves `join`, not `ready`, so it needs no retire. The T-019.7 generation tests in the full suite pass.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. The attempt-2 delta touches only plan files (`JoinScreen.tsx`, `Editor.tsx`, `AuthGate.tsx`, `tokenStore.ts`, and their tests) plus ticket bookkeeping. R1: local mode is still unaffected (`local-check.cjs`). R6: no new copy literals. R8: the new behaviour has tests. R9: verified as described above.
+
+### Ming verification after merge (from plan.md; for the PR)
+- After a release with T-019.10 and `TUDO_AUTH_MODE=identity` live (M-20): sign up a second, non-member account, verify its email, and sign in on a real phone. The join screen should show the privacy notice and "Tiếp tục với <email>". After the tap, the app should open with an empty wardrobe. Closing the app before the tap and reopening it should show the same screen again, without joining.
+- Ming may edit the privacy copy (`src/constants/privacy.ts`). M-22 stays gated on this release.
+
+### Nits (do not block)
+- 💭 If `stale()` ever fired because the view changed without a `joinSeq` bump (not reachable today), `joining.current` would stay `true`. Resetting it before the stale return, or bumping `joinSeq` wherever the view leaves `join`, would make that path robust.
+- 💭 Section D of the reviewer scratch script needs a `:visible` selector. This does not affect the product.
+
+### Follow-ups (out of scope)
+- Carried over from attempt 1: clear the stored id when `accountEmail()` gets `session_invalid` (security recommendation 2), and add a shared `Btn` wrap option for buttons that show user data.
+
+Verdict: PASS
