@@ -20,18 +20,21 @@ export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
 
   useEffect(() => {
     if (!loader || !handled) return;
+    let current: object | null = null; // identifies the live acquire; a released one is ignored
     let release: (() => void) | null = null;
-    let stale = false;
     const start = () => {
-      if (release) return;
+      if (current) return;
+      const mine = {};
+      current = mine;
       const h = loader.acquire(src);
       release = h.release;
       h.promise.then(
-        (url) => !stale && setState({ src, url, failed: false }),
-        () => !stale && setState({ src, url: null, failed: true }),
+        (url) => current === mine && setState({ src, url, failed: false }),
+        () => current === mine && setState({ src, url: null, failed: true }),
       );
     };
     const stop = () => {
+      current = null;
       release?.();
       release = null;
       setState({ src: "", url: null, failed: false });
@@ -39,7 +42,7 @@ export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
     if (!observe) {
       start();
       return () => {
-        stale = true;
+        current = null;
         release?.();
       };
     }
@@ -54,7 +57,7 @@ export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
     );
     io.observe(node);
     return () => {
-      stale = true;
+      current = null;
       io.disconnect();
       release?.();
     };

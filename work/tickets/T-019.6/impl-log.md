@@ -41,3 +41,24 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: see git diff --shortstat of the commit.
+
+## Attempt 2 (REWORK)
+
+### Files touched
+- `src/data/usePhotoUrl.ts`: the single `stale` flag is replaced by a per-`start()` token (`current`). `stop()` and the effect cleanup null it, so a released handle's resolve or reject is ignored (no `failed`, no late flip to `<img>`). The element stays observed. Required because of review Issue 1.
+- `src/data/photoUrls.ts`: blob is wrapped in `new Blob([...], { type: "image/jpeg" })` (security-review 🟢).
+- `src/components/ItemPhoto.test.tsx`: two regression tests with the real loader (`maxConcurrent: 1`) and a stub IntersectionObserver: leave while queued, leave while loading. Both fail on the attempt-1 hook and pass now.
+- `src/data/photoUrls.test.ts`: blob type pinned to image/jpeg.
+
+### Checks
+- typecheck: green. format:check: all files formatted. test: 78 files passed, 8 skipped; 962 passed, 167 skipped (DB tests not run, no server files changed). build: OK.
+- Playwright Chromium 390x844 (API stub, 40 items, fast scroll down then up): 0 placeholder cards (was 24 stuck), 8 `<img>` for cards near the viewport, rest `.photo-pending`, no horizontal overflow.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only the listed issues fixed; the optional nit about `setNode` was not touched.

@@ -73,7 +73,7 @@ export function createPhotoLoader({
       if (!(res.headers.get("content-type") ?? "").toLowerCase().startsWith("image/")) {
         throw new ApiError(res.status, "unexpected");
       }
-      const blob = await res.blob();
+      const blob = new Blob([await res.blob()], { type: "image/jpeg" });
       if (gen !== generation) throw new ApiError(0, "network");
       e.url = createUrl(blob);
       e.state = "ready";

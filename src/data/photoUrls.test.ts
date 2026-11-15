@@ -41,6 +41,20 @@ function deferredFetch() {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("createPhotoLoader", () => {
+  test("the blob handed to createUrl is pinned to image/jpeg", async () => {
+    const seen: Blob[] = [];
+    const { loader } = setup({
+      fetchFn: (async () =>
+        new Response(new Blob(["x"], { type: "image/svg+xml" }), {
+          status: 200,
+          headers: { "Content-Type": "image/svg+xml" },
+        })) as unknown as typeof fetch,
+      createUrl: (b) => (seen.push(b), "blob:t/1"),
+    });
+    await loader.acquire(src(1)).promise;
+    expect(seen[0].type).toBe("image/jpeg");
+  });
+
   test("handles only API photo URLs", () => {
     const { loader, fetchFn } = setup();
     expect(loader.handles(src(1))).toBe(true);
