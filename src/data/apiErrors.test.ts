@@ -19,6 +19,8 @@ const SERVER_CODES = [
   "photos_unavailable",
   "photo_upload_failed",
   "request_timeout",
+  "photo_quota_exceeded",
+  "rate_limited",
 ];
 
 describe("apiErrorMessage", () => {
@@ -27,6 +29,14 @@ describe("apiErrorMessage", () => {
       expect(apiErrorMessage(c, undefined, "r1").length).toBeGreaterThan(0);
     expect(apiErrorMessage("method_not_allowed")).toBe(API_ERROR_COPY.generic);
     expect(apiErrorMessage("zzz")).toBe(API_ERROR_COPY.generic);
+  });
+
+  test("photo_quota_exceeded and rate_limited have their own Vietnamese copy", () => {
+    for (const c of ["photo_quota_exceeded", "rate_limited"] as const) {
+      expect(apiErrorMessage(c)).toBe(API_ERROR_COPY[c]);
+      expect(apiErrorMessage(c)).not.toBe(API_ERROR_COPY.generic);
+    }
+    expect(API_ERROR_COPY.photo_quota_exceeded).not.toBe(API_ERROR_COPY.rate_limited);
   });
 
   test("invalid_input reasons reuse the editor copy; others are generic invalid input", () => {

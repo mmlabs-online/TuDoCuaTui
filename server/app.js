@@ -8,6 +8,7 @@ import { ping } from "./db.js";
 import { createInFlight } from "./inflight.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
 import { BODY_TIMEOUTS } from "./photos.js";
+import { createPhotoQuota, PHOTO_LIMITS } from "./photoQuota.js";
 import { serveStatic } from "./static.js";
 
 /**
@@ -22,6 +23,7 @@ import { serveStatic } from "./static.js";
  *   now?: () => number,
  *   ownerSub?: string | null,
  *   bodyTimeouts?: { totalMs: number, idleMs: number },
+ *   photoLimits?: { storedMax: number, dailyMax: number, windowMs: number },
  * }} deps
  */
 export function createApp({
@@ -35,9 +37,12 @@ export function createApp({
   now = () => Date.now(),
   ownerSub = null,
   bodyTimeouts = BODY_TIMEOUTS,
+  photoLimits = PHOTO_LIMITS,
 }) {
   // Uploads in flight: 2 per user, 3 in total (3 x 2 MiB in memory). The owner has its own lane.
   const photoSlots = createInFlight({ perUser: 2, total: 3, exempt: ownerSub });
+  // Per-user stored cap and daily upload count (T-019.14); the owner is exempt (it is Ming's Drive).
+  const photoQuota = createPhotoQuota({ ...photoLimits, now, exempt: ownerSub });
   const aiContext = ai && {
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
@@ -100,6 +105,7 @@ export function createApp({
           ai: aiContext,
           drive,
           photoSlots,
+          photoQuota,
           bodyTimeouts,
           pathname,
           query: url.split("#")[0].split("?").slice(1).join("?"),

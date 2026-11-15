@@ -1,6 +1,8 @@
 // @ts-check
 // PUT / DELETE /api/items/:id/photo (D27). The browser sends the resized JPEG; Drive file ids never leave the server.
 // Lock rule: every writer of item_photos locks the items row first (items -> item_photos), so writers never deadlock.
+// Step 2, only in putPhoto: after the items row, a per-user advisory xact lock serialises the stored-photo recount.
+// No holder asks for another items lock, and deletes never take it (they only lower the count).
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -9,6 +11,7 @@ import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { sendError, sendJson } from "./http.js";
 import { getItem } from "./items.js";
+import { storedAllows } from "./photoQuota.js";
 import { isUuid } from "./validate.js";
 
 export const MAX_BYTES = 2 * 1024 * 1024;
@@ -113,6 +116,7 @@ function withLockedItem(pool, userId, itemId, fn) {
  *   userId: import("./user.js").UserId,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
+ *   photoQuota: ReturnType<typeof import("./photoQuota.js").createPhotoQuota>,
  *   bodyTimeouts: { totalMs: number, idleMs: number },
  *   itemId: string, query: string, id: string, log: (entry: Record<string, unknown>) => void,
  * }} ctx
@@ -120,7 +124,7 @@ function withLockedItem(pool, userId, itemId, fn) {
 export async function handlePhoto(
   req,
   res,
-  { pool, userId, drive, photoSlots, bodyTimeouts, itemId, query, id, log },
+  { pool, userId, drive, photoSlots, photoQuota, bodyTimeouts, itemId, query, id, log },
 ) {
   const put = req.method === "PUT";
   if (put) {
@@ -142,11 +146,20 @@ export async function handlePhoto(
   }
   if (!drive) return rejectUnread(req, res, 503, "photos_unavailable");
   if (!pool) return rejectUnread(req, res, 503, "db_unavailable");
-  // No await between the check and the acquire.
+  // Daily count first, before the body is read. No await between the reserve and the acquire.
+  const ticket = put ? photoQuota.reserve(userId) : null;
+  if (ticket && !ticket.ok) {
+    return rejectUnread(req, res, 429, "rate_limited", {
+      "Retry-After": String(ticket.retryAfterSec),
+    });
+  }
   const release = put ? photoSlots.tryAcquire(userId) : null;
   if (put && !release) {
+    if (ticket?.ok) ticket.refund();
     return rejectUnread(req, res, 503, "photos_unavailable", { "Retry-After": "5" });
   }
+  // The reservation stays only when Drive stored a file; every other outcome is refunded.
+  let charged = false;
 
   try {
     if (!put) {
@@ -166,19 +179,39 @@ export async function handlePhoto(
       return res.end();
     }
 
-    return await putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, id, log });
+    return await putPhoto(req, res, {
+      pool,
+      userId,
+      drive,
+      photoQuota,
+      bodyTimeouts,
+      itemId,
+      log,
+      onDriveStored: () => {
+        charged = true;
+      },
+    });
   } catch (err) {
     const mapped = mapDbError(err);
     log({ event: "db_error", id, ...dbLogFields(err) });
     const extra = mapped.code === "internal" ? { requestId: id } : {};
     return sendError(res, mapped.status, mapped.code, extra);
   } finally {
+    if (!charged && ticket?.ok) ticket.refund();
     release?.();
   }
 }
 
+/** Zero rows for a missing item; otherwise the user's stored photos and the ones on this item. */
+const QUOTA_SQL =
+  "select (select count(*)::int from item_photos where user_id = $2) as total, (select count(*)::int from item_photos where user_id = $2 and item_id = $1) as on_item from items where id = $1 and user_id = $2";
+
 /** @param {import("node:http").IncomingMessage} req @param {import("node:http").ServerResponse} res @param {any} ctx */
-async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, log }) {
+async function putPhoto(
+  req,
+  res,
+  { pool, userId, drive, photoQuota, bodyTimeouts, itemId, log, onDriveStored },
+) {
   const body = await readBody(req, bodyTimeouts);
   if (!body.ok) {
     return body.status === 400
@@ -189,13 +222,14 @@ async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, l
   if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) {
     return sendError(res, 400, "invalid_photo");
   }
-  const exists = await withUser(
-    pool,
-    userId,
-    (c) => c.query("select 1 from items where id = $1 and user_id = $2", [itemId, userId]),
-    { readOnly: true },
-  );
+  const cap = photoQuota.storedCap(userId);
+  const exists = await withUser(pool, userId, (c) => c.query(QUOTA_SQL, [itemId, userId]), {
+    readOnly: true,
+  });
   if (exists.rowCount === 0) return sendError(res, 404, "not_found");
+  if (!storedAllows({ total: exists.rows[0].total, onItem: exists.rows[0].on_item, cap })) {
+    return sendError(res, 409, "photo_quota_exceeded");
+  }
 
   const photoId = randomUUID();
   /** @type {{ id: string }} */
@@ -207,6 +241,7 @@ async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, l
       bytes,
       appProperties: { app: "tudo", photoId, itemId },
     });
+    onDriveStored();
   } catch (err) {
     const code = /** @type {DriveError} */ (err)?.code;
     log({ event: "photo_upload_failed", code });
@@ -219,8 +254,21 @@ async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, l
   /** @type {PhotoRef[]} */
   let old = [];
   let found;
+  let over = false;
   try {
     found = await withLockedItem(pool, userId, itemId, async (c) => {
+      if (cap !== null) {
+        // Authoritative recount under a per-user lock; a flag, not a throw, so the pooled connection survives.
+        await c.query(
+          "select pg_advisory_xact_lock(hashtextextended('photo-quota:' || $1::text, 0))",
+          [userId],
+        );
+        const r = (await c.query(QUOTA_SQL, [itemId, userId])).rows[0];
+        if (!storedAllows({ total: r.total, onItem: r.on_item, cap })) {
+          over = true;
+          return;
+        }
+      }
       old = (
         await c.query(
           "delete from item_photos where item_id = $1 and user_id = $2 returning id, drive_file_id",
@@ -236,9 +284,9 @@ async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, l
     await deleteDriveFiles(drive, [{ id: photoId, drive_file_id: file.id }], log);
     throw err;
   }
-  if (!found) {
+  if (!found || over) {
     await deleteDriveFiles(drive, [{ id: photoId, drive_file_id: file.id }], log);
-    return sendError(res, 404, "not_found");
+    return found ? sendError(res, 409, "photo_quota_exceeded") : sendError(res, 404, "not_found");
   }
   await deleteDriveFiles(drive, old, log);
   const item = await getItem(pool, userId, itemId);
