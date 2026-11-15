@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.5, T-019.6, T-019.11 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-13 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/54 |
 
 ## Goal
 In API + identity mode the app shows a sign-in screen, keeps the token in memory only and sends it to `/api`.
@@ -46,7 +46,7 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - See the umbrella plan *Tests to write* (T-019.7 rows).
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-15: **Plan approved** (Ming, in session: "duyệt T-019.7"; A1–A16 as in plan.md, one ticket).
 - 2026-11-15 (Ming): **M-25 done.** Turnstile public site key: `0x4AAAAAAF_LLtCloZlzY0MY` (public by design; goes into `src/features/auth/config.ts` as a constant per consult R8). Hostname `tudocuatui.mmlabs.online` registered on the widget and in org-admin-api `TURNSTILE_ALLOWED_HOSTNAMES`.
 - 2026-11-15 (Ming, after the architect consult):
   1. **Bootstrap (consult F8):** Ming gets his mmlabs account and `sub` **through another registered app** (or an org-admin-api staff step); TuDo needs no change for that (M-17).
@@ -69,3 +69,8 @@ Waiting for Ming: plan approval (High tier)
 - Done: M-25 recorded (site key), plan.md (Status READY) as one ticket per Ming: identityClient, tokenStore, authFetch (bearer + one 401 retry), detectRuntime + boot.ts (`takeVerifyHash` before `/healthz`), AuthRoot/AuthGate, VerifyEmailPage (`ready` state, works in access and identity), Turnstile (site key constant), sign-out, boundary allowlist; A1–A16. Plan A1 refers to merge-conflict markers the planner saw mid-merge; they were resolved before this commit (no markers in ticket.md).
 - In progress / next: Ming approves the plan, then implement → review → PR. Ship with T-019.8.
 - Gotchas: ~700 product + ~900 test lines; identity mode not runnable in `pnpm dev`.
+
+### 2026-11-15 — claude — DONE
+- Done: implemented; review attempt 1 REWORK (Turnstile message), attempt 2 PASS overridden to REWORK (security S2: cross-account token window), attempt 3 PASS; security re-checks S1/S2 closed. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/54.
+- In progress / next: Ming reviews and merges. Next: T-019.8 (must ship together with this).
+- Gotchas: no test for the subscribe-path `retireApp()`; follow-ups listed in the PR.
