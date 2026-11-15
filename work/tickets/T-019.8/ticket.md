@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-15T06:14:41Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/55 |
 
 ## Goal
 Protect the in-memory token from XSS with a Content Security Policy, and add HSTS.
@@ -46,3 +46,8 @@ proposal* → T-019.8). Decisions D31–D34. Ming items in the plan are numbered
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan.
 
 ## Handoff
+
+### 2026-11-15 — claude — DONE
+- Done: plan (READY, no gate), implement attempt 1, review PASS, security no 🔴 (Y1–Y3 🟡 non-blocking). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/55.
+- In progress / next: Ming merges; release together with T-019.7; check Turnstile for `style-src` violations in a real network.
+- Gotchas: Turnstile could not be reached from the sandbox; shared token-page path list belongs in T-019.12.
