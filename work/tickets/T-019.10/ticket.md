@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-15T07:53:36Z |
 | PR | — |
 
 ## Goal
@@ -43,7 +43,7 @@ proposal* → T-019.10). Decisions D31–D34. Ming items in the plan are numbere
 - See the umbrella plan *Tests to write* (T-019.10 rows).
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-15 (Ming: "duyệt T-019.10"): **Plan approved**, including the join copy (Approach step 4) and the privacy notice as proposed.
 - 2026-11-14: upstream ready — org-admin-api USR-03b (join for open apps) is live in v0.1.3; see its `docs/consumers.md` "Accounts" / "Join".
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
