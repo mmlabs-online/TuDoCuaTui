@@ -46,7 +46,10 @@ function match(parts) {
  *   pool: import("./items.js").Pool | null,
  *   userId: import("./user.js").UserId,
  *   ai: import("./ai/routes.js").AiContext | null,
- *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null, pathname: string, query: string, id: string,
+ *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
+ *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
+ *   bodyTimeouts: { totalMs: number, idleMs: number },
+ *   pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
  *   setRoute: (template: string) => void,
  * }} ctx
@@ -54,7 +57,7 @@ function match(parts) {
 export async function handleApi(
   req,
   res,
-  { pool, userId, ai, drive, pathname, query, id, log, now, setRoute },
+  { pool, userId, ai, drive, photoSlots, bodyTimeouts, pathname, query, id, log, now, setRoute },
 ) {
   const parts = pathname.split("/");
   const m = match(parts);
@@ -96,6 +99,8 @@ export async function handleApi(
       pool,
       userId,
       drive,
+      photoSlots,
+      bodyTimeouts,
       itemId: /** @type {string} */ (itemId),
       query,
       id,

@@ -18,7 +18,7 @@ import {
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, fetch: typeof globalThis.fetch }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, bodyTimeouts?: { totalMs: number, idleMs: number }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {

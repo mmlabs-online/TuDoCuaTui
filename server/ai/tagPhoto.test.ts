@@ -54,6 +54,8 @@ async function start(
     now?: () => number;
     getSecretError?: Error;
     headerAuth?: boolean;
+    ownerSub?: string | null;
+    bodyTimeouts?: { totalMs: number; idleMs: number };
   } = {},
 ) {
   const kek = opts.kek ?? (await importKek(randomBytes(32).toString("base64")));
@@ -90,6 +92,8 @@ async function start(
       auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: opts.now,
+      ownerSub: opts.ownerSub,
+      bodyTimeouts: opts.bodyTimeouts,
     }),
   );
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -461,5 +465,47 @@ describe("secrets and logs", () => {
     }
     expect(tags.map((l) => l.code)).toEqual(["ok", "invalid_photo"]);
     expect(JSON.stringify(s.logs)).not.toContain("Áo sơ mi");
+  });
+});
+
+/** Sends the headers of a tag-photo POST that declares 1000 bytes and only 10 of them; resolves with the reply. */
+function slowPost(port: number, user: string) {
+  const sock = net.connect(port, "127.0.0.1", () => {
+    sock.write(
+      `POST ${URL_} HTTP/1.1\r\nHost: x\r\nx-test-user: ${user}\r\nContent-Type: image/jpeg\r\nContent-Length: 1000\r\n\r\n`,
+    );
+    sock.write(Buffer.alloc(10, 1));
+  });
+  let out = "";
+  sock.on("data", (d) => (out += d.toString()));
+  sock.on("error", () => {});
+  const reply = new Promise<string>((resolve) => sock.on("close", () => resolve(out)));
+  return { sock, reply, text: () => out };
+}
+
+describe("body timeouts and owner lane", () => {
+  it("slow tag-photo body -> 408 at idle, slot released", async () => {
+    const s = await start({ bodyTimeouts: { totalMs: 2000, idleMs: 100 } });
+    const slow = slowPost(s.port, "a");
+    expect(await slow.reply).toMatch(/^HTTP\/1.1 408/);
+    const next = await post(s.base);
+    expect(next.status).toBe(200);
+  });
+
+  it("owner tag-photo is accepted while two other users hold both shared slots", async () => {
+    const s = await start({ headerAuth: true, ownerSub: OWNER_A });
+    const b = slowPost(s.port, "b");
+    const c = slowPost(s.port, "c");
+    try {
+      await new Promise((r) => setTimeout(r, 150));
+      const as = (u: string) => ({ ...JPEG_H, "x-test-user": u });
+      const a = await post(s.base, jpeg(), as("a"));
+      expect(a.status).toBe(200);
+      const b2 = await post(s.base, jpeg(), as("b"));
+      expect([b2.status, await err(b2)]).toEqual([503, "ai_busy"]);
+    } finally {
+      b.sock.destroy();
+      c.sock.destroy();
+    }
   });
 });

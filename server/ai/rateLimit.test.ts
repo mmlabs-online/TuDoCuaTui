@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { OWNER_A, OWNER_B } from "../test/auth.js";
-import { createLimiter, GLOBAL_LIMITS } from "./rateLimit.js";
+import { createLimiter, GLOBAL_LIMITS, LIMITS } from "./rateLimit.js";
 
 describe("limiter", () => {
   it("30 saves pass, the 31st fails, an hour later it passes again", () => {
@@ -100,5 +100,62 @@ describe("limiter", () => {
     for (let i = 0; i < 600; i++) l.check(`g${i}`, "save");
     expect(l.check("x", "save")).toBe(false);
     expect(l.size()).toBe(600);
+  });
+});
+
+describe("owner lane", () => {
+  const KINDS = ["test", "save", "tag"] as const;
+  const others = (n: number) =>
+    Array.from({ length: n }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+
+  it("owner passes when other users have filled the global ceiling (each kind)", () => {
+    for (const kind of KINDS) {
+      const l = createLimiter({ now: () => 1_000_000, ownerSub: OWNER_A });
+      const users = others(Math.ceil(GLOBAL_LIMITS[kind].max / LIMITS[kind].max) + 1);
+      let made = 0;
+      for (const u of users) {
+        for (let i = 0; i < LIMITS[kind].max && made < GLOBAL_LIMITS[kind].max; i++, made++) {
+          expect(l.check(u, kind)).toBe(true);
+        }
+      }
+      expect(l.check(OWNER_B, kind)).toBe(false);
+      expect(l.check(OWNER_A, kind)).toBe(true);
+    }
+  });
+
+  it("owner calls are not counted toward the global ceiling", () => {
+    const kind = "test";
+    const l = createLimiter({ now: () => 1_000_000, ownerSub: OWNER_A });
+    for (let i = 0; i < LIMITS[kind].max; i++) expect(l.check(OWNER_A, kind)).toBe(true);
+    let made = 0;
+    for (const u of others(Math.ceil(GLOBAL_LIMITS[kind].max / LIMITS[kind].max))) {
+      for (let i = 0; i < LIMITS[kind].max && made < GLOBAL_LIMITS[kind].max; i++, made++) {
+        expect(l.check(u, kind)).toBe(true);
+      }
+    }
+    expect(made).toBe(GLOBAL_LIMITS[kind].max);
+    expect(l.check(OWNER_B, kind)).toBe(false);
+  });
+
+  it("owner still gets false at its own per-user limit; the window frees it", () => {
+    let t = 1_000_000;
+    const l = createLimiter({ now: () => t, ownerSub: OWNER_A });
+    for (const kind of KINDS) {
+      for (let i = 0; i < LIMITS[kind].max; i++) expect(l.check(OWNER_A, kind)).toBe(true);
+      expect(l.check(OWNER_A, kind)).toBe(false);
+    }
+    t += 24 * 60 * 60 * 1000 + 1;
+    for (const kind of KINDS) expect(l.check(OWNER_A, kind)).toBe(true);
+  });
+
+  it("ownerSub unset: the first user is limited by the global ceiling like everyone", () => {
+    const l = createLimiter({ now: () => 1_000_000 });
+    let made = 0;
+    for (const u of others(Math.ceil(GLOBAL_LIMITS.test.max / LIMITS.test.max))) {
+      for (let i = 0; i < LIMITS.test.max && made < GLOBAL_LIMITS.test.max; i++, made++) {
+        l.check(u, "test");
+      }
+    }
+    expect(l.check(OWNER_A, "test")).toBe(false);
   });
 });

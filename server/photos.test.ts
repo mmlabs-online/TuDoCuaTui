@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { servePhoto } from "./photos.js";
+import { readBody, servePhoto } from "./photos.js";
 import { OWNER_A } from "./test/auth.js";
 import { fakePool } from "./test/fake-pool.js";
 
@@ -152,5 +152,41 @@ describe("servePhoto", () => {
         expect(media).toBe(0);
       },
     );
+  });
+});
+
+describe("readBody timeouts", () => {
+  const T = { totalMs: 200, idleMs: 50 };
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const req = (headers: Record<string, string> = {}) =>
+    Object.assign(new PassThrough(), { headers }) as PassThrough & { headers: any };
+
+  it("no bytes for idleMs -> 408 request_timeout", async () => {
+    const t0 = Date.now();
+    const r = await readBody(req() as never, T);
+    expect(r).toEqual({ ok: false, status: 408, code: "request_timeout" });
+    expect(Date.now() - t0).toBeLessThan(150);
+  });
+
+  it("drip-feed under idleMs is cut at totalMs -> 408", async () => {
+    const q = req();
+    const drip = setInterval(() => q.write(Buffer.from([1])), 20);
+    const t0 = Date.now();
+    const r = await readBody(q as never, T);
+    clearInterval(drip);
+    expect(r).toEqual({ ok: false, status: 408, code: "request_timeout" });
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(150);
+  });
+
+  it("a steady upload that ends before totalMs -> ok, bytes intact", async () => {
+    const q = req({ "content-length": "5" });
+    const p = readBody(q as never, T);
+    for (let i = 0; i < 5; i++) {
+      q.write(Buffer.from([i]));
+      await sleep(20);
+    }
+    q.end();
+    const r = await p;
+    expect(r).toEqual({ ok: true, bytes: Buffer.from([0, 1, 2, 3, 4]) });
   });
 });

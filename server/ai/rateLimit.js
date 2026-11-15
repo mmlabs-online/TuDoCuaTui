@@ -24,8 +24,12 @@ export const GLOBAL_LIMITS = {
 
 const KINDS = /** @type {CallKind[]} */ (["save", "test", "tag"]);
 
-/** @param {{ now?: () => number }} [opts] */
-export function createLimiter({ now = () => Date.now() } = {}) {
+/**
+ * `ownerSub` (from config, never the request) skips the global ceilings and is not counted in them;
+ * the per-user limits still apply to it.
+ * @param {{ now?: () => number, ownerSub?: string | null }} [opts]
+ */
+export function createLimiter({ now = () => Date.now(), ownerSub = null } = {}) {
   /** @type {Map<string, Record<CallKind, number[]>>} */
   const users = new Map();
   /** @type {Record<CallKind, number[]>} */
@@ -59,12 +63,13 @@ export function createLimiter({ now = () => Date.now() } = {}) {
       prune(mine, t);
       const gl = GLOBAL_LIMITS[kind];
       global[kind] = global[kind].filter((c) => c > t - gl.windowMs);
-      if (mine[kind].length >= LIMITS[kind].max || global[kind].length >= gl.max) {
+      const owner = ownerSub !== null && userId === ownerSub;
+      if (mine[kind].length >= LIMITS[kind].max || (!owner && global[kind].length >= gl.max)) {
         if (prune(mine, t)) users.delete(userId);
         return false;
       }
       mine[kind].push(t);
-      global[kind].push(t);
+      if (!owner) global[kind].push(t);
       users.set(userId, mine);
       return true;
     },

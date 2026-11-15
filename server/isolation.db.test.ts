@@ -279,6 +279,56 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     expect(bad).toEqual([]);
   });
 
+  it("owner photo PUT succeeds while B and C hold every non-owner slot", async () => {
+    await put("a", uuid(1), { name: "a" });
+    const sockets: net.Socket[] = [];
+    const ownerServer = http.createServer(
+      createApp({
+        pool: recording(appPool),
+        drive: createDriveClient({ config: fakeConfig, ...fake.urls, sleep: async () => {} }),
+        distDir: "/nonexistent",
+        auth: headerAuth(),
+        log: () => {},
+        ownerSub: OWNER_A,
+      }),
+    );
+    await new Promise<void>((r) => ownerServer.listen(0, "127.0.0.1", r));
+    const oport = (ownerServer.address() as AddressInfo).port;
+    try {
+      const hold = (user: string, id: string) => {
+        const sock = net.connect(oport, "127.0.0.1", () => {
+          sock.write(
+            `PUT /api/items/${id}/photo HTTP/1.1\r\nHost: x\r\nx-test-user: ${user}\r\nContent-Type: image/jpeg\r\nContent-Length: 1000\r\n\r\n`,
+          );
+          sock.write(Buffer.alloc(10, 1));
+        });
+        sock.on("data", () => {});
+        sock.on("error", () => {});
+        sockets.push(sock);
+      };
+      hold("b", uuid(2));
+      hold("b", uuid(2));
+      hold("c", uuid(3));
+      await new Promise((r) => setTimeout(r, 150));
+      const ownerPut = await fetch(`http://127.0.0.1:${oport}/api/items/${uuid(1)}/photo`, {
+        method: "PUT",
+        headers: { "x-test-user": "a", "Content-Type": "image/jpeg" },
+        body: JPEG,
+      });
+      expect(ownerPut.status).toBe(200);
+      const b3 = await fetch(`http://127.0.0.1:${oport}/api/items/${uuid(2)}/photo`, {
+        method: "PUT",
+        headers: { "x-test-user": "b", "Content-Type": "image/jpeg" },
+        body: JPEG,
+      });
+      expect(b3.status).toBe(503);
+      expect(((await b3.json()) as any).error.code).toBe("photos_unavailable");
+    } finally {
+      for (const s of sockets) s.destroy();
+      await new Promise((r) => ownerServer.close(r));
+    }
+  });
+
   describe("ai_settings", () => {
     const KEY_A = "sk-ant-KEYOFA-0123456789abcdef";
     const fetched: { url: string; key: string }[] = [];
