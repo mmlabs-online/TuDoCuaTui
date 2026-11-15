@@ -40,8 +40,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | MERGED | P1 | M | db, security, architecture | T-019.1 | plan-approval | 1 | 2026-11-14 |
 | T-019.3 | Per-user AI settings | MERGED | P1 | S | db, security | T-019.2 | plan-approval | 1 | 2026-11-14 |
 | T-019.4 | Row level security with per-request app.user_id | MERGED | P1 | M | db, security | T-019.2, T-019.3 | plan-approval | 2 | 2026-11-14 |
-| T-019.5 | Identity JWT verifier and TUDO_AUTH_MODE switch | DONE | P1 | M | security, architecture | T-019.2 | plan-approval | 1 | 2026-11-14 |
-| T-019.6 | Photos under bearer auth (blob URLs) | BACKLOG | P1 | S | security, ui | T-019.5 | none | 0 | 2026-11-13 |
+| T-019.5 | Identity JWT verifier and TUDO_AUTH_MODE switch | MERGED | P1 | M | security, architecture | T-019.2 | plan-approval | 1 | 2026-11-14 |
+| T-019.6 | Photos under bearer auth (blob URLs) | PLANNING | P1 | S | security, ui | T-019.5 | none | 0 | 2026-11-13 |
 | T-019.7 | SPA sign-in and sign-out with the Identity token | BACKLOG | P1 | M | security, ui, architecture | T-019.5, T-019.6, T-019.11 | plan-approval | 0 | 2026-11-13 |
 | T-019.8 | CSP and HSTS for the SPA | BACKLOG | P1 | S | security | T-019.7 | none | 0 | 2026-11-13 |
 | T-019.13 | Abuse limits before Access removal | BACKLOG | P1 | S | security, architecture | T-019.5 | plan-approval | 0 | 2026-11-14 |
