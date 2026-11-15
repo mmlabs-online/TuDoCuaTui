@@ -54,3 +54,14 @@
 ### Open questions
 - Show or offer to log out a `no_access` / not-member account's leftover Identity session?
 - Is the AC2 test strict about "logout before id cleared"? Fixing S1 changes it.
+
+## Attempt 2 — 2026-11-15 (security-ai-generated-code-auditor)
+
+Read-only re-check of S1, S2 and the Turnstile change. Checks not run by the auditor.
+
+- 🟢 **S1 fixed.** `tokenStore.signOut` clears memory and `mm_account_id` (`tokenStore.ts:108-120`) before `await client.logout`; logout has `AbortSignal.timeout(5000)` (`identityClient.ts:25,109-116`); the gate unmounts the App via `flushSync`, fires `void store.signOut()` and moves to `signed_out` (`AuthGate.tsx:104-111`). Tests `AuthGate.test.tsx:357-382`.
+- 🟡 **S2 mostly fixed, one window left.** `generation.current` only increases in `enterReady` (`AuthGate.tsx:60-67,100-103`). Between sign-out of A and `enterReady` for B, `signIn` sets `id = B` and awaits `fetchToken()` (`tokenStore.ts:96-103`); a pending step of A's unmounted App (authFetch retry, later steps of a save in `repo.http.ts`) calling the old `getToken` still counts as current and joins B's in-flight `/token`, so A's request goes out with B's bearer. The test at `AuthGate.test.tsx:277-293` checks only after `app-ready`. Fix: bump `generation.current` in every handler that leaves `ready` (onSignOut, onAuthLost, the subscribe handler) or at the start of `signIn`; test the old `getToken` while B's `/token` is pending → `null`.
+- 🟢 **Turnstile → invalid_credentials change is fine.** `needTurnstile` stays true after the error (`AuthGate.tsx:151-153,167-169`), the spent token is cleared and the widget reset, a submit without a fresh token is blocked client-side; `SignInScreen.tsx:18-21` keeps the widget visible. Test `AuthGate.test.tsx:222-249`.
+- 🟢 **Note:** a late logout of A racing a quick re-sign-in to A can end the new server session; fails closed (next `/token` → `session_invalid` → signed out). No fix needed; mention to Ming.
+
+S3 and the attempt-1 🟢 items were not re-checked.
