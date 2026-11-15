@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-15T03:36:51Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/54 |
 
 ## Goal
 In API + identity mode the app shows a sign-in screen, keeps the token in memory only and sends it to `/api`.
@@ -69,3 +69,8 @@ proposal* → T-019.7). Decisions D31–D34. Ming items in the plan are numbered
 - Done: M-25 recorded (site key), plan.md (Status READY) as one ticket per Ming: identityClient, tokenStore, authFetch (bearer + one 401 retry), detectRuntime + boot.ts (`takeVerifyHash` before `/healthz`), AuthRoot/AuthGate, VerifyEmailPage (`ready` state, works in access and identity), Turnstile (site key constant), sign-out, boundary allowlist; A1–A16. Plan A1 refers to merge-conflict markers the planner saw mid-merge; they were resolved before this commit (no markers in ticket.md).
 - In progress / next: Ming approves the plan, then implement → review → PR. Ship with T-019.8.
 - Gotchas: ~700 product + ~900 test lines; identity mode not runnable in `pnpm dev`.
+
+### 2026-11-15 — claude — DONE
+- Done: implemented; review attempt 1 REWORK (Turnstile message), attempt 2 PASS overridden to REWORK (security S2: cross-account token window), attempt 3 PASS; security re-checks S1/S2 closed. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/54.
+- In progress / next: Ming reviews and merges. Next: T-019.8 (must ship together with this).
+- Gotchas: no test for the subscribe-path `retireApp()`; follow-ups listed in the PR.
