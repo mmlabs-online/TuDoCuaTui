@@ -34,3 +34,12 @@ Server-supplied email shown as text (bidi/confusables only from Identity itself)
 
 ### Open questions
 Disable "Dùng tài khoản khác" while joining? Does the login reply always include `user.email` (fallback is the typed email, `identityClient.ts:112`)?
+
+## Attempt 2 — 2026-11-15 (security-ai-generated-code-auditor)
+
+Re-check of S1 only; read-only, tests not run. **🟢 S1 resolved; no new 🔴/🟡.**
+- Every exit from `join` invalidates a pending join: `onUseOtherAccount` bumps `joinSeq` and resets `joining.current` first (`AuthGate.tsx:287-295`); the join's own result leaves only after `stale()` (`:254`, `:259`); no other path leaves `join` while pending (`store.subscribe` acts only in `ready` `:123`; restore effect keyed on `attempt` `:106-117`).
+- Late A results can't affect B: gate captures `seq` (`:249`), `stale()` checks seq and view on both branches (`:250`); store `join()` returns false and skips `/token` when the generation changed (`tokenStore.ts:158,165,167`; `fetchToken` `:64,70`); `enterReady()` only on `joined && store.accountId()` (`AuthGate.tsx:257`). `session_invalid` → `signed_out` (`:263`) only from the join view, where no App is mounted and the App generation was already retired (`:124,138,147`).
+- `joining.current` can't stick: reset on both non-stale branches (`:255,261`) and in `onUseOtherAccount` (`:289`); the stale early-return correctly leaves it.
+- 🟢 notes / follow-ups: route any future exit from `join` through one helper that bumps `joinSeq` and resets `joining.current`; `join()` false while still on the join view leaves the button idle (fails safe, unreachable today); test gaps: assert `store.join()` resolves `false` after `forget()` (`tokenStore.test.ts:297`), B's join click works while A's join is pending, A's late success while B is on its own join view.
+- Disabling "Dùng tài khoản khác" while joining is now a UX choice only.
