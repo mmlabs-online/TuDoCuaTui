@@ -92,12 +92,23 @@ describe("entry point", () => {
     }
   });
 
-  it("production identity needs no CF_ACCESS_* or owner: starts, /healthz auth identity, /api 401", async () => {
+  it("identity mode needs TUDO_OWNER_SUB: blank or malformed -> exit 2, value never printed", () => {
+    const id = { TUDO_AUTH_MODE: "identity", MM_IDENTITY_ISSUER: "https://api.mmlabs.online" };
+    const blank = run({ ...id, TUDO_OWNER_SUB: "" });
+    expect(blank.status).toBe(2);
+    expect(blank.stderr).toContain("TUDO_OWNER_SUB must be set");
+    const bad = run({ ...id, TUDO_OWNER_SUB: "SECRETISH-not-a-uuid" });
+    expect(bad.status).toBe(2);
+    expect(bad.stderr).toContain("TUDO_OWNER_SUB must be a valid UUID");
+    expect(bad.stdout + bad.stderr).not.toContain("SECRETISH");
+  });
+
+  it("production identity needs no CF_ACCESS_*, only the owner: starts, /healthz auth identity, /api 401", async () => {
     const { child, port, output } = await start({
       NODE_ENV: "production",
       TUDO_AUTH_MODE: "identity",
       MM_IDENTITY_ISSUER: "https://api.mmlabs.online",
-      TUDO_OWNER_SUB: "",
+      TUDO_OWNER_SUB: OWNER,
     });
     try {
       expect(output()).toContain("auth: identity");

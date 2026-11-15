@@ -8,7 +8,14 @@ import { AccessConfigError } from "./access.js";
 import { AiConfigError, initAi } from "./ai/config.js";
 import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
-import { AuthConfigError, authLabel, createAuth, loadAuthConfig, requestAuth } from "./auth.js";
+import {
+  AuthConfigError,
+  authLabel,
+  createAuth,
+  loadAuthConfig,
+  ownerSubOf,
+  requestAuth,
+} from "./auth.js";
 import { createPool } from "./db.js";
 import { createDriveClient, DriveConfigError, loadDriveConfig } from "./drive.js";
 import { IdentityConfigError } from "./identity.js";
@@ -75,7 +82,16 @@ const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../d
 const port = Number(process.env.PORT ?? 3000);
 
 const server = http.createServer(
-  createApp({ pool, distDir, ai, drive, auth, authMode: authLabel(authConfig), log }),
+  createApp({
+    pool,
+    distDir,
+    ai,
+    drive,
+    auth,
+    authMode: authLabel(authConfig),
+    log,
+    ownerSub: ownerSubOf(authConfig),
+  }),
 );
 server.listen(port, "0.0.0.0", () => {
   const addr = server.address();

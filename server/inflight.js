@@ -2,9 +2,10 @@
 // In-flight counter with a per-user and a total cap (photo uploads, T-019.2).
 
 /**
- * @param {{ perUser: number, total: number }} caps
+ * `exempt` (a user id) ignores the total cap and is not counted in it; `perUser` still applies.
+ * @param {{ perUser: number, total: number, exempt?: string | null }} caps
  */
-export function createInFlight({ perUser, total }) {
+export function createInFlight({ perUser, total, exempt = null }) {
   /** @type {Map<string, number>} */
   const byUser = new Map();
   let all = 0;
@@ -12,14 +13,15 @@ export function createInFlight({ perUser, total }) {
     /** @param {string} userId @returns {(() => void) | null} */
     tryAcquire(userId) {
       const n = byUser.get(userId) ?? 0;
-      if (n >= perUser || all >= total) return null;
+      const free = exempt !== null && userId === exempt;
+      if (n >= perUser || (!free && all >= total)) return null;
       byUser.set(userId, n + 1);
-      all++;
+      if (!free) all++;
       let released = false;
       return () => {
         if (released) return;
         released = true;
-        all--;
+        if (!free) all--;
         const left = (byUser.get(userId) ?? 1) - 1;
         if (left <= 0) byUser.delete(userId);
         else byUser.set(userId, left);

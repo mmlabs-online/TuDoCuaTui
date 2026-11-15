@@ -45,7 +45,7 @@ export async function handleTagPhoto(req, res, { ai, userId, id, log }) {
     // Decrypts before the body is read, so no_key / invalid_model never make the client upload 2 MB.
     const s = await loadSettingsKey({ ...ai, store }, userId);
     if (!s.ok) return reject(s.status, s.code);
-    const body = await readBody(req);
+    const body = await readBody(req, ai.bodyTimeouts);
     if (!body.ok) {
       return body.status === 400 ? fail(400, "invalid_photo") : reject(body.status, body.code);
     }

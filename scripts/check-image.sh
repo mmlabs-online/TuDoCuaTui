@@ -106,6 +106,7 @@ expect_exit 2 "server with malformed TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci
 expect_exit 2 "server with nil TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=00000000-0000-0000-0000-000000000000 "$IMAGE"
 expect_exit 2 "server with TUDO_AUTH_MODE=bogus" "${ACCESS[@]}" -e TUDO_AUTH_MODE=bogus "$IMAGE"
 expect_exit 2 "identity mode without MM_IDENTITY_ISSUER" -e TUDO_AUTH_MODE=identity "$IMAGE"
+expect_exit 2 "identity mode without TUDO_OWNER_SUB" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online "$IMAGE"
 expect_exit 2 "identity mode with a foreign issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://evil.example "$IMAGE"
 expect_exit 2 "identity mode with an http issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=http://api.mmlabs.online "$IMAGE"
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
@@ -158,7 +159,8 @@ if [ "$health" != healthy ]; then echo "::error::image HEALTHCHECK is '$health',
 echo "== identity smoke"
 # Identity mode, no network: no or malformed bearer is rejected before any JWKS fetch.
 docker run -d --name "$IDNAME" --cap-drop ALL --security-opt no-new-privileges --network none \
-  -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online "$IMAGE" >/dev/null
+  -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online \
+  -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f "$IMAGE" >/dev/null
 ok=0
 for _ in $(seq 1 30); do
   if [ "$(status "$IDNAME" /healthz)" = 200 ]; then ok=1; break; fi

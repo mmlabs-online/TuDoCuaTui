@@ -17,7 +17,11 @@ afterAll(async () => {
 type Stub = { query: (...a: unknown[]) => Promise<unknown>; connect?: () => Promise<unknown> };
 const logs: Record<string, unknown>[] = [];
 
-async function start(pool: Stub | null, drive: object | null = null) {
+async function start(
+  pool: Stub | null,
+  drive: object | null = null,
+  extra: { bodyTimeouts?: { totalMs: number; idleMs: number } } = {},
+) {
   const server = http.createServer(
     createApp({
       pool,
@@ -26,6 +30,7 @@ async function start(pool: Stub | null, drive: object | null = null) {
       auth: fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
       now: () => NOW,
+      ...extra,
     }),
   );
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -411,5 +416,23 @@ describe("no DB and DB errors", () => {
       "/api",
     ]);
     expect(JSON.stringify(logs)).not.toContain(ID);
+  });
+});
+
+describe("photo body timeouts", () => {
+  it("two slow photo PUTs by one user -> 408 at the idle timeout and both slots are free again", async () => {
+    const pool: Stub = { query: async () => ({ rows: [], rowCount: 0 }) };
+    const base = await start(pool, {}, { bodyTimeouts: { totalMs: 2000, idleMs: 100 } });
+    const slow = () =>
+      raw(
+        base,
+        `PUT /api/items/${ID}/photo HTTP/1.1\r\nHost: x\r\nContent-Type: image/jpeg\r\nContent-Length: 1000\r\n\r\n0123456789`,
+      );
+    const [a, b] = await Promise.all([slow(), slow()]);
+    expect(a).toMatch(/^HTTP\/1.1 408/);
+    expect(b).toMatch(/^HTTP\/1.1 408/);
+    const third = await slow();
+    expect(third).toMatch(/^HTTP\/1.1 408/);
+    expect(third).not.toMatch(/^HTTP\/1.1 503/);
   });
 });

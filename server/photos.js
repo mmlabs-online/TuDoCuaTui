@@ -7,15 +7,13 @@ import { pipeline } from "node:stream/promises";
 import { withUser } from "./db.js";
 import { DriveError } from "./drive.js";
 import { dbLogFields, mapDbError } from "./errors.js";
-import { createInFlight } from "./inflight.js";
 import { sendError, sendJson } from "./http.js";
 import { getItem } from "./items.js";
 import { isUuid } from "./validate.js";
 
 export const MAX_BYTES = 2 * 1024 * 1024;
-const BODY_DEADLINE_MS = 30_000;
-// 3 uploads in memory at most (3 x 2 MiB); 2 per user so one user cannot take every slot.
-const photoSlots = createInFlight({ perUser: 2, total: 3 });
+/** Upload body limits: cut at `totalMs` overall or after `idleMs` without a chunk (slow senders free their slot). */
+export const BODY_TIMEOUTS = { totalMs: 15_000, idleMs: 5_000 };
 
 /** @typedef {{ id: string, drive_file_id: string | null }} PhotoRef */
 
@@ -31,9 +29,10 @@ export function rejectUnread(req, res, status, code, headers = {}) {
 
 /**
  * @param {import("node:http").IncomingMessage} req
+ * @param {{ totalMs: number, idleMs: number }} [timeouts]
  * @returns {Promise<{ ok: true, bytes: Buffer } | { ok: false, status: number, code: string }>}
  */
-export function readBody(req) {
+export function readBody(req, { totalMs, idleMs } = BODY_TIMEOUTS) {
   const declared = req.headers["content-length"];
   return new Promise((resolve) => {
     /** @type {Buffer[]} */
@@ -45,15 +44,17 @@ export function readBody(req) {
       if (done) return;
       done = true;
       clearTimeout(timer);
+      clearTimeout(idle);
       req.pause();
       resolve(r);
     };
     const bad = { ok: /** @type {const} */ (false), status: 400, code: "invalid_photo" };
-    const timer = setTimeout(
-      () => finish({ ok: false, status: 408, code: "request_timeout" }),
-      BODY_DEADLINE_MS,
-    );
+    const timeout = () => finish({ ok: false, status: 408, code: "request_timeout" });
+    const timer = setTimeout(timeout, totalMs);
+    let idle = setTimeout(timeout, idleMs);
     req.on("data", (chunk) => {
+      clearTimeout(idle);
+      idle = setTimeout(timeout, idleMs);
       total += chunk.length;
       if (total > MAX_BYTES) finish({ ok: false, status: 413, code: "payload_too_large" });
       else chunks.push(chunk);
@@ -111,10 +112,16 @@ function withLockedItem(pool, userId, itemId, fn) {
  *   pool: import("./items.js").Pool | null,
  *   userId: import("./user.js").UserId,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
+ *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
+ *   bodyTimeouts: { totalMs: number, idleMs: number },
  *   itemId: string, query: string, id: string, log: (entry: Record<string, unknown>) => void,
  * }} ctx
  */
-export async function handlePhoto(req, res, { pool, userId, drive, itemId, query, id, log }) {
+export async function handlePhoto(
+  req,
+  res,
+  { pool, userId, drive, photoSlots, bodyTimeouts, itemId, query, id, log },
+) {
   const put = req.method === "PUT";
   if (put) {
     const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
@@ -159,7 +166,7 @@ export async function handlePhoto(req, res, { pool, userId, drive, itemId, query
       return res.end();
     }
 
-    return await putPhoto(req, res, { pool, userId, drive, itemId, id, log });
+    return await putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, id, log });
   } catch (err) {
     const mapped = mapDbError(err);
     log({ event: "db_error", id, ...dbLogFields(err) });
@@ -171,8 +178,8 @@ export async function handlePhoto(req, res, { pool, userId, drive, itemId, query
 }
 
 /** @param {import("node:http").IncomingMessage} req @param {import("node:http").ServerResponse} res @param {any} ctx */
-async function putPhoto(req, res, { pool, userId, drive, itemId, log }) {
-  const body = await readBody(req);
+async function putPhoto(req, res, { pool, userId, drive, bodyTimeouts, itemId, log }) {
+  const body = await readBody(req, bodyTimeouts);
   if (!body.ok) {
     return body.status === 400
       ? sendError(res, 400, body.code)
