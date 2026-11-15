@@ -18,6 +18,9 @@ export interface IdentityClient {
   }): Promise<{ email: string }>;
   verifyEmail(token: string): Promise<void>;
   resendVerification(accountId: string): Promise<void>;
+  /** Joins the app as the given account. Call only after the user's click (D8). */
+  join(accountId: string): Promise<void>;
+  accounts(): Promise<{ accountId: string; email: string }[]>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -64,6 +67,28 @@ export function createIdentityClient({
       } catch {
         json = null;
       }
+    }
+    if (!res.ok) throw toAuthError(res.status, res.headers, json);
+    return json;
+  };
+
+  const get = async (path: string): Promise<unknown> => {
+    let res: Response;
+    try {
+      res = await fetchFn(baseUrl + path, {
+        method: "GET",
+        credentials: "include",
+        headers: { "X-MM-App": app },
+        cache: "no-store",
+      });
+    } catch {
+      throw networkError();
+    }
+    let json: unknown = null;
+    try {
+      json = await res.json();
+    } catch {
+      json = null;
     }
     if (!res.ok) throw toAuthError(res.status, res.headers, json);
     return json;
@@ -125,6 +150,25 @@ export function createIdentityClient({
     },
     async resendVerification(accountId) {
       await post("/auth/verify-email/resend", { account_id: accountId }, true);
+    },
+    async join(accountId) {
+      const json = asObject(
+        await post(`/auth/apps/${encodeURIComponent(app)}/join`, { account_id: accountId }, true),
+      );
+      if (json.status !== "member") throw unknownError();
+    },
+    async accounts() {
+      const items = asObject(await get("/auth/accounts")).items;
+      if (!Array.isArray(items)) return [];
+      return items.flatMap((raw) => {
+        const it = asObject(raw);
+        return typeof it.account_id === "string" &&
+          UUID_RE.test(it.account_id) &&
+          typeof it.email === "string" &&
+          it.email
+          ? [{ accountId: it.account_id, email: it.email }]
+          : [];
+      });
     },
   };
 }

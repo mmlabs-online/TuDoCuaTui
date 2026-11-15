@@ -5,6 +5,7 @@ import type { GetToken } from "@/data/authFetch";
 import { AuthLayout } from "./AuthLayout";
 import { AuthNotice } from "./AuthNotice";
 import { SignInScreen } from "./SignInScreen";
+import { JoinScreen } from "./JoinScreen";
 import { SignUpScreen } from "./SignUpScreen";
 import { TurnstileWidget, type TurnstileHandle } from "./TurnstileWidget";
 import { AUTH_COPY, authErrorMessage } from "./copy";
@@ -22,6 +23,7 @@ type View =
   | { kind: "checking" }
   | { kind: "ready"; generation: number; app: AppAuthProps }
   | { kind: "signed_out"; error?: AuthError | null; notice?: "verified" | "signed_out" | null }
+  | { kind: "join"; email: string; error?: AuthError | null }
   | { kind: "retry"; error: AuthError };
 
 const isTurnstileCode = (e?: AuthError | null) =>
@@ -51,6 +53,9 @@ export function AuthGate({
   const [resend, setResend] = useState<ResendState>({ status: "idle" });
   const [email, setEmail] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [joinStatus, setJoinStatus] = useState<SubmitStatus>("idle");
+  const joining = useRef(false);
+  const joinSeq = useRef(0); // bumped when the join view is left; a late join result of an older seq is ignored
   const generation = useRef(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -77,13 +82,33 @@ export function AuthGate({
     }
   };
 
+  const canJoin = (err: AuthError) =>
+    err.code === "not_member" && err.joinAvailable === true && store.accountId() !== null;
+  // not_member + join_available: look up the account's email, then offer "Continue as" (never joins by itself).
+  const offerJoin = async (live: () => boolean = () => true) => {
+    setView({ kind: "checking" });
+    try {
+      const joinEmail = await store.accountEmail();
+      if (!live()) return;
+      setView(
+        joinEmail
+          ? { kind: "join", email: joinEmail }
+          : { kind: "signed_out", error: { code: "not_member" } },
+      );
+    } catch (e) {
+      if (live()) failTo(e as AuthError);
+    }
+  };
+  const onTokenError = (err: AuthError, live?: () => boolean) =>
+    canJoin(err) ? void offerJoin(live) : failTo(err);
+
   // Silent restore from the stored account id (the only thing kept on the device).
   useEffect(() => {
     if (view.kind !== "checking") return;
     let live = true;
     store.restore().then(
       () => live && enterReady(),
-      (err: AuthError) => live && failTo(err),
+      (err: AuthError) => live && onTokenError(err, () => live),
     );
     return () => {
       live = false;
@@ -97,7 +122,8 @@ export function AuthGate({
       store.subscribe((err) => {
         if (viewRef.current.kind !== "ready") return;
         retireApp();
-        setView({ kind: "signed_out", error: err });
+        if (canJoin(err)) void offerJoin();
+        else setView({ kind: "signed_out", error: err });
       }),
     [store],
   );
@@ -172,6 +198,12 @@ export function AuthGate({
     } catch (e) {
       const err = e as AuthError;
       setStatus("idle");
+      if (canJoin(err)) {
+        setNeedTurnstile(false);
+        spendTurnstile();
+        void offerJoin();
+        return;
+      }
       if (err.code === "turnstile_required") setNeedTurnstile(true);
       setView({ kind: "signed_out", error: err });
       if (needTurnstile || err.code === "turnstile_required") spendTurnstile();
@@ -211,6 +243,28 @@ export function AuthGate({
     }
   };
 
+  const join = async () => {
+    if (joining.current) return;
+    joining.current = true;
+    const seq = joinSeq.current;
+    const stale = () => joinSeq.current !== seq || viewRef.current.kind !== "join";
+    setJoinStatus("submitting");
+    try {
+      const joined = await store.join();
+      if (stale()) return;
+      joining.current = false;
+      setJoinStatus("idle");
+      if (joined && store.accountId()) enterReady();
+    } catch (e) {
+      if (stale()) return;
+      const err = e as AuthError;
+      joining.current = false;
+      setJoinStatus("idle");
+      if (err.code === "session_invalid") setView({ kind: "signed_out", error: err });
+      else setView((v) => (v.kind === "join" ? { ...v, error: err } : v));
+    }
+  };
+
   if (view.kind === "ready") {
     return <div key={view.generation}>{renderApp(view.app)}</div>;
   }
@@ -221,6 +275,25 @@ export function AuthGate({
           {AUTH_COPY.gate.checking}
         </AuthNotice>
       </AuthLayout>
+    );
+  }
+  if (view.kind === "join") {
+    return (
+      <JoinScreen
+        email={view.email}
+        status={joinStatus}
+        error={view.error}
+        onJoin={join}
+        onUseOtherAccount={() => {
+          joinSeq.current += 1;
+          joining.current = false;
+          store.forget();
+          setEmail("");
+          setJoinStatus("idle");
+          setScreen("signIn");
+          setView({ kind: "signed_out" });
+        }}
+      />
     );
   }
   if (view.kind === "retry") {

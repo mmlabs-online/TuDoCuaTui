@@ -135,6 +135,11 @@ export function Editor({
                 {EDITOR_COPY.photo.pickFromLibrary}
               </Btn>
             </div>
+            {photoById && (
+              <p className="mt-2 text-xs" style={{ color: "#fff8eb", opacity: 0.85 }}>
+                {EDITOR_COPY.photo.privacy}
+              </p>
+            )}
             <div className="photo-caption">
               <div>
                 <small>MÓN ĐỒ CỦA BẠN</small>

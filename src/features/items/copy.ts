@@ -1,3 +1,5 @@
+import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
+
 export const EDITOR_COPY = {
   save: "Lưu món đồ",
   saving: "Đang lưu…",
@@ -6,6 +8,7 @@ export const EDITOR_COPY = {
     pickFromLibrary: "Chọn từ thư viện",
     loadFailed: "Không tải được ảnh",
     loadFailedHint: "Nhấp để chọn ảnh khác",
+    privacy: PHOTO_PRIVACY_NOTICE,
   },
   errors: {
     nameRequired: "Vui lòng nhập tên món đồ",

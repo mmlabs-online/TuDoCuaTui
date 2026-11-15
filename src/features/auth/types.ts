@@ -5,6 +5,9 @@ export type AuthErrorCode =
   | "invalid_credentials"
   | "email_unverified"
   | "not_member"
+  | "join_closed"
+  | "join_approval_unavailable"
+  | "join_unavailable"
   | "session_invalid"
   | "turnstile_required"
   | "turnstile_failed"
@@ -25,6 +28,8 @@ export type AuthError = {
   retryAfterSeconds?: number;
   /** weak_password: details.reasons. */
   reasons?: ("too_short" | "too_common")[];
+  /** not_member: details.join_available === true (the user may join the app). */
+  joinAvailable?: boolean;
 };
 
 /** Email is trimmed; the password is exactly as typed. */
@@ -79,4 +84,13 @@ export type VerifyEmailScreenProps = {
   /** "invalid": shown only when provided, else a sign-in button. */
   onResend?: () => void;
   resend?: ResendState;
+};
+
+export type JoinScreenProps = {
+  email: string;
+  status: SubmitStatus;
+  error?: AuthError | null;
+  /** The click is the consent (D8): the only caller of join. */
+  onJoin: () => void;
+  onUseOtherAccount: () => void;
 };

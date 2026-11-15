@@ -40,7 +40,9 @@ function FakeApp(p: AppAuthProps) {
   );
 }
 
-function setup(opts: { id?: string | null; notice?: "verified" | null } = {}) {
+function setup(
+  opts: { id?: string | null; notice?: "verified" | null; firstTokenError?: AuthError } = {},
+) {
   let stored = opts.id === undefined ? null : opts.id;
   const storage: AccountIdStorage = {
     read: () => stored,
@@ -62,7 +64,12 @@ function setup(opts: { id?: string | null; notice?: "verified" | null } = {}) {
     signup: vi.fn(async (v: { email: string }) => ({ email: v.email })),
     verifyEmail: vi.fn(),
     resendVerification: vi.fn(async (_id: string) => {}),
+    join: vi.fn(async (_id: string) => {
+      events.push("join");
+    }),
+    accounts: vi.fn(async () => [{ accountId: ID, email: "me@b.co" }]),
   };
+  if (opts.firstTokenError) client.token.mockRejectedValueOnce(opts.firstTokenError);
   const store = createTokenStore({ client: client as unknown as IdentityClient, storage });
   const view = render(
     <AuthGate
@@ -469,5 +476,157 @@ describe("Header sign-out button", () => {
   it("is absent otherwise", () => {
     header();
     expect(screen.queryByLabelText(LAYOUT_COPY.signOut)).toBeNull();
+  });
+});
+
+describe("join flow", () => {
+  const notMember: AuthError = { code: "not_member", joinAvailable: true };
+  const continueBtn = (email: string) =>
+    screen.findByRole("button", { name: AUTH_COPY.join.continue(email) });
+  const click = async (el: HTMLElement) => {
+    await act(async () => {
+      fireEvent.click(el);
+    });
+  };
+
+  it("sign-in: not_member + join_available -> join screen with the login email; no join call before the click", async () => {
+    const s = setup();
+    s.client.token.mockRejectedValueOnce(notMember);
+    await signInWith();
+    expect(await continueBtn("a@b.co")).toBeTruthy();
+    expect(screen.getByText(AUTH_COPY.join.privacy)).toBeTruthy();
+    expect(s.client.join).not.toHaveBeenCalled();
+    expect(s.client.accounts).not.toHaveBeenCalled();
+    expect(screen.queryByText("app-ready")).toBeNull();
+  });
+
+  it("restore: not_member + join_available -> accounts lookup -> join screen; no join call", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    expect(await continueBtn("me@b.co")).toBeTruthy();
+    expect(s.client.accounts).toHaveBeenCalledTimes(1);
+    expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  it("restore: accounts has no match -> sign-in with not_member copy", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    s.client.accounts.mockResolvedValueOnce([]);
+    await waitFor(() => expect(alertText()).toContain(AUTH_COPY.errors.not_member));
+    expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  it("not_member without join_available -> sign-in with not_member copy, no accounts/join call", async () => {
+    const s = setup({ id: ID, firstTokenError: err("not_member") });
+    await waitFor(() => expect(alertText()).toContain(AUTH_COPY.errors.not_member));
+    expect(s.client.accounts).not.toHaveBeenCalled();
+    expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  it("click -> one join(ID) -> one token -> App rendered; double click sends one join", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    const btn = await continueBtn("me@b.co");
+    await act(async () => {
+      fireEvent.click(btn);
+      fireEvent.click(btn);
+    });
+    expect(await screen.findByText("app-ready")).toBeTruthy();
+    expect(s.client.join).toHaveBeenCalledTimes(1);
+    expect(s.client.join).toHaveBeenCalledWith(ID);
+    expect(s.client.token).toHaveBeenCalledTimes(2); // refused restore + the one after join
+  });
+
+  it.each([
+    "join_closed",
+    "join_approval_unavailable",
+    "join_unavailable",
+    "email_unverified",
+    "rate_limited",
+    "network",
+  ] as const)("%s -> stays on join with AUTH_COPY text; a second click retries", async (code) => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    s.client.join.mockRejectedValueOnce(err(code));
+    await click(await continueBtn("me@b.co"));
+    const expected = code === "rate_limited" ? "ít phút" : AUTH_COPY.errors[code];
+    expect(alertText()).toContain(expected);
+    expect(screen.getByRole("button", { name: AUTH_COPY.join.continue("me@b.co") })).toBeTruthy();
+    await click(screen.getByRole("button", { name: AUTH_COPY.join.continue("me@b.co") }));
+    expect(await screen.findByText("app-ready")).toBeTruthy();
+    expect(s.client.join).toHaveBeenCalledTimes(2);
+  });
+
+  it("join session_invalid -> sign-in, id cleared", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    s.client.join.mockRejectedValueOnce(err("session_invalid"));
+    await click(await continueBtn("me@b.co"));
+    expect(alertText()).toContain(AUTH_COPY.errors.session_invalid);
+    expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(s.stored()).toBeNull();
+  });
+
+  it("Dùng tài khoản khác -> sign-in, id cleared, logout not called", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    await click(await screen.findByRole("button", { name: AUTH_COPY.join.otherAccount }));
+    expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(s.stored()).toBeNull();
+    expect(s.client.logout).not.toHaveBeenCalled();
+    expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  it("background refresh not_member + join_available while ready -> App unmounted -> join screen", async () => {
+    const s = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    s.client.token.mockRejectedValueOnce(notMember);
+    await act(async () => {
+      await s.store.getToken("tok").catch(() => {});
+    });
+    expect(await continueBtn("a@b.co")).toBeTruthy();
+    expect(screen.queryByText("app-ready")).toBeNull();
+    expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  describe("late join result after Dùng tài khoản khác", () => {
+    const IDB = "22222222-2222-4222-8222-222222222222";
+    const startThenSwitch = async () => {
+      const s = setup({ id: ID, firstTokenError: notMember });
+      let settle!: { ok: () => void; fail: (e: AuthError) => void };
+      s.client.join.mockImplementationOnce(
+        (_id: string) =>
+          new Promise<void>((res, rej) => {
+            settle = { ok: res, fail: rej };
+          }),
+      );
+      await click(await continueBtn("me@b.co"));
+      await click(screen.getByRole("button", { name: AUTH_COPY.join.otherAccount }));
+      s.client.login.mockResolvedValueOnce({ accountId: IDB, email: "b@b.co" });
+      await signInWith();
+      await screen.findByText("app-ready");
+      return { s, settle };
+    };
+
+    it("A's join resolving later leaves B's ready view alone (no remount)", async () => {
+      const { s, settle } = await startThenSwitch();
+      const mountsBefore = mounts;
+      const tokenCalls = s.client.token.mock.calls.length;
+      await act(async () => {
+        settle.ok();
+      });
+      expect(screen.getByText("app-ready")).toBeTruthy();
+      expect(mounts).toBe(mountsBefore);
+      expect(s.client.token).toHaveBeenCalledTimes(tokenCalls);
+      expect(s.stored()).toBe(IDB);
+    });
+
+    it("A's join rejecting session_invalid later keeps B ready and B's id", async () => {
+      const { s, settle } = await startThenSwitch();
+      const mountsBefore = mounts;
+      await act(async () => {
+        settle.fail(err("session_invalid"));
+      });
+      expect(screen.getByText("app-ready")).toBeTruthy();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(mounts).toBe(mountsBefore);
+      expect(s.stored()).toBe(IDB);
+    });
   });
 });

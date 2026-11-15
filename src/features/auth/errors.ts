@@ -8,6 +8,9 @@ export const SERVER_AUTH_ERROR_CODES: readonly AuthErrorCode[] = [
   "invalid_credentials",
   "email_unverified",
   "not_member",
+  "join_closed",
+  "join_approval_unavailable",
+  "join_unavailable",
   "session_invalid",
   "turnstile_required",
   "turnstile_failed",
@@ -48,6 +51,10 @@ export function toAuthError(_status: number, headers: Headers | null, json: unkn
       const details = err?.details as { retry_after?: unknown } | null | undefined;
       const wait = parseSeconds(headers?.get("Retry-After")) ?? parseSeconds(details?.retry_after);
       if (wait !== undefined) out.retryAfterSeconds = wait;
+    }
+    if (code === "not_member") {
+      const details = err?.details as { join_available?: unknown } | null | undefined;
+      if (details?.join_available === true) out.joinAvailable = true;
     }
     if (code === "weak_password") {
       const reasons = (err?.details as { reasons?: unknown } | null | undefined)?.reasons;

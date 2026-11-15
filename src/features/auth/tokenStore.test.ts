@@ -26,6 +26,10 @@ function setup(opts: { id?: string | null; expiresIn?: number } = {}) {
     signup: vi.fn(),
     verifyEmail: vi.fn(),
     resendVerification: vi.fn(),
+    join: vi.fn(async (_id: string) => {
+      calls.push("join");
+    }),
+    accounts: vi.fn(async () => [{ accountId: ID, email: "me@b.co" }]),
   };
   let stored: string | null = opts.id === undefined ? ID : opts.id;
   const storage: AccountIdStorage = {
@@ -185,10 +189,13 @@ describe("signIn / restore", () => {
       login: async () => ({ accountId: ID, email: "a@b.co" }),
       token: async () => ({ accessToken: "SECRET-TOKEN", expiresIn: 900 }),
       logout: async () => {},
+      join: async () => {},
+      accounts: async () => [],
     } as unknown as IdentityClient;
     const store = createTokenStore({ client });
     await store.signIn({ email: "a@b.co", password: "pw" });
     await store.getToken();
+    await store.join();
     await store.signOut();
     expect(setItem.mock.calls).toEqual([["mm_account_id", ID]]);
     expect(localStorage.getItem("mm_account_id")).toBeNull();
@@ -240,5 +247,73 @@ describe("signOut / forget", () => {
     expect(s.client.logout).not.toHaveBeenCalled();
     expect(s.stored()).toBeNull();
     expect(await s.store.getToken()).toBeNull();
+  });
+});
+
+describe("join / accountEmail", () => {
+  it("join calls client.join(id) then /token; no token before join resolves; getToken returns the new token", async () => {
+    const s = setup();
+    let release!: () => void;
+    s.client.join.mockImplementationOnce(() => new Promise<void>((r) => (release = r)));
+    const p = s.store.join();
+    await Promise.resolve();
+    expect(s.client.join).toHaveBeenCalledWith(ID);
+    expect(s.client.token).not.toHaveBeenCalled();
+    release();
+    await p;
+    expect(s.client.token).toHaveBeenCalledTimes(1);
+    expect(await s.store.getToken()).toBe("tok1");
+    expect(s.client.token).toHaveBeenCalledTimes(1);
+  });
+
+  it("join rejection (join_closed) does not call /token; session_invalid clears the id", async () => {
+    const s = setup();
+    s.client.join.mockRejectedValueOnce(fail("join_closed"));
+    await expect(s.store.join()).rejects.toMatchObject({ code: "join_closed" });
+    expect(s.client.token).not.toHaveBeenCalled();
+    expect(s.store.accountId()).toBe(ID);
+    s.client.join.mockRejectedValueOnce(fail("session_invalid"));
+    await expect(s.store.join()).rejects.toMatchObject({ code: "session_invalid" });
+    expect(s.client.token).not.toHaveBeenCalled();
+    expect(s.store.accountId()).toBeNull();
+    expect(s.stored()).toBeNull();
+  });
+
+  it("join without an id makes no call", async () => {
+    const s = setup({ id: null });
+    await s.store.join();
+    expect(s.client.join).not.toHaveBeenCalled();
+    expect(s.client.token).not.toHaveBeenCalled();
+  });
+
+  it("a forget() during join discards the late token", async () => {
+    const s = setup();
+    let release!: () => void;
+    s.client.join.mockImplementationOnce(() => new Promise<void>((r) => (release = r)));
+    const p = s.store.join();
+    await Promise.resolve();
+    s.store.forget();
+    release();
+    await p;
+    expect(s.client.token).not.toHaveBeenCalled();
+    expect(await s.store.getToken()).toBeNull();
+  });
+
+  it("accountEmail: login email kept in memory, no accounts call; after restore it reads accounts and matches the id; no match -> null; forget clears it", async () => {
+    const a = setup({ id: null });
+    await a.store.signIn({ email: "x", password: "pw" });
+    expect(await a.store.accountEmail()).toBe("a@b.co");
+    expect(a.client.accounts).not.toHaveBeenCalled();
+    a.store.forget();
+    expect(await a.store.accountEmail()).toBeNull();
+
+    const b = setup();
+    expect(await b.store.accountEmail()).toBe("me@b.co");
+    expect(await b.store.accountEmail()).toBe("me@b.co");
+    expect(b.client.accounts).toHaveBeenCalledTimes(1);
+
+    const c = setup();
+    c.client.accounts.mockResolvedValueOnce([{ accountId: ID2, email: "other@b.co" }]);
+    expect(await c.store.accountEmail()).toBeNull();
   });
 });

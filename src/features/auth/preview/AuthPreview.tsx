@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { SignInScreen } from "../SignInScreen";
+import { JoinScreen } from "../JoinScreen";
 import { SignUpScreen } from "../SignUpScreen";
 import { VerifyEmailScreen } from "../VerifyEmailScreen";
 import { AUTH_COPY, authErrorMessage } from "../copy";
 import type { AuthError, AuthErrorCode, SubmitStatus, VerifyState } from "../types";
 
-type Screen = "signIn" | "signUp" | "verify";
+type Screen = "signIn" | "signUp" | "verify" | "join";
 const ERROR_CODES = Object.keys(AUTH_COPY.errors).filter(
   (k) => !k.startsWith("weak_too"),
 ) as AuthErrorCode[];
 const STATES: Record<Screen, string[]> = {
   signIn: ["idle", "submitting"],
   signUp: ["idle", "submitting", "sent"],
+  join: ["idle", "submitting"],
   verify: ["ready", "verifying", "verified", "invalid", "rate_limited"],
 };
 
@@ -103,6 +105,15 @@ export function AuthPreview() {
             onSignUp={(v) => say(`signUp ${v.email} (${[...v.password].length})`)}
             onGoSignIn={() => say("goSignIn")}
             onResend={() => say("resend")}
+          />
+        )}
+        {screen === "join" && (
+          <JoinScreen
+            email="an@example.com"
+            status={status}
+            error={error}
+            onJoin={() => say("join")}
+            onUseOtherAccount={() => say("useOtherAccount")}
           />
         )}
         {screen === "verify" && (
