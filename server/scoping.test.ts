@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Static guard (T-019.2): every SQL string literal in server/*.js and server/ai/*.js that touches a TuDo table
+// Static guard (T-019.2): every SQL string literal in server/**/*.js (not test/) that touches a TuDo table
 // must mention user_id. Limit: the check is per literal, not per table reference; the runtime recorder in
 // isolation.db.test.ts, the composite FKs and RLS (T-019.4, live) are the backstops.
 import { readdirSync, readFileSync } from "node:fs";
@@ -52,14 +52,9 @@ const ALLOW = [
   },
 ];
 
-const files = [
-  ...readdirSync(serverDir)
-    .filter((f) => f.endsWith(".js"))
-    .map((f) => f),
-  ...readdirSync(path.join(serverDir, "ai"))
-    .filter((f) => f.endsWith(".js"))
-    .map((f) => `ai/${f}`),
-];
+const files = [...readdirSync(serverDir, { recursive: true, encoding: "utf8" })]
+  .filter((f) => f.endsWith(".js") && !f.startsWith("test"))
+  .sort();
 
 describe("user_id scoping guard", () => {
   it("negative fixtures: an unscoped literal is reported, a scoped one is not", () => {
@@ -76,7 +71,12 @@ describe("user_id scoping guard", () => {
     expect(unscoped('// select * from items\nconst x = "no sql here";')).toEqual([]);
   });
 
-  it("server/*.js and server/ai/*.js have no unscoped SQL", () => {
+  it("the file list is recursive and skips server/test/", () => {
+    expect(files).toEqual(expect.arrayContaining(["auth.js", "identity.js", "ai/store.js"]));
+    expect(files.some((f) => f.startsWith("test"))).toBe(false);
+  });
+
+  it("server/**/*.js has no unscoped SQL", () => {
     const bad: string[] = [];
     for (const f of files) {
       for (const l of unscoped(readFileSync(path.join(serverDir, f), "utf8"))) {

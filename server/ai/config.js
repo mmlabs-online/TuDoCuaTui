@@ -19,7 +19,7 @@ export function loadAiConfig(env) {
 
 /**
  * Startup decision for AI. Always removes AI_KEK from env (it is never read again). Malformed throws.
- * T-019.5: requestAuth becomes "auth mode is access or identity".
+ * requestAuth = auth mode is access (verified) or identity.
  * @param {Record<string, string | undefined>} env
  * @param {{ requestAuth: boolean, importKek: (b64: string) => Promise<import("./crypto.js").AiKek> }} deps
  * @returns {Promise<{ ai: { kek: import("./crypto.js").AiKek } | null, line: string }>}

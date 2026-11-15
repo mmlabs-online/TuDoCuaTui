@@ -74,8 +74,7 @@ export function createAccessVerifier({ issuer, aud, certsUrl, jwks }) {
   };
 }
 
-/** @typedef {{ ok: true, userId: import("./user.js").UserId } | { ok: false, code?: string }} AuthResult */
-/** @typedef {{ authenticate(req: import("node:http").IncomingMessage): Promise<AuthResult> }} Auth */
+/** @typedef {import("./auth.js").Auth} Auth */
 
 /**
  * Access verified -> every request is the owner. The user never comes from headers, query or body.

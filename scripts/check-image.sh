@@ -18,7 +18,8 @@ if ! [[ "$EXPECTED_VERSION" =~ ^(dev|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
 fi
 NAME="tudocuatui-smoke-$$"
 DBNAME="tudocuatui-dbsmoke-$$"
-trap 'docker rm -f "$NAME" "$DBNAME" >/dev/null 2>&1' EXIT
+IDNAME="tudocuatui-idsmoke-$$"
+trap 'docker rm -f "$NAME" "$DBNAME" "$IDNAME" >/dev/null 2>&1' EXIT
 # Dummy Access values: not secret, only so the server starts. The JWKS is never fetched (no header = 401).
 # TUDO_OWNER_SUB is not secret; this is a dummy v4 uuid.
 ACCESS=(-e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f)
@@ -53,7 +54,7 @@ if [ "$cmd" != '["node","server/index.js"]' ]; then
   echo "::error::image Cmd is $cmd, expected [\"node\",\"server/index.js\"]"; exit 1
 fi
 envs=$(docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|TUDO_|GOOGLE_|DRIVE_|AI_)' || true)
+  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|MM_IDENTITY_|TUDO_|GOOGLE_|DRIVE_|AI_)' || true)
 if [ "$envs" != "NODE_ENV=production" ]; then
   echo "::error::image env must set exactly NODE_ENV=production among app variables, got: $envs"; exit 1
 fi
@@ -103,6 +104,10 @@ expect_exit 2 "server with TUDO_ACCESS_DISABLED=1 (must be refused in production
 expect_exit 2 "server with Access values but no TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy "$IMAGE"
 expect_exit 2 "server with malformed TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=not-a-uuid "$IMAGE"
 expect_exit 2 "server with nil TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=00000000-0000-0000-0000-000000000000 "$IMAGE"
+expect_exit 2 "server with TUDO_AUTH_MODE=bogus" "${ACCESS[@]}" -e TUDO_AUTH_MODE=bogus "$IMAGE"
+expect_exit 2 "identity mode without MM_IDENTITY_ISSUER" -e TUDO_AUTH_MODE=identity "$IMAGE"
+expect_exit 2 "identity mode with a foreign issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://evil.example "$IMAGE"
+expect_exit 2 "identity mode with an http issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=http://api.mmlabs.online "$IMAGE"
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
 expect_exit 2 "drive smoke without Google env" "$IMAGE" node server/drive-smoke.js
 expect_exit 2 "server with partial Google config" "${ACCESS[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"
@@ -126,6 +131,9 @@ for _ in $(seq 1 30); do
 done
 docker logs "$NAME"
 if [ "$ok" -ne 1 ]; then echo "::error::smoke failed: /healthz did not return 200"; exit 1; fi
+if ! probe "$NAME" /healthz | grep -q '"auth":"access"'; then
+  echo "::error::smoke failed: /healthz does not report auth access"; exit 1
+fi
 got=$(status "$NAME" /readyz)
 if [ "$got" != 503 ]; then echo "::error::smoke failed: /readyz without a database is $got, expected 503"; exit 1; fi
 if ! probe "$NAME" /some/deep/path | grep -q 'id="root"'; then
@@ -146,6 +154,25 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 if [ "$health" != healthy ]; then echo "::error::image HEALTHCHECK is '$health', expected healthy"; exit 1; fi
+
+echo "== identity smoke"
+# Identity mode, no network: no or malformed bearer is rejected before any JWKS fetch.
+docker run -d --name "$IDNAME" --cap-drop ALL --security-opt no-new-privileges --network none \
+  -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online "$IMAGE" >/dev/null
+ok=0
+for _ in $(seq 1 30); do
+  if [ "$(status "$IDNAME" /healthz)" = 200 ]; then ok=1; break; fi
+  sleep 1
+done
+docker logs "$IDNAME"
+if [ "$ok" -ne 1 ]; then echo "::error::identity smoke failed: /healthz did not return 200"; exit 1; fi
+if ! probe "$IDNAME" /healthz | grep -q '"auth":"identity"'; then
+  echo "::error::identity smoke failed: /healthz does not report auth identity"; exit 1
+fi
+got=$(status "$IDNAME" /api/items)
+if [ "$got" != 401 ]; then echo "::error::identity smoke failed: /api/items without a bearer is $got, expected 401"; exit 1; fi
+got=$(docker exec "$IDNAME" node -e 'fetch("http://127.0.0.1:3000/api/items",{headers:{authorization:"Bearer x.y.z"}}).then(r=>console.log(r.status),()=>console.log("000"))' 2>/dev/null)
+if [ "$got" != 401 ]; then echo "::error::identity smoke failed: /api/items with a malformed bearer is $got, expected 401"; exit 1; fi
 
 if [ -n "${CHECK_IMAGE_DATABASE_URL:-}" ]; then
   echo "== db smoke"
