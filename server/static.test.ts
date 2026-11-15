@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mimeFor, resolveStaticPath, serveStatic } from "./static.js";
+import { SPA_CSP } from "./http.js";
+import { mimeFor, referrerPolicyFor, resolveStaticPath, serveStatic } from "./static.js";
 
 let dir: string;
 let server: http.Server;
@@ -173,5 +174,101 @@ describe("MIME map", () => {
     expect(mimeFor("a.webmanifest")).toBe("application/manifest+json");
     expect(mimeFor("a.woff2")).toBe("font/woff2");
     expect(mimeFor("a.zzz")).toBe("application/octet-stream");
+  });
+});
+
+const CHALLENGES = "https://challenges.cloudflare.com";
+
+function parseCsp(csp: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const part of csp.split(";")) {
+    const [name, ...sources] = part.trim().split(/\s+/);
+    expect(out[name]).toBeUndefined();
+    out[name] = sources;
+  }
+  return out;
+}
+
+describe("security headers", () => {
+  it("SPA responses carry the CSP", async () => {
+    for (const p of ["/", "/index.html", "/some/deep/path", "/assets/x.js", "/assets/missing.js"]) {
+      const res = await fetch(base + p);
+      expect(res.headers.get("content-security-policy")).toBe(SPA_CSP);
+      await res.text();
+    }
+    const head = await fetch(base + "/", { method: "HEAD" });
+    expect(head.headers.get("content-security-policy")).toBe(SPA_CSP);
+  });
+
+  it("CSP directives are exact", () => {
+    expect(parseCsp(SPA_CSP)).toEqual({
+      "default-src": ["'self'"],
+      "script-src": ["'self'", CHALLENGES],
+      "style-src": ["'self'", "https://fonts.googleapis.com"],
+      "font-src": ["'self'", "https://fonts.gstatic.com"],
+      "img-src": ["'self'", "blob:", "data:"],
+      "connect-src": ["'self'", "https://api.mmlabs.online"],
+      "frame-src": [CHALLENGES],
+      "object-src": ["'none'"],
+      "base-uri": ["'none'"],
+      "form-action": ["'self'"],
+      "frame-ancestors": ["'none'"],
+    });
+  });
+
+  it("CSP has no unsafe sources and keeps Turnstile out of connect-src", () => {
+    expect(SPA_CSP).not.toMatch(/'unsafe-inline'|'unsafe-eval'|\*|http:/);
+    const csp = parseCsp(SPA_CSP);
+    for (const d of ["connect-src", "default-src", "img-src"]) {
+      expect(csp[d]).not.toContain(CHALLENGES);
+    }
+  });
+
+  it("SPA responses carry HSTS", async () => {
+    for (const p of ["/", "/assets/x.js"]) {
+      const res = await fetch(base + p);
+      expect(res.headers.get("strict-transport-security")).toBe(
+        "max-age=31536000; includeSubDomains",
+      );
+      await res.text();
+    }
+  });
+
+  it("`/verify-email` and `/reset-password` -> `Referrer-Policy: no-referrer`", async () => {
+    for (const p of [
+      "/verify-email",
+      "/verify-email/",
+      "/verify-email?x=1",
+      "/reset-password",
+      "/reset-password/",
+    ]) {
+      const res = await fetch(base + p);
+      expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(res.headers.get("cache-control")).toBe("no-cache");
+      expect(await res.text()).toContain("INDEX");
+    }
+  });
+
+  it("other paths get no Referrer-Policy override", async () => {
+    for (const p of ["/", "/verify-emailx", "/verify-email/x", "/VERIFY-EMAIL", "/assets/x.js"]) {
+      const res = await fetch(base + p);
+      expect(res.headers.get("referrer-policy")).toBeNull();
+      await res.text();
+    }
+  });
+
+  it("referrerPolicyFor", () => {
+    for (const p of ["/verify-email", "/verify-email/", "/reset-password", "/reset-password/"]) {
+      expect(referrerPolicyFor(p)).toBe("no-referrer");
+    }
+    for (const p of ["", "/", "/verify-emailx", "/verify-email/x", "/VERIFY-EMAIL"]) {
+      expect(referrerPolicyFor(p)).toBeUndefined();
+    }
+  });
+
+  it("source index.html has no inline script or style", () => {
+    const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    for (const tag of html.match(/<script\b[^>]*>/g) ?? []) expect(tag).toContain("src=");
+    expect(html).not.toContain("<style");
   });
 });
