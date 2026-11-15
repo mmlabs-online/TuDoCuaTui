@@ -296,3 +296,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] (2026-11-07) Approve plan for F-101 (branch `ticket/F-101`): work/tickets/F-101/plan.md
 - [x] (2026-11-12) Approve plan for T-017 (branch `claude/loving-fermi-t90upb`): work/tickets/T-017/plan.md — new category list; confirm A1–A10 (A1 mapping bag→Phụ kiện, sport/home→Loại khác; A2 ids; A4 Supabase left as-is)
 - [x] (2026-11-15) Approve plan for T-019.13 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.13/plan.md — owner lane, 15 s + 5 s upload deadline, `TUDO_OWNER_SUB` required in identity mode; quotas split to new T-019.14 (proposed 500 photos / 50 uploads per day per user); privacy notice in T-019.10
+- [ ] (2026-11-15) Approve plan for T-019.14 (branch `claude/magical-cori-2ssw8l`): work/tickets/T-019.14/plan.md — confirm A1 (500 stored photos / 50 uploads per 24 h per user, owner exempt), 409 `photo_quota_exceeded`, and the two Vietnamese error strings

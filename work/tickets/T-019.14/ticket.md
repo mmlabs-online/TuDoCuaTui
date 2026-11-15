@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -43,6 +43,12 @@ Slice of T-019 (D31, D38). Umbrella plan A7; T-019.13 plan A1 and *Split proposa
 - [ ] All checks pass.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-15: created by the orchestrator from the T-019.13 plan *Split proposal* after Ming approved that plan. The numbers (500 / 50, owner exempt) are proposed defaults; Ming confirms or changes them at this ticket's plan approval.
 
 ## Handoff
+
+### 2026-11-15 — claude — BLOCKED
+- Done: database-optimizer consult; plan.md READY: new `server/photoQuota.js` (limits, `storedAllows`, in-memory 24 h counter with refund), daily count before slot/body (429 `rate_limited`), stored cap pre-check before Drive + authoritative recount under a per-user advisory lock after the items row lock (409 `photo_quota_exceeded`), replace = net zero, owner exempt via `createApp`, no migration.
+- In progress / next: Ming approves the plan and confirms A1 (500 / 50, owner exempt) and the two Vietnamese strings; then implement.
+- Gotchas: the advisory-lock statement has no `user_id`; `isolation.db.test.ts` control regex is extended for exactly that statement.
