@@ -41,3 +41,23 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: +507 / -4 tracked lines (15 files), plus 3 new files (`privacy.ts`, `JoinScreen.tsx`, `JoinScreen.test.tsx`). Not committed.
+
+## Attempt 2 (REWORK)
+
+Fixes only the latest review: Issue 1, Issue 2 and security S1.
+
+### Files touched
+- `src/features/auth/JoinScreen.tsx`: label span is now `whitespace-normal break-all`. Required because `.btn` sets `white-space: nowrap` (Issue 1).
+- `src/features/items/Editor.tsx`: privacy notice is `mt-2 text-xs` with `#fff8eb` at opacity 0.85 (Issue 2).
+- `src/features/auth/tokenStore.ts`: `join()` returns `Promise<boolean>`, true only if the store generation is unchanged after the join and the token fetch (S1).
+- `src/features/auth/AuthGate.tsx`: `joinSeq` ref; `join()` ignores success and error when the seq changed or the view is no longer `join`, and calls `enterReady()` only if `store.join()` returned true; `onUseOtherAccount` bumps `joinSeq` and resets `joining.current` (S1). "Dùng tài khoản khác" is not disabled while busy.
+- Tests: `JoinScreen.test.tsx` (long-email label has `whitespace-normal`), `AuthGate.test.tsx` (2 tests: A's join resolves late, A's join rejects `session_invalid` late; B stays ready, no remount, no extra token call, B's id kept).
+
+### Checks
+- `pnpm typecheck`: clean.
+- `pnpm format:check`: all matched files use the correct format.
+- `pnpm test`: 90 files passed, 9 skipped; 1165 tests passed, 176 skipped.
+- `pnpm build`: built.
+
+### Out-of-plan files: none. Follow-ups: none new.
+Scope self-check: only the listed review issues; not committed.

@@ -23,6 +23,13 @@ function setup(props: Partial<JoinScreenProps> = {}) {
 }
 
 describe("JoinScreen", () => {
+  it("a long email label can wrap (whitespace-normal beats .btn nowrap)", () => {
+    setup({ email: "nguyễn.thị.phương.thảo.rất.dài.dài.dài@example.com" });
+    const label = screen.getByText(/nguyễn\.thị\.phương/);
+    expect(label.className).toContain("whitespace-normal");
+    expect(label.className).toContain("break-all");
+  });
+
   it("shows Tiếp tục với <email>; click calls onJoin once", () => {
     const { onJoin } = setup();
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục với an@example.com" }));

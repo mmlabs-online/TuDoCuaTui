@@ -21,8 +21,8 @@ export interface TokenStore {
   accountId: () => string | null;
   /** Email of the current account: memory after sign-in, else one `accounts` call. */
   accountEmail: () => Promise<string | null>;
-  /** Joins the app, then fetches the token. Only ever called from the user's click (D8). */
-  join: () => Promise<void>;
+  /** Joins the app, then fetches the token. Only ever called from the user's click (D8). `false`: the store moved on (forget / sign-in) meanwhile. */
+  join: () => Promise<boolean>;
 }
 
 const REFRESH_MARGIN_S = 60;
@@ -150,7 +150,7 @@ export function createTokenStore({
       return email;
     },
     async join() {
-      if (!id) return;
+      if (!id) return false;
       const gen = generation;
       try {
         await client.join(id);
@@ -162,8 +162,9 @@ export function createTokenStore({
         }
         throw err;
       }
-      if (gen !== generation) return;
+      if (gen !== generation) return false;
       await fetchToken();
+      return gen === generation;
     },
   };
 }

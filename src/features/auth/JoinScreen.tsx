@@ -14,7 +14,9 @@ export function JoinScreen({ email, status, error, onJoin, onUseOtherAccount }: 
       <AuthNotice kind="info">{copy.privacy}</AuthNotice>
       {error && <AuthNotice kind="error">{authErrorMessage(error)}</AuthNotice>}
       <Btn type="button" kind="primary" onClick={onJoin} disabled={busy}>
-        <span className="break-all">{busy ? copy.joining : copy.continue(email)}</span>
+        <span className="whitespace-normal break-all">
+          {busy ? copy.joining : copy.continue(email)}
+        </span>
       </Btn>
       <LinkButton onClick={onUseOtherAccount}>{copy.otherAccount}</LinkButton>
     </AuthLayout>

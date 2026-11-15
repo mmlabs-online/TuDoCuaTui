@@ -136,7 +136,7 @@ export function Editor({
               </Btn>
             </div>
             {photoById && (
-              <p className="text-xs" style={{ color: "var(--muted)" }}>
+              <p className="mt-2 text-xs" style={{ color: "#fff8eb", opacity: 0.85 }}>
                 {EDITOR_COPY.photo.privacy}
               </p>
             )}

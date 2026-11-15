@@ -584,4 +584,49 @@ describe("join flow", () => {
     expect(screen.queryByText("app-ready")).toBeNull();
     expect(s.client.join).not.toHaveBeenCalled();
   });
+
+  describe("late join result after Dùng tài khoản khác", () => {
+    const IDB = "22222222-2222-4222-8222-222222222222";
+    const startThenSwitch = async () => {
+      const s = setup({ id: ID, firstTokenError: notMember });
+      let settle!: { ok: () => void; fail: (e: AuthError) => void };
+      s.client.join.mockImplementationOnce(
+        (_id: string) =>
+          new Promise<void>((res, rej) => {
+            settle = { ok: res, fail: rej };
+          }),
+      );
+      await click(await continueBtn("me@b.co"));
+      await click(screen.getByRole("button", { name: AUTH_COPY.join.otherAccount }));
+      s.client.login.mockResolvedValueOnce({ accountId: IDB, email: "b@b.co" });
+      await signInWith();
+      await screen.findByText("app-ready");
+      return { s, settle };
+    };
+
+    it("A's join resolving later leaves B's ready view alone (no remount)", async () => {
+      const { s, settle } = await startThenSwitch();
+      const mountsBefore = mounts;
+      const tokenCalls = s.client.token.mock.calls.length;
+      await act(async () => {
+        settle.ok();
+      });
+      expect(screen.getByText("app-ready")).toBeTruthy();
+      expect(mounts).toBe(mountsBefore);
+      expect(s.client.token).toHaveBeenCalledTimes(tokenCalls);
+      expect(s.stored()).toBe(IDB);
+    });
+
+    it("A's join rejecting session_invalid later keeps B ready and B's id", async () => {
+      const { s, settle } = await startThenSwitch();
+      const mountsBefore = mounts;
+      await act(async () => {
+        settle.fail(err("session_invalid"));
+      });
+      expect(screen.getByText("app-ready")).toBeTruthy();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(mounts).toBe(mountsBefore);
+      expect(s.stored()).toBe(IDB);
+    });
+  });
 });

@@ -55,6 +55,7 @@ export function AuthGate({
   const [attempt, setAttempt] = useState(0);
   const [joinStatus, setJoinStatus] = useState<SubmitStatus>("idle");
   const joining = useRef(false);
+  const joinSeq = useRef(0); // bumped when the join view is left; a late join result of an older seq is ignored
   const generation = useRef(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -245,13 +246,17 @@ export function AuthGate({
   const join = async () => {
     if (joining.current) return;
     joining.current = true;
+    const seq = joinSeq.current;
+    const stale = () => joinSeq.current !== seq || viewRef.current.kind !== "join";
     setJoinStatus("submitting");
     try {
-      await store.join();
+      const joined = await store.join();
+      if (stale()) return;
       joining.current = false;
       setJoinStatus("idle");
-      if (store.accountId()) enterReady();
+      if (joined && store.accountId()) enterReady();
     } catch (e) {
+      if (stale()) return;
       const err = e as AuthError;
       joining.current = false;
       setJoinStatus("idle");
@@ -280,6 +285,8 @@ export function AuthGate({
         error={view.error}
         onJoin={join}
         onUseOtherAccount={() => {
+          joinSeq.current += 1;
+          joining.current = false;
           store.forget();
           setEmail("");
           setJoinStatus("idle");
