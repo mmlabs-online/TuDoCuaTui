@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-15 |
-| Claimed by | claude@2026-11-15T07:15:27Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/57 |
 
 ## Goal
 Before strangers can upload, one account cannot fill Ming's Drive or flood it with writes.
@@ -52,3 +52,8 @@ Slice of T-019 (D31, D38). Umbrella plan A7; T-019.13 plan A1 and *Split proposa
 - Done: database-optimizer consult; plan.md READY: new `server/photoQuota.js` (limits, `storedAllows`, in-memory 24 h counter with refund), daily count before slot/body (429 `rate_limited`), stored cap pre-check before Drive + authoritative recount under a per-user advisory lock after the items row lock (409 `photo_quota_exceeded`), replace = net zero, owner exempt via `createApp`, no migration.
 - In progress / next: Ming approves the plan and confirms A1 (500 / 50, owner exempt) and the two Vietnamese strings; then implement.
 - Gotchas: the advisory-lock statement has no `user_id`; `isolation.db.test.ts` control regex is extended for exactly that statement.
+
+### 2026-11-15 — claude — DONE
+- Done: plan approved (A1 500/50 owner exempt); implement attempt 1; review PASS (DB suites on throwaway Postgres 16, race test mutation-checked); security no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/57.
+- In progress / next: Ming merges. Next runnable: T-019.12 (no gate) or T-019.10.
+- Gotchas: `work/tickets/T-019.14/ticket.md` exists on both main and branch; merge conflicts resolve to the branch copy.
