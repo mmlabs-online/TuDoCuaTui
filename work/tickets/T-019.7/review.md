@@ -65,3 +65,50 @@ No violations found. R1: local mode makes no `/api` or Identity call and never l
 
 ### Ming verification after merge (carried to the PR)
 - M-21 checks 1–11 from plan.md *Ming verification after merge*; ship with T-019.8; rollback `TUDO_AUTH_MODE: access`.
+
+## Attempt 2 — 2026-11-15
+Verdict: PASS
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` clean (exit 0).
+- format:check: exit 0 (236 files).
+- test: Test Files 88 passed | 8 skipped (96); Tests 1083 passed | 167 skipped (1250). Matches impl-log Attempt 2 exactly (+2 over attempt 1: "a hanging logout does not hold the gate", "a getToken from an old App generation resolves null…").
+- build: ok; entry `index-CVKywT86.js` 264.84 kB, lazy `AuthRoot-D9Ev-EBC.js` 21.32 kB (matches impl-log).
+- Playwright, attempt-1 script re-run on the new `dist/` (390x844, light and dark): every assertion PASS, no FAIL (sign-in, storage, reload restore, sign-out with blob revoke + logout POST + id cleared, 401 once/always, verify-email both modes, local/access without the auth chunk).
+- Playwright, new rework script (Turnstile script stubbed, 390x844, light and dark), 28/28 PASS:
+  - first login → 403 `turnstile_required` → widget + Turnstile copy; solve → second login carries `turnstile_token: "TS1"` → 401 `invalid_credentials` → alert "Email hoặc mật khẩu không đúng." (no Turnstile wording), widget still mounted, `reset()` called; scrollWidth 390; `dark` class follows the theme (screenshot checked: error + widget + button fit at 390 in dark).
+  - next submit without a new token: no login request, Turnstile copy shown; new solve → login with `TS2` → app.
+  - sign-out with a never-answering `/auth/logout`: "Bạn đã đăng xuất." after ~55–60 ms, logout request was sent with `account_id`, `mm_account_id` removed, app unmounted, email field empty; reload → sign-in form and **no** `/auth/token` call (session not restored).
+
+### Acceptance criteria
+- [x] 1, 3–9, 11–15, 17, 18 — unchanged from attempt 1; re-verified by the full test run and the attempt-1 Playwright script (all pass).
+- [x] 2 Sign-out order — now "App unmounted → id cleared → logout (best effort, 5 s timeout) → signed-out notice": `AuthGate.test.tsx` › "order: App unmount -> id cleared -> logout…", "a hanging logout does not hold the gate", "logout failure still signs out"; `tokenStore.test.ts` › "clears the id, then calls logout with it…"; `identityClient.test.ts` logout carries an `AbortSignal`; Playwright hanging-logout + reload.
+- [x] 10 Turnstile on sign-in — Issue 1 of attempt 1 fixed: `AuthGate.tsx` passes the server error unchanged and `turnstileRequired={needTurnstile}`; `SignInScreen.tsx` shows the slot while `turnstileRequired`; `AuthGate.test.tsx` › "the Turnstile token is single-use; a wrong password is reported as such and the widget stays" (asserts invalid_credentials copy, no 3rd login without a new token, 3rd login carries `ts2`); Playwright above.
+- [x] 16 Stable getToken, remount per sign-in — now stable per App instance (`AuthGate.test.tsx` › "login -> token -> App rendered with a stable getToken" asserts one identity across re-renders of one instance); old generation's `getToken` → `null`, old `onAuthLost` is a no-op (new test). Plan AC16 / T-019.6 obligations ask for stability within an App instance, which still holds; the cross-generation identity assertion was stronger than required and is correctly dropped.
+
+### Deviations judged
+- AC2 order change (id cleared before `/logout`): accepted. Plan AC2's essential obligation is "App unmounts first (blob URLs revoked)", which still holds (flushSync to `checking` before `store.signOut()`, verified in the browser). Clearing the id first is strictly safer (security S1): a hung or failed logout can no longer leave a restorable `mm_account_id`. The id is captured in `gone` before clearing, so the logout body is unchanged.
+- S1 (`tokenStore.ts` clear before await; `identityClient.ts` `AbortSignal.timeout(5000)` on logout only; gate goes to `signed_out` without awaiting): correct, in scope (files in the plan, fixing a defect in this diff).
+- S2 (`appPropsFor(gen)` stored in the `ready` view): correct. Props are created once per `enterReady`, so they are stable for that App instance; `current()` compares against `generation.current`, which only advances on the next `enterReady`, so the new session cannot be read or ended from an old App. In scope.
+- Clearing the pre-filled email on sign-out / `no_access` (security 🟢): two lines in `AuthGate.tsx`, in scope.
+- `turnstileRequired` prop on `SignInScreen` / `types.ts`: minimal, optional, files in the plan; `AuthPreview` unaffected.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. Rework touches only `src/features/auth/**` files from the plan; no `VITE_*`, no storage change besides the earlier `mm_account_id` removal, no Vietnamese literals outside `copy.ts`; 390px light/dark re-checked; `vite.config.ts`, `AGENTS.md`, `.figma/` untouched.
+
+### Nits (do not block)
+- Because sign-out no longer waits for `/logout`, a user who signs in again within the 5 s logout window could receive the late logout response after the new login. If the Identity server's logout response clears the refresh cookie (`Set-Cookie`), the new session would fail at its next `/token` refresh and show sign-in again. Fails closed, needs a hung logout plus a fast re-login; worth one line in the M-21 checks.
+- Attempt-1 nits still open (lazy chunk load failure → blank page; `VerifyEmailPage` resend `session_invalid` leaves the id; `tsFailed` sticky until a screen switch).
+
+### Follow-ups (out of scope)
+- Security 🟢 items not done: `authFetch` same-origin check via `new URL(...)` and `new Headers(init.headers)`; reload notice when the auth chunk fails to load.
+- Ship with T-019.8 (CSP: `connect-src 'self' https://api.mmlabs.online`, Turnstile only in `script-src`/`frame-src`; `Referrer-Policy: no-referrer` on `/verify-email`).
+
+### Ming verification after merge (carried to the PR)
+- M-21 checks 1–11 from plan.md *Ming verification after merge*; plus: sign out, then sign in again at once, and confirm the session survives a reload (nit 1). Ship with T-019.8; rollback `TUDO_AUTH_MODE: access`.
+
+### Orchestrator note (2026-11-15) — PASS overridden to REWORK
+The security re-check (security-review.md, Attempt 2, 🟡 S2) found the window this review's S2 judgement relies on: `generation.current` advances only in the next `enterReady`, so between sign-out of A and `enterReady` for B an unmounted A App's pending step (authFetch retry, later steps of a save) calls the old `getToken`, joins B's in-flight `/token` and sends A's request with B's bearer — a cross-account write, the exact risk multi-user ownership (T-019) exists to prevent. The fix is a few lines in a planned file, so it goes back as rework attempt 3 (the last allowed) rather than a follow-up.
