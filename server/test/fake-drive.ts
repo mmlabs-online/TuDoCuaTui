@@ -32,11 +32,28 @@ export type Recorded = { method: string; url: string; auth: string | undefined; 
 export async function startFakeDrive() {
   const files = new Map<string, { bytes: Buffer; meta: Record<string, unknown> }>();
   const requests: Recorded[] = [];
-  const hang = new Set<"upload" | "upload-after-store" | "media" | "stream-stall" | "list">();
-  const fail = new Set<"upload" | "delete" | "media" | "list">();
+  /** Folders other than the root (T-021), kept apart from `files` so file counts stay about files. */
+  const dirs = new Map<string, { meta: Record<string, unknown> }>();
+  const hang = new Set<
+    | "upload"
+    | "upload-after-store"
+    | "media"
+    | "stream-stall"
+    | "list"
+    | "folder-create"
+    | "move"
+    | "parents"
+  >();
+  const fail = new Set<
+    "upload" | "delete" | "media" | "list" | "folder-create" | "move" | "parents"
+  >();
   const modes = new Set<"list-ignore-tag">();
-  const config = { listPageSize: 1000 };
+  const config = { listPageSize: 1000, folderCreateDelayMs: 0 };
   let next = 0;
+  let nextDir = 0;
+  const parentOk = (p: unknown) =>
+    p === FAKE.folderId ||
+    (typeof p === "string" && dirs.get(p)?.meta.trashed !== true && dirs.has(p));
 
   const server = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
@@ -59,21 +76,32 @@ export async function startFakeDrive() {
         if (hang.has("list")) return;
         if (fail.has("list")) return backendError();
         const sp = new URL(url, "http://fake").searchParams;
-        const m =
-          /^'([A-Za-z0-9_-]+)' in parents and trashed = false and appProperties has \{ key='app' and value='tudo' \}$/.exec(
-            sp.get("q") ?? "",
-          );
+        const q = sp.get("q") ?? "";
+        const FM = "application/vnd.google-apps.folder";
+        const head = "^'([A-Za-z0-9_-]+)' in parents and trashed = false and ";
+        const tail = "appProperties has \\{ key='(app|tudo)' and value='(tudo|smoke)' \\}$";
+        const file = new RegExp(`${head}mimeType != '${FM}' and ${tail}`).exec(q);
+        const sub = new RegExp(
+          `${head}mimeType = '${FM}' and appProperties has \\{ key='app' and value='tudo-folder' \\}$`,
+        ).exec(q);
+        const user = new RegExp(
+          `${head}mimeType = '${FM}' and appProperties has \\{ key='app' and value='tudo-folder' \\} and appProperties has \\{ key='userId' and value='([0-9a-f-]{36})' \\}$`,
+        ).exec(q);
+        const m = user ?? sub ?? file;
         if (!m) return json(400, { error: { errors: [{ reason: "invalid" }] } });
         const size = Math.min(Number(sp.get("pageSize") ?? 1000), config.listPageSize);
         const token = sp.get("pageToken");
         const offset = token ? Number(Buffer.from(token, "base64url").toString()) : 0;
         if (!Number.isInteger(offset) || offset < 0) return json(400, {});
-        const all = [...files.entries()].filter(
+        const props = (f: { meta: Record<string, unknown> }) =>
+          f.meta.appProperties as Record<string, string> | undefined;
+        const all = (file ? [...files.entries()] : [...dirs.entries()]).filter(
           ([, f]) =>
             (f.meta.parents as string[] | undefined)?.includes(m[1]) &&
             f.meta.trashed !== true &&
-            (modes.has("list-ignore-tag") ||
-              (f.meta.appProperties as Record<string, string> | undefined)?.app === "tudo"),
+            (file
+              ? modes.has("list-ignore-tag") || props(f)?.[file[2]] === file[3]
+              : props(f)?.app === "tudo-folder" && (!user || props(f)?.userId === user[2])),
         );
         const page = all.slice(offset, offset + size);
         const out: Record<string, unknown> = {
@@ -99,10 +127,30 @@ export async function startFakeDrive() {
         const bytes = body.subarray(start, body.length - `\r\n--${boundary}--`.length);
         const id = `fakefile${String(++next).padStart(8, "0")}`;
         const meta = JSON.parse(metaPart);
+        if (!(meta.parents as unknown[] | undefined)?.every(parentOk)) {
+          return json(404, { error: { errors: [{ reason: "notFound" }] } });
+        }
         meta.createdTime ??= new Date().toISOString();
         files.set(id, { bytes, meta });
         if (hang.has("upload-after-store")) return; // stored, but the client never gets the answer
         return json(200, { id, size: String(bytes.length), mimeType: meta.mimeType });
+      }
+      if (req.method === "POST" && url.startsWith("/drive/v3/files")) {
+        if (hang.has("folder-create")) return;
+        if (fail.has("folder-create")) return backendError();
+        const meta = JSON.parse(body.toString("utf8"));
+        if (!(meta.parents as unknown[] | undefined)?.every(parentOk)) {
+          return json(404, { error: { errors: [{ reason: "notFound" }] } });
+        }
+        meta.createdTime ??= new Date().toISOString();
+        const id = `fakedir${String(++nextDir).padStart(8, "0")}`;
+        const done = () => {
+          dirs.set(id, { meta });
+          json(200, { id });
+        };
+        if (config.folderCreateDelayMs > 0) setTimeout(done, config.folderCreateDelayMs);
+        else done();
+        return;
       }
       const m = /^\/drive\/v3\/files\/([^?]+)(\?.*)?$/.exec(url);
       if (m) {
@@ -110,26 +158,62 @@ export async function startFakeDrive() {
         if (id === FAKE.folderId) {
           return json(200, { id, mimeType: "application/vnd.google-apps.folder", trashed: false });
         }
-        const f = files.get(id);
+        const d = dirs.get(id);
+        const f = files.get(id) ?? d;
         if (!f) return json(404, { error: { errors: [{ reason: "notFound" }] } });
+        const sp = new URL(url, "http://fake").searchParams;
+        if (req.method === "PATCH") {
+          if (hang.has("move")) return;
+          if (fail.has("move")) return backendError();
+          const add = sp.get("addParents");
+          const remove = sp.get("removeParents");
+          const parents = (f.meta.parents as string[]) ?? [];
+          if (add && !parentOk(add))
+            return json(404, { error: { errors: [{ reason: "notFound" }] } });
+          if (add && !remove) {
+            return json(403, { error: { errors: [{ reason: "cannotAddParent" }] } });
+          }
+          if (remove && !parents.includes(remove)) return json(400, {});
+          f.meta.parents = [...parents.filter((p) => p !== remove), ...(add ? [add] : [])];
+          const patch = body.length ? JSON.parse(body.toString("utf8")) : {};
+          f.meta.appProperties = {
+            ...(f.meta.appProperties as object),
+            ...(patch.appProperties ?? {}),
+          };
+          return json(200, { id, parents: f.meta.parents });
+        }
+        if (req.method === "GET" && sp.get("fields") && sp.get("alt") !== "media") {
+          if (hang.has("parents")) return;
+          if (fail.has("parents")) return backendError();
+          return json(200, {
+            id,
+            parents: f.meta.parents,
+            mimeType: d ? "application/vnd.google-apps.folder" : f.meta.mimeType,
+            trashed: f.meta.trashed === true,
+          });
+        }
+        if (!files.has(id) && req.method !== "DELETE") return json(404, {});
         if (req.method === "DELETE") {
           if (fail.has("delete")) return backendError();
           files.delete(id);
+          dirs.delete(id);
           res.writeHead(204).end();
           return;
         }
+        const fb = files.get(id);
+        if (!fb) return json(404, {});
         if (hang.has("media")) return;
         if (fail.has("media")) return backendError();
         if (hang.has("stream-stall")) {
-          res.writeHead(200, { "content-type": "image/jpeg", "content-length": f.bytes.length });
-          res.write(f.bytes.subarray(0, 4)); // headers and part of the body, then silence
+          res.writeHead(200, { "content-type": "image/jpeg", "content-length": fb.bytes.length });
+          res.write(fb.bytes.subarray(0, 4)); // headers and part of the body, then silence
           return;
         }
         res.writeHead(200, {
-          "content-type": String(f.meta.mimeType),
-          "content-length": f.bytes.length,
+          "content-type": String(fb.meta.mimeType),
+          "content-length": fb.bytes.length,
         });
-        res.end(f.bytes);
+        res.end(fb.bytes);
         return;
       }
       json(404, {});
@@ -139,6 +223,11 @@ export async function startFakeDrive() {
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return {
     files,
+    dirs,
+    folders: () =>
+      [...dirs.entries()].map(
+        ([id, d]) => ({ id, ...d.meta }) as { id: string } & Record<string, any>,
+      ),
     requests,
     hang,
     fail,

@@ -2,6 +2,7 @@
 // Orphan sweep for Drive photos (T-005.6): node server/photo-sweep.js [--apply] [--grace-minutes N] [--max-delete N].
 // Dry-run by default. Deletes only files tagged app=tudo that no item_photos row references and that are older than
 // the grace period; re-checks the DB before each delete. Exit codes: 0 ok, 1 something failed, 2 bad usage or config.
+// Lists the root and every user subfolder (T-021) one level down; folders themselves are never candidates.
 // Global on purpose, never scoped by user_id: one Drive folder holds every user's files and the DB (all users) is the
 // authority on what is referenced (T-019.2; allow-listed in scoping.test.ts). Under RLS (T-019.4) it reads item_photos
 // through withMaintenance, i.e. the SELECT-only policy photo_sweep_read; it never writes rows.
@@ -14,6 +15,7 @@ import {
   DriveConfigError,
   DriveError,
   loadDriveConfig,
+  subfoldersQuery,
   taggedFilesQuery,
 } from "./drive.js";
 import { isUuid } from "./validate.js";
@@ -58,22 +60,37 @@ export async function runSweep({
 
   /** @type {{ id: string, createdTime: number | null, appProperties: Record<string, string> }[]} */
   const listed = [];
+  const listedIds = new Set();
   let pages = 0;
-  try {
-    const q = taggedFilesQuery(folderId);
+  let folders = 0;
+  /** One listing with the shared page budget and a seen-token guard; a file seen twice counts once. @param {string} q */
+  const listAll = async (q) => {
     const seen = new Set();
     /** @type {string | undefined} */
     let pageToken;
+    const out = [];
     do {
       if (++pages > MAX_PAGES) throw new DriveError("drive_bad_response");
       const page = await drive.listFiles({ q, pageToken });
-      listed.push(...page.files);
+      out.push(...page.files);
       pageToken = page.nextPageToken;
       if (pageToken !== undefined) {
         if (seen.has(pageToken)) throw new DriveError("drive_bad_response");
         seen.add(pageToken);
       }
     } while (pageToken !== undefined);
+    return out;
+  };
+  try {
+    const subfolders = await listAll(subfoldersQuery(folderId));
+    folders = subfolders.length;
+    for (const parent of [folderId, ...subfolders.map((f) => f.id)]) {
+      for (const f of await listAll(taggedFilesQuery(parent))) {
+        if (listedIds.has(f.id)) continue;
+        listedIds.add(f.id);
+        listed.push(f);
+      }
+    }
   } catch (err) {
     log(`list: FAIL ${codeOf(err)}`);
     return 1;
@@ -158,7 +175,7 @@ export async function runSweep({
   }
 
   log(
-    `listed ${listed.length} (${pages} pages), referenced ${count.referenced}, young ${count.young}, ` +
+    `listed ${listed.length} (${pages} pages), folders ${folders}, referenced ${count.referenced}, young ${count.young}, ` +
       `untagged ${count.untagged}, no_time ${count.no_time}, candidates ${candidates.length}, ` +
       `deleted ${deleted}, failed ${failedDeletes}, missing ${missing}, mode ${apply ? "apply" : "dry-run"}`,
   );

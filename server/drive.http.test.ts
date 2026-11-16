@@ -112,3 +112,99 @@ describe("against a fake Drive over real fetch", () => {
     expect(ids).toEqual([1, 2, 3, 4, 5].map((i) => `fakefile0000000${i}`));
   });
 });
+
+describe("folders and moves against a fake Drive (T-021)", () => {
+  const FOLDER = "application/vnd.google-apps.folder";
+  const make = async (drive: Awaited<ReturnType<typeof client>>, name = "u1") =>
+    (await drive.createFolder({ name, appProperties: { app: "tudo-folder" } })).id;
+
+  it("createFile with parentId sends parents [parentId]; invalid parentId -> drive_invalid_id, no request", async () => {
+    const drive = await client();
+    const dir = await make(drive);
+    const f = await drive.createFile({
+      name: "p.jpg",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("x"),
+      parentId: dir,
+    });
+    expect(fake.files.get(f.id)?.meta.parents).toEqual([dir]);
+    const before = fake.requests.length;
+    const bad = drive.createFile({
+      name: "p.jpg",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("x"),
+      parentId: "bad'id",
+    });
+    expect(await code(bad)).toBe("drive_invalid_id");
+    expect(fake.requests.length).toBe(before);
+  });
+
+  it("createFolder posts metadata only, parent root, not retried on 500", async () => {
+    const drive = await client();
+    const id = await make(drive);
+    const req = fake.requests.find(
+      (r) => r.method === "POST" && r.url.startsWith("/drive/v3/files"),
+    );
+    expect(JSON.parse(req!.body.toString())).toEqual({
+      name: "u1",
+      mimeType: FOLDER,
+      parents: [fakeConfig.folderId],
+      appProperties: { app: "tudo-folder" },
+    });
+    expect(fake.dirs.has(id)).toBe(true);
+    fake.fail.add("folder-create");
+    const before = fake.requests.filter((r) => r.url.startsWith("/drive/v3/files")).length;
+    expect(await code(drive.createFolder({ name: "u2" }))).toBe("drive_unavailable");
+    const after = fake.requests.filter((r) => r.url.startsWith("/drive/v3/files")).length;
+    expect(after - before).toBe(1);
+  });
+
+  it("moveFile sends PATCH with addParents/removeParents and appProperties; retried on 500; 404 -> drive_not_found", async () => {
+    fake = await startFakeDrive();
+    const drive = createDriveClient({ config: fakeConfig, ...fake.urls, sleep: async () => {} });
+    const dir = await make(drive);
+    const f = await drive.createFile({
+      name: "p.jpg",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("x"),
+    });
+    await drive.moveFile(f.id, {
+      addParent: dir,
+      removeParent: fakeConfig.folderId,
+      appProperties: { userId: "u" },
+    });
+    const req = fake.requests.find((r) => r.method === "PATCH")!;
+    const u = new URL(req.url, "http://x");
+    expect(u.searchParams.get("addParents")).toBe(dir);
+    expect(u.searchParams.get("removeParents")).toBe(fakeConfig.folderId);
+    expect(JSON.parse(req.body.toString())).toEqual({ appProperties: { userId: "u" } });
+    expect(fake.files.get(f.id)?.meta).toMatchObject({
+      parents: [dir],
+      appProperties: { userId: "u" },
+    });
+    fake.fail.add("move");
+    expect(
+      await code(drive.moveFile(f.id, { addParent: fakeConfig.folderId, removeParent: dir })),
+    ).toBe("drive_unavailable");
+    expect(fake.requests.filter((r) => r.method === "PATCH")).toHaveLength(4); // 1 + 3 attempts
+    fake.fail.clear();
+    expect(
+      await code(drive.moveFile("fakefile_missing1", { addParent: dir, removeParent: dir })),
+    ).toBe("drive_not_found");
+    expect(await code(drive.moveFile(f.id, { addParent: "bad'id", removeParent: dir }))).toBe(
+      "drive_invalid_id",
+    );
+  });
+
+  it("getParents parses ids; malformed -> drive_bad_response", async () => {
+    const drive = await client();
+    const f = await drive.createFile({
+      name: "p",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("x"),
+    });
+    expect(await drive.getParents(f.id)).toEqual([fakeConfig.folderId]);
+    fake.files.get(f.id)!.meta.parents = [42];
+    expect(await code(drive.getParents(f.id))).toBe("drive_bad_response");
+  });
+});

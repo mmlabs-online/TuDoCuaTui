@@ -5,7 +5,9 @@ import {
   DriveConfigError,
   DriveError,
   loadDriveConfig,
+  subfoldersQuery,
   taggedFilesQuery,
+  userFolderQuery,
 } from "./drive.js";
 import { FAKE, fakeConfig, fakeEnv } from "./test/fake-drive.js";
 
@@ -559,11 +561,23 @@ describe("listFiles and taggedFilesQuery", () => {
     appProperties: { app: "tudo", photoId: "p" },
   };
 
-  it("taggedFilesQuery builds the folder + trashed + app=tudo query", () => {
+  it("taggedFilesQuery builds the folder + trashed + not-a-folder + app=tudo query", () => {
     expect(Q).toBe(
-      `'${fakeConfig.folderId}' in parents and trashed = false and appProperties has { key='app' and value='tudo' }`,
+      `'${fakeConfig.folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and appProperties has { key='app' and value='tudo' }`,
     );
     expect(() => taggedFilesQuery("bad'id")).toThrow(DriveError);
+  });
+
+  it("userFolderQuery/subfoldersQuery: exact strings; reject bad root or non-uuid user", () => {
+    const user = "11111111-1111-4111-8111-111111111111";
+    const sub = `'${fakeConfig.folderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='app' and value='tudo-folder' }`;
+    expect(subfoldersQuery(fakeConfig.folderId)).toBe(sub);
+    expect(userFolderQuery(fakeConfig.folderId, user)).toBe(
+      `${sub} and appProperties has { key='userId' and value='${user}' }`,
+    );
+    expect(() => subfoldersQuery("bad'id")).toThrow(DriveError);
+    expect(() => userFolderQuery("bad'id", user)).toThrow(DriveError);
+    expect(() => userFolderQuery(fakeConfig.folderId, "x' or 1=1 or '")).toThrow(DriveError);
   });
 
   it("listFiles sends q, fields, pageSize=1000 and pageToken; returns files and nextPageToken", async () => {

@@ -3,6 +3,7 @@
 // Secrets come from runtime env only. Errors carry a fixed code and nothing else: no message text from Google,
 // no URL, no headers, no cause. Log entries hold {event, op, status, code, reason} only.
 import { randomBytes } from "node:crypto";
+import { isUuid } from "./validate.js";
 
 export class DriveConfigError extends Error {}
 
@@ -27,6 +28,7 @@ const NAMES = [
 const FOLDER_RE = /^[A-Za-z0-9_-]{10,200}$/;
 const FILE_ID_RE = /^[A-Za-z0-9_-]{10,200}$/;
 const MIME_RE = /^[A-Za-z0-9.+-]+\/[A-Za-z0-9.+-]+$/;
+const FOLDER_MIME = "application/vnd.google-apps.folder";
 const MAX_BYTES = 5 * 1024 * 1024;
 const REASONS = new Set([
   "invalid_grant",
@@ -37,6 +39,7 @@ const REASONS = new Set([
   "storageQuotaExceeded",
   "insufficientFilePermissions",
   "notFound",
+  "cannotAddParent",
   "authError",
   "backendError",
 ]);
@@ -67,15 +70,34 @@ export function loadDriveConfig(env) {
   return { mode: "on", clientId, clientSecret, refreshToken, folderId };
 }
 
-/**
- * The only query the sweep lists with: files of the configured folder tagged app=tudo, not trashed.
- * @param {string} folderId
- */
-export function taggedFilesQuery(folderId) {
+/** @param {string} folderId */
+function checkRoot(folderId) {
   if (typeof folderId !== "string" || !FOLDER_RE.test(folderId)) {
     throw new DriveError("drive_invalid_id");
   }
-  return `'${folderId}' in parents and trashed = false and appProperties has { key='app' and value='tudo' }`;
+}
+
+/**
+ * Files (never folders) directly in one folder, tagged app=tudo, not trashed. The sweep and the relocation script
+ * list the root and each user subfolder with it.
+ * @param {string} folderId
+ */
+export function taggedFilesQuery(folderId) {
+  checkRoot(folderId);
+  return `'${folderId}' in parents and trashed = false and mimeType != '${FOLDER_MIME}' and appProperties has { key='app' and value='tudo' }`;
+}
+
+/** The per-user subfolders of the root (T-021), tagged app=tudo-folder. @param {string} rootId */
+export function subfoldersQuery(rootId) {
+  checkRoot(rootId);
+  return `'${rootId}' in parents and trashed = false and mimeType = '${FOLDER_MIME}' and appProperties has { key='app' and value='tudo-folder' }`;
+}
+
+/** The subfolder(s) of one user. @param {string} rootId @param {string} userId */
+export function userFolderQuery(rootId, userId) {
+  checkRoot(rootId);
+  if (typeof userId !== "string" || !isUuid(userId)) throw new DriveError("drive_invalid_id");
+  return `${subfoldersQuery(rootId)} and appProperties has { key='userId' and value='${userId}' }`;
 }
 
 /** @param {string} text @returns {string | undefined} an allowlisted reason */
@@ -321,16 +343,28 @@ export function createDriveClient({
   };
 
   return {
+    /** Read-only: the configured root folder id (not a secret, never logged). */
+    rootFolderId: config.folderId,
+
     /**
      * Never retried on 5xx, network errors or timeouts (not idempotent); a 401 is refreshed and retried once.
-     * @param {{ name: string, mimeType: string, bytes: Uint8Array, appProperties?: Record<string, string> }} f
+     * `parentId` (a folder id) defaults to the configured root.
+     * @param {{ name: string, mimeType: string, bytes: Uint8Array, appProperties?: Record<string, string>, parentId?: string }} f
      * @returns {Promise<{ id: string, size: number, mimeType: string }>}
      */
-    async createFile({ name, mimeType, bytes, appProperties }) {
+    async createFile({ name, mimeType, bytes, appProperties, parentId }) {
+      if (parentId !== undefined && (typeof parentId !== "string" || !FOLDER_RE.test(parentId))) {
+        throw new DriveError("drive_invalid_id");
+      }
       if (bytes.byteLength > MAX_BYTES) throw new DriveError("drive_too_large");
       if (!MIME_RE.test(mimeType)) throw new DriveError("drive_bad_response");
       const boundary = `tudo${randomBytes(12).toString("hex")}`;
-      const meta = JSON.stringify({ name, mimeType, parents: [config.folderId], appProperties });
+      const meta = JSON.stringify({
+        name,
+        mimeType,
+        parents: [parentId ?? config.folderId],
+        appProperties,
+      });
       const body = Buffer.concat([
         Buffer.from(
           `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
@@ -359,6 +393,89 @@ export function createDriveClient({
         throw new DriveError("drive_bad_response");
       }
       return { id: j.id, size: Number(j.size), mimeType: String(j.mimeType ?? mimeType) };
+    },
+
+    /**
+     * A folder inside the root. Not retried (not idempotent); a 401 is refreshed and retried once.
+     * @param {{ name: string, appProperties?: Record<string, string> }} f @returns {Promise<{ id: string }>}
+     */
+    async createFolder({ name, appProperties }) {
+      const { text } = await request("folder-create", {
+        method: "POST",
+        url: `${apiBase}/files?fields=id`,
+        headers: { "content-type": "application/json" },
+        body: Buffer.from(
+          JSON.stringify({
+            name,
+            mimeType: FOLDER_MIME,
+            parents: [config.folderId],
+            appProperties,
+          }),
+        ),
+        timeoutMs: t.meta,
+        retry: false,
+      });
+      /** @type {any} */
+      let j;
+      try {
+        j = JSON.parse(text);
+      } catch {
+        j = null;
+      }
+      if (!j || typeof j.id !== "string" || !FILE_ID_RE.test(j.id)) {
+        note("folder-create", 200, "drive_bad_response");
+        throw new DriveError("drive_bad_response");
+      }
+      return { id: j.id };
+    },
+
+    /**
+     * Moves a file between folders in one PATCH and merges `appProperties`. Idempotent, so retried.
+     * @param {string} id @param {{ addParent: string, removeParent: string, appProperties?: Record<string, string> }} o
+     */
+    async moveFile(id, { addParent, removeParent, appProperties }) {
+      for (const p of [addParent, removeParent]) {
+        if (typeof p !== "string" || !FOLDER_RE.test(p)) throw new DriveError("drive_invalid_id");
+      }
+      const params = new URLSearchParams({
+        addParents: addParent,
+        removeParents: removeParent,
+        fields: "id,parents",
+      });
+      await request("move", {
+        method: "PATCH",
+        url: `${fileUrl(id)}?${params}`,
+        headers: { "content-type": "application/json" },
+        body: Buffer.from(JSON.stringify({ appProperties: appProperties ?? {} })),
+        timeoutMs: t.meta,
+        retry: true,
+      });
+    },
+
+    /** @param {string} id @returns {Promise<string[]>} the file's parent folder ids */
+    async getParents(id) {
+      const { text } = await request("parents", {
+        method: "GET",
+        url: `${fileUrl(id)}?fields=id,parents`,
+        timeoutMs: t.meta,
+        retry: true,
+      });
+      /** @type {any} */
+      let j;
+      try {
+        j = JSON.parse(text);
+      } catch {
+        j = null;
+      }
+      const ok =
+        j &&
+        Array.isArray(j.parents) &&
+        j.parents.every((/** @type {any} */ p) => typeof p === "string" && FILE_ID_RE.test(p));
+      if (!ok) {
+        note("parents", 200, "drive_bad_response");
+        throw new DriveError("drive_bad_response");
+      }
+      return j.parents;
     },
 
     /**
