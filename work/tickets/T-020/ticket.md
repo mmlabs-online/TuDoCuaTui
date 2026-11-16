@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-16 |
-| Claimed by | claude@2026-11-16T02:53:15Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/60 |
 
 ## Goal
 Stop showing the photo privacy notice ("Ảnh bạn tải lên được lưu trong Google Drive cá nhân của Ming…") anywhere in the app.
@@ -39,3 +39,8 @@ Ming, 2026-11-16: "bỏ màn hình thông báo GGdrive". Reverses the T-019.10 p
 - 2026-11-16 (Ming): "bỏ màn hình thông báo GGdrive" → remove the notice everywhere (join screen and editor).
 
 ## Handoff
+
+### 2026-11-16 — claude — DONE
+- Done: plan, implement attempt 1, review PASS (checks + 390px light/dark). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/60.
+- In progress / next: Ming merges; ships with the next release.
+- Gotchas: an earlier `git checkout origin/main --` detached HEAD in the session clone; the branch was re-pointed to HEAD before the PR.
