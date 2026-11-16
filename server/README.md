@@ -64,7 +64,7 @@ Photos (T-005.2): the cap is 2 MiB, counted on the stream as well as `Content-Le
 
 CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 
-Response headers (T-019.8): every response gets nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and HSTS (`max-age=31536000; includeSubDomains`). SPA (static) responses also get `SPA_CSP` from `server/http.js`; `/api/photos` keeps its own `default-src 'none'; sandbox`. `/verify-email` and `/reset-password` get `Referrer-Policy: no-referrer`. Widen `SPA_CSP` when the app starts using a new external origin (or when Figma Make site settings inject inline scripts or styles).
+Response headers (T-019.8): every response gets nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and HSTS (`max-age=31536000; includeSubDomains`). SPA (static) responses also get `SPA_CSP` from `server/http.js`; `/api/photos` keeps its own `default-src 'none'; sandbox`. `/verify-email` and `/reset-password` get `Referrer-Policy: no-referrer`. Widen `SPA_CSP` when the app starts using a new external origin (or when Figma Make site settings inject inline scripts or styles). `connect-src` also allows `blob:` and `data:` because the upload path reads the picked photo with `fetch()` before resizing (T-022).
 
 Image (T-015): `/app/{package.json,node_modules,dist,server,db/migrations}`, root-owned, `USER node`, `NODE_ENV=production`
 baked in, `CMD ["node","server/index.js"]`. The image `HEALTHCHECK` probes `/healthz`; the compose file overrides it with

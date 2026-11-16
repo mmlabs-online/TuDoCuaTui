@@ -207,7 +207,7 @@ describe("security headers", () => {
       "style-src": ["'self'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "img-src": ["'self'", "blob:", "data:"],
-      "connect-src": ["'self'", "https://api.mmlabs.online"],
+      "connect-src": ["'self'", "https://api.mmlabs.online", "blob:", "data:"],
       "frame-src": [CHALLENGES],
       "object-src": ["'none'"],
       "base-uri": ["'none'"],
@@ -222,6 +222,8 @@ describe("security headers", () => {
     for (const d of ["connect-src", "default-src", "img-src"]) {
       expect(csp[d]).not.toContain(CHALLENGES);
     }
+    expect(csp["script-src"]).not.toContain("data:");
+    expect(csp["script-src"]).not.toContain("blob:");
   });
 
   it("SPA responses carry HSTS", async () => {
