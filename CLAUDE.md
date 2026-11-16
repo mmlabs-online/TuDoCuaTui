@@ -87,7 +87,7 @@ Ming merges the PR → MERGED (set by /run or /status when they see the merge)
 | `/ticket <description>` | Create `work/tickets/<ID>/ticket.md` and a backlog row |
 | `/run [ID]` | Run the full loop for a ticket (no ID = first runnable ticket in backlog order) |
 | `/status` | Board summary; marks merged PRs as `MERGED` |
-| `/bug <description>` | Record a bug as `work/tickets/BUG-<n>/ticket.md` (repro, expected/actual, root cause) and a backlog row |
+| `/bug <description>` | Record a bug as `work/tickets/BUG-<n>/ticket.md` (repro, expected/actual, root cause) and a backlog row, and open a record PR into `main` |
 | `/solo <description>` | Small direct change outside the loop (still must pass checks; logged) |
 
 ### Agents (`.claude/agents/`)

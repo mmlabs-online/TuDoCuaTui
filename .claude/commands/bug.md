@@ -22,7 +22,18 @@ Record a bug from: `$ARGUMENTS` (plus any screenshot Ming attached).
    - Do not commit screenshots; describe them. Never copy emails or personal data from a screenshot.
 4. Insert a board row in `work/backlog.md`: S1 bugs go **above** the first runnable `BACKLOG` row; others after the
    last ticket they depend on, else at the end of the open rows. Title starts with nothing special; the ID shows it is a bug.
-5. Commit `chore: board — add <ID> (<short title>)` (board rule D16: on `main`, or the session's mandated branch in
-   cloud sessions) and push.
+5. Record it through a pull request (D42), so the bug lands on `main` and `/run` can fix it later:
+   - Start from a clean tree: create branch `bug/<ID>` from the latest `origin/main` (in a cloud session with a
+     mandated branch, use that branch and say so). Several bugs recorded in one session may share the branch/PR.
+   - The branch holds only the bug record: `work/tickets/<ID>/ticket.md` and its `work/backlog.md` row. No product code.
+   - Commit `chore: board — add <ID> (<short title>)`, push (`git push -u origin <branch>`).
+   - Open a PR into `main` (GitHub MCP `create_pull_request`); if a PR for this branch is already open, update its
+     title/body instead. Title: `<ID>: record bug — <short title>` (several bugs: `Record bugs <ID>, <ID>`).
+     Body (English, short): severity, found in / introduced in, one-line actual vs expected, root cause
+     (confirmed/suspected, file:line), link to the ticket file, "Fix: `/run <ID>` after merge", and the attribution
+     line required by the session.
+   - Add `- YYYY-MM-DD — claude — recorded; record PR <url>` under `## Handoff` (the `PR` field stays for the fix PR),
+     commit and push.
+   - **Never approve, merge or enable auto-merge.** Ming merges; until then `/run` cannot see the bug on `main`.
 6. Reply to Ming in short Vietnamese: ID, severity, what is wrong, root cause (confirmed/suspected), affected
-   versions, and the next step (`/run <ID>`).
+   versions, the record PR link, and the next step (merge the PR, then `/run <ID>`).
