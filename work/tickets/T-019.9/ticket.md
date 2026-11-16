@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | M-21 |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-16T13:13:34Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -45,4 +45,11 @@ proposal* → T-019.9). Decisions D31–D34. Ming items in the plan are numbered
 ## Notes / answers from Ming
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
+- Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+
+### 2026-11-16 — claude — BLOCKED
+- Done: architect consult (`consult-software-architect.md`); plan READY (`plan.md`, A1–A13, ~30 files, M-22 runbook text and new M-26 ops item).
+- In progress / next: Ming approves the plan (or overturns assumptions) → implement → review → PR. On DONE, copy the plan's M-22 text and M-26 into `work/ming-todo.md`.
+- Gotchas: keep `TUDO_AUTH_MODE: identity` in the deployment compose while a rollback to ≤ v0.2.6 is possible (old images default to Access and exit 2).
