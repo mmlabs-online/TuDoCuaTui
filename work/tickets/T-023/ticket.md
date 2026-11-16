@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-16 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-16T15:14:52Z |
 | PR | — |
 
 ## Goal
@@ -51,6 +51,7 @@ Ming, 2026-11-16: "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6
 - 2026-11-16 (Ming): "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự".
 
 - Waiting for Ming: plan approval (High tier)
+- 2026-11-16 (Ming): "duyệt T-023" — Plan approved.
 
 ## Handoff
 
