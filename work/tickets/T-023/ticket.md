@@ -1,14 +1,14 @@
-# T-023: Lower the password minimum to 6 characters
+# T-023: Mobile layout and readability
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | PLANNING |
 | Priority | P1 |
-| Size | S |
+| Size | M |
 | Milestone | M1 |
-| Epic | E1 — Auth & Account |
-| Areas | ui, security |
-| Gate | plan-approval |
+| Epic | E5 — UI |
+| Areas | ui |
+| Gate | none |
 | Depends on | — |
 | Needs Ming | — |
 | Attempts | 0 |
@@ -17,37 +17,30 @@
 | PR | — |
 
 ## Goal
-New passwords (sign-up and reset password) need at least 6 characters instead of 12, so users can pick shorter passwords.
+The app is comfortable to use on phones (320–430 px, light and dark): nothing breaks, text is readable, every control is easy to tap, and the item editor has a proper mobile layout.
 
 ## Feature reference
-No `docs/feature-list.md` section sets the length; 12 came from org-admin-api `password_min_length` (T-019.11 plan, `src/features/auth/validation.ts:3`).
-Ming, 2026-11-16: "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự". Needs a new decision row when planned.
+Ming, 2026-11-16: "Enhance UI responsive mobile" and "thiết kế layout mới cho Mobile nếu bị break". Mobile audit: `audit.md` in this folder (P1 1–5, P2 6–12, P3 13–19). R9 mobile-first.
 
 ## Scope
-- `PASSWORD_MIN` 12 → 6 in `src/features/auth/validation.ts` (sign-up and reset/new-password validation).
-- Vietnamese copy in `src/features/auth/copy.ts`: `signUp.passwordHint`, `fieldErrors.tooShort`, `errors.weak_too_short` say 6.
-- Update the tests that use 12 as the boundary.
+- Fix every P1 in the audit: editor horizontal overflow with long names; invisible "Xoá món đồ" confirm button; dark-mode active category chip; dark-mode green text contrast; `100vh` modals → `100dvh`.
+- Fix every P2: inputs 16px on mobile (no iOS zoom); minimum readable text (≥ 12px for body/labels/chips on mobile); tap targets ≥ 44px on touch; `aria-label` on the header Add button and modal close buttons; modal header grows with a 2-line title clamp; toast below modals.
+- **New mobile layout for the item editor** (the worst break): compact header, photo area and caption that shrink with the screen, a single-row sticky footer (Lưu / Xoá) with safe-area padding, full-height sheet on phones.
+- Add `viewport-fit=cover` and safe-area padding for sticky footers and the toast.
+- P3 items only where trivial (₫ wrap at 320 px, scroll hint on horizontally scrolling rows, dark wear-bar icon).
 
 ## Out of scope
-- The maximum (128), the "too common" check, sign-in validation.
-- Changing org-admin-api itself (another repo; see risks).
+- New features, data or auth changes; the Figma Make plugins (R10); desktop redesign (desktop must not regress).
 
 ## Acceptance criteria
-- [ ] Sign-up and reset-password accept a 6-character password and reject a 5-character one (code points after NFKC, as today).
-- [ ] Hint and error texts say "6 ký tự"; no "12 ký tự" left in `src/`.
-- [ ] Sign-in validation is unchanged.
-- [ ] Unit tests cover the 5/6 boundary; all checks pass.
-
-## Technical notes
-- Files: `src/features/auth/validation.ts`, `src/features/auth/copy.ts`, `*.test.ts(x)` in `src/features/auth/`.
-- **Risk / open question (blocking for the real effect):** org-admin-api enforces the minimum server-side (`password_min_length = 12`, a setting declared `ge=8` per T-019.11 plan). With only this ticket, a 6–11 character password passes TuDo's form but the API answers `weak_password` / `too_short`. Getting 6 needs a change in org-admin-api (config and its `ge=8` floor) — Ming's decision, other repo. The planner should ask whether TuDo ships after that change, or whether the minimum should be 8 (the lowest the API can be configured to today).
-- Security: 6 characters is a weak minimum; the reviewer should note it, the decision is Ming's.
-
-## Test plan
-- Unit: `passwordError("a".repeat(5))` → `tooShort`, `"a".repeat(6)` → null; screens accept 6 characters.
-- Manual: 390px + dark mode sign-up hint text.
+- [ ] No horizontal overflow on any screen at 320/360/390/430 px with long names (re-run the audit scripts).
+- [ ] All audit P1 items fixed (before/after screenshots; contrast ≥ 4.5:1 for the affected text in light and dark).
+- [ ] On ≤ 650 px: inputs/selects/textareas are 16px; body text, labels and chips ≥ 12px; buttons, chips and icon buttons ≥ 44px tall/wide.
+- [ ] Editor on 320×568: header + footer take ≤ 25% of the height, footer is one row, the form scrolls, nothing is hidden behind the footer.
+- [ ] Desktop (≥ 1024 px) unchanged apart from the shared fixes (screenshots).
+- [ ] All checks pass; local mode unchanged.
 
 ## Notes / answers from Ming
-- 2026-11-16 (Ming): "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự".
+- 2026-11-16 (Ming): "oke" to the T-023 proposal (fix all P1/P2, redesign the editor's mobile layout, no plan gate).
 
 ## Handoff
