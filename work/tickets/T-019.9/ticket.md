@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | M-21 |
 | Attempts | 0 |
 | Created | 2026-11-13 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-16T13:32:42Z |
 | PR | — |
 
 ## Goal
@@ -46,6 +46,7 @@ proposal* → T-019.9). Decisions D31–D34. Ming items in the plan are numbered
 - 2026-11-13: umbrella plan T-019 approved (A1–A20 defaults). This slice still gets its own plan; it stops for plan approval (High tier).
 
 - Waiting for Ming: plan approval (High tier)
+- 2026-11-16 (Ming): "duyệt T-019.9" — Plan approved (A1–A13 as written).
 
 ## Handoff
 
