@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BACKLOG |
+| State | DONE |
 | Severity | S2 |
 | Priority | P0 |
 | Size | XS |
@@ -15,10 +15,10 @@
 | Introduced in | unknown (the redesign `.btn` block in `src/index.css`; last touched in T-019.6) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-16 |
 | Claimed by | — |
-| PR | — |
+| PR | [#65](https://github.com/mmlabs-online/TuDoCuaTui/pull/65) |
 
 ## Report
 Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục sửa" is visible, the second button looks empty (no readable label). "ghi nhận lỗi này". (Filed first under the ID T-023, renamed by D42; T-023 now holds another ticket.)
@@ -60,3 +60,4 @@ Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục s�
 - 2026-11-16 (Ming): screenshot of "Bỏ thay đổi?" with the confirm button unreadable — "ghi nhận lỗi này".
 
 ## Handoff
+- 2026-11-16 (claude): /run BUG-001 — plan → implement (attempt 1) → review PASS. Added `scripts/confirm-verify.cjs`: exit 0 on the branch, exit 1 on 7d6df33 (57 failures: danger-bg, light contrast 1.02, 39px tap height). No `src/` change (fix shipped in T-024). Review nits (wait for the open animation before idle screenshots; duplicate cancel measure in discard) and follow-up (Playwright as devDependency for CI, Ming's call) left for later. Ming checks on prod: "Bỏ thay đổi?" confirm button red with white label, light and dark.
