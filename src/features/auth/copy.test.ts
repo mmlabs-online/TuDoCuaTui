@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { AUTH_COPY, authErrorMessage, formatWait } from "./copy";
 import type { AuthError, AuthErrorCode } from "./types";
+import { PASSWORD_MIN } from "./validation";
+
+describe("password length copy", () => {
+  it("matches PASSWORD_MIN", () => {
+    const text = `${PASSWORD_MIN} ký tự`;
+    expect(AUTH_COPY.signUp.passwordHint).toContain(text);
+    expect(AUTH_COPY.fieldErrors.tooShort).toContain(text);
+    expect(AUTH_COPY.errors.weak_too_short).toContain(text);
+  });
+});
 
 describe("formatWait", () => {
   it.each([

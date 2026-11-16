@@ -1,7 +1,7 @@
 import type { FieldErrorCode } from "./copy";
 
-// org-admin-api app/core/config.py `password_min_length` (default 12).
-export const PASSWORD_MIN = 12;
+// org-admin-api app/core/config.py `password_min_length` (default 6, ge=6 since 87026db; D43).
+export const PASSWORD_MIN = 6;
 // org-admin-api app/modules/auth/schemas.py PASSWORD_MAX_LENGTH.
 export const PASSWORD_MAX = 128;
 // RFC 5321 limits, as enforced by email-validator.
