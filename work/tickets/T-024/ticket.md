@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-16 |
-| Claimed by | claude@2026-11-16T09:38:01Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/64 |
 
 ## Goal
 The app is comfortable to use on phones (320–430 px, light and dark): nothing breaks, text is readable, every control is easy to tap, and the item editor has a proper mobile layout.
@@ -45,3 +45,8 @@ Ming, 2026-11-16: "Enhance UI responsive mobile" and "thiết kế layout mới 
 - 2026-11-16 (Ming): "oke" to the T-023 proposal (fix all P1/P2, redesign the editor's mobile layout, no plan gate).
 
 ## Handoff
+
+### 2026-11-16 — claude — DONE
+- Done: mobile audit, plan, implement attempt 1, review PASS (56 before/after screenshots, verify script). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/64. Fixes BUG-001.
+- In progress / next: Ming merges, releases, checks on a real iPhone; close BUG-001.
+- Gotchas: renumbered from T-023; mobile-verify toast step can flake (follow-up).
