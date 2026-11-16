@@ -151,3 +151,43 @@ No new violations in the attempt-2 diff. R7: every touched file is in the attemp
 
 ### Follow-ups (out of scope)
 Unchanged: F3 cache TTL, F5 itemId check, duplicate or empty folders, tightening `unscoped()` to `user_id = $n`.
+
+## Attempt 3 — 2026-11-16
+Verdict: PASS
+
+Scope: only the Attempt 2 Issue 1 blocker (relocate "nothing to move" after a first apply) and impl-log "Attempt 3" (commit 99adbee).
+
+### Checks (run by reviewer)
+- typecheck: clean (`tsc --noEmit && tsc -p tsconfig.server.json`).
+- format:check: "All matched files use the correct format."
+- test (no DB): 97 files passed, 10 skipped; 1247 tests passed, 205 skipped.
+- test (throwaway Postgres 16 in a mktemp dir under /tmp, trust auth, port 55433; stopped and deleted afterwards): 106 files passed, 1 failed; 1451 passed, 1 failed. The failure is the known `migrate.cli.test.ts › exit 1 on wrong password` test, which fails under trust auth and is unrelated. This matches impl-log Attempt 3.
+- build: green.
+
+### Issue 1 (Attempt 2) — resolved
+- Fix: `server/photo-relocate.js:125-146`. When the DB has rows and the root has listed files but none is referenced, the code probes `rows.slice(0, 5)` with `drive.getParents`. It stops at the first success and logs `nothing to move`. If every probe returns `drive_not_found`, it refuses (exit 1 on apply, report only on dry-run). Any other error logs `probe: FAIL <codeOf(err)>` and returns 1.
+- Reviewer repro (`scratchpad/repro.mjs`: 3 rows whose files are in subfolder `sub1`, one root orphan): dry-run `exit 0`, apply `exit 0`, both print `nothing to move: no listed file is referenced`, and neither prints a refusal line. Before the fix this was a refusal with exit 1 on apply.
+- Extra repro (`scratchpad/repro3.mjs`, stubbed drive and pool, 10 rows):
+  - all not found: dry-run exit 0 and apply exit 1, both with the refusal line; exactly 5 probes.
+  - `ECONNRESET` error whose message holds an id and secret text: `probe: FAIL ECONNRESET`, exit 1 on both dry-run and apply; the message is not printed.
+  - `DriveError drive_forbidden`: `probe: FAIL drive_forbidden`, exit 1.
+  - the 5th row is found: nothing to move, exit 0. Only the 6th row found: refusal, still 5 probes, so the bound holds.
+  - In every case, no moves or folder creations, and no Drive ids (`moved*`, `orphan1`, root, `sub1`) in the output.
+- Tests: `server/photo-relocate.db.test.ts:254-296`.
+  - (a) Subfolder rows plus a root orphan: apply and dry-run exit 0, `nothing to move`, no refusal, parents unchanged, no non-GET requests, no ids in output.
+  - (c) Probe error: `probe: FAIL ECONNRESET`, exit 1, and the error text is not printed.
+  - (b) The existing refusal test at `:244-252` is unchanged and passes (exit 1 on apply).
+- Tests fail without the fix: with `server/photo-relocate.js` reverted to HEAD~1, both new tests fail (2 failed, 15 passed). After restoring with `git checkout -- server/photo-relocate.js`, `git status` was clean before this section was written.
+
+### Scope (R7)
+The diff touches `server/photo-relocate.js`, `server/photo-relocate.db.test.ts`, impl-log and the ticket state. All are within the plan and the fix instruction.
+
+### Should-fix (does not block; the behaviour is correct and safe)
+- 🟡 `server/README.md:98` still says that with `--apply` it "refuses (exit 1) when listed files exist but none is referenced (wrong `DATABASE_URL`)". That is now true only when no probed row (up to 5) exists in Drive. The Output list at `:100` also lacks `probe: FAIL <code>`. Fix: change the sentence to "…refuses (exit 1) when no listed file is referenced and none of up to 5 DB rows exists in Drive (wrong `DATABASE_URL`); if they exist (normal after a first apply) it prints `nothing to move`", and add `probe: FAIL <code>` to the Output list. The orchestrator can make this README-only fix before the PR.
+
+### Nits (unchanged from Attempt 2, do not block)
+- `drive-smoke.js`: the "appProperties not merged" reason is reported only as `move: FAIL error`.
+- `drive-smoke.test.ts`: no negative `fakefolder` assertion for the folder-left-behind line.
+
+### Follow-ups (out of scope)
+Unchanged: F3 cache TTL, F5 itemId check, duplicate or empty folders, tightening `unscoped()` to `user_id = $n`.
