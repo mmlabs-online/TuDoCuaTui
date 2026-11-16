@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | M |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-16 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-16T03:46:13Z |
 | PR | — |
 
 ## Goal
@@ -40,7 +40,7 @@ Ming, 2026-11-16: "mức độ đầy đủ" (per-user folders, full option). Fo
 - [ ] No email, token or Drive secret is logged; user ids only. All checks pass.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier) — choose C1 (folder id cache: memory default / DB table) and C2 (script read: reuse photo-sweep task default / new task + policy migration)
+- 2026-11-16 (Ming: "duyệt T-021"): **Plan approved** with the defaults: C1 folder-id cache in memory (no DB migration), C2 the script reads via the existing `photo-sweep` maintenance task. Recorded as D41.
 - 2026-11-16 (Ming): chose the full option (per-user subfolders + migration of existing photos), not only `appProperties.userId`.
 
 ## Handoff
