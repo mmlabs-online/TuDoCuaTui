@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | M |
 | Milestone | M1 |
@@ -40,6 +40,12 @@ Ming, 2026-11-16: "mức độ đầy đủ" (per-user folders, full option). Fo
 - [ ] No email, token or Drive secret is logged; user ids only. All checks pass.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier) — choose C1 (folder id cache: memory default / DB table) and C2 (script read: reuse photo-sweep task default / new task + policy migration)
 - 2026-11-16 (Ming): chose the full option (per-user subfolders + migration of existing photos), not only `appProperties.userId`.
 
 ## Handoff
+
+### 2026-11-16 — claude — BLOCKED
+- Done: architect + database consults; plan.md READY with two choices for Ming: C1 folder-id cache (default in memory, alt `user_drive_folders` table with RLS) and C2 script read (default reuse `photo-sweep` maintenance task, alt new task + policy migration). Folders tagged `app:"tudo-folder"` so the sweep never treats them as photos.
+- In progress / next: Ming approves (and picks C1/C2); record D41; implement.
+- Gotchas: ~500 lines (fallback split T-021.1/T-021.2 in the plan); CLAUDE.md still names `supabase/migrations/` though the repo uses `db/migrations/`.
