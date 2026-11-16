@@ -21,7 +21,7 @@
 | PR | — |
 
 ## Report
-Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục sửa" is visible, the second button looks empty (no readable label). "ghi nhận lỗi này". (Recorded first as T-023; renamed by D42.)
+Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục sửa" is visible, the second button looks empty (no readable label). "ghi nhận lỗi này". (Filed first under the ID T-023, renamed by D42; T-023 now holds another ticket.)
 
 ## Environment
 - Mode: API (identity), production · light mode · desktop width

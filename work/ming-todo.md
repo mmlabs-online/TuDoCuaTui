@@ -145,7 +145,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
          Read `docker logs`, tell Annie, and do not retry by hand. A deliberate rollback later is a non-`release/` PR
          on the deployment repo that reverts both files in `apps/tudocuatui/`.
 
-- [ ] **M-15 — Connect Google Drive for TuDo photos** (D27; after T-005.1 and T-005.5 are merged). Never paste a
+- [x] (2026-11-16, Ming: photos read and upload work in production) **M-15 — Connect Google Drive for TuDo photos** (D27; after T-005.1 and T-005.5 are merged). Never paste a
       client secret or token into chat, a ticket, the TuDo repo or a command line.
       2026-11-15: photos worked in production, then `photo_read_failed {code: drive_auth}` (503 photos_unavailable): the refresh token is dead. Do the Recovery below (consent screen **In production**, re-run drive-connect, overwrite the 4 secrets, redeploy, smoke).
       1. Google Cloud console, Ricotdin's project: APIs & Services → enable **Google Drive API** (if not on).
@@ -255,7 +255,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       sign up from TuDo's sign-up page once T-019.7 is live, or from another registered app.
 - [x] (2026-11-15) **M-20 — Make your account usable:** verify your email (USR-04, live) and join `tudocuatui` with the USR-03b join
       endpoint (live in v0.1.3; `join_policy=open`). No staff role assignment needed any more (A9 superseded 2026-11-14).
-- [ ] **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
+- [x] (2026-11-16, identity mode live via deployment#71; Ming signs in and uploads) **M-21 — Switch production to Identity (Access stays on):** release containing T-019.5–T-019.8; set
       `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` in the release PR's compose;
       verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
       the Access policy (A16). Rollback: `TUDO_AUTH_MODE: access`.

@@ -46,14 +46,14 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-019.8 | CSP and HSTS for the SPA | MERGED | P1 | S | security | T-019.7 | none | 0 | 2026-11-13 |
 | T-019.13 | Abuse limits before Access removal | MERGED | P1 | S | security, architecture | T-019.5 | plan-approval | 0 | 2026-11-14 |
 | T-019.14 | Per-user photo quotas (Ming's Drive for everyone) | MERGED | P1 | S | security, db | T-019.5 | plan-approval | 0 | 2026-11-15 |
-| BUG-002 | Photo upload blocked by the page CSP | BACKLOG | P0 | XS | ui, data, security | — | none | 0 | 2026-11-16 |
 | BUG-001 | Confirm button invisible in confirm dialogs | BACKLOG | P0 | XS | ui | — | none | 0 | 2026-11-16 |
 | T-019.9 | Cutover cleanup: remove Cloudflare Access code | BACKLOG | P1 | S | security, architecture | T-019.4, T-019.7, T-019.8, T-019.13, T-019.14; Ming M-21 | plan-approval | 0 | 2026-11-13 |
 | T-019.10 | Join flow UX | MERGED | P1 | S | security, ui | T-019.7, T-019.13 | plan-approval | 1 | 2026-11-13 |
 | T-019.12 | Forgot password and /reset-password page | MERGED | P1 | S | ui, security | T-019.7 | plan-approval | 0 | 2026-11-14 |
 | T-020 | Remove the Google Drive photo privacy notice | MERGED | P1 | XS | ui | T-019.10 | none | 0 | 2026-11-16 |
-| T-021 | Per-user Google Drive folders for photos | IN_PROGRESS | P2 | M | architecture, db, security | T-019.14 | plan-approval | 0 | 2026-11-16 |
-| T-022 | Lower the password minimum to 6 characters | BACKLOG | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-16 |
+| T-021 | Per-user Google Drive folders for photos | MERGED | P2 | M | architecture, db, security | T-019.14 | plan-approval | 2 | 2026-11-16 |
+| T-022 | Hotfix — CSP blocks photo upload (connect-src data:/blob:) | MERGED | P0 | XS | security | T-019.8 | none | 0 | 2026-11-16 |
+| T-023 | Lower the password minimum to 6 characters | BACKLOG | P1 | S | ui, security | — | plan-approval | 0 | 2026-11-16 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | MERGED | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-13 |
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | MERGED | P1 | M | security, architecture | T-018 | plan-approval | 1 | 2026-11-13 |

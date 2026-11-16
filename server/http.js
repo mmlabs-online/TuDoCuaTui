@@ -9,7 +9,7 @@ const CSP_DIRECTIVES = [
   ["style-src", "'self'", "https://fonts.googleapis.com"],
   ["font-src", "'self'", "https://fonts.gstatic.com"],
   ["img-src", "'self'", "blob:", "data:"],
-  ["connect-src", "'self'", "https://api.mmlabs.online"],
+  ["connect-src", "'self'", "https://api.mmlabs.online", "blob:", "data:"],
   ["frame-src", "https://challenges.cloudflare.com"],
   ["object-src", "'none'"],
   ["base-uri", "'none'"],

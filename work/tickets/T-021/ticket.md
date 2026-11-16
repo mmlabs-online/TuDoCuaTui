@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | MERGED |
 | Priority | P2 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-019.14 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-16 |
-| Claimed by | claude@2026-11-16T03:46:13Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/61 |
 
 ## Goal
 Every user's photos live in their own subfolder of the TuDo Drive folder (`TuDoCuaTui/<user_id>/`), so the Drive is organised per user and a file can be traced to its owner without the database.
@@ -49,3 +49,8 @@ Ming, 2026-11-16: "mức độ đầy đủ" (per-user folders, full option). Fo
 - Done: architect + database consults; plan.md READY with two choices for Ming: C1 folder-id cache (default in memory, alt `user_drive_folders` table with RLS) and C2 script read (default reuse `photo-sweep` maintenance task, alt new task + policy migration). Folders tagged `app:"tudo-folder"` so the sweep never treats them as photos.
 - In progress / next: Ming approves (and picks C1/C2); record D41; implement.
 - Gotchas: ~500 lines (fallback split T-021.1/T-021.2 in the plan); CLAUDE.md still names `supabase/migrations/` though the repo uses `db/migrations/`.
+
+### 2026-11-16 — claude — DONE
+- Done: plan approved (defaults C1 memory, C2 photo-sweep read; D41); attempt 1 PASS + small rework; attempt 2 REWORK (relocate refused after first apply); attempt 3 PASS; security no 🔴. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/61.
+- In progress / next: Ming merges, releases, then smoke → relocate dry-run → --apply → sweep dry-run.
+- Gotchas: README relocate text lags the probe behaviour (follow-up in the PR).

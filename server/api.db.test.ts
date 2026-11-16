@@ -12,7 +12,7 @@ import { runMigrations } from "./migrator.js";
 import { fakeConfig, startFakeDrive } from "./test/fake-drive.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 import { CATEGORIES, DEPRECATED_CATEGORIES, SEASONS, STATUSES } from "./validate.js";
-import { fixedAuth, OWNER_A } from "./test/auth.js";
+import { fixedAuth, headerAuth, OWNER_A, OWNER_B } from "./test/auth.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
 type Res = Omit<Response, "json"> & { json(): Promise<any> };
@@ -307,6 +307,8 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
   let base: string;
   let noDriveBase: string;
   let logs: Record<string, unknown>[] = [];
+  let mkHandler: () => ReturnType<typeof createApp>;
+  let handler: ReturnType<typeof createApp>;
   let beforeCreate: (() => Promise<void>) | null = null;
   let beforeMedia: (() => Promise<void>) | null = null;
 
@@ -375,9 +377,10 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
       },
     };
     const log = (e: Record<string, unknown>) => logs.push(e);
-    server = http.createServer(
-      createApp({ pool, drive, distDir: "/nonexistent", auth: fixedAuth(OWNER_A), log }),
-    );
+    // A new app per test (see beforeEach): the folder-id cache lives in the app instance.
+    mkHandler = () => createApp({ pool, drive, distDir: "/nonexistent", auth: headerAuth(), log });
+    handler = mkHandler();
+    server = http.createServer((req, res) => handler(req, res));
     noDriveServer = http.createServer(
       createApp({ pool, distDir: "/nonexistent", auth: fixedAuth(OWNER_A), log }),
     );
@@ -395,9 +398,12 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     await pool.query("drop trigger if exists fail_photo_insert on item_photos");
     await pool.query("truncate wear_logs, item_photos, items, locations cascade");
     fake.files.clear();
+    fake.dirs.clear();
     fake.requests.length = 0;
     fake.hang.clear();
     fake.fail.clear();
+    fake.config.folderCreateDelayMs = 0;
+    handler = mkHandler();
     logs = [];
     beforeCreate = null;
     beforeMedia = null;
@@ -782,5 +788,130 @@ describe.skipIf(!dbAvailable)("/api photos with real Postgres and a fake Drive",
     const photoId = await primaryId();
     fake.hang.add("media");
     expect((await getPhoto(photoId)).status).toBe(502);
+  });
+
+  describe("per-user subfolders (T-021)", () => {
+    const asB = { "x-test-user": "b" };
+    const mkItemAs = (id: string, headers: Record<string, string>) =>
+      fetch(`${base}/api/items/${id}`, {
+        method: "PUT",
+        headers: { ...JSON_H, ...headers },
+        body: JSON.stringify({ name: "a" }),
+      });
+    const userDirs = () => fake.folders();
+
+    it("PUT photo stores the file in the user's subfolder with appProperties.userId", async () => {
+      await mkItem(uuid(1));
+      expect((await putPhoto(uuid(1))).status).toBe(200);
+      const [dir] = userDirs();
+      expect(userDirs()).toHaveLength(1);
+      expect(dir).toMatchObject({
+        name: OWNER_A,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [fakeConfig.folderId],
+        appProperties: { app: "tudo-folder", userId: OWNER_A },
+      });
+      const [file] = [...fake.files.values()];
+      expect(file.meta.parents).toEqual([dir.id]);
+      expect(file.meta.appProperties).toMatchObject({ app: "tudo", userId: OWNER_A });
+    });
+
+    it("two concurrent first PUTs by one user create exactly one subfolder", async () => {
+      fake.config.folderCreateDelayMs = 150;
+      await mkItem(uuid(1));
+      await mkItem(uuid(2));
+      const [a, b] = await Promise.all([putPhoto(uuid(1)), putPhoto(uuid(2))]);
+      expect([a.status, b.status]).toEqual([200, 200]);
+      expect(userDirs()).toHaveLength(1);
+      expect(fake.files.size).toBe(2);
+      for (const f of fake.files.values()) expect(f.meta.parents).toEqual([userDirs()[0].id]);
+    });
+
+    it("two users get two folders", async () => {
+      await mkItem(uuid(1));
+      await mkItemAs(uuid(2), asB);
+      expect((await putPhoto(uuid(1))).status).toBe(200);
+      expect((await putPhoto(uuid(2), JPEG, asB)).status).toBe(200);
+      expect(
+        userDirs()
+          .map((d) => d.name)
+          .sort(),
+      ).toEqual([OWNER_A, OWNER_B]);
+    });
+
+    it("folder lookup/create fails -> 503/502 by code, no row, quota refunded", async () => {
+      await mkItem(uuid(1));
+      fake.fail.add("folder-create");
+      const res = await putPhoto(uuid(1));
+      expect(res.status).toBe(502);
+      expect(await rows()).toEqual([]);
+      expect(fake.files.size).toBe(0);
+      fake.fail.clear();
+      fake.fail.add("list");
+      expect((await putPhoto(uuid(1))).status).toBe(502);
+      fake.fail.clear();
+      expect((await putPhoto(uuid(1))).status).toBe(200); // failures are not cached
+      expect(userDirs()).toHaveLength(1);
+      const wire = JSON.stringify(logs);
+      expect(wire).toContain("photo_upload_failed");
+    });
+
+    it("cached folder deleted by hand -> 503, next PUT creates a new folder", async () => {
+      await mkItem(uuid(1));
+      expect((await putPhoto(uuid(1))).status).toBe(200);
+      fake.dirs.clear();
+      const res = await putPhoto(uuid(1));
+      expect(res.status).toBe(503);
+      expect((await res.json()).error.code).toBe("photos_unavailable");
+      expect((await putPhoto(uuid(1))).status).toBe(200);
+      expect(userDirs()).toHaveLength(1);
+    });
+
+    it("legacy flat-folder photo: GET streams, replace deletes the flat file, DELETE works", async () => {
+      await mkItem(uuid(1));
+      fake.files.set("fakefile_legacy01", {
+        bytes: JPEG,
+        meta: { parents: [fakeConfig.folderId], appProperties: { app: "tudo" } },
+      });
+      const photoId = uuid(50);
+      await pool.query(
+        `insert into item_photos (user_id, id, item_id, drive_file_id, is_primary) values ('${OWNER_A}', $1, $2, 'fakefile_legacy01', true)`,
+        [photoId, uuid(1)],
+      );
+      const got = await fetch(`${base}/api/photos/${photoId}`);
+      expect(got.status).toBe(200);
+      expect(Buffer.from(await got.arrayBuffer()).equals(JPEG)).toBe(true);
+      expect((await putPhoto(uuid(1))).status).toBe(200);
+      expect(fake.files.has("fakefile_legacy01")).toBe(false);
+      expect(fake.files.size).toBe(1);
+      expect((await delPhoto(uuid(1), base, await primaryId())).status).toBe(204);
+      expect(fake.files.size).toBe(0);
+    });
+
+    it("subfolder photo: GET streams, DELETE removes the file", async () => {
+      await mkItem(uuid(1));
+      await putPhoto(uuid(1));
+      const photoId = await primaryId();
+      const got = await fetch(`${base}/api/photos/${photoId}`);
+      expect(got.status).toBe(200);
+      expect(Buffer.from(await got.arrayBuffer()).equals(JPEG)).toBe(true);
+      expect((await delPhoto(uuid(1), base, photoId)).status).toBe(204);
+      expect(fake.files.size).toBe(0);
+      expect(userDirs()).toHaveLength(1); // the folder stays
+    });
+
+    it("upload logs carry no folder id, file id, token or Google text", async () => {
+      await mkItem(uuid(1));
+      fake.fail.add("folder-create");
+      await putPhoto(uuid(1));
+      fake.fail.clear();
+      await putPhoto(uuid(1));
+      const [dir] = userDirs();
+      const [fileId] = [...fake.files.keys()];
+      const wire = JSON.stringify(logs);
+      for (const secret of [dir.id, fileId, "fake-access-token", "sentinel-google-error-text"]) {
+        expect(wire).not.toContain(secret);
+      }
+    });
   });
 });
