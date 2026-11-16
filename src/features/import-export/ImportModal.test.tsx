@@ -150,3 +150,11 @@ describe("mock AI", () => {
     expect(screen.getByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeTruthy();
   });
 });
+
+describe("close button", () => {
+  it('is named "Đóng"', () => {
+    const { onClose } = setup();
+    fireEvent.click(screen.getByRole("button", { name: IMPORT_EXPORT_COPY.import.close }));
+    expect(onClose).toHaveBeenCalled();
+  });
+});

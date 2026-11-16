@@ -1,5 +1,7 @@
 export const EDITOR_COPY = {
   save: "Lưu món đồ",
+  close: "Đóng",
+  duplicate: "Nhân bản",
   saving: "Đang lưu…",
   photo: {
     takePhoto: "Chụp ảnh",

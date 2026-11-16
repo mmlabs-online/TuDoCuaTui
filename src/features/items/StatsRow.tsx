@@ -21,7 +21,7 @@ export function StatsRow({
       <div className="stat-card">
         <span>Tổng giá trị</span>
         <strong className="money">
-          {items.reduce((s, i) => s + i.price, 0).toLocaleString("vi-VN")} ₫
+          {items.reduce((s, i) => s + i.price, 0).toLocaleString("vi-VN")} ₫
         </strong>
         <small>Giá mua ban đầu</small>
       </div>
