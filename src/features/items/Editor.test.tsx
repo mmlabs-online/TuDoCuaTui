@@ -216,3 +216,64 @@ describe("photo privacy notice", () => {
     expect(screen.queryByText(/Google Drive/)).toBeNull();
   });
 });
+
+describe("header", () => {
+  test('close button is named "Đóng"', () => {
+    const onClose = vi.fn();
+    render(
+      <Editor
+        item={blankItem()}
+        locations={[]}
+        isNew
+        saving={false}
+        update={vi.fn()}
+        onClose={onClose}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onWorn={vi.fn()}
+        showMockAi
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.close }));
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("footer", () => {
+  const edit = (onDuplicate = vi.fn()) => {
+    const item = { ...blankItem(), id: "x1", name: "Áo" };
+    render(
+      <Editor
+        item={item}
+        locations={[]}
+        isNew={false}
+        saving={false}
+        update={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={onDuplicate}
+        onWorn={vi.fn()}
+        showMockAi
+      />,
+    );
+  };
+
+  test("edit mode exposes the mobile layout hooks", () => {
+    const onDuplicate = vi.fn();
+    edit(onDuplicate);
+    expect(document.querySelector(".editor-footer")).not.toBeNull();
+    expect(document.querySelector(".editor-cancel")).not.toBeNull();
+    expect(document.querySelector(".editor-save")).not.toBeNull();
+    expect(document.querySelector(".editor-duplicate .btn-label")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.duplicate }));
+    expect(onDuplicate).toHaveBeenCalled();
+  });
+
+  test("new mode has no duplicate button", () => {
+    renderEditor();
+    expect(document.querySelector(".editor-duplicate")).toBeNull();
+    expect(document.querySelector(".editor-save")).not.toBeNull();
+  });
+});

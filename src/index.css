@@ -115,8 +115,8 @@
   transition: 0.2s;
 }
 .icon-btn:hover {
-  color: var(--green);
-  border-color: var(--green);
+  color: var(--green-ink);
+  border-color: var(--green-ink);
 }
 .btn {
   min-height: 40px;
@@ -268,7 +268,7 @@ main {
   color: var(--muted);
 }
 .text-btn {
-  color: var(--green);
+  color: var(--green-ink);
   font-weight: 600;
   font-size: 11px;
 }
@@ -354,9 +354,6 @@ main {
   background: var(--green);
   border-color: var(--green);
   color: white;
-}
-.dark .categories button.active {
-  color: #101c18;
 }
 .item-grid {
   display: grid;
@@ -488,7 +485,7 @@ main {
   display: grid;
   place-items: center;
   background: var(--soft);
-  color: var(--green);
+  color: var(--green-ink);
   margin-bottom: 14px;
 }
 .no-results h3 {
@@ -519,6 +516,7 @@ main {
 .modal {
   width: min(660px, 100%);
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   overflow: auto;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -612,11 +610,11 @@ main {
   display: grid;
   place-items: center;
   background: var(--soft);
-  color: var(--green);
+  color: var(--green-ink);
 }
 .ai-btn {
   margin-top: 12px;
-  color: var(--green);
+  color: var(--green-ink);
 }
 .remove-photo {
   color: var(--danger);
@@ -816,7 +814,7 @@ main {
   accent-color: var(--green);
 }
 .check-row > span {
-  color: var(--green);
+  color: var(--green-ink);
 }
 .check-row b {
   font-size: 10px;
@@ -877,7 +875,7 @@ main {
 .code-head button {
   display: flex;
   gap: 4px;
-  color: var(--green);
+  color: var(--green-ink);
   font-weight: 600;
 }
 .import-content pre {
@@ -926,7 +924,7 @@ main {
   display: flex;
   gap: 8px;
   align-items: center;
-  color: var(--green);
+  color: var(--green-ink);
   background: var(--soft);
   padding: 11px;
   border-radius: 9px;
@@ -947,7 +945,7 @@ main {
   background: var(--soft);
   border-radius: 10px;
   margin-bottom: 16px;
-  color: var(--green);
+  color: var(--green-ink);
 }
 .backup-note p {
   color: var(--muted);
@@ -1250,6 +1248,7 @@ main {
   .modal {
     width: 100%;
     max-height: 95vh;
+    max-height: 95dvh;
     border-radius: 18px 18px 0 0;
   }
   .modal-wide {
@@ -1339,8 +1338,10 @@ main {
   --brown: #8a5a3b;
   --chocolate: #3b2a22;
   --shadow: 0 6px 20px rgba(60, 40, 20, 0.06);
+  --green-ink: #0f3d2e;
 }
 .dark {
+  --green-ink: #bfe3c5;
   --bg: #14201b;
   --surface: #1c2a24;
   --surface-2: #22342c;
@@ -2304,11 +2305,14 @@ main {
   }
   .modal {
     max-height: 100vh;
+    max-height: 100dvh;
     border-radius: 22px 22px 0 0;
   }
   .modal-wide {
     height: 100vh;
+    height: 100dvh;
     max-height: 100vh;
+    max-height: 100dvh;
     border-radius: 0;
   }
   .import-header {
@@ -2403,4 +2407,391 @@ main {
   width: 100%;
   height: 100%;
   border-radius: 13px;
+}
+
+/* T-024 — mobile layout and readability */
+.editor-body {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+.photo-column,
+.form-column {
+  min-width: 0;
+}
+.btn.btn-danger-fill,
+.btn.btn-danger-fill:hover {
+  background: #a4453e;
+  border-color: #a4453e;
+  color: #fff;
+}
+.editor-header {
+  height: auto;
+  min-height: 86px;
+  padding-block: 12px;
+  gap: 12px;
+}
+.editor-header > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.editor-header .icon-btn {
+  flex: 0 0 auto;
+}
+.editor-header h2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.dark .categories button.active {
+  background: #fff8eb;
+  border-color: #fff8eb;
+  color: #1a1a1a;
+}
+.wear-bar > div:first-child > span {
+  background: #fff8eb;
+  color: #0f3d2e;
+}
+.app-shell {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.toast {
+  bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 650px) {
+  input,
+  select,
+  textarea,
+  .field input,
+  .field select,
+  .field textarea,
+  .searchbox input,
+  .filter-select select,
+  .paste-area {
+    font-size: 16px;
+  }
+  .field input,
+  .field select {
+    height: 44px;
+  }
+  .field textarea {
+    height: 96px;
+  }
+  .filter-select select {
+    height: 44px;
+  }
+  .searchbox {
+    height: 46px;
+  }
+  .searchbox input {
+    height: 100%;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  .card-info p,
+  .badge,
+  .wear-pill,
+  .photo-placeholder span,
+  .panel-heading span,
+  .stat-card > span,
+  .stat-card small,
+  .field > span,
+  .upload-zone small,
+  .photo-caption small,
+  .wear-bar small,
+  .check-row small,
+  .parse-summary small,
+  .progress > div,
+  .instructions p,
+  .backup-note p,
+  .code-head,
+  .or,
+  .export-options small,
+  .photo-note,
+  .file-icon,
+  .bulk-drop p,
+  .csv-preview li,
+  .csv-preview-title,
+  .csv-error,
+  .import-summary,
+  .coming-soon,
+  .import-content pre,
+  .collage-card span,
+  .intro > .hero-copy > p:last-child {
+    font-size: 12px;
+  }
+  .btn,
+  .toast,
+  .categories button,
+  .tabs button,
+  .choice-chips button,
+  .text-btn,
+  .remove-photo,
+  .check-row b,
+  .parse-summary b,
+  .export-content > p,
+  .confirm-content p {
+    font-size: 13px;
+  }
+  .wear-bar .btn {
+    font-size: 13px;
+  }
+  .upload-zone b {
+    font-size: 14px;
+  }
+  .wear-bar b {
+    font-size: 15px;
+  }
+  .intro {
+    padding-bottom: 80px;
+  }
+  .stat-card strong.money {
+    font-size: 18px;
+    white-space: nowrap;
+  }
+  .stats-grid,
+  .toolbar,
+  .categories {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+
+  .modal {
+    max-height: 100vh;
+    max-height: 100dvh;
+    overscroll-behavior: contain;
+  }
+  .modal-footer {
+    padding-bottom: calc(11px + env(safe-area-inset-bottom));
+  }
+  .confirm-content {
+    padding: 28px 20px calc(24px + env(safe-area-inset-bottom));
+  }
+  .confirm-content > div > .btn {
+    flex: 1 1 0;
+  }
+  .export-content {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: calc(15px + env(safe-area-inset-bottom));
+    pointer-events: none;
+  }
+  html:has(.modal-backdrop) .toast {
+    top: calc(68px + env(safe-area-inset-top));
+    bottom: auto;
+  }
+  .header-actions .btn-primary::after {
+    display: none;
+  }
+
+  /* Editor mobile layout */
+  .editor-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .modal-wide {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .editor-header {
+    min-height: 56px;
+    padding: calc(6px + env(safe-area-inset-top)) 12px 6px 16px;
+    gap: 8px;
+  }
+  .editor-header .eyebrow {
+    display: none;
+  }
+  .editor-header h2 {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+  .editor-header .icon-btn {
+    flex: 0 0 44px;
+  }
+  .photo-column {
+    padding: 12px 16px 16px;
+  }
+  .upload-zone {
+    width: 100%;
+    aspect-ratio: auto;
+    height: clamp(160px, 32dvh, 300px);
+    padding: 6px;
+    border-radius: 18px;
+  }
+  .upload-zone img {
+    object-fit: contain;
+    border-radius: 12px;
+  }
+  .upload-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .upload-zone small {
+    line-height: 1.5;
+  }
+  .photo-source-actions {
+    margin-top: 8px;
+  }
+  .photo-caption {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+  .photo-caption small {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+  }
+  .photo-caption b {
+    font-size: 17px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .photo-caption > span {
+    width: 28px;
+    height: 28px;
+  }
+  .photo-column .ai-btn {
+    margin-top: 8px;
+    width: 100%;
+  }
+  .remove-photo {
+    margin-top: 4px;
+    width: 100%;
+  }
+  .form-column {
+    padding: 16px 16px 24px;
+  }
+  .wear-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+  .wear-bar > div:last-child {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .wear-bar .btn {
+    width: auto;
+  }
+  .wear-bar .btn:first-child {
+    flex: 0 0 56px;
+  }
+  .wear-bar .btn-primary {
+    flex: 1 1 auto;
+  }
+  .form-section-title {
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+  }
+  .choice-chips {
+    gap: 8px;
+  }
+  .choice-chips.colors {
+    max-height: none;
+    overflow: visible;
+  }
+  .editor-footer {
+    min-height: 0;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  }
+  .editor-footer > div {
+    gap: 8px;
+    min-width: 0;
+  }
+  .editor-footer > div:last-child {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+  .editor-footer .editor-cancel {
+    display: none;
+  }
+  .editor-footer .editor-save {
+    flex: 1 1 auto;
+  }
+  .editor-footer > div:first-child .btn {
+    padding: 0 10px;
+  }
+  .editor-footer .editor-duplicate {
+    width: 44px;
+    padding: 0;
+  }
+  .editor-footer .editor-duplicate .btn-label {
+    display: none;
+  }
+}
+
+@media (max-width: 650px), (pointer: coarse) {
+  .btn,
+  .wear-bar .btn,
+  .mobile-import .btn,
+  .bulk-drop .btn,
+  .photo-source-actions .btn,
+  .photo-column .ai-btn {
+    min-height: 44px;
+  }
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .categories button,
+  .choice-chips button,
+  .tabs button {
+    min-height: 44px;
+  }
+  .choice-chips button {
+    padding: 0 14px;
+  }
+  .text-btn,
+  .code-head button {
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+  .remove-photo {
+    min-height: 44px;
+  }
+  .searchbox button {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    margin-right: -14px;
+  }
+  /* The auth LinkButton (AuthLayout) has no semantic class; auth is High tier, so CSS-only. */
+  button.self-center.underline {
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 650px) {
+  .header-actions .btn-primary {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
 }

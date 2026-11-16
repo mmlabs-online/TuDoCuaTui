@@ -18,7 +18,7 @@ export function ExportModal({
           <p className="eyebrow">{COPY.eyebrow}</p>
           <h2>{COPY.title}</h2>
         </div>
-        <button className="icon-btn" onClick={onClose}>
+        <button className="icon-btn" onClick={onClose} aria-label={COPY.close}>
           <Icon name="close" />
         </button>
       </div>

@@ -53,8 +53,8 @@ export function Header({
         <Btn className="desktop-btn" onClick={onExport}>
           <Icon name="export" /> Export
         </Btn>
-        <Btn kind="primary" onClick={onAdd}>
-          <Icon name="plus" /> <span>Thêm món đồ</span>
+        <Btn kind="primary" onClick={onAdd} aria-label={LAYOUT_COPY.addItem}>
+          <Icon name="plus" /> <span>{LAYOUT_COPY.addItem}</span>
         </Btn>
       </div>
     </header>

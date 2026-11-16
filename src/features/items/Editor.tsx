@@ -81,7 +81,7 @@ export function Editor({
             <p className="eyebrow">{isNew ? "THÊM VÀO BỘ SƯU TẬP" : "CHI TIẾT MÓN ĐỒ"}</p>
             <h2>{isNew ? "Món đồ mới" : item.name}</h2>
           </div>
-          <button className="icon-btn" onClick={requestClose}>
+          <button className="icon-btn" onClick={requestClose} aria-label={EDITOR_COPY.close}>
             <Icon name="close" />
           </button>
         </div>
@@ -348,22 +348,28 @@ export function Editor({
             </div>
           </div>
         </div>
-        <div className="modal-footer">
+        <div className="modal-footer editor-footer">
           {!isNew ? (
             <div>
               <Btn kind="danger" onClick={onDelete}>
                 <Icon name="trash" /> Xoá
               </Btn>
-              <Btn onClick={onDuplicate}>
-                <Icon name="copy" /> Nhân bản
+              <Btn
+                className="editor-duplicate"
+                aria-label={EDITOR_COPY.duplicate}
+                onClick={onDuplicate}
+              >
+                <Icon name="copy" /> <span className="btn-label">{EDITOR_COPY.duplicate}</span>
               </Btn>
             </div>
           ) : (
             <div />
           )}
           <div>
-            <Btn onClick={requestClose}>Huỷ</Btn>
-            <Btn kind="primary" disabled={saving} onClick={handleSave}>
+            <Btn className="editor-cancel" onClick={requestClose}>
+              Huỷ
+            </Btn>
+            <Btn kind="primary" className="editor-save" disabled={saving} onClick={handleSave}>
               {saving ? EDITOR_COPY.saving : EDITOR_COPY.save}
             </Btn>
           </div>

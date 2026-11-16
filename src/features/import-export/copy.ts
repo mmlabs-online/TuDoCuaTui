@@ -14,6 +14,7 @@ export const CSV_MAP_COPY = {
 /** UI copy for the import and export modals (F-004.3). */
 export const IMPORT_EXPORT_COPY = {
   import: {
+    close: "Đóng",
     eyebrow: "THÊM NHIỀU MÓN",
     titleBefore: "Đưa tủ đồ",
     titleEm: "vào app",
@@ -67,6 +68,7 @@ export const IMPORT_EXPORT_COPY = {
     },
   },
   export: {
+    close: "Đóng",
     eyebrow: "SAO LƯU & CHIA SẺ",
     title: "Export tủ đồ",
     hint: "Chọn định dạng phù hợp với nhu cầu của bạn.",

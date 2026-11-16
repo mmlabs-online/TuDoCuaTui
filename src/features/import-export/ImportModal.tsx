@@ -84,7 +84,7 @@ export function ImportModal({
           </h2>
         </div>
         <span className="modal-doodle">✦</span>
-        <button className="icon-btn" onClick={onClose}>
+        <button className="icon-btn" onClick={onClose} aria-label={COPY.close}>
           <Icon name="close" />
         </button>
       </div>
