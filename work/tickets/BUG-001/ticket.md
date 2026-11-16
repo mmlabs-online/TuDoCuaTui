@@ -18,7 +18,7 @@
 | Attempts | 1 |
 | Created | 2026-11-16 |
 | Claimed by | — |
-| PR | — |
+| PR | [#65](https://github.com/mmlabs-online/TuDoCuaTui/pull/65) |
 
 ## Report
 Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục sửa" is visible, the second button looks empty (no readable label). "ghi nhận lỗi này". (Filed first under the ID T-023, renamed by D42; T-023 now holds another ticket.)
