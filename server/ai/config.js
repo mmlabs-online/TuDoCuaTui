@@ -19,12 +19,11 @@ export function loadAiConfig(env) {
 
 /**
  * Startup decision for AI. Always removes AI_KEK from env (it is never read again). Malformed throws.
- * requestAuth = auth mode is access (verified) or identity.
  * @param {Record<string, string | undefined>} env
- * @param {{ requestAuth: boolean, importKek: (b64: string) => Promise<import("./crypto.js").AiKek> }} deps
+ * @param {{ importKek: (b64: string) => Promise<import("./crypto.js").AiKek> }} deps
  * @returns {Promise<{ ai: { kek: import("./crypto.js").AiKek } | null, line: string }>}
  */
-export async function initAi(env, { requestAuth, importKek }) {
+export async function initAi(env, { importKek }) {
   /** @type {ReturnType<typeof loadAiConfig>} */
   let cfg;
   try {
@@ -33,6 +32,5 @@ export async function initAi(env, { requestAuth, importKek }) {
     delete env.AI_KEK;
   }
   if (cfg.mode === "off") return { ai: null, line: "ai not configured" };
-  if (!requestAuth) return { ai: null, line: "ai disabled: request auth off" };
   return { ai: { kek: await importKek(cfg.kekB64) }, line: "ai configured" };
 }

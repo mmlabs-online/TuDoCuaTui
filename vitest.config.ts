@@ -57,7 +57,6 @@ export default defineConfig({
         "src/features/import-export/download.ts": thresholds,
         "src/shared/ai/**": thresholds,
         "server/static.js": thresholds,
-        "server/access.js": thresholds,
         "server/http.js": thresholds,
         "server/validate.js": thresholds,
         "server/errors.js": thresholds,

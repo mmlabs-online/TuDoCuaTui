@@ -3,7 +3,7 @@ export type DataMode = "local" | "api";
 /** api (served by the Node server) or local (localStorage + demo data). */
 export const pickMode = (apiAvailable: boolean): DataMode => (apiAvailable ? "api" : "local");
 
-export type AuthKind = "identity" | "access" | null;
+export type AuthKind = "identity" | null;
 type Probe = { result: "yes" | "no" | "error"; auth: AuthKind };
 const probe = (result: Probe["result"], auth: AuthKind = null): Probe => ({ result, auth });
 
@@ -12,20 +12,18 @@ async function probeOnce(fetchFn: typeof fetch, timeoutMs: number): Promise<Prob
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    // manual: an expired Cloudflare Access session redirects to the Access login, which must not
-    // look like an SPA host (that would fall back to local mode instead of API mode)
+    // manual: a redirect is never followed; it is not the Node server's JSON, so it counts as "no" (local)
     const res = await fetchFn("/healthz", {
       cache: "no-store",
       redirect: "manual",
       signal: ctrl.signal,
     });
-    if (res.type === "opaqueredirect") return probe("yes");
     if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("application/json")) {
       return probe("no");
     }
     const body = (await res.json()) as { status?: string; auth?: unknown } | null;
     if (body?.status !== "ok") return probe("no");
-    return probe("yes", body.auth === "identity" || body.auth === "access" ? body.auth : null);
+    return probe("yes", body.auth === "identity" ? body.auth : null);
   } catch (e) {
     // a body that is not JSON is a definite "no"; anything else (network, abort) may be transient
     return probe(e instanceof SyntaxError ? "no" : "error");

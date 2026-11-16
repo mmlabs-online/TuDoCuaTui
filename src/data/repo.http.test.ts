@@ -313,17 +313,10 @@ describe("createHttpRepo errors", () => {
     expect(e.reason).toBe("nameRequired");
   });
 
-  test("401 and opaque redirect → session expired", async () => {
+  test("401 → session expired", async () => {
     expect((await fail(() => json({ error: { code: "unauthorized" } }, 401))).message).toBe(
       API_ERROR_COPY.unauthorized,
     );
-    const opaque = {
-      type: "opaqueredirect",
-      status: 0,
-      ok: false,
-      headers: new Headers(),
-    } as Response;
-    expect((await fail(() => opaque)).message).toBe(API_ERROR_COPY.unauthorized);
   });
 
   test("404/409/413/503/500 map to their copy; 500 shows the request id", async () => {
@@ -389,6 +382,32 @@ describe("identity mode (getToken)", () => {
     await expect(repo.locations()).rejects.toMatchObject({ status: 401 });
     expect(onAuthLost).toHaveBeenCalledTimes(1);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  test("a redirect → ApiError(0, unexpected), not the unauthorized copy; no onAuthLost", async () => {
+    const onAuthLost = vi.fn();
+    const redirect = {
+      type: "opaqueredirect",
+      status: 0,
+      ok: false,
+      headers: new Headers(),
+    } as Response;
+    const fetchFn = vi.fn(async () => redirect);
+    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize, {
+      getToken: async () => "t",
+      onAuthLost,
+    });
+    const e = await repo.list().then(
+      () => {
+        throw new Error("expected failure");
+      },
+      (err: ApiError) => err,
+    );
+    expect(e).toBeInstanceOf(ApiError);
+    expect([e.status, e.code]).toEqual([0, "unexpected"]);
+    expect(e.message).not.toBe(API_ERROR_COPY.unauthorized);
+    expect(onAuthLost).not.toHaveBeenCalled();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   test("no header without getToken", async () => {

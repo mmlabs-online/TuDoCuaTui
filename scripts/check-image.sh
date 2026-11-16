@@ -18,11 +18,10 @@ if ! [[ "$EXPECTED_VERSION" =~ ^(dev|v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
 fi
 NAME="tudocuatui-smoke-$$"
 DBNAME="tudocuatui-dbsmoke-$$"
-IDNAME="tudocuatui-idsmoke-$$"
-trap 'docker rm -f "$NAME" "$DBNAME" "$IDNAME" >/dev/null 2>&1' EXIT
-# Dummy Access values: not secret, only so the server starts. The JWKS is never fetched (no header = 401).
-# TUDO_OWNER_SUB is not secret; this is a dummy v4 uuid.
-ACCESS=(-e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f)
+trap 'docker rm -f "$NAME" "$DBNAME" >/dev/null 2>&1' EXIT
+# Identity config (T-019.9): not secret, only so the server starts. The JWKS is never fetched (no or malformed
+# bearer = 401 before any fetch). TUDO_OWNER_SUB is not secret; this is a dummy v4 uuid.
+ID=(-e MM_IDENTITY_ISSUER=https://api.mmlabs.online -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f)
 
 echo "== no secrets in image"
 if docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
@@ -54,7 +53,7 @@ if [ "$cmd" != '["node","server/index.js"]' ]; then
   echo "::error::image Cmd is $cmd, expected [\"node\",\"server/index.js\"]"; exit 1
 fi
 envs=$(docker image inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | grep -E '^(NODE_ENV|DATABASE_URL|CF_ACCESS_|MM_IDENTITY_|TUDO_|GOOGLE_|DRIVE_|AI_)' || true)
+  | grep -E '^(NODE_ENV|DATABASE_URL|MM_IDENTITY_|TUDO_|GOOGLE_|DRIVE_|AI_)' || true)
 if [ "$envs" != "NODE_ENV=production" ]; then
   echo "::error::image env must set exactly NODE_ENV=production among app variables, got: $envs"; exit 1
 fi
@@ -99,20 +98,19 @@ expect_exit() { # <expected> <description> <docker run args...>
   local got=$?
   if [ "$got" -ne "$want" ]; then echo "::error::$what: exit $got, expected $want"; exit 1; fi
 }
-expect_exit 2 "server without Access values" "$IMAGE"
-expect_exit 2 "server with TUDO_ACCESS_DISABLED=1 (must be refused in production)" -e TUDO_ACCESS_DISABLED=1 "$IMAGE"
-expect_exit 2 "server with Access values but no TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy "$IMAGE"
-expect_exit 2 "server with malformed TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=not-a-uuid "$IMAGE"
-expect_exit 2 "server with nil TUDO_OWNER_SUB" -e CF_ACCESS_TEAM_DOMAIN=ci-dummy.cloudflareaccess.com -e CF_ACCESS_AUD=ci-dummy -e TUDO_OWNER_SUB=00000000-0000-0000-0000-000000000000 "$IMAGE"
-expect_exit 2 "server with TUDO_AUTH_MODE=bogus" "${ACCESS[@]}" -e TUDO_AUTH_MODE=bogus "$IMAGE"
+expect_exit 2 "server without identity config" "$IMAGE"
+expect_exit 2 "server without TUDO_OWNER_SUB" -e MM_IDENTITY_ISSUER=https://api.mmlabs.online "$IMAGE"
+expect_exit 2 "server with malformed TUDO_OWNER_SUB" -e MM_IDENTITY_ISSUER=https://api.mmlabs.online -e TUDO_OWNER_SUB=not-a-uuid "$IMAGE"
+expect_exit 2 "server with nil TUDO_OWNER_SUB" -e MM_IDENTITY_ISSUER=https://api.mmlabs.online -e TUDO_OWNER_SUB=00000000-0000-0000-0000-000000000000 "$IMAGE"
+expect_exit 2 "server with TUDO_AUTH_MODE=bogus" "${ID[@]}" -e TUDO_AUTH_MODE=bogus "$IMAGE"
+expect_exit 2 "server with TUDO_AUTH_MODE=access (Access mode is gone)" "${ID[@]}" -e TUDO_AUTH_MODE=access "$IMAGE"
 expect_exit 2 "identity mode without MM_IDENTITY_ISSUER" -e TUDO_AUTH_MODE=identity "$IMAGE"
-expect_exit 2 "identity mode without TUDO_OWNER_SUB" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online "$IMAGE"
-expect_exit 2 "identity mode with a foreign issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://evil.example "$IMAGE"
-expect_exit 2 "identity mode with an http issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=http://api.mmlabs.online "$IMAGE"
+expect_exit 2 "identity mode with a foreign issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://evil.example -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f "$IMAGE"
+expect_exit 2 "identity mode with an http issuer" -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=http://api.mmlabs.online -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f "$IMAGE"
 expect_exit 2 "migrate without DATABASE_URL" "$IMAGE" node server/migrate.js
 expect_exit 2 "drive smoke without Google env" "$IMAGE" node server/drive-smoke.js
-expect_exit 2 "server with partial Google config" "${ACCESS[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"
-expect_exit 2 "server with malformed AI_KEK" "${ACCESS[@]}" -e AI_KEK=not-a-kek "$IMAGE"
+expect_exit 2 "server with partial Google config" "${ID[@]}" -e GOOGLE_CLIENT_ID=ci-dummy.apps.googleusercontent.com "$IMAGE"
+expect_exit 2 "server with malformed AI_KEK" "${ID[@]}" -e AI_KEK=not-a-kek "$IMAGE"
 
 # probe <path>: prints the HTTP status, then the body, fetched from inside the container.
 probe() {
@@ -121,9 +119,10 @@ probe() {
 status() { probe "$1" "$2" | head -n 1; }
 
 echo "== smoke"
-# Same hardening as the deployment compose file; no DB here, so /readyz must be 503.
+# Same hardening and auth shape as the deployment compose file (explicit TUDO_AUTH_MODE=identity); no DB here,
+# so /readyz must be 503. No network: no or malformed bearer is rejected before any JWKS fetch.
 docker run -d --name "$NAME" --cap-drop ALL --security-opt no-new-privileges --network none \
-  "${ACCESS[@]}" "$IMAGE" >/dev/null
+  "${ID[@]}" -e TUDO_AUTH_MODE=identity "$IMAGE" >/dev/null
 
 ok=0
 for _ in $(seq 1 30); do
@@ -132,8 +131,8 @@ for _ in $(seq 1 30); do
 done
 docker logs "$NAME"
 if [ "$ok" -ne 1 ]; then echo "::error::smoke failed: /healthz did not return 200"; exit 1; fi
-if ! probe "$NAME" /healthz | grep -q '"auth":"access"'; then
-  echo "::error::smoke failed: /healthz does not report auth access"; exit 1
+if ! probe "$NAME" /healthz | grep -q '"auth":"identity"'; then
+  echo "::error::smoke failed: /healthz does not report auth identity"; exit 1
 fi
 got=$(status "$NAME" /readyz)
 if [ "$got" != 503 ]; then echo "::error::smoke failed: /readyz without a database is $got, expected 503"; exit 1; fi
@@ -147,7 +146,9 @@ if [ "$served" != "$EXPECTED_VERSION" ]; then
   echo "::error::smoke failed: served /version.txt is '$served', expected '$EXPECTED_VERSION'"; exit 1
 fi
 got=$(status "$NAME" /api/items)
-if [ "$got" != 401 ]; then echo "::error::smoke failed: /api/items without Access header is $got, expected 401"; exit 1; fi
+if [ "$got" != 401 ]; then echo "::error::smoke failed: /api/items without a bearer is $got, expected 401"; exit 1; fi
+got=$(docker exec "$NAME" node -e 'fetch("http://127.0.0.1:3000/api/items",{headers:{authorization:"Bearer x.y.z"}}).then(r=>console.log(r.status),()=>console.log("000"))' 2>/dev/null)
+if [ "$got" != 401 ]; then echo "::error::smoke failed: /api/items with a malformed bearer is $got, expected 401"; exit 1; fi
 health=starting
 for _ in $(seq 1 30); do
   health=$(docker inspect -f '{{.State.Health.Status}}' "$NAME")
@@ -155,26 +156,6 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 if [ "$health" != healthy ]; then echo "::error::image HEALTHCHECK is '$health', expected healthy"; exit 1; fi
-
-echo "== identity smoke"
-# Identity mode, no network: no or malformed bearer is rejected before any JWKS fetch.
-docker run -d --name "$IDNAME" --cap-drop ALL --security-opt no-new-privileges --network none \
-  -e TUDO_AUTH_MODE=identity -e MM_IDENTITY_ISSUER=https://api.mmlabs.online \
-  -e TUDO_OWNER_SUB=3f2b8c1e-5d4a-4c7b-9e6f-1a2b3c4d5e6f "$IMAGE" >/dev/null
-ok=0
-for _ in $(seq 1 30); do
-  if [ "$(status "$IDNAME" /healthz)" = 200 ]; then ok=1; break; fi
-  sleep 1
-done
-docker logs "$IDNAME"
-if [ "$ok" -ne 1 ]; then echo "::error::identity smoke failed: /healthz did not return 200"; exit 1; fi
-if ! probe "$IDNAME" /healthz | grep -q '"auth":"identity"'; then
-  echo "::error::identity smoke failed: /healthz does not report auth identity"; exit 1
-fi
-got=$(status "$IDNAME" /api/items)
-if [ "$got" != 401 ]; then echo "::error::identity smoke failed: /api/items without a bearer is $got, expected 401"; exit 1; fi
-got=$(docker exec "$IDNAME" node -e 'fetch("http://127.0.0.1:3000/api/items",{headers:{authorization:"Bearer x.y.z"}}).then(r=>console.log(r.status),()=>console.log("000"))' 2>/dev/null)
-if [ "$got" != 401 ]; then echo "::error::identity smoke failed: /api/items with a malformed bearer is $got, expected 401"; exit 1; fi
 
 if [ -n "${CHECK_IMAGE_DATABASE_URL:-}" ]; then
   echo "== db smoke"
@@ -186,8 +167,9 @@ if [ -n "${CHECK_IMAGE_DATABASE_URL:-}" ]; then
   if ! printf '%s' "$again" | grep -q 'up to date'; then
     echo "::error::db smoke: second migrate run did not report 'up to date'"; exit 1
   fi
+  # TUDO_AUTH_MODE unset here (defaults to identity); the main smoke sets it explicitly.
   docker run -d --name "$DBNAME" --network host -e DATABASE_URL="$CHECK_IMAGE_DATABASE_URL" \
-    -e PORT=3000 "${ACCESS[@]}" "$IMAGE" >/dev/null
+    -e PORT=3000 "${ID[@]}" "$IMAGE" >/dev/null
   ok=0
   for _ in $(seq 1 30); do
     if [ "$(status "$DBNAME" /readyz)" = 200 ]; then ok=1; break; fi
@@ -196,6 +178,6 @@ if [ -n "${CHECK_IMAGE_DATABASE_URL:-}" ]; then
   docker logs "$DBNAME" 2>&1 | grep -v DATABASE_URL
   if [ "$ok" -ne 1 ]; then echo "::error::db smoke: /readyz did not return 200"; exit 1; fi
   got=$(status "$DBNAME" /api/locations)
-  if [ "$got" != 401 ]; then echo "::error::db smoke: /api/locations without Access header is $got, expected 401"; exit 1; fi
+  if [ "$got" != 401 ]; then echo "::error::db smoke: /api/locations without a bearer is $got, expected 401"; exit 1; fi
 fi
 echo "image ok"

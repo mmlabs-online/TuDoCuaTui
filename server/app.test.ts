@@ -49,7 +49,7 @@ describe("app", () => {
     const base = await start({});
     const res = await fetch(base + "/healthz");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok", auth: "access" });
+    expect(await res.json()).toEqual({ status: "ok", auth: "identity" });
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 

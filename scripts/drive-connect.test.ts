@@ -357,7 +357,7 @@ describe("writeSecretsFile", () => {
     const d = tmp();
     const f = path.join(d, "x.env");
     for (const bad of [
-      { ...vals, refreshToken: "tok\nTUDO_ACCESS_DISABLED=1" },
+      { ...vals, refreshToken: "tok\nNODE_ENV=development" },
       { ...vals, refreshToken: "has space" },
       { ...vals, clientSecret: "a=b" },
       { ...vals, clientId: "plain-id" },

@@ -5,21 +5,18 @@ Start contract (T-015): `node server/index.js`, listens on `0.0.0.0:3000` (`PORT
 | Variable | Meaning |
 |---|---|
 | `DATABASE_URL` | `postgres://tudocuatui:<pw>@postgres:5432/tudocuatui` (D24). Unset: starts without a DB, `/readyz` is 503. |
-| `TUDO_AUTH_MODE` | `access` (default when unset) or `identity`; anything else, including an empty value, exits 2. `identity` verifies mmlabs Identity access tokens (see Identity tokens) and ignores `CF_ACCESS_*` (it still needs `TUDO_OWNER_SUB`); it cannot be combined with `TUDO_ACCESS_DISABLED`. |
-| `MM_IDENTITY_ISSUER` | Identity mode only (not secret). Exactly `https://<host>`; in production it must equal `https://api.mmlabs.online`. Outside production `http://localhost:<port>` is also accepted. Missing or malformed exits 2. |
-| `CF_ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com` (not secret) |
-| `CF_ACCESS_AUD` | Access application AUD tag (not secret) |
-| `TUDO_OWNER_SUB` | The owner's Identity `sub` (a UUID; not secret; never printed). Required in both auth modes (and `migrate`). In access mode every request runs as this user; in both modes this user is the owner lane: exempt from the global AI ceilings and from the shared upload / tag-photo slots (per-user limits still apply). Same value for the app and `migrate`; a malformed or missing value exits 2. |
-| `TUDO_ACCESS_DISABLED` | `1` turns the `/api` JWT check off. Dev only; refused when `NODE_ENV=production`. |
+| `TUDO_AUTH_MODE` | Optional; only `identity` (also the default when unset). Anything else, including an empty value, exits 2 (the value is never printed). The server verifies mmlabs Identity access tokens (see Identity tokens). |
+| `MM_IDENTITY_ISSUER` | Required (not secret). Exactly `https://<host>`; in production it must equal `https://api.mmlabs.online`. Outside production `http://localhost:<port>` is also accepted. Missing or malformed exits 2. |
+| `TUDO_OWNER_SUB` | The owner's Identity `sub` (a UUID; not secret; never printed). Required (also by `migrate`). This user is the owner lane: exempt from the global AI ceilings and from the shared upload / tag-photo slots (per-user limits still apply). Same value for the app and `migrate`; a malformed or missing value exits 2. |
 | `GOOGLE_CLIENT_ID` | OAuth client id of "TuDoCuaTui" (ends `.apps.googleusercontent.com`). Photos (D27). |
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret. Secret: runtime env only. |
 | `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token (scope `drive.file`). Secret: runtime env only. |
 | `DRIVE_FOLDER_ID` | Id of the `TuDoCuaTui` Drive folder the connect script created |
-| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset, or request auth off (`auth: access (dev, off)`): AI routes answer 503; malformed: exit 2. Removed from `process.env` after startup. |
-| `NODE_ENV` | With `production`, access mode without `CF_ACCESS_*` exits 2 and identity mode requires the production issuer. |
+| `AI_KEK` | Base64 of 32 random bytes (T-018). Secret: runtime env only. Unset: AI routes answer 503; malformed: exit 2. Removed from `process.env` after startup. |
+| `NODE_ENV` | With `production`, `MM_IDENTITY_ISSUER` must be the production issuer. |
 | `PORT` | Default 3000 |
 
-Routes: `/healthz` (liveness, `{status:"ok", auth:"access"|"identity"}`), `/readyz` (`select 1`), `/api/*` (Cloudflare Access JWT or Identity bearer token, per `TUDO_AUTH_MODE`; endpoints below), everything else is the SPA.
+Routes: `/healthz` (liveness, `{status:"ok", auth:"identity"}`), `/readyz` (`select 1`), `/api/*` (Identity bearer token only; endpoints below), everything else is the SPA.
 
 In production the four Google values come from `deploy-tudocuatui` (repository secrets of `mmlabs-online/deployment`, D28), see M-15 in `work/ming-todo.md`.
 
@@ -27,7 +24,7 @@ The four Google variables are all-or-nothing: none set means photos are off (`dr
 
 ## Identity tokens (T-019.5)
 
-With `TUDO_AUTH_MODE=identity`, `/api` needs `Authorization: Bearer <access token>` (never a cookie, query or other header). The verifier follows `consumers.md` of org-admin-api: ES256 only, keys from `<issuer>/.well-known/jwks.json` (cache 300 s, unknown `kid` refetch at most once per 60 s, 5 s timeout, `User-Agent: tudocuatui-server`), exact `iss`, `aud` = `tudocuatui`, `typ` = `at+jwt`, `exp`/`iat`/`sub`/`jti` required, 30 s leeway, tokens older than 15 min rejected, `email_verified` true, `sub` a canonical UUID, and at least one `tudocuatui:`-prefixed entry in `roles` (removing the role is the ban lever). The server must be able to reach Identity over HTTPS (egress). Fail closed: any failure, including an unreachable JWKS, answers 401 `unauthorized`.
+`/api` needs `Authorization: Bearer <access token>` (never a cookie, query or other header). The verifier follows `consumers.md` of org-admin-api: ES256 only, keys from `<issuer>/.well-known/jwks.json` (cache 300 s, unknown `kid` refetch at most once per 60 s, 5 s timeout, `User-Agent: tudocuatui-server`), exact `iss`, `aud` = `tudocuatui`, `typ` = `at+jwt`, `exp`/`iat`/`sub`/`jti` required, 30 s leeway, tokens older than 15 min rejected, `email_verified` true, `sub` a canonical UUID, and at least one `tudocuatui:`-prefixed entry in `roles` (removing the role is the ban lever). The server must be able to reach Identity over HTTPS (egress). Fail closed: any failure, including an unreachable JWKS, answers 401 `unauthorized`.
 
 Denied requests log `{event:"auth_denied", code}` only, with `code` one of `missing`, `too_large`, `malformed`, `alg`, `signature`, `expired`, `claim_<iss|aud|typ|iat|nbf|exp|sub|jti>`, `unknown_kid`, `jwks_unavailable`, `email_unverified`, `sub_invalid`, `no_role`, `invalid`. Tokens, claims and error messages are never logged. Authentication runs no database query. A revoked user or removed role keeps access until the token expires (up to 15 minutes, accepted; ADR-0005).
 
@@ -68,16 +65,16 @@ Response headers (T-019.8): every response gets nosniff, `Referrer-Policy: stric
 
 Image (T-015): `/app/{package.json,node_modules,dist,server,db/migrations}`, root-owned, `USER node`, `NODE_ENV=production`
 baked in, `CMD ["node","server/index.js"]`. The image `HEALTHCHECK` probes `/healthz`; the compose file overrides it with
-`/readyz`. `CF_ACCESS_*` come from the compose file, `DATABASE_URL` from the host env file; neither is in the image.
+`/readyz`. `TUDO_AUTH_MODE` / `MM_IDENTITY_ISSUER` / `TUDO_OWNER_SUB` come from the compose file, `DATABASE_URL` from the host env file; none is in the image.
 
-Local run: `pnpm build && TUDO_ACCESS_DISABLED=1 TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start`.
+Local run: `pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start` (or `MM_IDENTITY_ISSUER=http://localhost:<port>` for a local Identity API). There is no dev bypass: `/api` needs a real bearer, and signing in from localhost is not possible (the Identity origin is registered for production only, M-19). Use `pnpm dev` (local mode) for UI work.
 The T-019.2 contract migration needs `TUDO_OWNER_SUB` (same value) when the dev database has rows, and fails if they belong to another owner.
 
 Logging: one JSON line per request (method, route template, status, ms, id). Never log `DATABASE_URL`, tokens, raw URLs or whole error objects; only `err.code`.
 
 Router note for T-013.2: `server/app.js` computes one `pathname` (after rejecting non-origin-form targets with 400). Dispatch API endpoints from that same `pathname`, inside the guarded `/api` branch, so the access check cannot be bypassed by a second URL parse.
 
-Photo reads (T-005.3): every `getMedia` caller passes a per-request signal with a deadline (`servePhoto`: 30 s total, also aborted when the client disconnects); a handed-over stream keeps its abort listener until that signal goes away. The bytes are served unchanged: photos uploaded through the app are re-encoded by the canvas resize, which strips EXIF/GPS, but a hand-made `PUT /api/items/:id/photo` could store EXIF/GPS and it would be served back as is (only to access-authenticated users). Read errors are logged as `{event:"photo_read_failed", code}` with no ids.
+Photo reads (T-005.3): every `getMedia` caller passes a per-request signal with a deadline (`servePhoto`: 30 s total, also aborted when the client disconnects); a handed-over stream keeps its abort listener until that signal goes away. The bytes are served unchanged: photos uploaded through the app are re-encoded by the canvas resize, which strips EXIF/GPS, but a hand-made `PUT /api/items/:id/photo` could store EXIF/GPS and it would be served back as is (only to authenticated users). Read errors are logged as `{event:"photo_read_failed", code}` with no ids.
 
 ## Row level security (T-019.4)
 
@@ -129,7 +126,7 @@ Scheduling it is a deployment-repo follow-up.
 
 ## AI settings (T-018)
 
-`GET /api/ai-settings` returns `{ settings: AiSettingsView | null }` (provider, model, masked `keyHint`, `hasKey`, `modelSupported`, `updatedAt`; never the key). `PUT /api/ai-settings` takes `{ provider, model, apiKey? }` (omit `apiKey` to keep the stored key; changing provider needs a new key). `DELETE /api/ai-settings/key` clears the key (idempotent). The key is sealed with AES-256-GCM (`server/ai/crypto.js`, KEK from `AI_KEK`) and stored in the caller's `ai_settings` row (one per user, primary key `user_id`, D33; AAD `tudocuatui-ai-key|v2|<sub>|<provider>`). `POST /api/ai-settings/test` (body exactly `{}`, `Content-Type: application/json`) checks the saved key with the provider (`GET /v1/models/<model>` on `api.anthropic.com`, no tokens spent) and answers `{ ok: true }`; failures use the codes below. With request auth off (`access === null`) AI is disabled at startup (log `ai disabled: request auth off`) and every AI route answers 503.
+`GET /api/ai-settings` returns `{ settings: AiSettingsView | null }` (provider, model, masked `keyHint`, `hasKey`, `modelSupported`, `updatedAt`; never the key). `PUT /api/ai-settings` takes `{ provider, model, apiKey? }` (omit `apiKey` to keep the stored key; changing provider needs a new key). `DELETE /api/ai-settings/key` clears the key (idempotent). The key is sealed with AES-256-GCM (`server/ai/crypto.js`, KEK from `AI_KEK`) and stored in the caller's `ai_settings` row (one per user, primary key `user_id`, D33; AAD `tudocuatui-ai-key|v2|<sub>|<provider>`). `POST /api/ai-settings/test` (body exactly `{}`, `Content-Type: application/json`) checks the saved key with the provider (`GET /v1/models/<model>` on `api.anthropic.com`, no tokens spent) and answers `{ ok: true }`; failures use the codes below.
 
 Errors use the codes in `AI_ERROR_STATUS`: `invalid_provider`, `invalid_model`, `invalid_key_format`, `key_required`, `bad_request`, `invalid_json`, `unsupported_media_type`, `payload_too_large` (4096 bytes), `forbidden_origin`, `not_configured` (no saved key), `key_unreadable` (ciphertext does not open under this `AI_KEK`), `invalid_key`, `key_forbidden`, `model_unavailable`, `provider_rate_limited`, `provider_unavailable`, `rate_limited` (per user 30 saves/hour, 20 tests/hour, 100 tags/24 h, plus global ceilings 600/300/2000, which the owner is exempt from; in memory), `db_unavailable`, `server_misconfigured` (no `AI_KEK`: every AI route), `internal`.
 

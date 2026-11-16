@@ -1,6 +1,6 @@
 # Tủ đồ của tôi
 
-Personal wardrobe tracker: React 19 + Vite + Tailwind v4 (UI exported from Figma Make), with a Node API (`server/`) over a self-hosted Postgres, photos on Google Drive via the server, and Cloudflare Access in front (no in-app login, D23). Outside the Node server it runs in local mode.
+Personal wardrobe tracker: React 19 + Vite + Tailwind v4 (UI exported from Figma Make), with a Node API (`server/`) over a self-hosted Postgres, photos on Google Drive via the server, and in-app sign-in with mmlabs Identity (D31/D39). Outside the Node server it runs in local mode.
 
 ## Run locally
 
@@ -10,7 +10,7 @@ pnpm dev
 ```
 
 - **`pnpm dev`, the Figma Make preview, static hosting:** local mode. Data lives in localStorage and the demo items are loaded; no login.
-- **Served by the Node server** (`node server/index.js`): API mode. Data goes through `/api`, no login (Cloudflare Access protects the site). It is detected at startup via `/healthz`, no build flag. To try it: `pnpm build && TUDO_ACCESS_DISABLED=1 DATABASE_URL=... pnpm start`.
+- **Served by the Node server** (`node server/index.js`): API mode. Data goes through `/api`, with in-app sign-in (mmlabs Identity bearer tokens). It is detected at startup via `/healthz`, no build flag. To try it: `pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start`. There is no dev bypass: `/api` needs a real bearer and signing in from localhost is not possible (M-19), so use `pnpm dev` for UI work.
 
 Supabase was removed in T-016 (D23); the old code is in git history.
 
@@ -22,10 +22,10 @@ Hub (`mingming21400/tudocuatui`) and opens a PR on `mmlabs-online/deployment`; m
 `deploy-tudocuatui` on the home server, which takes a backup, runs `node server/migrate.js`, replaces the app and
 waits for the health check (`/readyz`, database included), rolling back if it fails. The container is one Node
 server (`node server/index.js`, D26) on port 3000 that serves the SPA and `/api`, non-root, with no published ports;
-cloudflared reaches it as `tudocuatui:3000` on the `web` network. Cloudflare Access protects the site and the server
-verifies its JWT. `DATABASE_URL` lives only in the host env file
-(`/Users/mingming/.config/tudocuatui/tudocuatui.env`); the Access team domain and AUD (not secret) are in the
-compose file. There are no per-PR preview deploys; the CI `image` job builds the image and checks it, including
+cloudflared reaches it as `tudocuatui:3000` on the `web` network. Users sign in in the app with mmlabs Identity and the
+server verifies their bearer tokens. `DATABASE_URL` lives only in the host env file
+(`/Users/mingming/.config/tudocuatui/tudocuatui.env`); `TUDO_AUTH_MODE`, `MM_IDENTITY_ISSUER` and `TUDO_OWNER_SUB`
+(not secret) are in the compose file. There are no per-PR preview deploys; the CI `image` job builds the image and checks it, including
 `migrate` and `/readyz` against a throwaway Postgres, on every PR. The first Node release is M-14 in
 `work/ming-todo.md` (the setup steps below are M-4, M-12, M-14). Write names, never values, into the repo.
 
@@ -58,14 +58,15 @@ release PR by hand. To go back later, release a new version; do not reuse a tag,
 `apps/tudocuatui/` of the deployment repo in a non-`release/` PR (migrations stay).
 
 **Run the image locally** (needs Docker): `docker build -t tudo . && docker run --rm -p 3000:3000 tudo`, then open
-`http://localhost:3000`. The server needs Access values in production, so add
-`-e CF_ACCESS_TEAM_DOMAIN=x.cloudflareaccess.com -e CF_ACCESS_AUD=x` (every `/api` call is then 401), plus
-`-e DATABASE_URL=...` for `/readyz`. Never set `TUDO_ACCESS_DISABLED`: production refuses it.
+`http://localhost:3000`. The server needs the identity config, so add
+`-e MM_IDENTITY_ISSUER=https://api.mmlabs.online -e TUDO_OWNER_SUB=<uuid>` (every `/api` call without a bearer is
+then 401), plus `-e DATABASE_URL=...` for `/readyz`.
 
 **Troubleshooting**: `release` fails at "guards" with the reason in the log. 502 from Cloudflare means the route is
 not `http://tudocuatui:3000` or the container is not on the `web` network. Unhealthy container: `docker logs` on the
-server. Container exits with code 2: the Access values are missing. Every `/api` call is 401: the container cannot
-reach `<team>.cloudflareaccess.com` (JWKS) or the AUD is wrong. A `.env*` file never enters the image
+server. Container exits with code 2: the identity config is missing (`MM_IDENTITY_ISSUER`, `TUDO_OWNER_SUB`) or
+`TUDO_AUTH_MODE` is not `identity`. Every `/api` call is 401 while signed in: the container cannot reach
+`api.mmlabs.online` (JWKS). A `.env*` file never enters the image
 (`.dockerignore`).
 
 ## Code map
@@ -78,7 +79,7 @@ reach `<team>.cloudflareaccess.com` (JWKS) or the AUD is wrong. A `.env*` file n
 | `src/data/repo.http.ts` | API implementation of `WardrobeRepo` (calls `/api`) |
 | `src/data/mappers.ts` | Maps Vietnamese UI labels ↔ DB enum ids |
 | `src/data/photos.ts` | Client-side image resize before upload |
-| `server/` | Node API (`/api`, `/healthz`, `/readyz`), serves `dist/`; Access JWT check, Drive photos, AI settings |
+| `server/` | Node API (`/api`, `/healthz`, `/readyz`), serves `dist/`; Identity token check, Drive photos, AI settings |
 | `db/migrations/` | Postgres schema, applied by `node server/migrate.js` |
 | `docs/data-model.md` | ERD and design decisions |
 | `Dockerfile`, `.dockerignore` | Production image: Vite build + Node server (`server/`) on :3000, non-root |
