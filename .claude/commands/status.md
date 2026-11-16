@@ -11,7 +11,8 @@ Read `work/backlog.md`, each listed `work/tickets/*/ticket.md` (state, attempts,
 3. `DONE` tickets: show the PR link and its state (`gh pr view <url> --json state,mergeable`). Flag a `DONE`
    ticket with no PR link, and PRs with merge conflicts.
 4. Active claims (`Claimed by` set), flagging any older than 12 hours.
-5. The next ticket `/run` would pick, or why nothing is runnable.
+5. Open bugs (`BUG-xxx` not `MERGED`), by severity S1/S2/S3, with `Found in`.
+6. The next ticket `/run` would pick, or why nothing is runnable.
 
 If backlog.md and a ticket.md disagree on state, report the mismatch. The only file change allowed: sync the board on `main`
 (pull first): set merged tickets to `MERGED`, mirror states from ticket branches, commit `chore: board — sync`,

@@ -63,7 +63,7 @@ One orchestrated loop per ticket, the same as stoktok. **The main session is the
 (subagents cannot dispatch other subagents), driven by `/run`.
 
 ```
-/ticket "..."  →  BACKLOG
+/ticket "..."  →  BACKLOG      (/bug "..." → BACKLOG, a BUG-xxx ticket)
 /run [ID]      →  CONSULT (optional) → PLAN → [plan approval, High tickets only] → IMPLEMENT → REVIEW ─PASS→ DONE → PR
                                                                                      ^                  │
                                                                                      └──── REWORK ──────┘  max 2 reworks → ESCALATED
@@ -87,6 +87,7 @@ Ming merges the PR → MERGED (set by /run or /status when they see the merge)
 | `/ticket <description>` | Create `work/tickets/<ID>/ticket.md` and a backlog row |
 | `/run [ID]` | Run the full loop for a ticket (no ID = first runnable ticket in backlog order) |
 | `/status` | Board summary; marks merged PRs as `MERGED` |
+| `/bug <description>` | Record a bug as `work/tickets/BUG-<n>/ticket.md` (repro, expected/actual, root cause) and a backlog row, then asks: A) open the record PR and stop, B) record another bug (asks again), C) fix the batch now and open one PR |
 | `/solo <description>` | Small direct change outside the loop (still must pass checks; logged) |
 
 ### Agents (`.claude/agents/`)
@@ -107,7 +108,7 @@ work/backlog.md          board: one row per ticket, in run order — changed onl
 work/decisions.md        decisions taken for this project (dated)
 work/ming-todo.md        human steps (M-n), ticked by Ming
 work/solo-log.md         /solo changes
-work/templates/          ticket, plan, impl-log, review, escalation
+work/templates/          ticket, bug, plan, impl-log, review, escalation
 work/tickets/<ID>/
   ticket.md              fields, goal, scope, acceptance criteria, notes, Handoff
   consult-<agent>.md     specialist notes (optional)
@@ -115,7 +116,8 @@ work/tickets/<ID>/
 ```
 
 Ticket IDs: `F-xxx` / `F-xxx.n` from the feature list (`.n` = a split); `T-xxx` for tickets that are not in
-the feature list. States: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus
+the feature list; `BUG-xxx` for bugs (`/bug`, template `work/templates/bug.md`, D42): every bug fix
+ships with a regression test that fails before the fix. States: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus
 `REWORK`, `BLOCKED`, `ESCALATED`.
 
 Shared state (workspace rule §9): `Claimed by` in ticket.md is set to `claude@<ISO timestamp>` when a run
