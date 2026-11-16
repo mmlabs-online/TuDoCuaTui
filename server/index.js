@@ -4,18 +4,10 @@
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AccessConfigError } from "./access.js";
 import { AiConfigError, initAi } from "./ai/config.js";
 import { importKek } from "./ai/crypto.js";
 import { createApp } from "./app.js";
-import {
-  AuthConfigError,
-  authLabel,
-  createAuth,
-  loadAuthConfig,
-  ownerSubOf,
-  requestAuth,
-} from "./auth.js";
+import { AuthConfigError, authLabel, createAuth, loadAuthConfig, ownerSubOf } from "./auth.js";
 import { createPool } from "./db.js";
 import { createDriveClient, DriveConfigError, loadDriveConfig } from "./drive.js";
 import { IdentityConfigError } from "./identity.js";
@@ -37,19 +29,12 @@ let authConfig;
 try {
   authConfig = loadAuthConfig(process.env);
 } catch (err) {
-  const known =
-    err instanceof AuthConfigError ||
-    err instanceof AccessConfigError ||
-    err instanceof IdentityConfigError;
+  const known = err instanceof AuthConfigError || err instanceof IdentityConfigError;
   console.error(known ? `config error: ${err.message}` : "config error");
   process.exit(2);
 }
 const auth = createAuth(authConfig);
-console.log(
-  authConfig.mode === "access" && authConfig.access.mode === "off"
-    ? "auth: access (dev, off)"
-    : `auth: ${authConfig.mode}`,
-);
+console.log(`auth: ${authConfig.mode}`);
 
 // Drive is not part of /readyz: a Drive outage must not take the whole app out of rotation.
 /** @type {ReturnType<typeof createDriveClient> | null} */
@@ -66,7 +51,7 @@ try {
 /** @type {{ kek: import("./ai/crypto.js").AiKek } | null} */
 let ai = null;
 try {
-  const r = await initAi(process.env, { requestAuth: requestAuth(authConfig), importKek });
+  const r = await initAi(process.env, { importKek });
   ai = r.ai;
   console.log(r.line);
 } catch (err) {

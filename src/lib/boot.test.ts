@@ -68,10 +68,8 @@ describe("needsAuth", () => {
     expect(needsAuth({ mode: "api", auth: "identity" }, null)).toBe(true);
     expect(needsAuth({ mode: "api", auth: "identity" }, verify)).toBe(true);
     expect(needsAuth({ mode: "api", auth: "identity" }, reset)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: "access" }, verify)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: "access" }, reset)).toBe(true);
+    expect(needsAuth({ mode: "api", auth: null }, verify)).toBe(true);
     expect(needsAuth({ mode: "api", auth: null }, reset)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: "access" }, null)).toBe(false);
     expect(needsAuth({ mode: "api", auth: null }, null)).toBe(false);
   });
 });

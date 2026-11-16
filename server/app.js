@@ -33,7 +33,7 @@ export function createApp({
   ai = null,
   drive = null,
   auth,
-  authMode = "access",
+  authMode = "identity",
   log,
   now = () => Date.now(),
   ownerSub = null,

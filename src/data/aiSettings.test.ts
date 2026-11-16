@@ -71,9 +71,10 @@ describe("createHttpAiSettings", () => {
     expect([e.code, e.status]).toEqual(["network", 0]);
   });
 
-  it("maps an opaque redirect to unauthorized", async () => {
+  it("maps a redirect to internal (not unauthorized)", async () => {
     const res = { type: "opaqueredirect", status: 0, ok: false } as unknown as Response;
-    expect((await codeOf(make(() => res).client.get())).code).toBe("unauthorized");
+    const e = await codeOf(make(() => res).client.get());
+    expect([e.code, e.status]).toEqual(["internal", 0]);
   });
 
   it("maps server error codes and keeps the requestId", async () => {

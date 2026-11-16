@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { PhotoLoader } from "./photoUrls";
 
-/** Null in local and Access mode: photos then render from their plain URL. */
+/** Null in local mode: photos then render from their plain URL. */
 export const PhotoLoaderContext = createContext<PhotoLoader | null>(null);
 
 type Resolved = { src: string; url: string | null; failed: boolean };

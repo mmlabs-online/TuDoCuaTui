@@ -54,7 +54,6 @@ export function createHttpAiSettings(
       if (e instanceof ApiError && e.status === 401) throw new AiSettingsError(401, "unauthorized");
       throw new AiSettingsError(0, "network");
     }
-    if (res.type === "opaqueredirect") throw new AiSettingsError(401, "unauthorized");
     let json: unknown;
     try {
       json = await res.json();

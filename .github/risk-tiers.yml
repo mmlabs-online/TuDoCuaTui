@@ -6,7 +6,7 @@ default: medium
 high:
   # DB migrations
   - "db/migrations/**"
-  # API, Access JWT check, DB access, Drive and AI secrets
+  # API, Identity token check, DB access, Drive and AI secrets
   - "server/**"
   # Production deploy workflows
   - ".github/workflows/deploy*"

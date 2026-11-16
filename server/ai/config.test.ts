@@ -36,38 +36,28 @@ describe("loadAiConfig", () => {
 
 describe("initAi", () => {
   const kek = {} as never;
-  const deps = (requestAuth: boolean) => ({ requestAuth, importKek: vi.fn(async () => kek) });
+  const deps = () => ({ importKek: vi.fn(async () => kek) });
 
-  it("valid + request auth on -> configured", async () => {
-    const d = deps(true);
+  it("valid -> configured", async () => {
+    const d = deps();
     const env: Record<string, string | undefined> = { AI_KEK: valid };
     expect(await initAi(env, d)).toEqual({ ai: { kek }, line: "ai configured" });
     expect(d.importKek).toHaveBeenCalledWith(valid);
     expect("AI_KEK" in env).toBe(false);
   });
 
-  it("valid + request auth off -> disabled, no import", async () => {
-    const d = deps(false);
-    const env: Record<string, string | undefined> = { AI_KEK: valid };
-    expect(await initAi(env, d)).toEqual({ ai: null, line: "ai disabled: request auth off" });
-    expect(d.importKek).not.toHaveBeenCalled();
-    expect("AI_KEK" in env).toBe(false);
-  });
-
   it("unset or empty -> not configured, no import", async () => {
     for (const env of [{}, { AI_KEK: "" }] as Record<string, string | undefined>[]) {
-      const d = deps(true);
+      const d = deps();
       expect(await initAi(env, d)).toEqual({ ai: null, line: "ai not configured" });
       expect(d.importKek).not.toHaveBeenCalled();
       expect("AI_KEK" in env).toBe(false);
     }
   });
 
-  it("malformed throws AiConfigError even with request auth off, and AI_KEK is removed", async () => {
-    for (const requestAuth of [true, false]) {
-      const env: Record<string, string | undefined> = { AI_KEK: "not-a-kek" };
-      await expect(initAi(env, deps(requestAuth))).rejects.toBeInstanceOf(AiConfigError);
-      expect("AI_KEK" in env).toBe(false);
-    }
+  it("malformed throws AiConfigError, and AI_KEK is removed", async () => {
+    const env: Record<string, string | undefined> = { AI_KEK: "not-a-kek" };
+    await expect(initAi(env, deps())).rejects.toBeInstanceOf(AiConfigError);
+    expect("AI_KEK" in env).toBe(false);
   });
 });

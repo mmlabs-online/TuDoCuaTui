@@ -44,7 +44,6 @@ export function createHttpRepo(
     } catch (e) {
       throw e instanceof ApiError ? e : new ApiError(0, "network");
     }
-    if (res.type === "opaqueredirect") throw new ApiError(401, "unauthorized");
     if (res.status === 204) return null;
     let json: unknown;
     try {

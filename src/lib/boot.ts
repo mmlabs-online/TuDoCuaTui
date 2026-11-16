@@ -19,7 +19,7 @@ export function takeTokenHash(
   return { page, hash };
 }
 
-/** The auth chunk loads for the identity gate, or for a token-page visit in api mode (identity or access). */
+/** The auth chunk loads for the identity gate, or for a token-page visit in api mode. */
 export function needsAuth({ mode, auth }: Runtime, link: TokenLink | null): boolean {
   if (mode !== "api") return false;
   return auth === "identity" || link !== null;

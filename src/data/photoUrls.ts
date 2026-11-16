@@ -70,7 +70,6 @@ export function createPhotoLoader({
         redirect: "manual",
         signal: e.ctrl.signal,
       });
-      if (res.type === "opaqueredirect") throw new ApiError(401, "unauthorized");
       if (!res.ok) throw new ApiError(res.status, "unexpected");
       if (!(res.headers.get("content-type") ?? "").toLowerCase().startsWith("image/")) {
         throw new ApiError(res.status, "unexpected");

@@ -7,9 +7,11 @@
 #
 # T-011/T-015 (D23/D24/D26): copy this file with the FIRST NODE release (its release/tudocuatui-vX.Y.Z PR): M-14
 # in TuDo work/ming-todo.md. The nginx image pinned before has no migrate command and no database.
-# NODE_ENV and CF_ACCESS_* below are not secret (M-13). Never add TUDO_ACCESS_DISABLED: production refuses it.
-# The server verifies Cloudflare Access JWTs; it fetches the keys from <team>.cloudflareaccess.com, so the
-# container needs egress through the `tunnel` (web) network. If that fails every /api call is 401.
+# NODE_ENV, TUDO_AUTH_MODE and MM_IDENTITY_ISSUER below are not secret. The server verifies mmlabs Identity bearer
+# tokens (T-019.9: Identity only); it fetches the keys (JWKS) from api.mmlabs.online, so the container needs egress
+# through the `tunnel` (web) network. If that fails every /api call is 401.
+# Keep TUDO_AUTH_MODE: identity while a rollback to an image <= v0.2.6 must stay possible: those images default to
+# the removed Access mode when it is unset and exit 2.
 #
 # One Node server on :3000 serves the SPA and /api; no ports published: cloudflared reaches it as `tudocuatui`
 # on the network (Cloudflare published application tudocuatui.mmlabs.online -> http://tudocuatui:3000).
@@ -46,8 +48,8 @@ services:
     environment:
       NODE_ENV: production
       TUDO_OWNER_SUB: *owner_sub
-      CF_ACCESS_TEAM_DOMAIN: figen.cloudflareaccess.com
-      CF_ACCESS_AUD: dc2cd11d34339393549e3d3325512e49d2f44f8ae2dd0403ccf701152d77cfa7
+      TUDO_AUTH_MODE: identity
+      MM_IDENTITY_ISSUER: https://api.mmlabs.online
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     logging:

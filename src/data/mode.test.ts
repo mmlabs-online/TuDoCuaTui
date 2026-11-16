@@ -6,6 +6,9 @@ afterEach(() => vi.useRealTimers());
 const res = (body: string, type = "application/json", status = 200) =>
   new Response(body, { status, headers: { "Content-Type": type } });
 const okRes = () => res('{"status":"ok"}');
+// what fetch returns for a 3xx with redirect: "manual"
+const redirectRes = () =>
+  ({ type: "opaqueredirect", ok: false, status: 0, headers: new Headers() }) as unknown as Response;
 const mk = (...impl: Array<() => Response | Promise<Response>>) => {
   const fn = vi.fn();
   impl.forEach((i) => fn.mockImplementationOnce(async () => i()));
@@ -36,9 +39,9 @@ describe("detectMode", () => {
     expect(fn.mock.calls[0][1].redirect).toBe("manual");
   });
 
-  test("opaqueredirect (expired Access session) -> api", async () => {
-    const fn = mk(() => ({ type: "opaqueredirect", ok: false, status: 0 }) as unknown as Response);
-    expect(await detect(fn)).toBe("api");
+  test("a redirect -> local, no retry", async () => {
+    const fn = mk(redirectRes);
+    expect(await detect(fn)).toBe("local");
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
@@ -89,28 +92,24 @@ describe("detectRuntime", () => {
   const rt = (fn: ReturnType<typeof vi.fn>, dev = false) =>
     detectRuntime({ fetchFn: fn as unknown as typeof fetch, dev });
 
-  test("auth identity / access from /healthz", async () => {
+  test("auth identity from /healthz", async () => {
     expect(await rt(mk(() => res('{"status":"ok","auth":"identity"}')))).toEqual({
       mode: "api",
       auth: "identity",
     });
-    expect(await rt(mk(() => res('{"status":"ok","auth":"access"}')))).toEqual({
-      mode: "api",
-      auth: "access",
-    });
   });
 
-  test("missing or unknown auth -> null", async () => {
+  test("missing or unknown auth -> null (also auth access from an old server)", async () => {
+    expect((await rt(mk(() => res('{"status":"ok","auth":"access"}')))).auth).toBeNull();
     expect((await rt(mk(okRes))).auth).toBeNull();
     expect((await rt(mk(() => res('{"status":"ok","auth":"bogus"}')))).auth).toBeNull();
     expect((await rt(mk(() => res('{"status":"ok","auth":1}')))).auth).toBeNull();
   });
 
-  test("opaqueredirect -> api with null auth", async () => {
-    const r = await rt(
-      mk(() => Object.defineProperty(new Response(""), "type", { value: "opaqueredirect" })),
-    );
-    expect(r).toEqual({ mode: "api", auth: null });
+  test("a redirect -> local, no retry", async () => {
+    const fn = mk(redirectRes);
+    expect(await rt(fn)).toEqual({ mode: "local", auth: null });
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 
   test("SPA host (html) -> local; dev -> local without fetch", async () => {

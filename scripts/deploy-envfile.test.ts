@@ -175,7 +175,7 @@ d("envfile step (real run block)", () => {
       KEK.slice(0, 10) + "_" + KEK.slice(11),
       KEK.slice(0, 10) + " " + KEK.slice(11),
       KEK + "\n",
-      `${KEK}\nTUDO_ACCESS_DISABLED=1`,
+      `${KEK}\nNODE_ENV=development`,
       KEK.slice(0, 10) + "$" + KEK.slice(11),
       KEK.slice(0, 10) + '"' + KEK.slice(11),
     ];
@@ -222,7 +222,7 @@ d("envfile step (real run block)", () => {
   });
 
   it("bad characters in each value: exit 1, file unchanged, value not in output", () => {
-    const bads = ["x\nTUDO_ACCESS_DISABLED=1", "a b", 'a"b', "a$b", "a=b", "a#b"];
+    const bads = ["x\nNODE_ENV=development", "a b", 'a"b', "a$b", "a=b", "a#b"];
     for (const n of NAMES) {
       for (const bad of bads) {
         const t = setup();

@@ -139,7 +139,7 @@ describe("createPhotoLoader", () => {
       },
     ],
     [
-      "opaqueredirect",
+      "redirect",
       async () => Object.defineProperty(new Response(""), "type", { value: "opaqueredirect" }),
     ],
     [

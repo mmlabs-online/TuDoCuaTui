@@ -23,7 +23,8 @@ void detectRuntime().then(async (rt) => {
     );
     return;
   }
-  // Lazy: local mode and access mode never load the auth code. A failed load never falls back to local.
+  // Lazy: local mode never loads the auth code (nor api mode without identity auth, outside a token page).
+  // A failed load never falls back to local.
   const { default: AuthRoot } = await import("./features/auth/AuthRoot");
   root.render(
     <React.StrictMode>
