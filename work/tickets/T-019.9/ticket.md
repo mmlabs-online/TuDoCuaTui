@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-019.4, T-019.7, T-019.8, T-019.13, T-019.14 |
 | Needs Ming | M-21 |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-13 |
 | Claimed by | claude@2026-11-16T13:32:42Z |
 | PR | — |
@@ -53,4 +53,4 @@ proposal* → T-019.9). Decisions D31–D34. Ming items in the plan are numbered
 ### 2026-11-16 — claude — BLOCKED
 - Done: architect consult (`consult-software-architect.md`); plan READY (`plan.md`, A1–A13, ~30 files, M-22 runbook text and new M-26 ops item).
 - In progress / next: Ming approves the plan (or overturns assumptions) → implement → review → PR. On DONE, copy the plan's M-22 text and M-26 into `work/ming-todo.md`.
-- Gotchas: keep `TUDO_AUTH_MODE: identity` in the deployment compose while a rollback to ≤ v0.2.6 is possible (old images default to Access and exit 2).
+- Gotchas: keep `TUDO_AUTH_MODE: identity` in the deployment compose while a rollback to any pre-T-019.9 image (currently ≤ v0.2.8) is possible (old images default to Access and exit 2).

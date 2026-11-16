@@ -260,9 +260,19 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
       the Access policy (A16). Rollback: `TUDO_AUTH_MODE: access`.
       2026-11-15 (D39): Access is already gone; identity switch PR https://github.com/mmlabs-online/deployment/pull/71 (v0.2.6). After deploy: `/healthz` shows `auth: identity`, sign in in a private window, re-enter the Claude key.
-- [ ] **M-22 — Remove Cloudflare Access (last step):** only after T-019.9 is released and M-21 verified. **Do not run M-22 until T-019.13 and T-019.14 are released, and T-019.10 (with the photo privacy notice) is released** (D38). If Access must go earlier, register `tudocuatui` with `join_policy = closed` and amend D31. Then: delete the
-      Access application for `tudocuatui.mmlabs.online`; check incognito shows TuDo's sign-in and `/api/items` → 401.
-      2026-11-15 (D39): the Access application is already gone (get-identity 404). Remaining: T-019.9 code cleanup; then tick.
+- [ ] **M-22 — Finish the Access removal** (after the release that contains T-019.9, PR on branch `claude/magical-cori-2ssw8l`; M-21 done):
+      1. Merge the T-019.9 release PR on `mmlabs-online/deployment` as usual. No compose change is needed: the new image accepts the current compose.
+      2. `curl -s https://tudocuatui.mmlabs.online/healthz` → `{"status":"ok","auth":"identity"}`.
+      3. `curl -i https://tudocuatui.mmlabs.online/api/items` → `401`.
+      4. In a private window the site shows TuDo's sign-in (not a Cloudflare Access page). Sign in on the phone: items and photos load.
+      5. Cloudflare Zero Trust → Access → Applications: no application for `tudocuatui.mmlabs.online` (already removed per D39; confirm only).
+      6. Tick. The leftover `CF_ACCESS_*` lines in the deployment compose are M-26 and do not block this tick.
+      Rollback: release an older image by the usual path. Keep `TUDO_AUTH_MODE: identity` in the compose while a rollback to any image released before T-019.9 (currently ≤ v0.2.8) may be needed; those images default to Access mode when the variable is unset and the site would be down.
+- [ ] **M-26 — Deployment repo: drop the Access variables** (`mmlabs-online/deployment`, `apps/tudocuatui/compose.yml`; any time, before or after the T-019.9 release):
+      - Remove `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` from the `tudocuatui` service.
+      - Update the header comments: no Access JWT; egress to `api.mmlabs.online` for JWKS; no `TUDO_ACCESS_DISABLED`.
+      - **Keep** `TUDO_AUTH_MODE: identity` and `MM_IDENTITY_ISSUER: https://api.mmlabs.online` (pre-T-019.9 images need them on a rollback).
+      - Merging redeploys the same image; check `/healthz` → `auth: identity` afterwards. The repo mirror `deploy/deployment-repo/apps/tudocuatui/compose.yml` shows the target shape (its comment says "≤ v0.2.6"; read it as "any image before T-019.9, currently ≤ v0.2.8").
 
 ### F-701 — photo tagging
 
