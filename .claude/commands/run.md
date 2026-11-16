@@ -13,7 +13,7 @@ You are the **orchestrator** for ticket `$ARGUMENTS`.
 
 ## 0. Select and prepare
 1. `git switch main && git pull --ff-only`. Refresh the board first: for every ticket whose `ticket.md` on its branch or on `main` has a PR link, check it (`gh pr view <url> --json state,mergedAt`); if merged, set `MERGED` in the board row (and in `ticket.md` on `main` if it was merged with `DONE`). Also mirror the current state of open tickets from their branches into the board. Commit `chore: board — sync` on `main` and push if anything changed.
-2. If `$ARGUMENTS` is empty, pick the **first row in `work/backlog.md` order** that is runnable:
+2. If `$ARGUMENTS` is empty, pick the first runnable `BUG-xxx` with `Severity: S1`; otherwise the **first row in `work/backlog.md` order** that is runnable:
    - state `BACKLOG`, or `BLOCKED` whose blocking questions / plan approval are now answered in ticket.md (*Notes / answers from Ming*);
    - every ticket in its `Depends on` is `MERGED`;
    - every `M-n` in its `Needs Ming` is ticked (`- [x]`) in `work/ming-todo.md`;
@@ -23,6 +23,11 @@ You are the **orchestrator** for ticket `$ARGUMENTS`.
 4. Make sure the working tree is clean (`git status --porcelain`). If not, stop and report.
 5. Create or switch to branch `ticket/<ID>` from the latest `origin/main`. If the environment mandates a different working branch (e.g. a cloud session's designated branch), use that branch instead and say so in the report.
 6. In ticket.md set `Claimed by: claude@<ISO timestamp>` and state `PLANNING`. Also set the board row to `PLANNING` on `main` (board rule) before switching to the ticket branch. Commit `work/` (`<ID>: start planning`) and push the branch, so another agent sees the claim.
+
+## Bug tickets (`BUG-xxx`, `Type: bug`)
+Same loop, plus: the planner's first test is a **regression test** that reproduces the bug (when jsdom cannot see it — CSS, CSP,
+real browser APIs — add a one-off Playwright check recorded in impl-log, D42); the implementer writes it first and records in impl-log that it failed
+before the fix; the reviewer gives REWORK without that test. S1 bugs are picked before other runnable tickets.
 
 ## 1. Consult (only for the ticket's `Areas`)
 | Area | Subagent |

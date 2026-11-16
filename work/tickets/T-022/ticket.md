@@ -21,7 +21,7 @@ New passwords (sign-up and reset password) need at least 6 characters instead of
 
 ## Feature reference
 No `docs/feature-list.md` section sets the length; 12 came from org-admin-api `password_min_length` (T-019.11 plan, `src/features/auth/validation.ts:3`).
-Ming, 2026-11-16: "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự". Needs a decision row (D42) when planned.
+Ming, 2026-11-16: "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự". Needs a new decision row when planned.
 
 ## Scope
 - `PASSWORD_MIN` 12 → 6 in `src/features/auth/validation.ts` (sign-up and reset/new-password validation).

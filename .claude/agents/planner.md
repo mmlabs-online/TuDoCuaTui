@@ -31,5 +31,10 @@ Write **only** `work/tickets/<ID>/plan.md`, using `work/templates/plan.md`. Do n
 7. **Hotspots.** If the ticket edits `src/App.tsx` or a file another open ticket (state `IN_PROGRESS`, `REVIEW` or `DONE`) also edits, note it under `## Assumptions` so the orchestrator can expect a rebase.
 8. **Blocking ambiguity → stop.** If a decision only Ming can make would change the plan and `work/decisions.md` does not answer it, write the questions under `## Blocking questions` (each with a proposed default), set `Status: BLOCKED` at the top of plan.md, and finish. Non-blocking assumptions go under `## Assumptions`.
 
+9. **Bug tickets** (`BUG-xxx`): the feature reference is the bug report in ticket.md (Report, Steps, Expected,
+   Actual, Root cause). Confirm or correct the root cause with file:line. The first test in `## Tests to write` is a
+   regression test that reproduces the bug and fails before the fix; say whether it is unit, or unit plus a one-off
+   Playwright check for CSS, CSP and real browser APIs (D42: Playwright is not a repo dependency yet). Fix the cause only; similar issues elsewhere go to follow-ups.
+
 ## Done when
 `plan.md` exists with every section of the template filled (or explicitly "None"), and its status line is `READY` or `BLOCKED`.
