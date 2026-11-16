@@ -56,6 +56,7 @@ Ming, 2026-11-16, screenshot of the "Bỏ thay đổi?" dialog: "Tiếp tục s�
 - Test level: one-off Playwright check (jsdom does not apply this CSS).
 
 ## Notes / answers from Ming
+- 2026-11-16 (orchestrator): the fix shipped in T-024 (PR #64, merged): `.btn-danger-fill` gets a fixed red fill with white text in both modes. Still open per D42: a regression test that fails before the fix (T-024 only has a Playwright contrast check).
 - 2026-11-16 (Ming): screenshot of "Bỏ thay đổi?" with the confirm button unreadable — "ghi nhận lỗi này".
 
 ## Handoff
