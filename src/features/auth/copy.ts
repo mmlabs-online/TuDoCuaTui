@@ -1,4 +1,3 @@
-import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
 import type { AuthError, AuthErrorCode } from "./types";
 
 export type FieldErrorCode = "required" | "invalid" | "tooShort" | "tooLong" | "mismatch";
@@ -61,7 +60,6 @@ export const AUTH_COPY = {
     continue: (email: string) => `Tiếp tục với ${email}`,
     joining: "Đang tham gia…",
     otherAccount: "Dùng tài khoản khác",
-    privacy: PHOTO_PRIVACY_NOTICE,
   },
   gate: {
     checking: "Đang kiểm tra phiên đăng nhập…",

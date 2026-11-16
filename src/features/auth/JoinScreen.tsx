@@ -11,7 +11,6 @@ export function JoinScreen({ email, status, error, onJoin, onUseOtherAccount }: 
   return (
     <AuthLayout title={copy.title}>
       <p className="text-sm">{copy.body}</p>
-      <AuthNotice kind="info">{copy.privacy}</AuthNotice>
       {error && <AuthNotice kind="error">{authErrorMessage(error)}</AuthNotice>}
       <Btn type="button" kind="primary" onClick={onJoin} disabled={busy}>
         <span className="whitespace-normal break-all">
