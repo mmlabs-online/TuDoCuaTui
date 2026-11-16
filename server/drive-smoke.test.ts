@@ -71,7 +71,19 @@ describe("runSmoke against a fake Drive", () => {
       throw new Error("x");
     };
     expect(await runSmoke({ drive, log })).toBe(1);
-    expect(lines.some((l) => l.startsWith("file left behind: fakefile"))).toBe(true);
+    expect(lines.some((l) => l.startsWith("file left behind: tudo-smoke-"))).toBe(true);
+    expect(lines.some((l) => l.includes("fakefile"))).toBe(false);
+  });
+
+  it("move that drops existing appProperties (replace instead of merge) returns 1", async () => {
+    const { drive, lines, log } = await setup();
+    const real = drive.moveFile;
+    drive.moveFile = async (id, o) => {
+      await real(id, o);
+      fake.files.get(id)!.meta.appProperties = o.appProperties;
+    };
+    expect(await runSmoke({ drive, log })).toBe(1);
+    expect(lines).toContain("move: FAIL error");
   });
 
   it("a file that is still readable after delete returns 1", async () => {

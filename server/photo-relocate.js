@@ -122,9 +122,11 @@ export async function runRelocate({
   }
 
   let failed = false;
-  if (listed.length > 0 && candidates.length + mismatch === 0) {
+  if (rows.length > 0 && listed.length > 0 && candidates.length + mismatch === 0) {
     log("refusing: no listed file is referenced (check DATABASE_URL)");
     if (apply) return 1;
+  } else if (listed.length > 0 && candidates.length + mismatch === 0) {
+    log("nothing to move: no listed file is referenced");
   }
 
   let moved = 0;

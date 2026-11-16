@@ -243,11 +243,23 @@ describe.skipIf(!dbAvailable)("photo relocation against real Postgres and a fake
 
   it("apply refuses when no listed file is referenced", async () => {
     putFile(1);
+    await addRow(2); // the DB has rows, but none matches a listed file
     const apply = await run({ apply: true });
     expect(apply.code).toBe(1);
     expect(apply.lines).toContain("refusing: no listed file is referenced (check DATABASE_URL)");
     expect(parentsOf(1)).toEqual([FAKE.folderId]);
     expect((await run()).code).toBe(0); // a dry-run only reports it
+  });
+
+  it("only unreferenced files and an empty DB: exit 0, nothing to move", async () => {
+    putFile(1);
+    const apply = await run({ apply: true });
+    expect(apply.code).toBe(0);
+    expect(apply.lines).toContain("nothing to move: no listed file is referenced");
+    expect(apply.lines).not.toContain(
+      "refusing: no listed file is referenced (check DATABASE_URL)",
+    );
+    expect(parentsOf(1)).toEqual([FAKE.folderId]);
   });
 
   it("output never contains Drive file or folder ids, tokens, secrets or Google text", async () => {

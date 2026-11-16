@@ -40,3 +40,27 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No: the two new product files are about 340 lines together; the rest is wiring and tests.
 - Diff size: tracked files +690 / -47, plus new files (driveFolders.js, photo-relocate.js, three new test files). Nothing committed.
+
+## Attempt 2 (REWORK, orchestrator note items 1-4)
+
+### Changes
+1. `server/drive-smoke.js`: smoke file created with `{tudo:"smoke", a:"1"}`, moved with `{b:"1"}`; after the move the smoke lists the folder and fails ("appProperties not merged") unless both `a` and `b` survive.
+2. `server/photo-relocate.js`: the wrong-DB refusal (exit 1 on apply) now needs `rows.length > 0`; with an empty DB and only unreferenced files it logs "nothing to move: no listed file is referenced" and exits 0.
+3. `server/drive-smoke.js`: "left behind" lines print the file/folder name, not the Drive id.
+4. `server/scoping.test.ts`: explicit ALLOW entry (with reason) for the cross-user SELECT in `photo-relocate.js`; the stale-entry check now looks at all literals (that SELECT names `user_id`, so it is not in `unscoped()` output).
+
+### Tests
+- `server/test/fake-drive.ts`: list tag query accepts `tudo=smoke` as well as `app=tudo` (the fake already merged appProperties on PATCH, like real Drive).
+- `drive-smoke.test.ts`: +1 (replace-instead-of-merge move returns 1, "move: FAIL error"); leftover test asserts the name, never the id.
+- `photo-relocate.db.test.ts`: +1 (only unreferenced files, empty DB: exit 0, "nothing to move"); the refusal test now adds a DB row that matches no listed file, so it still exits 1.
+
+### Checks (actual)
+- typecheck clean; format:check "All matched files use the correct format."; build green.
+- `pnpm test` without DB: 97 files passed, 10 skipped; 1247 tests passed, 203 skipped.
+- With throwaway Postgres 16 (trust auth, port 55432, stopped and deleted): 106 files passed, 1 failed; 1449 passed, 1 failed (the known `migrate.cli.test.ts` wrong-password test, trust auth, unrelated).
+
+### Touched files
+`server/drive-smoke.js`, `server/photo-relocate.js`, `server/scoping.test.ts`, `server/test/fake-drive.ts`, `server/drive-smoke.test.ts`, `server/photo-relocate.db.test.ts`, this log. Not committed.
+
+### Follow-ups
+Unchanged (F3 cache TTL, F5 itemId check, duplicate/empty folders, tighten `unscoped()` to `user_id = $n`).

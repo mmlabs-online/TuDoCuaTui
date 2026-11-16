@@ -50,6 +50,11 @@ const ALLOW = [
     includes: "from item_photos where drive_file_id = $1",
     reason: "orphan sweep re-check before a delete",
   },
+  {
+    file: "photo-relocate.js",
+    includes: "from item_photos where drive_file_id is not null",
+    reason: "relocate: one Drive root, the DB of all users decides each file's owner",
+  },
 ];
 
 const files = [...readdirSync(serverDir, { recursive: true, encoding: "utf8" })]
@@ -88,7 +93,7 @@ describe("user_id scoping guard", () => {
 
   it("allow-list entries are not stale", () => {
     for (const a of ALLOW) {
-      const found = unscoped(readFileSync(path.join(serverDir, a.file), "utf8")).some((l) =>
+      const found = literals(readFileSync(path.join(serverDir, a.file), "utf8")).some((l) =>
         l.includes(a.includes),
       );
       expect(found, `${a.file}: ${a.includes}`).toBe(true);

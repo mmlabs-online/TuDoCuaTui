@@ -79,7 +79,7 @@ export async function startFakeDrive() {
         const q = sp.get("q") ?? "";
         const FM = "application/vnd.google-apps.folder";
         const head = "^'([A-Za-z0-9_-]+)' in parents and trashed = false and ";
-        const tail = "appProperties has \\{ key='app' and value='tudo' \\}$";
+        const tail = "appProperties has \\{ key='(app|tudo)' and value='(tudo|smoke)' \\}$";
         const file = new RegExp(`${head}mimeType != '${FM}' and ${tail}`).exec(q);
         const sub = new RegExp(
           `${head}mimeType = '${FM}' and appProperties has \\{ key='app' and value='tudo-folder' \\}$`,
@@ -100,7 +100,7 @@ export async function startFakeDrive() {
             (f.meta.parents as string[] | undefined)?.includes(m[1]) &&
             f.meta.trashed !== true &&
             (file
-              ? modes.has("list-ignore-tag") || props(f)?.app === "tudo"
+              ? modes.has("list-ignore-tag") || props(f)?.[file[2]] === file[3]
               : props(f)?.app === "tudo-folder" && (!user || props(f)?.userId === user[2])),
         );
         const page = all.slice(offset, offset + size);

@@ -29,14 +29,16 @@ export async function runSmoke({ drive, log = console.log, now = () => new Date(
   };
 
   if ((await step("checkFolder", () => drive.checkFolder())) === undefined && failed) return 1;
+  const fileName = `tudo-smoke-${now().toISOString()}.txt`;
+  const folderName = `tudo-smoke-folder-${now().toISOString()}`;
   const payload = Buffer.from(`tudo smoke ${now().toISOString()}`);
   const file = /** @type {{ id: string } | undefined} */ (
     await step("create", () =>
       drive.createFile({
-        name: `tudo-smoke-${now().toISOString()}.txt`,
+        name: fileName,
         mimeType: "text/plain",
         bytes: payload,
-        appProperties: { tudo: "smoke" },
+        appProperties: { tudo: "smoke", a: "1" },
       }),
     )
   );
@@ -47,7 +49,7 @@ export async function runSmoke({ drive, log = console.log, now = () => new Date(
   const folder = /** @type {{ id: string } | undefined} */ (
     await step("createFolder", () =>
       drive.createFolder({
-        name: `tudo-smoke-folder-${now().toISOString()}`,
+        name: folderName,
         appProperties: { tudo: "smoke" },
       }),
     )
@@ -57,10 +59,15 @@ export async function runSmoke({ drive, log = console.log, now = () => new Date(
       await drive.moveFile(file.id, {
         addParent: folder.id,
         removeParent: drive.rootFolderId,
-        appProperties: { tudo: "smoke" },
+        appProperties: { b: "1" },
       });
       const parents = await drive.getParents(file.id);
       if (parents.length !== 1 || parents[0] !== folder.id) throw new Error("not moved");
+      const q = `'${folder.id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and appProperties has { key='tudo' and value='smoke' }`;
+      const listed = (await drive.listFiles({ q })).files.find((f) => f.id === file.id);
+      if (listed?.appProperties.a !== "1" || listed.appProperties.b !== "1") {
+        throw new Error("appProperties not merged");
+      }
       return true;
     });
     if (moved) {
@@ -79,9 +86,9 @@ export async function runSmoke({ drive, log = console.log, now = () => new Date(
         return true;
       })
     : true;
-  if (folder && !folderDeleted) log(`folder left behind: ${folder.id}`);
+  if (folder && !folderDeleted) log(`folder left behind: ${folderName}`);
   if (!deleted) {
-    log(`file left behind: ${file.id}`);
+    log(`file left behind: ${fileName}`);
     return 1;
   }
   if (!folderDeleted) return 1;
