@@ -99,3 +99,55 @@ No 🔴 from review or security. Before Ming runs `--apply`, four cheap items go
 3. `server/drive-smoke.js:82,84`: "left behind" lines print the file/folder name, not the Drive id (security F1).
 4. `server/scoping.test.ts`: explicit ALLOW entry with a reason for the cross-user SELECT in `photo-relocate.js` (security F4).
 Follow-ups stay out (F3 cache TTL, F5 itemId check, duplicate/empty folders).
+
+## Attempt 2 — 2026-11-16
+Verdict: REWORK
+
+Scope: only orchestrator-note items 1–4 and impl-log "Attempt 2" (commit 7fb144b).
+
+### Checks (run by reviewer)
+- typecheck: clean (`tsc --noEmit && tsc -p tsconfig.server.json`).
+- format:check: "All matched files use the correct format."
+- test (no DB): 97 files passed, 10 skipped; 1247 tests passed, 203 skipped. Matches impl-log.
+- test (throwaway Postgres 16 in a mktemp dir under /tmp, trust auth, port 55432; stopped and deleted afterwards): 106 files passed, 1 failed; 1449 passed, 1 failed. The failure is the known `migrate.cli.test.ts › exit 1 on wrong password` test, which fails under trust auth and is unrelated. Matches impl-log.
+- build: green.
+
+### Orchestrator-note items
+- [x] 1 Smoke proves the `appProperties` merge. `server/drive-smoke.js` creates the file with `{tudo:"smoke", a:"1"}`, moves it with `{b:"1"}`, then lists the folder and throws "appProperties not merged" unless both `a` and `b` survive. Evidence: the happy-path smoke test passes against the fake, which merges like Drive does. The new test "move that drops existing appProperties (replace instead of merge) returns 1" passes and asserts `move: FAIL error`.
+- [ ] 2 Relocate "nothing to move" in the realistic runbook state. FAILED, see Issue 1.
+- [x] 3 The "left behind" lines print names, not ids (`drive-smoke.js:89,91`). The test asserts `file left behind: tudo-smoke-` and that no line contains `fakefile`. There is no matching negative assertion for the folder line (💭 nit).
+- [x] 4 `scoping.test.ts` has an explicit ALLOW entry with a reason for `from item_photos where drive_file_id is not null`. The stale check now scans all literals, so the entry is proven live. The test passes.
+
+### Issues
+#### Issue 1 — 🔴 blocker — correctness (item 2 not met for the state the runbook actually hits)
+- **Where**: `server/photo-relocate.js:125-130`; tests in `server/photo-relocate.db.test.ts:244-263`.
+- **Expected**: After a first successful `--apply`, the DB has many `item_photos` rows, every referenced file lives in a user subfolder, and the flat root holds only a few unreferenced or orphan files. In that state a second `--apply` and a dry-run should both report "nothing to move" and exit 0. The wrong-DB refusal should fire only when there is a real sign that the DB is the wrong one.
+- **Actual**: The condition is `rows.length > 0 && listed.length > 0 && candidates.length + mismatch === 0`, and that state satisfies it exactly. The attempt-2 change only helps when the DB is empty, which is not a realistic re-run state. I reproduced this with stubbed drive and pool calling `runRelocate`: 3 DB rows whose files have parent `sub1`, and one orphan in the root.
+  - dry-run: exit 0, but it prints `refusing: no listed file is referenced (check DATABASE_URL)`.
+  - `--apply`: exit 1 with the same refusal line.
+
+  So Ming's "run it again to confirm" step after the first apply fails with a misleading DATABASE_URL hint. The new test "only unreferenced files and an empty DB" covers only `rows.length === 0`, and no test covers rows that live in subfolders.
+- **Fix instruction**: Only refuse when the DB rows themselves look foreign to this Drive. Concretely, in the branch where `listed.length > 0 && rows.length > 0 && candidates.length + mismatch === 0`:
+  1. Probe a bounded sample of DB rows, for example the first `min(5, rows.length)`, with `drive.getParents(row.drive_file_id)`.
+  2. If any probe resolves (the file exists in this Drive), the DB is the right one. Log `nothing to move: no listed file is referenced` and continue, so the run exits 0. Dry-run and apply behave the same.
+  3. If every probe throws `DriveError` `drive_not_found`, keep the current refusal: log the `refusing: … (check DATABASE_URL)` line, exit 1 on apply, report only in dry-run.
+  4. Any other probe error: log `probe: FAIL <code>` (no ids) and return 1.
+
+  An acceptable equivalent is to list `subfoldersQuery(root)` plus `taggedFilesQuery(sub)` as the sweep does and treat "some DB `drive_file_id` is found in a subfolder" as the right-DB signal. Keep the "empty DB → nothing to move" path.
+
+  Tests to add in `photo-relocate.db.test.ts`:
+  - (a) DB rows whose files sit in a user subfolder (`parents: [subfolderId]`), plus one unreferenced file in the root. `--apply` and dry-run both exit 0, both contain `nothing to move: no listed file is referenced`, neither contains the `refusing` line, and nothing moves.
+  - (b) The existing refusal test (a row whose file does not exist in the fake) still exits 1 on apply.
+  - (c) The output-hygiene assertion (no Drive ids) still holds for the probe path.
+
+  Update the comment and runbook text if they describe the refusal.
+
+### Rules R1–R10 (CLAUDE.md)
+No new violations in the attempt-2 diff. R7: every touched file is in the attempt-1 plan list or is a test helper (`server/test/fake-drive.ts`). R8: checks are green, but item 2 lacks a test for the case that matters (Issue 1).
+
+### Nits (do not block)
+- `drive-smoke.js`: an unmerged `appProperties` surfaces as `move: FAIL error`. The specific reason ("appProperties not merged") is swallowed by `codeOf`, so a distinct code or line would help Ming read the output.
+- `drive-smoke.test.ts`: add `expect(lines.some(l => l.includes("fakefolder"))).toBe(false)` for the folder-left-behind path.
+
+### Follow-ups (out of scope)
+Unchanged: F3 cache TTL, F5 itemId check, duplicate or empty folders, tightening `unscoped()` to `user_id = $n`.
