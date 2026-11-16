@@ -19,19 +19,37 @@ async function setup(config = fakeConfig) {
 }
 
 describe("runSmoke against a fake Drive", () => {
-  it("checkFolder, create, read, delete, read 404: returns 0", async () => {
+  it("checkFolder, create, read, createFolder, move, read in folder, delete, delete folder, read 404: returns 0", async () => {
     const { drive, lines, log } = await setup();
     expect(await runSmoke({ drive, log })).toBe(0);
     expect(lines).toEqual([
       "checkFolder: ok",
       "create: ok",
       "read: ok",
+      "createFolder: ok",
+      "move: ok",
+      "read in folder: ok",
       "delete: ok",
+      "delete folder: ok",
       "read after delete: ok",
     ]);
     const create = fake.requests.find((r) => r.url.startsWith("/upload"));
     expect(create?.body.toString()).toContain(`"parents":["${fakeConfig.folderId}"]`);
     expect(fake.files.size).toBe(0);
+    expect(fake.dirs.size).toBe(0);
+  });
+
+  it("move failing: deletes file and folder, returns 1", async () => {
+    const { drive, lines, log } = await setup();
+    fake.fail.add("move");
+    const quick = createDriveClient({ config: fakeConfig, ...fake.urls, sleep: async () => {} });
+    expect(await runSmoke({ drive: quick, log })).toBe(1);
+    expect(lines).toContain("move: FAIL drive_unavailable");
+    expect(lines).toContain("delete: ok");
+    expect(lines).toContain("delete folder: ok");
+    expect(fake.files.size).toBe(0);
+    expect(fake.dirs.size).toBe(0);
+    void drive;
   });
 
   it("read-back bytes differ: returns 1 and still deletes", async () => {

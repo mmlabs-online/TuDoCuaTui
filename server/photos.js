@@ -115,6 +115,7 @@ function withLockedItem(pool, userId, itemId, fn) {
  *   pool: import("./items.js").Pool | null,
  *   userId: import("./user.js").UserId,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
+ *   folders: ReturnType<typeof import("./driveFolders.js").createFolderResolver> | null,
  *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
  *   photoQuota: ReturnType<typeof import("./photoQuota.js").createPhotoQuota>,
  *   bodyTimeouts: { totalMs: number, idleMs: number },
@@ -124,7 +125,7 @@ function withLockedItem(pool, userId, itemId, fn) {
 export async function handlePhoto(
   req,
   res,
-  { pool, userId, drive, photoSlots, photoQuota, bodyTimeouts, itemId, query, id, log },
+  { pool, userId, drive, folders, photoSlots, photoQuota, bodyTimeouts, itemId, query, id, log },
 ) {
   const put = req.method === "PUT";
   if (put) {
@@ -183,6 +184,7 @@ export async function handlePhoto(
       pool,
       userId,
       drive,
+      folders,
       photoQuota,
       bodyTimeouts,
       itemId,
@@ -210,7 +212,7 @@ const QUOTA_SQL =
 async function putPhoto(
   req,
   res,
-  { pool, userId, drive, photoQuota, bodyTimeouts, itemId, log, onDriveStored },
+  { pool, userId, drive, folders, photoQuota, bodyTimeouts, itemId, log, onDriveStored },
 ) {
   const body = await readBody(req, bodyTimeouts);
   if (!body.ok) {
@@ -234,16 +236,22 @@ async function putPhoto(
   const photoId = randomUUID();
   /** @type {{ id: string }} */
   let file;
+  let folderId;
   try {
+    // Per-user subfolder (T-021). No fallback to the root: a failure here fails the request like a failed upload.
+    folderId = await folders.resolve(userId);
     file = await drive.createFile({
       name: `${photoId}.jpg`,
       mimeType: "image/jpeg",
       bytes,
-      appProperties: { app: "tudo", photoId, itemId },
+      parentId: folderId,
+      appProperties: { app: "tudo", photoId, itemId, userId },
     });
     onDriveStored();
   } catch (err) {
     const code = /** @type {DriveError} */ (err)?.code;
+    // A cached folder that Drive no longer has: forget it, fail this request, the next upload makes a new one.
+    if (code === "drive_not_found" && folderId) folders.forget(userId);
     log({ event: "photo_upload_failed", code });
     const config = ["drive_auth", "drive_forbidden", "drive_not_found", "drive_folder_not_found"];
     return config.includes(code)

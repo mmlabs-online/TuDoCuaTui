@@ -283,8 +283,8 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     const { code, lines } = await run({ apply: true });
     expect(code).toBe(0);
     expect(fake.files.size).toBe(1);
-    expect(listCalls()).toHaveLength(3);
-    expect(lines.at(-1)).toContain("listed 6 (3 pages)");
+    expect(listCalls()).toHaveLength(4);
+    expect(lines.at(-1)).toContain("listed 6 (4 pages)");
   });
 
   it("a failed delete is reported with its code, the sweep continues, exit 1", async () => {
@@ -431,5 +431,92 @@ describe.skipIf(!dbAvailable)("photo sweep against real Postgres and a fake Driv
     });
     expect(code).toBe(1);
     expect(errors).toEqual(["sweep failed"]);
+  });
+
+  describe("user subfolders (T-021)", () => {
+    const DIR = "fakedir00000001";
+    const mkDir = (id = DIR, props: Record<string, string> = {}) =>
+      fake.dirs.set(id, {
+        meta: {
+          parents: [FAKE.folderId],
+          createdTime: iso(900),
+          appProperties: { app: "tudo-folder", userId: OWNER_A, ...props },
+        },
+      });
+    /** A tagged file inside the subfolder. */
+    const putIn = (n: number, agoMin: number, dir = DIR) => {
+      putFile(n, agoMin);
+      fake.files.get(fid(n))!.meta.parents = [dir];
+    };
+
+    it("an unreferenced old file in a user subfolder is a candidate and deleted on apply", async () => {
+      mkDir();
+      await anchor();
+      putIn(1, 600);
+      const dry = await run();
+      expect(dry.lines).toContain(`would delete ${uuid(1)}`);
+      expect(fake.files.has(fid(1))).toBe(true);
+      const { code, lines } = await run({ apply: true });
+      expect(code).toBe(0);
+      expect(fake.files.has(fid(1))).toBe(false);
+      expect(fake.files.has(fid(100))).toBe(true);
+      expect(lines).toContain(`delete ${uuid(1)}: ok`);
+      expect(fake.dirs.has(DIR)).toBe(true);
+    });
+
+    it("referenced files in subfolders are not reported missing", async () => {
+      mkDir();
+      putIn(1, 600);
+      await addRow(1);
+      const { code, lines } = await run({ apply: true });
+      expect(code).toBe(0);
+      expect(lines.filter((l) => l.startsWith("missing file"))).toEqual([]);
+      expect(lines.at(-1)).toContain("folders 1");
+      expect(lines.at(-1)).toContain("missing 0");
+      expect(fake.files.has(fid(1))).toBe(true);
+    });
+
+    it("folders are never candidates; files under a folder outside the root are not listed", async () => {
+      mkDir();
+      await anchor();
+      putIn(1, 600);
+      await addRow(1);
+      // an untagged-as-ours folder, and a stray file under a folder that is not a child of the root
+      fake.dirs.set("fakedir00000002", {
+        meta: {
+          parents: ["otherroot0123456789"],
+          createdTime: iso(900),
+          appProperties: { app: "tudo-folder" },
+        },
+      });
+      putIn(2, 600, "fakedir00000002");
+      const { code, lines } = await run({ apply: true });
+      expect(code).toBe(0);
+      expect(fake.dirs.size).toBe(2);
+      expect(fake.files.has(fid(2))).toBe(true);
+      expect(lines.at(-1)).toContain("listed 2 ");
+      expect(lines.at(-1)).toContain("candidates 0");
+    });
+
+    it("pagination and page guards across root + subfolders", async () => {
+      fake.config.listPageSize = 2;
+      mkDir();
+      await anchor();
+      for (let i = 1; i <= 3; i++) putIn(i, 600);
+      const { code, lines } = await run({ apply: true });
+      expect(code).toBe(0);
+      expect(lines.at(-1)).toContain("listed 4 ");
+      expect(fake.files.size).toBe(1);
+      // the shared page budget applies to the whole listing
+      const stuck = await run({
+        drive: {
+          ...client(),
+          listFiles: async () => ({ files: [], nextPageToken: "same" }),
+          checkFolder: async () => {},
+        } as never,
+      });
+      expect(stuck.code).toBe(1);
+      expect(stuck.lines).toContain("list: FAIL drive_bad_response");
+    });
   });
 });

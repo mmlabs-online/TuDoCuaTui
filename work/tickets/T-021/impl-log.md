@@ -1,0 +1,42 @@
+## Attempt 1 — 2026-11-16
+
+Defaults approved by Ming: C1 = folder-id cache in server memory (no DB table, no migration); C2 = the relocate script reads `item_photos` through `withMaintenance(pool, "photo-sweep", …)`. Alternatives C1-DB and C2-task were not implemented.
+
+### Files touched
+| File | Required because |
+|---|---|
+| `server/drive.js` | `createFile` `parentId`, `createFolder`, `moveFile`, `getParents`, `subfoldersQuery`, `userFolderQuery`, `rootFolderId`, folder-excluding `taggedFilesQuery`, `cannotAddParent` reason |
+| `server/driveFolders.js` (new) | in-memory single-flight resolver, oldest-folder rule |
+| `server/app.js`, `server/api.js` | one resolver per app instance, passed to `handlePhoto` |
+| `server/photos.js` | upload into the user's subfolder, `userId` tag, `forget` on stale folder |
+| `server/photo-sweep.js` | lists root plus subfolders, `folders N` in the summary |
+| `server/photo-relocate.js` (new) | one-off relocation CLI |
+| `server/drive-smoke.js` | createFolder, move, read in folder, delete folder steps |
+| `server/test/fake-drive.ts` | folders (kept in `dirs`, apart from `files`), PATCH move, metadata GET, parent validation, new fail/hang keys, `folderCreateDelayMs`, `folders()` |
+| `server/scoping.test.ts` | allow-list of `withMaintenance` users, no direct `pool.query` in photo-relocate.js |
+| `server/README.md` | Drive layout, relocation runbook, smoke and sweep notes |
+| Tests | see below |
+
+### Tests added / changed
+- New: `driveFolders.test.ts` (7), `photo-relocate.db.test.ts` (14), `photo-relocate.cli.test.ts` (1, all usage cases in one test as the plan lists it).
+- `api.db.test.ts`: 8 new tests in "per-user subfolders (T-021)". The test app is now built per test (the cache lives in the app instance) and uses `headerAuth`.
+- `photo-sweep.db.test.ts`: 4 new tests; the existing pagination test now expects 4 list calls / 4 pages (one extra call for the subfolder listing).
+- `drive.http.test.ts`: 4 new; `drive.test.ts`: 1 new, taggedFilesQuery expectation updated; `drive-smoke.test.ts`: 1 new, step list updated.
+
+### Checks (actual output summary)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` clean.
+- format:check: "All matched files use the correct format."
+- test without DB: 97 files passed, 10 skipped; 1246 tests passed, 202 skipped.
+- test with throwaway Postgres 16 (trust auth, port 55432, deleted afterwards): 106 files passed, 1 failed; 1447 tests passed, 1 failed. The one failure is `migrate.cli.test.ts › exit 1 on wrong password` (trust auth, unrelated, as announced).
+- build: green.
+
+### Out-of-plan files
+None.
+
+### Follow-ups (noticed, not done)
+- Merge duplicate folders of one user; empty folders of removed users (already in the plan).
+- In dry-run `photo-relocate.js` looks up each user's folder with `create:false` once per user; a lookup failure shows up as a `move … FAIL` line for that file.
+
+### Scope self-check
+- Could the diff be smaller? No: the two new product files are about 340 lines together; the rest is wiring and tests.
+- Diff size: tracked files +690 / -47, plus new files (driveFolders.js, photo-relocate.js, three new test files). Nothing committed.

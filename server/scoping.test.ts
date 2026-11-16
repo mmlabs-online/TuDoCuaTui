@@ -95,8 +95,14 @@ describe("user_id scoping guard", () => {
     }
   });
 
-  it("items.js, photos.js, ai/store.js and photo-sweep.js never call pool.query( or pool.connect( directly", () => {
-    for (const f of ["items.js", "photos.js", "ai/store.js", "photo-sweep.js"]) {
+  it("items.js, photos.js, ai/store.js, photo-sweep.js and photo-relocate.js never call pool.query( or pool.connect( directly", () => {
+    for (const f of [
+      "items.js",
+      "photos.js",
+      "ai/store.js",
+      "photo-sweep.js",
+      "photo-relocate.js",
+    ]) {
       const src = readFileSync(path.join(serverDir, f), "utf8");
       expect(src, f).not.toMatch(/\bpool\.(query|connect)\(/);
     }
@@ -111,6 +117,6 @@ describe("user_id scoping guard", () => {
     expect(where("set_config(")).toEqual(["db.js", "migrator.js"]);
     expect(where("tudo.maintenance")).toEqual(["db.js"]);
     expect(where("app.user_id")).toEqual(["db.js"]);
-    expect(where("withMaintenance")).toEqual(["db.js", "photo-sweep.js"]);
+    expect(where("withMaintenance")).toEqual(["db.js", "photo-relocate.js", "photo-sweep.js"]);
   });
 });

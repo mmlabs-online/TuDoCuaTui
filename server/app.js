@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createAiStore } from "./ai/store.js";
 import { createLimiter } from "./ai/rateLimit.js";
 import { handleApi } from "./api.js";
+import { createFolderResolver } from "./driveFolders.js";
 import { ping } from "./db.js";
 import { createInFlight } from "./inflight.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
@@ -43,6 +44,8 @@ export function createApp({
   const photoSlots = createInFlight({ perUser: 2, total: 3, exempt: ownerSub });
   // Per-user stored cap and daily upload count (T-019.14); the owner is exempt (it is Ming's Drive).
   const photoQuota = createPhotoQuota({ ...photoLimits, now, exempt: ownerSub });
+  // One folder-id cache per app instance (T-021).
+  const folders = drive ? createFolderResolver({ drive }) : null;
   const aiContext = ai && {
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
@@ -104,6 +107,7 @@ export function createApp({
           userId: result.userId,
           ai: aiContext,
           drive,
+          folders,
           photoSlots,
           photoQuota,
           bodyTimeouts,
