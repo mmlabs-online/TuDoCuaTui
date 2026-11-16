@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | DONE |
 | Priority | P0 |
 | Size | XS |
 | Milestone | M1 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-16 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/62 |
 
 ## Goal
 Photo upload works again in production: saving an item with a new photo stores the photo.
@@ -36,3 +36,8 @@ Production bug reported by Ming 2026-11-16 ("Đã lưu món đồ nhưng chưa l
 - 2026-11-16: bug report with screenshot (Network shows no photo upload; item saved with `primary_photo_id: null`).
 
 ## Handoff
+
+### 2026-11-16 — claude — DONE
+- Done: hotfix plan, implement attempt 1, review PASS (browser check + negative control reproduce Ming's bug), security no blockers. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/62.
+- In progress / next: Ming merges, releases, checks the live CSP and one upload.
+- Gotchas: T-019.8's review checked only the app shell under CSP; photo upload needs `fetch(data:)`.
