@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
 import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
 import type { PhotoLoader } from "@/data/photoUrls";
@@ -209,12 +208,11 @@ describe("photo loader (identity mode)", () => {
 });
 
 describe("photo privacy notice", () => {
-  test("photoById shows the photo privacy notice; without it there is no notice", () => {
+  test("no photo privacy notice with or without photoById", () => {
     renderEditor(vi.fn(), true, true);
-    expect(screen.getByText(EDITOR_COPY.photo.privacy)).toBeTruthy();
-    expect(EDITOR_COPY.photo.privacy).toBe(PHOTO_PRIVACY_NOTICE);
+    expect(screen.queryByText(/Google Drive/)).toBeNull();
     cleanup();
     renderEditor(vi.fn(), true, false);
-    expect(screen.queryByText(EDITOR_COPY.photo.privacy)).toBeNull();
+    expect(screen.queryByText(/Google Drive/)).toBeNull();
   });
 });

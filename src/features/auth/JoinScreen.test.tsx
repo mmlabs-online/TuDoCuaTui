@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JoinScreen } from "./JoinScreen";
 import { AUTH_COPY, authErrorMessage } from "./copy";
-import { PHOTO_PRIVACY_NOTICE } from "@/constants/privacy";
 import type { JoinScreenProps } from "./types";
 
 afterEach(cleanup);
@@ -36,12 +35,13 @@ describe("JoinScreen", () => {
     expect(onJoin).toHaveBeenCalledTimes(1);
   });
 
-  it("privacy notice is rendered and precedes the continue button in DOM order", () => {
+  it("renders title, body, continue and other-account, and no photo privacy notice", () => {
     setup();
-    const notice = screen.getByText(PHOTO_PRIVACY_NOTICE);
-    const button = screen.getByRole("button", { name: /Tiếp tục với/ });
-    expect(AUTH_COPY.join.privacy).toBe(PHOTO_PRIVACY_NOTICE);
-    expect(notice.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(AUTH_COPY.join.title)).toBeTruthy();
+    expect(screen.getByText(AUTH_COPY.join.body)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tiếp tục với an@example.com" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: AUTH_COPY.join.otherAccount })).toBeTruthy();
+    expect(screen.queryByText(/Google Drive/)).toBeNull();
   });
 
   it("submitting disables the button and shows the joining label", () => {

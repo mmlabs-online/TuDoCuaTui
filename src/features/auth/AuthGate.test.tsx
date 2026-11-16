@@ -501,7 +501,7 @@ describe("join flow", () => {
     s.client.token.mockRejectedValueOnce(notMember);
     await signInWith();
     expect(await continueBtn("a@b.co")).toBeTruthy();
-    expect(screen.getByText(AUTH_COPY.join.privacy)).toBeTruthy();
+    expect(screen.queryByText(/Google Drive/)).toBeNull();
     expect(s.client.join).not.toHaveBeenCalled();
     expect(s.client.accounts).not.toHaveBeenCalled();
     expect(screen.queryByText("app-ready")).toBeNull();
