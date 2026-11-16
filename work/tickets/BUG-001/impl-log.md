@@ -10,7 +10,7 @@
 ### Runs
 - After: HEAD `9c422d0` (branch claude/magical-cori-2ssw8l), `pnpm build` + `pnpm preview --port 5199`. Exit **0**, `failures: []`, `info: []` (no unmocked /api calls; delete-ai-key reached through mocked API mode, no fallback used).
 - Before: detached worktree at `7d6df33`, built, preview on 5198, this branch's script with `--base http://localhost:5198`. Exit **1**. Worktree removed, servers stopped.
-- Failure lines (before, verbatim, representative; full list in `/tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/bug001-before/summary.json`, 60 lines):
+- Failure lines (before, verbatim, representative; full list in `/tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/bug001-before/summary.json`, 57 lines — corrected by orchestrator after review):
   - `[danger-bg] discard light 390: rgba(0, 0, 0, 0)`
   - `[contrast] discard light 390: 1.02`
   - `[danger-bg] delete-item light 390: rgba(0, 0, 0, 0)`
