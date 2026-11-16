@@ -123,8 +123,26 @@ export async function runRelocate({
 
   let failed = false;
   if (rows.length > 0 && listed.length > 0 && candidates.length + mismatch === 0) {
-    log("refusing: no listed file is referenced (check DATABASE_URL)");
-    if (apply) return 1;
+    // Orphans in root are normal once the referenced files were moved: probe a few rows to tell right DB from wrong DB.
+    let found = false;
+    for (const r of rows.slice(0, 5)) {
+      try {
+        await drive.getParents(r.drive_file_id);
+        found = true;
+        break;
+      } catch (err) {
+        if (!(err instanceof DriveError && err.code === "drive_not_found")) {
+          log(`probe: FAIL ${codeOf(err)}`);
+          return 1;
+        }
+      }
+    }
+    if (found) {
+      log("nothing to move: no listed file is referenced");
+    } else {
+      log("refusing: no listed file is referenced (check DATABASE_URL)");
+      if (apply) return 1;
+    }
   } else if (listed.length > 0 && candidates.length + mismatch === 0) {
     log("nothing to move: no listed file is referenced");
   }

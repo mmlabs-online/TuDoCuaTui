@@ -251,6 +251,50 @@ describe.skipIf(!dbAvailable)("photo relocation against real Postgres and a fake
     expect((await run()).code).toBe(0); // a dry-run only reports it
   });
 
+  it("rows whose files already live in a subfolder plus a root orphan: nothing to move, exit 0", async () => {
+    fake.dirs.set("fakedirexisting1", {
+      meta: {
+        parents: [FAKE.folderId],
+        createdTime: new Date().toISOString(),
+        appProperties: { app: "tudo-folder", userId: OWNER_A },
+      },
+    });
+    putFile(1);
+    fake.files.get(fid(1))!.meta.parents = ["fakedirexisting1"];
+    await addRow(1);
+    putFile(2); // orphan in root
+    const out: string[] = [];
+    for (const apply of [true, false]) {
+      const { code, lines } = await run({ apply });
+      expect(code).toBe(0);
+      expect(lines).toContain("nothing to move: no listed file is referenced");
+      expect(lines).not.toContain("refusing: no listed file is referenced (check DATABASE_URL)");
+      out.push(...lines);
+    }
+    expect(parentsOf(1)).toEqual(["fakedirexisting1"]);
+    expect(parentsOf(2)).toEqual([FAKE.folderId]);
+    expect(fake.requests.some((r) => r.url !== "/token" && r.method !== "GET")).toBe(false);
+    const wire = out.join("\n");
+    for (const s of [fid(1), fid(2), "fakedirexisting1", FAKE.folderId]) {
+      expect(wire).not.toContain(s);
+    }
+  });
+
+  it("a probe error other than not-found -> probe: FAIL, exit 1", async () => {
+    putFile(1);
+    await addRow(2);
+    const drive = client();
+    drive.getParents = async () => {
+      throw Object.assign(new Error("secret"), { code: "ECONNRESET" });
+    };
+    for (const apply of [true, false]) {
+      const { code, lines } = await run({ apply, drive });
+      expect(code).toBe(1);
+      expect(lines).toContain("probe: FAIL ECONNRESET");
+      expect(lines.join("\n")).not.toContain("secret");
+    }
+  });
+
   it("only unreferenced files and an empty DB: exit 0, nothing to move", async () => {
     putFile(1);
     const apply = await run({ apply: true });

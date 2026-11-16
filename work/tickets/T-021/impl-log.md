@@ -64,3 +64,20 @@ None.
 
 ### Follow-ups
 Unchanged (F3 cache TTL, F5 itemId check, duplicate/empty folders, tighten `unscoped()` to `user_id = $n`).
+
+## Attempt 3 (REWORK, review Attempt 2 item 2)
+
+### Changes
+- `server/photo-relocate.js`: when the DB has rows, root files are listed and none is referenced, probe up to 5 rows with `drive.getParents(drive_file_id)`. Any probe succeeds -> "nothing to move: no listed file is referenced", continue (exit 0, dry-run and apply). All probes `drive_not_found` -> the wrong-DB refusal as before (exit 1 on apply, report-only on dry-run). Any other probe error -> `probe: FAIL <code>`, exit 1. No Drive ids printed.
+
+### Tests (`server/photo-relocate.db.test.ts`, +2; existing refusal test unchanged and still exits 1)
+- Rows whose files live in a subfolder + one root orphan: apply and dry-run exit 0, "nothing to move", no refusal line, nothing moved, no write requests, no Drive ids in output.
+- Probe error other than not-found: `probe: FAIL ECONNRESET`, exit 1 (apply and dry-run), error text not printed.
+- Nits not touched.
+
+### Checks (actual, throwaway Postgres 16 under /tmp, stopped and deleted)
+- typecheck clean; format:check clean; build green.
+- `pnpm test` with DB: 106 files passed, 1 failed; 1451 passed, 1 failed (the known `migrate.cli.test.ts` wrong-password test under trust auth, unrelated).
+
+### Touched files
+`server/photo-relocate.js`, `server/photo-relocate.db.test.ts`, this log. Not committed.
