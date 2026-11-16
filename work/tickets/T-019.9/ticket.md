@@ -13,8 +13,8 @@
 | Needs Ming | M-21 |
 | Attempts | 1 |
 | Created | 2026-11-13 |
-| Claimed by | claude@2026-11-16T13:32:42Z |
-| PR | — |
+| Claimed by | — |
+| PR | [#66](https://github.com/mmlabs-online/TuDoCuaTui/pull/66) |
 
 ## Goal
 After Identity is verified in production, remove the Access code path so only Identity remains.
@@ -54,3 +54,8 @@ proposal* → T-019.9). Decisions D31–D34. Ming items in the plan are numbered
 - Done: architect consult (`consult-software-architect.md`); plan READY (`plan.md`, A1–A13, ~30 files, M-22 runbook text and new M-26 ops item).
 - In progress / next: Ming approves the plan (or overturns assumptions) → implement → review → PR. On DONE, copy the plan's M-22 text and M-26 into `work/ming-todo.md`.
 - Gotchas: keep `TUDO_AUTH_MODE: identity` in the deployment compose while a rollback to any pre-T-019.9 image (currently ≤ v0.2.8) is possible (old images default to Access and exit 2).
+
+### 2026-11-16 — claude — DONE
+- Done: plan approved by Ming; implement attempt 1 (32 files, Access path removed, identity only); review PASS; security audit no 🔴 (2 🟡: rollback bound ≤ v0.2.6 should read "before T-019.9, currently ≤ v0.2.8" — corrected in M-22/M-26 text, mirror comment left as follow-up; stale AuthRoot comment → A5 follow-up). M-22 runbook and M-26 added to ming-todo. PR #66.
+- In progress / next: CI `image` job must pass (check-image.sh not runnable here, no Docker); Ming merges, releases, runs M-22; M-26 any time.
+- Gotchas: keep `TUDO_AUTH_MODE: identity` in the deployment compose while a rollback to a pre-T-019.9 image is possible.
