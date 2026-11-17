@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-16 |
 | Claimed by | — |
-| PR | — |
+| PR | [#67](https://github.com/mmlabs-online/TuDoCuaTui/pull/67) |
 
 ## Goal
 New passwords (sign-up and reset password) need at least 6 characters instead of 12, so users can pick shorter passwords.
@@ -50,4 +50,17 @@ Ming, 2026-11-16: "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6
 ## Notes / answers from Ming
 - 2026-11-16 (Ming): "thêm 1 thay đổi password chỉ yêu cầu tối thiểu 6 kí tự".
 
+- Waiting for Ming: plan approval (High tier)
+- 2026-11-16 (Ming): "duyệt T-023" — Plan approved.
+
 ## Handoff
+
+### 2026-11-16 — claude — BLOCKED
+- Done: plan READY (`plan.md`): `PASSWORD_MIN` 6, three copy strings, boundary/NFKC tests; D43 text for /run to add on approval. Open risk resolved: org-admin-api main 87026db sets `password_min_length` default 6, ge=6 (in release/v0.1.6).
+- In progress / next: Ming approves → implement → review (+ security audit) → PR.
+- Gotchas: deploy TuDo only after production identity rejects no 6–11 char password with `too_short`.
+
+### 2026-11-16 — claude — DONE
+- Done: plan approved; implement attempt 1 (tests first, 8 failures at 12); review PASS; security no 🔴 (🟡 deploy-order UX, 🟡 D43 weak minimum). D43 added on main. PR #67.
+- In progress / next: Ming verifies production identity accepts 6–11 char passwords, merges, releases.
+- Gotchas: deploy TuDo after the production check, or accept the misleading `too_short` window.

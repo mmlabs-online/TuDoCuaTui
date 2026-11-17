@@ -46,20 +46,22 @@ describe("passwordError (sign-up)", () => {
     expect(passwordError("")).toBe("required");
   });
 
-  it("11 → tooShort, 12 → ok", () => {
-    expect(passwordError("a".repeat(11))).toBe("tooShort");
-    expect(passwordError("a".repeat(12))).toBeNull();
+  it("5 → tooShort, 6 → ok", () => {
+    expect(passwordError("a".repeat(5))).toBe("tooShort");
+    expect(passwordError("a".repeat(6))).toBeNull();
   });
 
   it("does not trim", () => {
-    expect(passwordError(" " + "a".repeat(10) + " ")).toBeNull();
+    expect(passwordError(" " + "a".repeat(4) + " ")).toBeNull();
+    expect(passwordError(" aaa ")).toBe("tooShort");
   });
 
   it("measures after NFKC", () => {
-    expect(passwordError("é".repeat(6))).toBe("tooShort");
-    expect(passwordError("mật khẩu12".normalize("NFD"))).toBe("tooShort");
-    expect(passwordError("mật khẩu1234".normalize("NFD"))).toBeNull();
-    expect(passwordError("ｍａｔｋｈａｕ１２３４５６")).toBeNull();
+    expect(passwordError("é".repeat(5))).toBe("tooShort");
+    expect(passwordError("mật k".normalize("NFD"))).toBe("tooShort");
+    expect(passwordError("mật kh".normalize("NFD"))).toBeNull();
+    expect(passwordError("ｍａｔｋｈ")).toBe("tooShort");
+    expect(passwordError("ｍａｔｋｈａ")).toBeNull();
   });
 
   it("128 code points ok, 129 → tooLong", () => {
@@ -144,16 +146,17 @@ describe("validateNewPassword (same rules as sign-up)", () => {
       confirm: "required",
     });
   });
-  it("11 chars -> tooShort, 12 -> ok", () => {
-    expect(validateNewPassword({ password: "a".repeat(11), confirm: "a".repeat(11) })).toEqual({
+  it("5 chars -> tooShort, 6 -> ok", () => {
+    expect(validateNewPassword({ password: "a".repeat(5), confirm: "a".repeat(5) })).toEqual({
       password: "tooShort",
     });
     expect(
-      hasErrors(validateNewPassword({ password: "a".repeat(12), confirm: "a".repeat(12) })),
+      hasErrors(validateNewPassword({ password: "a".repeat(6), confirm: "a".repeat(6) })),
     ).toBe(false);
   });
   it("NFKC: full-width digits count as the same characters, NFC and NFD match", () => {
-    expect(passwordError("１".repeat(12))).toBeNull();
+    expect(passwordError("１".repeat(6))).toBeNull();
+    expect(passwordError("１".repeat(5))).toBe("tooShort");
     const nfc = "caf\u00e9 caf\u00e9 caf\u00e9";
     expect(hasErrors(validateNewPassword({ password: nfc, confirm: nfc.normalize("NFD") }))).toBe(
       false,

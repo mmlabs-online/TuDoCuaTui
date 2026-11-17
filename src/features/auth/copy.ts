@@ -43,7 +43,7 @@ export const AUTH_COPY = {
     sentTitle: "Kiểm tra email của bạn",
     sentBody: (email: string) => `Chúng tôi đã gửi link xác minh tới ${email}.`,
     sentNote: "Link có hiệu lực 24 giờ.",
-    passwordHint: "Ít nhất 12 ký tự.",
+    passwordHint: "Ít nhất 6 ký tự.",
   },
   verify: {
     title: "Xác minh email",
@@ -73,7 +73,7 @@ export const AUTH_COPY = {
   fieldErrors: {
     required: "Vui lòng nhập thông tin này.",
     invalid: "Email chưa đúng định dạng.",
-    tooShort: "Mật khẩu cần ít nhất 12 ký tự.",
+    tooShort: "Mật khẩu cần ít nhất 6 ký tự.",
     tooLong: "Mật khẩu tối đa 128 ký tự.",
     mismatch: "Mật khẩu nhập lại chưa khớp.",
   } satisfies Record<FieldErrorCode, string>,
@@ -100,7 +100,7 @@ export const AUTH_COPY = {
     network: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
     email_taken: "Email này đã có tài khoản.",
     weak_password: "Mật khẩu chưa đủ mạnh.",
-    weak_too_short: "Mật khẩu cần ít nhất 12 ký tự.",
+    weak_too_short: "Mật khẩu cần ít nhất 6 ký tự.",
     weak_too_common: "Mật khẩu này quá phổ biến, hãy chọn mật khẩu khác.",
     validation_error: "Thông tin chưa hợp lệ, vui lòng kiểm tra lại.",
     token_invalid: "Link xác minh không hợp lệ hoặc đã hết hạn (link có hiệu lực 24 giờ).",

@@ -31,17 +31,25 @@ describe("ResetPasswordScreen ready", () => {
     expect(document.querySelector("form")?.getAttribute("method")).toBe("post");
   });
 
-  it("11 chars and mismatch focus the first invalid field and do not call onReset", () => {
+  it("5 chars and mismatch focus the first invalid field and do not call onReset", () => {
     const { onReset } = setup();
-    type(f.newPassword, "a".repeat(11));
-    type(f.confirm, "a".repeat(11));
+    type(f.newPassword, "a".repeat(5));
+    type(f.confirm, "a".repeat(5));
     submit();
     expect(document.activeElement).toBe(screen.getByLabelText(f.newPassword));
-    type(f.newPassword, "a".repeat(12));
-    type(f.confirm, "b".repeat(12));
+    type(f.newPassword, "a".repeat(6));
+    type(f.confirm, "b".repeat(6));
     submit();
     expect(document.activeElement).toBe(screen.getByLabelText(f.confirm));
     expect(onReset).not.toHaveBeenCalled();
+  });
+
+  it("6 chars are accepted", () => {
+    const { onReset } = setup();
+    type(f.newPassword, "a".repeat(6));
+    type(f.confirm, "a".repeat(6));
+    submit();
+    expect(onReset).toHaveBeenCalledWith("a".repeat(6));
   });
 
   it("valid submit calls onReset once with the password as typed, nothing else", () => {

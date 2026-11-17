@@ -25,7 +25,7 @@ const f = AUTH_COPY.fields;
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 const submit = () => fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signUp.submit }));
-const fill = (email = "an@vi.vn", pw = "a".repeat(12), confirm = pw) => {
+const fill = (email = "an@vi.vn", pw = "a".repeat(6), confirm = pw) => {
   type(f.email, email);
   type(f.password, pw);
   type(f.confirm, confirm);
@@ -43,7 +43,7 @@ describe("SignUpScreen validation", () => {
     ["bad email", () => fill("bad"), f.email, AUTH_COPY.fieldErrors.invalid],
     [
       "short password",
-      () => fill("an@vi.vn", "a".repeat(11)),
+      () => fill("an@vi.vn", "a".repeat(5)),
       f.password,
       AUTH_COPY.fieldErrors.tooShort,
     ],
@@ -67,7 +67,7 @@ describe("SignUpScreen validation", () => {
     const { onSignUp } = setup();
     fill(" an@vi.vn ");
     submit();
-    expect(onSignUp).toHaveBeenCalledWith({ email: "an@vi.vn", password: "a".repeat(12) });
+    expect(onSignUp).toHaveBeenCalledWith({ email: "an@vi.vn", password: "a".repeat(6) });
   });
 
   it("turnstileReady=false disables submit; slot is before submit", () => {
