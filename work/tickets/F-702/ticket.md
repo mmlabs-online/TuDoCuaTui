@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-10 |
-| Claimed by | claude@2026-11-17T10:36:18Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -62,3 +62,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 ### 2026-11-17 — claude — BACKLOG
 - Done: BLOCKED → BACKLOG; all dependencies MERGED.
 - In progress / next: `/run F-702` plans on the Node API (notes from 2026-11-12 and 2026-11-14 above apply).
+
+### 2026-11-17 — claude — DONE
+- Done: re-planned on the Node API, implemented, review attempt 1 PASS (no security review: UI-only diff, no listed paths). Branch `ticket/F-702` pushed, rebased on main.
+- In progress / next: PR not opened yet — no `gh` / GitHub MCP on this machine; Ming opens it from the compare URL (body drafted by the session). Write the PR URL into the PR field when it exists. After merge: phone check with Claude key, Gemini key, no key (M-27 end-to-end).
+- Gotchas: 7 `pnpm test` failures on Windows are pre-existing on main (ECONNRESET, backslash paths). Follow-ups: rename `AiSettingsError` (A6), Gemini free-tier notice (A11), review nits.
