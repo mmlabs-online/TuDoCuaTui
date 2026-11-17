@@ -19,6 +19,9 @@ scripts/dev-token.sh
 pnpm dev
 ```
 
+- One terminal against the production database (D45): `scripts/start-dev.sh` starts the Postgres tunnel, refreshes an
+  expired token, asks for the DB password at runtime, starts the API and then `pnpm dev`; Ctrl-C stops both. It never
+  runs `server/migrate.js` and refuses a `DATABASE_URL` in `.env.local`.
 - The token is written to `~/.config/tudocuatui/dev-token` (override with `TUDO_DEV_TOKEN_FILE`), outside the repo. It
   lasts 12 hours (D46; 15 minutes until Identity issues 12-hour tokens, M-29). Run `scripts/dev-token.sh` again when requests start failing, then press "Thử lại" or reload. No
   Vite restart is needed.
