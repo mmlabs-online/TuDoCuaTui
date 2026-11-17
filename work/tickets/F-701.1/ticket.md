@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | claude@2026-11-17T01:01:25Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -50,4 +50,11 @@ Design notes: `work/tickets/F-701/consult-software-architect.md` R6.
 ## Notes / answers from Ming
 - 2026-11-14: split approved with the F-701 plan (A1).
 
+- Waiting for Ming: plan approval (High tier), including the Gemini model ids (A1)
+
 ## Handoff
+
+### 2026-11-17 — claude — BLOCKED
+- Done: architect consult; plan READY (A1–A16; ~230 prod + 550 test lines; optional M-27 real-key smoke).
+- In progress / next: Ming approves and confirms model ids → implement → review (+ security) → PR. On DONE, /run adds M-27 to ming-todo.
+- Gotchas: implementer must not ship model ids Ming has not confirmed.
