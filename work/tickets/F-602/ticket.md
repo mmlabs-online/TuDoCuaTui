@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-17T14:25:04Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/75 |
 
 ## Goal
 A full backup that can be restored safely, so Ming does not lose the wardrobe.
@@ -93,3 +93,8 @@ A full backup that can be restored safely, so Ming does not lose the wardrobe.
 - Done: consults (software-architect, database-optimizer) saved; planner wrote plan.md (READY) for slice F-602.1 (server). Whole ticket ≈ 900 non-test lines → split: F-602.1 server, F-602.2 client (depends on F-602.1 MERGED).
 - In progress / next: Ming approves the plan (High tier: `server/**`). Then: create F-602.2 ticket + board row on `main`, run F-602.1 (IMPLEMENT → REVIEW with security auditor). The 8 defaults under plan.md "Needs Ming's decision" are adopted unless Ming overrides.
 - Gotchas: never use `ON CONFLICT DO UPDATE` inside the restore transaction (42501 on foreign rows aborts it); guard UPDATEs with `IS DISTINCT FROM` (trigger bumps `updated_at`); remap must be deterministic (uuidv5) or cross-account restore duplicates.
+
+### 2026-11-17 — claude — DONE
+- Done: slice F-602.1 (server). Attempt 1 REWORK (upper-case ids duplicated items; lone surrogates caused a SQL error); attempt 2 PASS. Security audit: no 🔴 (S1 fixed). PR #75 (High tier). Follow-ups: workspace debt #58 (readJson timeouts), #59 (export over caps, location swap, PUT surrogates, restore slot).
+- In progress / next: Ming reviews and merges PR #75 → F-602.2 (client) becomes runnable; its plan should use the wire format in this plan.md.
+- Gotchas: the Windows checkout's node_modules is a Windows install; run checks in a native WSL clone with a throwaway postgres:16 (DB tests skip silently without Postgres). Open question for Ming: is sign-in limited to known Identity users (security N7)?
