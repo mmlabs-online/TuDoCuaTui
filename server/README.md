@@ -61,13 +61,13 @@ Photos (T-005.2): the cap is 2 MiB, counted on the stream as well as `Content-Le
 
 CSRF: PUT/POST/DELETE with `Sec-Fetch-Site: cross-site` or `same-site` are refused; PUT/POST need `Content-Type: application/json`. No CORS headers are sent.
 
-Response headers (T-019.8): every response gets nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and HSTS (`max-age=31536000; includeSubDomains`). SPA (static) responses also get `SPA_CSP` from `server/http.js`; `/api/photos` keeps its own `default-src 'none'; sandbox`. `/verify-email` and `/reset-password` get `Referrer-Policy: no-referrer`. Widen `SPA_CSP` when the app starts using a new external origin (or when Figma Make site settings inject inline scripts or styles). `connect-src` also allows `blob:` and `data:` because the upload path reads the picked photo with `fetch()` before resizing (T-022).
+Response headers (T-019.8): every response gets nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and HSTS (`max-age=31536000; includeSubDomains`). SPA (static) responses also get `SPA_CSP` from `server/http.js`; `/api/photos` keeps its own `default-src 'none'; sandbox`. `/verify-email` and `/reset-password` get `Referrer-Policy: no-referrer`. Widen `SPA_CSP` when the app starts using a new external origin. `connect-src` also allows `blob:` and `data:` because the upload path reads the picked photo with `fetch()` before resizing (T-022).
 
 Image (T-015): `/app/{package.json,node_modules,dist,server,db/migrations}`, root-owned, `USER node`, `NODE_ENV=production`
 baked in, `CMD ["node","server/index.js"]`. The image `HEALTHCHECK` probes `/healthz`; the compose file overrides it with
 `/readyz`. `TUDO_AUTH_MODE` / `MM_IDENTITY_ISSUER` / `TUDO_OWNER_SUB` come from the compose file, `DATABASE_URL` from the host env file; none is in the image.
 
-Local run: `pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start` (or `MM_IDENTITY_ISSUER=http://localhost:<port>` for a local Identity API). There is no dev bypass: `/api` needs a real bearer, and signing in from localhost is not possible (the Identity origin is registered for production only, M-19). Use `pnpm dev` (local mode) for UI work.
+Local run: `pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start` (or `MM_IDENTITY_ISSUER=http://localhost:<port>` for a local Identity API). There is no dev bypass: `/api` needs a real bearer, and signing in from localhost is not possible (the Identity origin is registered for production only, M-19). For UI work use `pnpm dev`, which proxies to a local server with a dev-only token (see the "Development (dev loop)" section of the root README).
 The T-019.2 contract migration needs `TUDO_OWNER_SUB` (same value) when the dev database has rows, and fails if they belong to another owner.
 
 Logging: one JSON line per request (method, route template, status, ms, id). Never log `DATABASE_URL`, tokens, raw URLs or whole error objects; only `err.code`.

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import * as aiSettings from "./aiSettings";
-import { AiSettingsError, createHttpAiSettings, localAiSettings } from "./aiSettings";
+import { AiSettingsError, createHttpAiSettings } from "./aiSettings";
 
 const VIEW = {
   provider: "claude",
@@ -107,22 +107,6 @@ describe("createHttpAiSettings", () => {
     });
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
-  });
-});
-
-describe("localAiSettings", () => {
-  it("rejects every call with not_available and never fetches", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    for (const p of [
-      localAiSettings.get(),
-      localAiSettings.save({ provider: "claude", model: "m" }),
-      localAiSettings.deleteKey(),
-      localAiSettings.test(),
-    ]) {
-      expect((await codeOf(p)).code).toBe("not_available");
-    }
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
   });
 });
 

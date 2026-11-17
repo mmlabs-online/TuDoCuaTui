@@ -1,18 +1,36 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import App from "@/App";
 import { categoryNames } from "@/constants/wardrobe";
-import { starter } from "@/data/demo";
-import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
+import type { WardrobeRepo } from "@/data/repo";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
+import { fixtureItems as starter, fixtureLocations } from "@/test/fixtures";
+import { createMemoryRepo } from "@/test/memoryRepo";
 
 vi.mock("@/data/photos", () => ({
   resizeImage: async () => ({ blob: new Blob(["jpeg"], { type: "image/jpeg" }) }),
   urlToBlob: async () => new Blob(["raw"]),
 }));
 
-afterEach(cleanup);
+// Per-describe switch: UI describes run on the in-memory repo; the API describes use the real HTTP repo + fetch stubs.
+const repoSwitch = vi.hoisted(() => ({ memory: null as (() => WardrobeRepo) | null }));
+vi.mock("@/data/repo.http", async (orig) => {
+  const actual = await orig<typeof import("@/data/repo.http")>();
+  return {
+    ...actual,
+    createHttpRepo: (...a: Parameters<typeof actual.createHttpRepo>) =>
+      repoSwitch.memory ? repoSwitch.memory() : actual.createHttpRepo(...a),
+  };
+});
+const useMemoryRepo = () => {
+  repoSwitch.memory = () => createMemoryRepo(starter, fixtureLocations);
+};
+
+afterEach(() => {
+  cleanup();
+  repoSwitch.memory = null;
+});
 
 const cards = () => Array.from(document.querySelectorAll<HTMLElement>(".item-card"));
 
@@ -34,13 +52,21 @@ const selectWithLabel = (label: string) =>
 
 const statCard = (label: RegExp) => screen.getByRole("button", { name: label });
 
-describe("App (local mode)", () => {
-  it('shows "Phiên bản dev" in local mode', async () => {
+describe("App (UI)", () => {
+  beforeEach(useMemoryRepo);
+
+  it("the editor has no mock AI button", async () => {
+    await renderApp();
+    fireEvent.click(cards()[0]);
+    expect(screen.queryByRole("button", { name: /Tự điền từ ảnh/ })).toBeNull();
+  });
+
+  it('shows "Phiên bản dev"', async () => {
     await renderApp();
     expect(screen.getByText("Phiên bản dev")).toBeTruthy();
   });
 
-  it("renders the 16 demo items in local mode", async () => {
+  it("renders the 16 fixture items", async () => {
     await renderApp();
     expect(cards()).toHaveLength(16);
     expect(screen.getByText("16 kết quả")).toBeTruthy();
@@ -190,6 +216,8 @@ describe("App (local mode)", () => {
 });
 
 describe("F-201 editor", () => {
+  beforeEach(useMemoryRepo);
+
   const nameInput = () =>
     screen.getByPlaceholderText("Ví dụ: Áo sơ mi linen trắng") as HTMLInputElement;
   const priceInput = () => screen.getByPlaceholderText("0") as HTMLInputElement;
@@ -314,7 +342,9 @@ describe("F-201 editor", () => {
   });
 });
 
-describe("App import/export (local mode)", () => {
+describe("App import/export", () => {
+  beforeEach(useMemoryRepo);
+
   const openImport = () => fireEvent.click(screen.getAllByRole("button", { name: "Import" })[0]);
   const openExport = () => fireEvent.click(screen.getAllByRole("button", { name: "Export" })[0]);
   const exportOption = (i: number) =>
@@ -442,15 +472,6 @@ describe("App import/export (local mode)", () => {
     expect(cards()).toHaveLength(16);
   });
 
-  it("shows the mock AI controls in local mode", async () => {
-    await renderApp();
-    fireEvent.click(cards()[0]);
-    expect(screen.getByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
-    openImport();
-    expect(screen.getByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeTruthy();
-  });
-
   it("export JSON and CSV download files and keep the modal open", async () => {
     const blobs: Blob[] = [];
     const createObjectURL = vi.fn((b: Blob) => {
@@ -504,7 +525,7 @@ describe("App import/export (local mode)", () => {
   });
 });
 
-describe("App (API mode photos)", () => {
+describe("App (photos over the API)", () => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
@@ -538,7 +559,7 @@ describe("App (API mode photos)", () => {
       }),
     );
     try {
-      render(<App mode="api" />);
+      render(<App />);
       await screen.findByText("0 kết quả");
       fireEvent.click(screen.getAllByRole("button", { name: "Thêm món đồ" })[0]);
       fireEvent.change(screen.getByPlaceholderText("Ví dụ: Áo sơ mi linen trắng"), {
@@ -564,7 +585,7 @@ describe("App (API mode photos)", () => {
     }
   });
 
-  it("duplicate in API mode clears the photo", async () => {
+  it("duplicate clears the photo", async () => {
     const PHOTO = "22222222-2222-4222-8222-222222222222";
     const row = {
       id: "11111111-1111-4111-8111-111111111111",
@@ -586,7 +607,7 @@ describe("App (API mode photos)", () => {
       ),
     );
     try {
-      render(<App mode="api" />);
+      render(<App />);
       fireEvent.click(await screen.findByRole("heading", { name: "Áo có ảnh" }));
       expect(document.querySelector(".upload-zone img")?.getAttribute("src")).toBe(
         `/api/photos/${PHOTO}`,
@@ -600,10 +621,10 @@ describe("App (API mode photos)", () => {
   });
 });
 
-describe("App (mode switch, no login)", () => {
+describe("App (no sign-in)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("api mode: items load from /api, no login field, no sign-out", async () => {
+  it("items load from /api, no login field, no sign-out", async () => {
     const apiRow = {
       id: "11111111-1111-4111-8111-111111111111",
       name: "Áo từ server",
@@ -619,25 +640,21 @@ describe("App (mode switch, no login)", () => {
           ),
       ),
     );
-    render(<App mode="api" />);
+    render(<App />);
     await waitFor(() => expect(cards()).toHaveLength(1));
     expect(screen.getAllByText("Áo từ server").length).toBeGreaterThan(0);
     expect(document.querySelector("input[type=email], input[type=password]")).toBeNull();
     expect(screen.queryByText("Đăng xuất")).toBeNull();
   });
 
-  it("local mode: demo items, no sign-out", async () => {
+  it("no sign-out without onSignOut", async () => {
+    useMemoryRepo();
     await renderApp();
     expect(screen.queryByText("Đăng xuất")).toBeNull();
     expect(screen.queryByLabelText("Đăng xuất")).toBeNull();
   });
 
-  it("local mode has no settings button", async () => {
-    await renderApp();
-    expect(screen.queryByLabelText("Cài đặt")).toBeNull();
-  });
-
-  it("api mode shows the settings button and opens the AI settings modal", async () => {
+  it("settings button is always shown and opens the AI settings modal", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -654,7 +671,7 @@ describe("App (mode switch, no login)", () => {
           ),
       ),
     );
-    render(<App mode="api" />);
+    render(<App />);
     fireEvent.click(await screen.findByLabelText("Cài đặt"));
     expect(await screen.findByText("Cài đặt AI")).toBeTruthy();
     await waitFor(() => expect(document.querySelector("input[type=password]")).toBeTruthy());

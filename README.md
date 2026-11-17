@@ -1,16 +1,36 @@
 # Tủ đồ của tôi
 
-Personal wardrobe tracker: React 19 + Vite + Tailwind v4 (UI exported from Figma Make), with a Node API (`server/`) over a self-hosted Postgres, photos on Google Drive via the server, and in-app sign-in with mmlabs Identity (D31/D39). Outside the Node server it runs in local mode.
+Personal wardrobe tracker: React 19 + Vite + Tailwind v4, with a Node API (`server/`) over a self-hosted Postgres, photos on Google Drive via the server, and in-app sign-in with mmlabs Identity (D31/D39). The app always needs the Node server; there is no local or demo mode (D44).
 
-## Run locally
+## Development (dev loop)
+
+The app has no local or demo mode (D44): it always talks to the Node server, and `pnpm dev` proxies `/api` and
+`/healthz` to a local one. The proxy (`dev/devTokenProxy.ts`, `pnpm dev` only, never in `pnpm build`) adds a real
+Identity bearer token on the Node side, so the dev app opens signed in as the owner with no sign-in screen. The token
+never reaches the browser.
 
 ```bash
 pnpm install
+# 1. A local Node server with a LOCAL database (never point DATABASE_URL at production), Drive unset:
+pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=<local> pnpm start
+# 2. A token for your own account (asks for email and password; the password is never written anywhere):
+scripts/dev-token.sh
+# 3. The dev server:
 pnpm dev
 ```
 
-- **`pnpm dev`, the Figma Make preview, static hosting:** local mode. Data lives in localStorage and the demo items are loaded; no login.
-- **Served by the Node server** (`node server/index.js`): API mode. Data goes through `/api`, with in-app sign-in (mmlabs Identity bearer tokens). It is detected at startup via `/healthz`, no build flag. To try it: `pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=... pnpm start`. There is no dev bypass: `/api` needs a real bearer and signing in from localhost is not possible (M-19), so use `pnpm dev` for UI work.
+- The token is written to `~/.config/tudocuatui/dev-token` (override with `TUDO_DEV_TOKEN_FILE`), outside the repo. It
+  lasts 15 minutes. Run `scripts/dev-token.sh` again when requests start failing, then press "Thử lại" or reload. No
+  Vite restart is needed.
+- The script signs in with the production `Origin` because Identity cannot register a localhost origin. After 3
+  failed sign-ins Identity asks for Turnstile: sign in once at `https://tudocuatui.mmlabs.online`, then retry.
+- `pnpm dev` binds to `127.0.0.1:8443` only (override the port with `TUDO_DEV_PORT`); under WSL open
+  `http://localhost:8443` from Windows. The Node server target is `http://127.0.0.1:3000` (`TUDO_DEV_API`).
+- If the Node server is not running, the app shows "Không kết nối được máy chủ" with a retry, never demo data.
+- `pnpm preview` has no proxy and no token.
+
+The production build is served by the Node server (`node server/index.js`): the app detects it through `/healthz` at
+startup, then signs in with mmlabs Identity.
 
 Supabase was removed in T-016 (D23); the old code is in git history.
 
@@ -50,7 +70,7 @@ bottom of the app. Phone check: open the site; a deep URL such as `/x/y` also lo
 **First Node release (M-14)**: the compose draft in `deploy/deployment-repo/apps/tudocuatui/compose.yml` goes into
 the first Node release PR on the deployment repo, merged together with `release.env` as one push (steps in M-14).
 
-**Build args**: only `VITE_APP_VERSION` (set by the workflow). Never set `FIGMA_PUBLIC_URL`; it changes Vite's `base`.
+**Build args**: only `VITE_APP_VERSION` (set by the workflow).
 
 **Rollback**: if the new container is unhealthy, `deploy-tudocuatui` restores the previous release and tries to push
 the revert. If deployment `main` blocks that push the run ends `restore-unpushed`: the server is fine, revert the
@@ -73,9 +93,10 @@ server. Container exits with code 2: the identity config is missing (`MM_IDENTIT
 
 | Path | Purpose |
 |---|---|
-| `src/App.tsx` | UI (from Figma Make). It talks to data only through `useWardrobe()` |
+| `src/App.tsx` | UI. It talks to data only through `useWardrobe()` |
 | `src/data/useWardrobe.ts` | Hook: items, locations, save/remove/wear/importMany |
-| `src/data/repo.ts` | `WardrobeRepo` interface and the local (localStorage) implementation |
+| `src/data/repo.ts` | `WardrobeRepo` interface (the only implementation is `repo.http.ts`) |
+| `src/data/serverProbe.ts` | Startup `/healthz` probe: the Node server answers, or the error screen shows (no fallback) |
 | `src/data/repo.http.ts` | API implementation of `WardrobeRepo` (calls `/api`) |
 | `src/data/mappers.ts` | Maps Vietnamese UI labels ↔ DB enum ids |
 | `src/data/photos.ts` | Client-side image resize before upload |

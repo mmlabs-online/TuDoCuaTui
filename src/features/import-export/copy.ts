@@ -28,8 +28,6 @@ export const IMPORT_EXPORT_COPY = {
       dropTitle: "Kéo nhiều ảnh vào đây",
       dropHint: "Mỗi ảnh sẽ trở thành một món đồ mới",
       pickPhotos: "Chọn ảnh từ máy",
-      aiTitle: "Dùng AI nhận diện loại, màu, mùa",
-      aiHint: "Bạn luôn có thể kiểm tra và sửa lại sau",
       locationLabel: "Vị trí lưu trữ mặc định",
       locationPlaceholder: "Chọn vị trí…",
       statusLabel: "Trạng thái mặc định",

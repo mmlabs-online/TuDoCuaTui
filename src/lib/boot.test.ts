@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { detectRuntime } from "@/data/mode";
-import { needsAuth, takeTokenHash } from "./boot";
+import { probeServer } from "@/data/serverProbe";
+import { takeTokenHash } from "./boot";
 
 const TOKEN = "A".repeat(43);
 const HASH = `#token=${TOKEN}`;
@@ -52,24 +52,8 @@ describe("takeTokenHash", () => {
         { pathname, hash: HASH },
         { replaceState: () => void order.push("replaceState") },
       );
-      await detectRuntime({ fetchFn: fetchFn as unknown as typeof fetch, dev: false });
+      await probeServer({ fetchFn: fetchFn as unknown as typeof fetch });
       expect(order).toEqual(["replaceState", "fetch"]);
     },
   );
-});
-
-describe("needsAuth", () => {
-  const verify = { page: "verify", hash: "#token=x" } as const;
-  const reset = { page: "reset", hash: "#token=x" } as const;
-  it("truth table", () => {
-    expect(needsAuth({ mode: "local", auth: null }, null)).toBe(false);
-    expect(needsAuth({ mode: "local", auth: "identity" }, verify)).toBe(false);
-    expect(needsAuth({ mode: "local", auth: null }, reset)).toBe(false);
-    expect(needsAuth({ mode: "api", auth: "identity" }, null)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: "identity" }, verify)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: "identity" }, reset)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: null }, verify)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: null }, reset)).toBe(true);
-    expect(needsAuth({ mode: "api", auth: null }, null)).toBe(false);
-  });
 });

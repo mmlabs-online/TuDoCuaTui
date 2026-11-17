@@ -8,22 +8,19 @@ import { createIdentityClient } from "./identityClient";
 import { createTokenStore } from "./tokenStore";
 
 /**
- * Lazy entry of the auth slice (loaded only in api mode with identity auth, or on a token-page visit).
- * Identity mode: `/verify-email` or `/reset-password`, then the gate. Access mode: the same, then the plain app.
+ * Lazy entry of the auth slice (production only): `/verify-email` or `/reset-password` first, then the gate.
  */
 export default function AuthRoot({
   renderApp,
   verifyHash,
   resetHash = null,
-  identity,
 }: {
   renderApp: (p?: AppAuthProps) => ReactNode;
   verifyHash: string | null;
   resetHash?: string | null;
-  identity: boolean;
 }) {
   const [client] = useState(() => createIdentityClient({ baseUrl: IDENTITY_BASE, app: APP_KEY }));
-  const [store] = useState(() => (identity ? createTokenStore({ client }) : null));
+  const [store] = useState(() => createTokenStore({ client }));
   const [view, setView] = useState<"verify" | "reset" | "app">(
     verifyHash ? "verify" : resetHash ? "reset" : "app",
   );
@@ -49,7 +46,7 @@ export default function AuthRoot({
         hash={resetHash}
         client={client}
         onContinue={() => leaveReset("password_reset")}
-        onRequestNew={store ? () => leaveReset("forgot") : undefined}
+        onRequestNew={() => leaveReset("forgot")}
       />
     );
   }
@@ -64,15 +61,13 @@ export default function AuthRoot({
       />
     );
   }
-  if (store)
-    return (
-      <AuthGate
-        store={store}
-        client={client}
-        renderApp={renderApp}
-        notice={notice}
-        initialScreen={initialScreen}
-      />
-    );
-  return <>{renderApp()}</>;
+  return (
+    <AuthGate
+      store={store}
+      client={client}
+      renderApp={renderApp}
+      notice={notice}
+      initialScreen={initialScreen}
+    />
+  );
 }

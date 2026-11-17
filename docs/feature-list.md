@@ -18,14 +18,14 @@
 | Product | Personal wardrobe tracker: track items, where they are stored, how often they are worn; import and export the collection |
 | Users | Single owner first (personal use). Data model is already per-user (RLS), so friends/family can sign up later without schema changes |
 | Platform | Web app, mobile-first usage (photographing clothes at the closet) → PWA later |
-| Frontend | React 19 + Vite 8 + Tailwind v4 + TypeScript. UI exported from Figma Make (`src/App.tsx`, ~1.5k lines, single file) |
+| Frontend | React 19 + Vite 8 + Tailwind v4 + TypeScript. UI originally exported from Figma Make, now maintained only in this repo (D44) |
 | Backend | Supabase: Postgres + Auth (email + password, shared stoktok accounts; D19) + Storage (private bucket `wardrobe`), on the shared stoktok project (D17) |
 | Language | UI copy in Vietnamese; code, file names, DB ids and tickets in English |
 
 ### Current state (after PR #1 `feat/supabase-backend`)
 - Schema: `tudo_locations`, `tudo_items`, `tudo_item_photos`, `tudo_wear_logs`, and the view `tudo_items_with_stats` (every DB object is prefixed `tudo_`, D17); RLS per user; storage policies on `{user_id}/{item_id}/...`.
 - Data layer: `src/data/repo.ts` (the `WardrobeRepo` interface with **local** and **supabase** implementations), `src/data/useWardrobe.ts`, `src/data/mappers.ts` (Vietnamese label ↔ enum id).
-- Local mode (no env vars) uses localStorage + 16 demo items, so the Figma Make preview keeps working.
+- Local mode (localStorage + demo items) was removed in D44: the app always runs against the Node API; an unreachable server shows an error screen, never demo data.
 - `AuthGate` provides email + password login (T-006, D19) and a sign-out button.
 - **Known gaps:**
   - `ImportModal` is a mock (adds 4 demo items).
@@ -116,7 +116,7 @@ Set up the real Supabase project and verify PR #1.
 ### E1 — Auth & Account
 
 #### F-101 · Login screen polish · P1 · M1 · S
-- Restyle `AuthGate` to the Figma Make design language.
+- Restyle `AuthGate` to the app's design language.
 - Add a resend button with a 60 s cooldown, and clear errors for invalid email or rate limit.
 - **AC:** matches the app style in light and dark mode; works on a 390px viewport.
 

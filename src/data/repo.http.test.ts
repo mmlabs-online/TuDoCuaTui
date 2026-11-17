@@ -69,10 +69,6 @@ const item = (over: Partial<Item> = {}): Item => ({
 });
 
 describe("createHttpRepo", () => {
-  test("mode is api", () => {
-    expect(setup(() => json({})).repo.mode).toBe("api");
-  });
-
   test("list GETs /api/items and maps rows (photo empty, null last_worn → empty)", async () => {
     const { repo, fetchFn } = setup(() => json({ items: [row] }));
     const [it] = await repo.list();

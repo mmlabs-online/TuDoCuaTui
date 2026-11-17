@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item } from "@/types/item";
-import type { DataMode } from "@/data/mode";
 import { PhotoSaveError } from "@/data/apiErrors";
 import { PhotoLoaderContext } from "@/data/usePhotoUrl";
 import { useWardrobe } from "@/data/useWardrobe";
@@ -25,22 +24,19 @@ import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
 import { createHttpAiSettings } from "@/data/aiSettings";
 import type { GetToken } from "@/data/authFetch";
-import { locations, starter } from "@/data/demo";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
 
 function App({
-  mode,
   getToken,
   onSignOut,
   onAuthLost,
 }: {
-  mode?: DataMode;
   getToken?: GetToken;
   onSignOut?: () => void;
   onAuthLost?: () => void;
 } = {}) {
-  const wardrobe = useWardrobe(starter, locations, mode, { getToken, onAuthLost });
+  const wardrobe = useWardrobe({ getToken, onAuthLost });
   // One client per mounted App: it carries this sign-in's bearer provider.
   const aiClient = useMemo(
     () => createHttpAiSettings(undefined, undefined, { getToken, onAuthLost }),
@@ -116,7 +112,7 @@ function App({
           onImport={() => setImportOpen(true)}
           onExport={() => setExportOpen(true)}
           onAdd={openNew}
-          onSettings={wardrobe.mode === "api" ? () => setSettingsOpen(true) : undefined}
+          onSettings={() => setSettingsOpen(true)}
           onSignOut={onSignOut}
         />
 
@@ -194,8 +190,6 @@ function App({
             saving={saving}
             update={update}
             onClose={() => setEditor(null)}
-            showMockAi={wardrobe.mode === "local"}
-            photoById={wardrobe.mode === "api"}
             onSave={save}
             onDelete={() => setConfirm(true)}
             onDuplicate={() => {
@@ -205,11 +199,9 @@ function App({
                 name: `${editor.name} (bản sao)`,
                 wearCount: 0,
                 lastWorn: "",
-                ...(wardrobe.mode === "api" && {
-                  photo: "",
-                  photoPath: undefined,
-                  removedPhotoId: undefined,
-                }),
+                photo: "",
+                photoPath: undefined,
+                removedPhotoId: undefined,
               });
               setIsNew(true);
               notify("Đã tạo bản sao");
@@ -255,7 +247,6 @@ function App({
             locations={wardrobe.locations}
             importMany={wardrobe.importMany}
             onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
-            showMockAi={wardrobe.mode === "local"}
           />
         )}
         {exportOpen && (
@@ -267,7 +258,7 @@ function App({
             }}
           />
         )}
-        {settingsOpen && wardrobe.mode === "api" && (
+        {settingsOpen && (
           <AiSettingsModal client={aiClient} onClose={() => setSettingsOpen(false)} />
         )}
         <Toast message={toast} />

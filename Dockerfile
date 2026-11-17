@@ -3,7 +3,6 @@
 # Runtime config comes only from outside: DATABASE_URL from the host env file, TUDO_AUTH_MODE / MM_IDENTITY_ISSUER /
 # TUDO_OWNER_SUB from the compose file. None of them is set here (R3).
 # VITE_APP_VERSION (T-008) is the release tag vX.Y.Z (public, not a secret); empty shows "dev".
-# Never set FIGMA_PUBLIC_URL: it changes Vite's `base`.
 
 FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS build
 WORKDIR /app
