@@ -7,6 +7,7 @@ import {
   STATUSES,
   isCalendarDate,
   isUuid,
+  parseBackup,
   parseItemInput,
   parseWearInput,
   vnToday,
@@ -257,5 +258,253 @@ describe("parseWearInput", () => {
     const after = Date.parse("2026-03-04T17:00:00Z");
     expect(parseWearInput({ delta: 1, today: "2026-03-06" }, before).ok).toBe(false);
     expect(parseWearInput({ delta: 1, today: "2026-03-06" }, after).ok).toBe(true);
+  });
+});
+
+describe("parseBackup", () => {
+  const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const TS = "2026-03-04T05:00:00.000Z";
+  const loc = (n: number, extra: Record<string, unknown> = {}) => ({
+    id: u(n),
+    name: `Tủ ${n}`,
+    parent_id: null,
+    sort_order: 0,
+    created_at: TS,
+    ...extra,
+  });
+  const item = (n: number, extra: Record<string, unknown> = {}) => ({
+    id: u(100 + n),
+    name: `Áo ${n}`,
+    category: "top",
+    status: "active",
+    created_at: TS,
+    updated_at: TS,
+    ...extra,
+  });
+  const file = (over: Record<string, unknown> = {}) => ({
+    version: 1,
+    exportedAt: TS,
+    locations: [],
+    items: [],
+    wearLogs: [],
+    ...over,
+  });
+  const err = (body: unknown, caps?: Parameters<typeof parseBackup>[1]) => {
+    const r = parseBackup(body, caps);
+    if (r.ok) throw new Error("expected a failure");
+    return { field: r.field, reason: r.reason };
+  };
+
+  it("lower-cases every id; A and a in one list are a duplicate", () => {
+    const up = (n: number) => u(n).replace(/0/g, "A");
+    const r = parseBackup(
+      file({
+        locations: [loc(1, { id: up(1) })],
+        items: [item(1, { id: up(2), location_id: up(1) })],
+        wearLogs: [{ id: up(3), item_id: up(2), worn_on: "2026-03-01" }],
+      }),
+    );
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.value.locations[0].id).toBe(up(1).toLowerCase());
+    expect(r.value.items[0].id).toBe(up(2).toLowerCase());
+    expect(r.value.items[0].location_id).toBe(up(1).toLowerCase());
+    expect(r.value.wearLogs[0].item_id).toBe(up(2).toLowerCase());
+    expect(
+      err(file({ locations: [loc(1, { id: up(1) }), loc(2, { id: up(1).toLowerCase() })] })),
+    ).toEqual({ field: "locations[1].id", reason: "duplicateId" });
+  });
+
+  it("rejects lone surrogates with field and reason", () => {
+    expect(err(file({ items: [item(1, { name: "A\ud800B" })] }))).toEqual({
+      field: "items[0].name",
+      reason: "invalidValue",
+    });
+    expect(err(file({ items: [item(1, { tags: ["ok", "x\udc00"] })] }))).toEqual({
+      field: "items[0].tags[1]",
+      reason: "invalidValue",
+    });
+    expect(err(file({ locations: [loc(1, { name: "T\ud800" })] }))).toEqual({
+      field: "locations[0].name",
+      reason: "invalidValue",
+    });
+  });
+
+  it("accepts an empty backup and a full one; only known keys come out", () => {
+    expect(parseBackup(file()).ok).toBe(true);
+    const r = parseBackup(
+      file({
+        locations: [loc(1, { user_id: "x", extra: 1 })],
+        items: [
+          item(1, {
+            user_id: "x",
+            wear_count: 9,
+            location_name: "\u0000bad",
+            location_id: u(1),
+            photo_id: u(900),
+            price: 150000,
+            purchase_date: "2026-01-02",
+            colors: ["den"],
+          }),
+        ],
+        wearLogs: [{ id: u(500), item_id: u(101), worn_on: "2001-01-01", user_id: "x" }],
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(Object.keys(r.value.locations[0]).sort()).toEqual(
+      ["created_at", "id", "name", "parent_id", "sort_order"].sort(),
+    );
+    expect(Object.keys(r.value.items[0]).sort()).toEqual(
+      [
+        "id",
+        "name",
+        "category",
+        "status",
+        "brand",
+        "size",
+        "material",
+        "price",
+        "purchase_date",
+        "colors",
+        "seasons",
+        "tags",
+        "notes",
+        "location_id",
+        "created_at",
+        "updated_at",
+        "photo_id",
+      ].sort(),
+    );
+    expect(Object.keys(r.value.wearLogs[0]).sort()).toEqual(["id", "item_id", "worn_on"]);
+    expect(r.value.items[0].location_id).toBe(u(1));
+  });
+
+  it("keeps Vietnamese names, NFC-normalized", () => {
+    const r = parseBackup(file({ locations: [loc(1, { name: "  Tủ áo  " })] }));
+    expect(r.ok && r.value.locations[0].name).toBe("Tủ áo");
+  });
+
+  it("rejects a non-object, a wrong version and unknown top-level keys", () => {
+    expect(err(null)).toEqual({ field: null, reason: "notObject" });
+    expect(err([])).toEqual({ field: null, reason: "notObject" });
+    expect(err(file({ version: 2 })).reason).toBe("versionUnsupported");
+    expect(err(file({ version: "1" })).reason).toBe("versionUnsupported");
+    expect(err(file({ extra: 1 })).reason).toBe("unknownKey");
+  });
+
+  it("rejects a bad exportedAt and missing or non-array lists", () => {
+    expect(err(file({ exportedAt: 5 }))).toEqual({ field: "exportedAt", reason: "invalidType" });
+    for (const k of ["locations", "items", "wearLogs"]) {
+      expect(err(file({ [k]: {} }))).toEqual({ field: k, reason: "invalidType" });
+      const rest: Record<string, unknown> = { ...file() };
+      delete rest[k];
+      expect(err(rest)).toEqual({ field: k, reason: "invalidType" });
+    }
+  });
+
+  it("caps each list one over the cap", () => {
+    const caps = { bytes: 1, locations: 1, items: 1, wearLogs: 1 };
+    expect(err(file({ locations: [loc(1), loc(2)] }), caps)).toEqual({
+      field: "locations",
+      reason: "tooMany",
+    });
+    expect(err(file({ items: [item(1), item(2)] }), caps).reason).toBe("tooMany");
+    const w = (n: number) => ({ id: u(500 + n), item_id: u(101), worn_on: `2026-01-0${n}` });
+    expect(err(file({ items: [item(1)], wearLogs: [w(1), w(2)] }), caps).field).toBe("wearLogs");
+  });
+
+  it("checks ids and duplicates with indexed fields", () => {
+    expect(err(file({ items: [item(1), item(2, { id: "nope" })] }))).toEqual({
+      field: "items[1].id",
+      reason: "idInvalid",
+    });
+    expect(err(file({ items: [item(1), item(1)] }))).toEqual({
+      field: "items[1].id",
+      reason: "duplicateId",
+    });
+    expect(err(file({ locations: [loc(1), loc(1, { name: "other" })] })).reason).toBe(
+      "duplicateId",
+    );
+  });
+
+  it("reuses the item rules with indexed fields", () => {
+    const items = [item(1), item(2), item(3), item(4, { name: "  " })];
+    expect(err(file({ items }))).toEqual({ field: "items[3].name", reason: "nameRequired" });
+    expect(err(file({ items: [item(1, { price: -1 })] }))).toEqual({
+      field: "items[0].price",
+      reason: "priceNegative",
+    });
+    expect(err(file({ items: [item(1, { category: "bag" })] }))).toEqual({
+      field: "items[0].category",
+      reason: "invalidValue",
+    });
+    expect(err(file({ items: ["x"] }))).toEqual({ field: "items[0]", reason: "notObject" });
+  });
+
+  it("requires ISO millisecond timestamps that round-trip", () => {
+    const bads = ["2026-02-30T00:00:00.000Z", "2026-03-04", "2026-03-04T05:00:00Z", 5, undefined];
+    for (const bad of bads) {
+      expect(err(file({ items: [item(1, { created_at: bad })] }))).toEqual({
+        field: "items[0].created_at",
+        reason: "timestampInvalid",
+      });
+    }
+    expect(err(file({ items: [item(1, { updated_at: "x" })] })).field).toBe("items[0].updated_at");
+    expect(err(file({ locations: [loc(1, { created_at: "x" })] })).field).toBe(
+      "locations[0].created_at",
+    );
+  });
+
+  it("checks location fields", () => {
+    expect(err(file({ locations: [loc(1, { name: "" })] })).reason).toBe("nameRequired");
+    expect(err(file({ locations: [loc(1, { name: "x".repeat(81) })] })).reason).toBe("tooLong");
+    expect(parseBackup(file({ locations: [loc(1, { name: "x".repeat(80) })] })).ok).toBe(true);
+    expect(err(file({ locations: [loc(1, { name: "Tủ" }), loc(2, { name: "Tủ" })] }))).toEqual({
+      field: "locations[1].name",
+      reason: "duplicateName",
+    });
+    expect(err(file({ locations: [loc(1, { parent_id: u(1) })] })).reason).toBe("invalidValue");
+    expect(err(file({ locations: [loc(1, { parent_id: u(2) })] })).reason).toBe("danglingRef");
+    expect(
+      err(file({ locations: [loc(1, { parent_id: u(2) }), loc(2, { parent_id: u(1) })] })).reason,
+    ).toBe("cycle");
+    for (const so of [1.5, "1", 2 ** 31, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(err(file({ locations: [loc(1, { sort_order: so })] })).reason).toBe("invalidValue");
+    }
+    expect(parseBackup(file({ locations: [loc(1, { sort_order: -5 })] })).ok).toBe(true);
+  });
+
+  it("checks references", () => {
+    expect(err(file({ items: [item(1, { location_id: u(9) })] }))).toEqual({
+      field: "items[0].location_id",
+      reason: "danglingRef",
+    });
+    expect(parseBackup(file({ items: [item(1, { location_id: null })] })).ok).toBe(true);
+    expect(err(file({ wearLogs: [{ id: u(500), item_id: u(9), worn_on: "2026-01-01" }] }))).toEqual(
+      {
+        field: "wearLogs[0].item_id",
+        reason: "danglingRef",
+      },
+    );
+  });
+
+  it("checks wear logs", () => {
+    const w = (n: number, day: string) => ({ id: u(500 + n), item_id: u(101), worn_on: day });
+    expect(err(file({ items: [item(1)], wearLogs: [w(1, "2026-02-30")] }))).toEqual({
+      field: "wearLogs[0].worn_on",
+      reason: "dateInvalid",
+    });
+    expect(parseBackup(file({ items: [item(1)], wearLogs: [w(1, "2001-01-01")] })).ok).toBe(true);
+    expect(
+      err(file({ items: [item(1)], wearLogs: [w(1, "2026-01-01"), w(2, "2026-01-01")] })),
+    ).toEqual({ field: "wearLogs[1]", reason: "duplicateWear" });
+  });
+
+  it("photo_id is null or a uuid", () => {
+    expect(parseBackup(file({ items: [item(1, { photo_id: null })] })).ok).toBe(true);
+    expect(err(file({ items: [item(1, { photo_id: "p" })] }))).toEqual({
+      field: "items[0].photo_id",
+      reason: "idInvalid",
+    });
   });
 });

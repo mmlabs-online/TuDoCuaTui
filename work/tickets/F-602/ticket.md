@@ -2,19 +2,19 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
 | Epic | E6 — Import & Export |
 | Areas | data, db, architecture, security |
-| Gate | none |
+| Gate | plan-approval |
 | Depends on | F-004.3 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/75 |
 
 ## Goal
 A full backup that can be restored safely, so Ming does not lose the wardrobe.
@@ -81,8 +81,20 @@ A full backup that can be restored safely, so Ming does not lose the wardrobe.
 - Manual: export → delete items → restore → export → diff, on the real app.
 
 ## Notes / answers from Ming
+- 2026-11-17: **Plan approved** by Ming, with all 8 defaults under plan.md "Needs Ming's decision" (recorded as D49). F-602.2 (client) created on `main`.
+- Waiting for Ming: plan approval (High tier). plan.md covers slice **F-602.1** (server: `GET /api/backup`, `POST /api/restore`, all under `server/**`, High in `.github/risk-tiers.yml`); the client half becomes F-602.2 (see plan.md "Split proposal"). Reply "Plan approved" here (or in chat) to resume.
 - 2026-11-17: scope refreshed for the current backend (Node API, Postgres RLS, Drive, no local mode — D44)
   at Ming's request. The local-mode acceptance criterion was dropped.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-17 — claude — BLOCKED
+- Done: consults (software-architect, database-optimizer) saved; planner wrote plan.md (READY) for slice F-602.1 (server). Whole ticket ≈ 900 non-test lines → split: F-602.1 server, F-602.2 client (depends on F-602.1 MERGED).
+- In progress / next: Ming approves the plan (High tier: `server/**`). Then: create F-602.2 ticket + board row on `main`, run F-602.1 (IMPLEMENT → REVIEW with security auditor). The 8 defaults under plan.md "Needs Ming's decision" are adopted unless Ming overrides.
+- Gotchas: never use `ON CONFLICT DO UPDATE` inside the restore transaction (42501 on foreign rows aborts it); guard UPDATEs with `IS DISTINCT FROM` (trigger bumps `updated_at`); remap must be deterministic (uuidv5) or cross-account restore duplicates.
+
+### 2026-11-17 — claude — DONE
+- Done: slice F-602.1 (server). Attempt 1 REWORK (upper-case ids duplicated items; lone surrogates caused a SQL error); attempt 2 PASS. Security audit: no 🔴 (S1 fixed). PR #75 (High tier). Follow-ups: workspace debt #58 (readJson timeouts), #59 (export over caps, location swap, PUT surrogates, restore slot).
+- In progress / next: Ming reviews and merges PR #75 → F-602.2 (client) becomes runnable; its plan should use the wire format in this plan.md.
+- Gotchas: the Windows checkout's node_modules is a Windows install; run checks in a native WSL clone with a throwaway postgres:16 (DB tests skip silently without Postgres). Open question for Ming: is sign-in limited to known Identity users (security N7)?

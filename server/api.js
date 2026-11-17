@@ -2,6 +2,7 @@
 // /api router. Called by app.js only after the auth check, with the raw pathname (never decoded).
 import { handleAiSettings } from "./ai/routes.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
+import { handleBackup } from "./backup.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
@@ -14,6 +15,8 @@ function match(parts) {
   if (empty !== "" || api !== "api") return null;
   if (parts.length === 3 && a === "items") return { route: "/api/items", allow: "GET" };
   if (parts.length === 3 && a === "locations") return { route: "/api/locations", allow: "GET" };
+  if (parts.length === 3 && a === "backup") return { route: "/api/backup", allow: "GET" };
+  if (parts.length === 3 && a === "restore") return { route: "/api/restore", allow: "POST" };
   if (parts.length === 3 && a === "ai-settings") {
     return { route: "/api/ai-settings", allow: "GET, PUT" };
   }
@@ -50,6 +53,7 @@ function match(parts) {
  *   folders: ReturnType<typeof import("./driveFolders.js").createFolderResolver> | null,
  *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
  *   photoQuota: ReturnType<typeof import("./photoQuota.js").createPhotoQuota>,
+ *   backup: Parameters<typeof handleBackup>[2]["backup"],
  *   bodyTimeouts: { totalMs: number, idleMs: number },
  *   pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
@@ -67,6 +71,7 @@ export async function handleApi(
     folders,
     photoSlots,
     photoQuota,
+    backup,
     bodyTimeouts,
     pathname,
     query,
@@ -91,6 +96,9 @@ export async function handleApi(
   const site = req.headers["sec-fetch-site"];
   if (write && (site === "cross-site" || site === "same-site")) {
     return sendError(res, 403, "forbidden_origin");
+  }
+  if (m.route === "/api/backup" || m.route === "/api/restore") {
+    return await handleBackup(req, res, { route: m.route, pool, userId, id, backup, log, now });
   }
   if (m.route.startsWith("/api/ai-settings")) {
     return await handleAiSettings(req, res, { route: m.route, ai, userId, id, log });

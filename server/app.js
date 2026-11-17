@@ -8,6 +8,7 @@ import { createFolderResolver } from "./driveFolders.js";
 import { ping } from "./db.js";
 import { createInFlight } from "./inflight.js";
 import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
+import { RESTORE_BODY_TIMEOUTS, RESTORE_GLOBAL_LIMITS, RESTORE_LIMITS } from "./backup.js";
 import { BODY_TIMEOUTS } from "./photos.js";
 import { createPhotoQuota, PHOTO_LIMITS } from "./photoQuota.js";
 import { serveStatic } from "./static.js";
@@ -25,6 +26,7 @@ import { serveStatic } from "./static.js";
  *   ownerSub?: string | null,
  *   bodyTimeouts?: { totalMs: number, idleMs: number },
  *   photoLimits?: { storedMax: number, dailyMax: number, windowMs: number },
+ *   restoreBodyTimeouts?: { totalMs: number, idleMs: number },
  * }} deps
  */
 export function createApp({
@@ -39,6 +41,7 @@ export function createApp({
   ownerSub = null,
   bodyTimeouts = BODY_TIMEOUTS,
   photoLimits = PHOTO_LIMITS,
+  restoreBodyTimeouts = RESTORE_BODY_TIMEOUTS,
 }) {
   // Uploads in flight: 2 per user, 3 in total (3 x 2 MiB in memory). The owner has its own lane.
   const photoSlots = createInFlight({ perUser: 2, total: 3, exempt: ownerSub });
@@ -46,6 +49,17 @@ export function createApp({
   const photoQuota = createPhotoQuota({ ...photoLimits, now, exempt: ownerSub });
   // One folder-id cache per app instance (T-021).
   const folders = drive ? createFolderResolver({ drive }) : null;
+  // Restore: one in flight per user and in total (the pool has 5 connections), 10 per hour per user (F-602).
+  const backup = {
+    slots: createInFlight({ perUser: 1, total: 1, exempt: ownerSub }),
+    limiter: createLimiter({
+      now,
+      ownerSub,
+      limits: RESTORE_LIMITS,
+      globalLimits: RESTORE_GLOBAL_LIMITS,
+    }),
+    timeouts: restoreBodyTimeouts,
+  };
   const aiContext = ai && {
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
@@ -110,6 +124,7 @@ export function createApp({
           folders,
           photoSlots,
           photoQuota,
+          backup,
           bodyTimeouts,
           pathname,
           query: url.split("#")[0].split("?").slice(1).join("?"),

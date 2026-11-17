@@ -338,3 +338,6 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       deployment repo, set `ACCESS_TOKEN_TTL_SECONDS=43200` for org-admin-api and redeploy it. Check: a fresh
       `scripts/dev-token.sh` prints `expires_in 43200`. Without T-026 deployed too, TuDo rejects tokens older than
       15 minutes.
+
+### F-602 — JSON backup and restore
+- [x] **M-30 — Approve plan for F-602 (slice F-602.1, server, High tier):** `work/tickets/F-602/plan.md` (on branch `ticket/F-602`). Check the 8 defaults under "Needs Ming's decision"; write "Plan approved" under *Notes / answers from Ming* in the ticket or tell Annie.

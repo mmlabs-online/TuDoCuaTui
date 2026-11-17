@@ -159,3 +159,28 @@ describe("owner lane", () => {
     expect(l.check(OWNER_A, "test")).toBe(false);
   });
 });
+
+describe("limiter with custom limits", () => {
+  it("enforces its own kinds and windows, per user and globally", () => {
+    let t = 1_000;
+    const l = createLimiter({
+      now: () => t,
+      limits: { restore: { max: 2, windowMs: 1000 } },
+      globalLimits: { restore: { max: 3, windowMs: 1000 } },
+    });
+    expect(l.check(OWNER_A, "restore")).toBe(true);
+    expect(l.check(OWNER_A, "restore")).toBe(true);
+    expect(l.check(OWNER_A, "restore")).toBe(false);
+    expect(l.check(OWNER_B, "restore")).toBe(true);
+    expect(l.check(OWNER_B, "restore")).toBe(false); // global ceiling (3)
+    t += 1001;
+    expect(l.check(OWNER_A, "restore")).toBe(true);
+  });
+
+  it("default construction still enforces the AI values", () => {
+    const l = createLimiter({ now: () => 1 });
+    for (let i = 0; i < LIMITS.save.max; i++) expect(l.check(OWNER_A, "save")).toBe(true);
+    expect(l.check(OWNER_A, "save")).toBe(false);
+    expect(GLOBAL_LIMITS.save.max).toBe(600);
+  });
+});
