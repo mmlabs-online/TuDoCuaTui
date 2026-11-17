@@ -46,6 +46,8 @@ const DAY_MS = 86400000;
 const cpLen = (s) => [...s].length;
 /** @param {string} s */
 const hasNul = (s) => s.includes("\u0000");
+/** True when the string holds a lone surrogate (not well-formed UTF-16). @param {string} s */
+const lone = (s) => /\p{Surrogate}/u.test(s);
 /** @param {unknown} s */
 export const isUuid = (s) => typeof s === "string" && UUID.test(s);
 
@@ -240,7 +242,8 @@ export function parseBackup(body, caps = BACKUP_CAPS) {
   const rawLogs = /** @type {unknown[]} */ (b.wearLogs);
 
   /** @param {string} f @param {unknown} v @returns {{ value: string } | Fail} */
-  const reqId = (f, v) => (isUuid(v) ? { value: /** @type {string} */ (v) } : fail(f, "idInvalid"));
+  const reqId = (f, v) =>
+    isUuid(v) ? { value: /** @type {string} */ (v).toLowerCase() } : fail(f, "idInvalid");
   /** @param {string} f @param {unknown} v @returns {{ value: string | null } | Fail} */
   const optId = (f, v) => (v === undefined || v === null ? { value: null } : reqId(f, v));
 
@@ -257,7 +260,7 @@ export function parseBackup(body, caps = BACKUP_CAPS) {
     if (locIds.has(id.value)) return fail(`${at}.id`, "duplicateId");
     locIds.add(id.value);
     if (typeof o.name !== "string") return fail(`${at}.name`, "nameRequired");
-    if (hasNul(o.name)) return fail(`${at}.name`, "invalidValue");
+    if (hasNul(o.name) || lone(o.name)) return fail(`${at}.name`, "invalidValue");
     const name = o.name.normalize("NFC").trim();
     if (name === "") return fail(`${at}.name`, "nameRequired");
     if (cpLen(name) > 80) return fail(`${at}.name`, "tooLong");
@@ -306,6 +309,17 @@ export function parseBackup(body, caps = BACKUP_CAPS) {
     // location_name is not part of the file: ignore it like any other unknown key.
     const p = parseItemInput({ ...o, location_name: undefined });
     if (!p.ok) return fail(p.field === null ? at : `${at}.${p.field}`, p.reason);
+    // A lone surrogate would break the jsonb parameter inside the restore transaction.
+    for (const [k, v] of Object.entries(p.value)) {
+      if (typeof v === "string" && lone(v)) return fail(`${at}.${k}`, "invalidValue");
+      if (Array.isArray(v)) {
+        for (let j = 0; j < v.length; j++) {
+          if (typeof v[j] === "string" && lone(v[j])) {
+            return fail(`${at}.${k}[${j}]`, "invalidValue");
+          }
+        }
+      }
+    }
     const loc = optId(`${at}.location_id`, o.location_id);
     if ("ok" in loc) return loc;
     if (loc.value !== null && !locIds.has(loc.value)) {

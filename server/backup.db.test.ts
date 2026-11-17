@@ -324,12 +324,44 @@ describe.skipIf(!dbAvailable)("backup and restore (real Postgres)", () => {
     expect(parent.id).not.toBe(file.locations[0].id);
   });
 
-  it("a wear-log id that belongs to someone else gets a new id; the rerun is a no-op", async () => {
+  it("a wear-log id that belongs to someone else gets a new id", async () => {
     await seedA();
     const file = await exportAs("a");
     await restoreOk("b", file);
     const aLogIds = new Set(file.wearLogs.map((w: any) => w.id));
     for (const w of (await snap("b")).wear_logs) expect(aLogIds.has(w.id)).toBe(false);
+  });
+
+  it("upper-case ids in the file restore to one of each, ids kept lower case, rerun changes nothing", async () => {
+    const TS = "2026-03-04T05:00:00.000Z";
+    const L = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+    const I = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB";
+    const file = {
+      version: 1,
+      exportedAt: TS,
+      locations: [{ id: L, name: "Tủ", parent_id: null, sort_order: 0, created_at: TS }],
+      items: [
+        {
+          id: I,
+          name: "Áo",
+          category: "top",
+          status: "active",
+          location_id: L,
+          created_at: TS,
+          updated_at: TS,
+        },
+      ],
+      wearLogs: [{ id: "CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC", item_id: I, worn_on: "2026-03-01" }],
+    };
+    const s = await restoreOk("a", file);
+    expect(s.items).toMatchObject({ inserted: 1, remapped: 0 });
+    expect(await counts("a")).toEqual([1, 1, 1]);
+    const once = await snap("a");
+    expect(once.items[0].id).toBe(I.toLowerCase());
+    expect(once.wear_logs[0].item_id).toBe(I.toLowerCase());
+    const again = await restoreOk("a", file);
+    expect(again.items).toMatchObject({ inserted: 0, updated: 0, remapped: 0 });
+    expect(await snap("a")).toEqual(once);
   });
 
   it("a squatted derived id makes the restore use the next attempt; the rerun is idempotent", async () => {

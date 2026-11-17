@@ -51,3 +51,26 @@ None. (`server/app.js` gained the optional `restoreBodyTimeouts` dep, which is i
 - Only code change: `server/backup.db.test.ts` casts `res.json()` results to `any` (2 places) to fix two `tsc` errors (TS18046 / TS2571) that appeared in the Windows checkout.
 - Windows checks (reinstalled `node_modules` natively, `pnpm install --frozen-lockfile`; throwaway `postgres:16` container on port 55433, stopped afterwards, `TEST_DATABASE_URL` set): typecheck passes, format check passes, build passes. `pnpm test`: 1489 passed, 13 skipped, 9 failed. All 9 are Windows-environment failures unrelated to this diff: early-close 413 tests (`fetch failed` / ECONNRESET: `api.test.ts`, `api.db.test.ts`, `tagPhoto.test.ts` x3, and my `backup.db.test.ts` "AC4: a body over the cap" with the same mechanism), `index.cli.test.ts` SIGTERM exit code, `scoping.test.ts` (backslash path separators), `boundary.test.ts`. The 413 case passes in the WSL run above (15/15 in `backup.db.test.ts`).
 - Note: the Windows `node_modules` is now a Windows-native install; WSL needs `pnpm install` again.
+
+## Attempt 2 (REWORK: review attempt 1 Issues 1 and 2; security S1 = Issue 1)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `server/validate.js` | `reqId` in `parseBackup` now lower-cases every id (so `locIds`, `itemIds`, `parent_id`, `location_id`, `item_id`, `photo_id` compare in one form, before the duplicate/reference checks). `parseBackup` rejects lone surrogates (`invalidValue`, indexed field) in location `name` and in every string / string-array element of an item. `parseItemInput` and the PUT path are untouched. The check is a small `lone()` helper (`/\p{Surrogate}/u`) because `String.prototype.isWellFormed` is not in this project's TS lib. |
+| `server/validate.test.ts` | upper-case ids come out lower case and `A...`/`a...` in one list is `duplicateId`; lone surrogate in an item field, in an array element and in a location name |
+| `server/backup.db.test.ts` | upper-case-id file restores to 1 location / 1 item / 1 wear log, ids kept (lower case), `remapped: 0`, second restore changes nothing; renamed the nit test (it never reran) |
+
+### Checks (native WSL copy `~/f602`, throwaway `postgres:16` container on 55434, removed afterwards)
+- typecheck: passes. format:check: "All matched files use the correct format."
+- test: 117 files, 1514 tests passed, 0 failed; `server/backup.db.test.ts` 16 tests ran (not skipped).
+- build: passes.
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new. The UPDATE `name = mine.name` nit and the other attempt 1 follow-ups are left as they were.
+
+### Scope self-check
+Only the two listed issues plus the trivial test rename.

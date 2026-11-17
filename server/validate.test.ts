@@ -295,6 +295,40 @@ describe("parseBackup", () => {
     return { field: r.field, reason: r.reason };
   };
 
+  it("lower-cases every id; A and a in one list are a duplicate", () => {
+    const up = (n: number) => u(n).replace(/0/g, "A");
+    const r = parseBackup(
+      file({
+        locations: [loc(1, { id: up(1) })],
+        items: [item(1, { id: up(2), location_id: up(1) })],
+        wearLogs: [{ id: up(3), item_id: up(2), worn_on: "2026-03-01" }],
+      }),
+    );
+    if (!r.ok) throw new Error("expected ok");
+    expect(r.value.locations[0].id).toBe(up(1).toLowerCase());
+    expect(r.value.items[0].id).toBe(up(2).toLowerCase());
+    expect(r.value.items[0].location_id).toBe(up(1).toLowerCase());
+    expect(r.value.wearLogs[0].item_id).toBe(up(2).toLowerCase());
+    expect(
+      err(file({ locations: [loc(1, { id: up(1) }), loc(2, { id: up(1).toLowerCase() })] })),
+    ).toEqual({ field: "locations[1].id", reason: "duplicateId" });
+  });
+
+  it("rejects lone surrogates with field and reason", () => {
+    expect(err(file({ items: [item(1, { name: "A\ud800B" })] }))).toEqual({
+      field: "items[0].name",
+      reason: "invalidValue",
+    });
+    expect(err(file({ items: [item(1, { tags: ["ok", "x\udc00"] })] }))).toEqual({
+      field: "items[0].tags[1]",
+      reason: "invalidValue",
+    });
+    expect(err(file({ locations: [loc(1, { name: "T\ud800" })] }))).toEqual({
+      field: "locations[0].name",
+      reason: "invalidValue",
+    });
+  });
+
   it("accepts an empty backup and a full one; only known keys come out", () => {
     expect(parseBackup(file()).ok).toBe(true);
     const r = parseBackup(
