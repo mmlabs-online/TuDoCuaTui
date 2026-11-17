@@ -77,3 +77,66 @@ I read these files: `dev/devTokenProxy.ts`, `dev/devTokenProxy.test.ts` (grep on
 ### Open questions
 1. Should the plugin refuse to start when `TUDO_DEV_API` is not loopback, or only warn? Proposed default: refuse, since overriding the target remotely has no legitimate use under D44.
 2. Should the Identity "Origin is not an authentication factor" note go into `work/decisions.md`, or into an Identity-side debt issue? Proposed default: a one-line README note plus a `debt` issue against Identity.
+
+## Attempt 2 — 2026-11-17 — security-ai-generated-code-auditor (read-only)
+
+**Verdict: no blockers.** Both 🟡 findings from attempt 1 are fixed, and so is the minor `dev-token.sh` item (finding 7). I tried the bypasses you listed against both new guards and none got through. The D45 README guardrails are mostly accurate. One of them conflicts with the README's own example command, so I'm marking it 🟡 (finding C1). The rest are 🟢 hardening notes.
+
+**Coverage:**
+- **Read:** `dev/devTokenProxy.ts`, `dev/devTokenProxy.test.ts`, `scripts/dev-token.sh`, `vite.config.ts`, `README.md:1-60`, `server/index.js`, `server/ai/routes.js`, the auth-mode grep, `secrets.refs.yaml` (grep), and the Vite 8.0.5 source in `node_modules/.pnpm/vite@8.0.5…/dist/node/chunks/node.js`.
+- **Not done:** I have no shell tool, so I could not run `git show 01f856b` or `git show origin/main:work/decisions.md`. I checked the D45 wording against the README and the server code, not against the decision text itself. I ran nothing and read no `.env*` file.
+
+### A. Attempt-1 findings
+
+**🟢 1 (was 🟡) — non-loopback `server.host`: fixed.**
+- `dev/devTokenProxy.ts:40-52` with `configResolved` at `:111-113`. The check rejects any host that is not a string in the loopback set, and rejects `allowedHosts === true`.
+- Bypasses tried, all rejected: `--host` with no value (Vite gets `true`, not a string); `--host 0.0.0.0`, `""`, `::`, `127.1`, `::ffff:127.0.0.1`, `LOCALHOST` (none is a member of the set); setting the value in config instead of the CLI (CLI options are merged before `configResolved`).
+- Some values are rejected even though they are loopback or harmless (`false`, `127.0.0.2`). That is fine. `"[::1]"` is accepted, but `listen("[::1]")` simply fails. Harmless.
+- Tests: `devTokenProxy.test.ts:195-207`.
+- Attempt-1 ordering question (finding 4) confirmed in Vite 8.0.5: `node.js:26228` adds the Host-validation middleware before `node.js:26239` adds the proxy, so DNS rebinding gets a 403 before the token is added. Caveat: Vite skips Host validation when `server.https` is set; rebinding against https needs a valid certificate for the attacker's name, so this is acceptable.
+
+**🟢 2 (was 🟡) — `TUDO_DEV_API`: fixed.**
+- `dev/devTokenProxy.ts:25-37` checks the WHATWG `new URL(target).hostname` against the exact set.
+- Tricks tried, all rejected: `http://127.0.0.1@evil.com`, `http://localhost.evil.com`, `http://evil.com#@127.0.0.1`, `http://127.0.0.1.nip.io`, `http://localhost.` (trailing dot). No DNS lookup is involved.
+- Decimal and hex forms like `127.1` or `0x7f000001` normalize to `127.0.0.1` and pass; those are loopback, so that is correct. For IPv6 the WHATWG hostname is `[::1]`, so the `"::1"` entry only matters for `server.host`.
+- Tests: `devTokenProxy.test.ts:187-193`. The check runs only in `config()`, which only applies under `serve` (`:110`).
+
+**🟢 7 — `dev-token.sh` minor items: fixed.**
+- `:24-25`: `trap 'rm -rf "$work"' EXIT` plus `trap 'exit 130' INT TERM HUP`; `exit` inside the signal trap runs the EXIT trap, so the work dir is removed on Ctrl-C, TERM and HUP.
+- `:49` and `:52` now use `IFS= read -r` and `IFS= read -rs`.
+- The fixed `$FILE.tmp` name (`:87`) can still race if two runs overlap. Harmless.
+- No regressions: the password still goes only through the pipe (`:55-58`), `account_id` is checked against the UUID pattern before `printf` (`:71`), and stdout gets only the path and `expires_in` (`:89`).
+
+**🟢 3 / 8 — README notes added.** `README.md:29-31`.
+
+### B. New observations on the guards (hardening, not required)
+
+**🟢 B1. Validate the URL you return, not the raw string.** `proxyTarget` validates `new URL(target)` but returns the raw `target` (`:36`). Fix: `return new URL(target).origin` and require `protocol` `http:` or `https:`; add tests for `http://127.0.0.1@evil.com`, `http://localhost.evil.com`, `http://evil.com#@127.0.0.1` (all rejected today).
+
+**🟢 B2. A tunnel can bypass the loopback bind.** A local tunnel or port forwarder (VS Code port forwarding, `ngrok --host-header=rewrite`, `cloudflared --http-host-header localhost`) can expose `:8443` with the Host rewritten to `localhost`; the proxy then adds the token for anyone with the URL. Cheap guard: in `rewriteAuth`, add no bearer when `x-forwarded-for`, `forwarded`, `x-forwarded-host` or `cf-connecting-ip` is present. README line: "the D45 tunnel is to the database only; never tunnel or port-forward the dev server."
+
+### C. D45 README guardrails (`README.md:14-15`, `:32-36`)
+
+**🟡 C1. The documented command writes the production `DATABASE_URL` into a file.** `README.md:15` shows `… DATABASE_URL=<local> pnpm start` typed inline; the same pattern for production puts the connection string in `~/.bash_history`, breaking the guardrail at `:33` and workspace rule §3. Fix: for production, give the value through `scripts/with-secrets.sh DATABASE_URL… -- pnpm start`, or `read -rs` plus `export`, never inline. No tudocuatui entry in `secrets.refs.yaml` today (Ming's step). Same rule for `AI_KEK` and the Google credentials (`:34-35`).
+
+**🟢 C2. `AI_KEK` wording.** With a different KEK nothing is re-encrypted automatically; reads fail locally with `key_unreadable`, and only a save (`server/ai/routes.js:143-148`) re-seals the key under the dev KEK, after which production answers `key_unreadable`. Suggested: "with a different KEK, saving an AI key in dev re-seals it and production can no longer read it." Consider "keep `AI_KEK` unset" with no exception.
+
+**🟢 C3. The migrate guardrail holds.** `pnpm start` is `node server/index.js`, which does not run migrations. `TUDO_AUTH_MODE` can only be `identity`, so a local server on the production database still verifies every bearer token.
+
+**🟢 C4. The local Node server listens on all interfaces** (`server/index.js:81`). Auth is always enforced; only unauthenticated `/healthz` and `/readyz` reveal a connected database. Optional: a `HOST` env var, `HOST=127.0.0.1` in the dev command.
+
+**🟢 C5. Say where the `pg_dump` goes:** outside the repo, mode 600 (a full copy of production data, including encrypted AI keys); the DB tunnel listens on `127.0.0.1` only.
+
+### Recommendations
+1. Fix the README for production values (C1).
+2. Optionally harden `proxyTarget` (B1).
+3. Optionally refuse the bearer when forwarding headers are present, plus the README line (B2).
+4. Reword the `AI_KEK` sentence and say where the `pg_dump` output goes (C2, C5).
+
+### Risks
+- Under D45 the dev token plus the production database gives real production read/write. The remaining code-level paths are a host-rewriting tunnel (B2) and production values leaking through shell history (C1).
+- I did not read the D45 decision text itself.
+
+### Open questions
+1. C1 in T-025 (README only) or a `debt` issue? Proposed default: fix in T-025.
+2. B1 and B2 in this ticket or a follow-up? Proposed default: a follow-up `debt` issue.
