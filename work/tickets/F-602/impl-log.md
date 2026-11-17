@@ -45,3 +45,9 @@ None. (`server/app.js` gained the optional `restoreBodyTimeouts` dep, which is i
 ### Scope self-check
 - Could the diff be smaller? No: `backup.js` and `parseBackup` are the feature; the other files carry only the wiring the plan lists.
 - Diff size: non-test code about +680 / -24 (`backup.js` 453 lines, `validate.js` +165, `http.js` +34 net, small edits elsewhere); tests about +730 lines.
+
+### Attempt 1 addendum (resume run, Windows checkout)
+- Reviewed the working tree against plan.md: nothing missing, nothing outside the plan.
+- Only code change: `server/backup.db.test.ts` casts `res.json()` results to `any` (2 places) to fix two `tsc` errors (TS18046 / TS2571) that appeared in the Windows checkout.
+- Windows checks (reinstalled `node_modules` natively, `pnpm install --frozen-lockfile`; throwaway `postgres:16` container on port 55433, stopped afterwards, `TEST_DATABASE_URL` set): typecheck passes, format check passes, build passes. `pnpm test`: 1489 passed, 13 skipped, 9 failed. All 9 are Windows-environment failures unrelated to this diff: early-close 413 tests (`fetch failed` / ECONNRESET: `api.test.ts`, `api.db.test.ts`, `tagPhoto.test.ts` x3, and my `backup.db.test.ts` "AC4: a body over the cap" with the same mechanism), `index.cli.test.ts` SIGTERM exit code, `scoping.test.ts` (backslash path separators), `boundary.test.ts`. The 413 case passes in the WSL run above (15/15 in `backup.db.test.ts`).
+- Note: the Windows `node_modules` is now a Windows-native install; WSL needs `pnpm install` again.
