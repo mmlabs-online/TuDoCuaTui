@@ -67,3 +67,4 @@ the same shape as `sun` (`src/components/Icon.tsx:34-39`). Added by T-010.
 ## Notes / answers from Ming
 
 ## Handoff
+- 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71

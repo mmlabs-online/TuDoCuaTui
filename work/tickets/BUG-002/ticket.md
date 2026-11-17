@@ -84,3 +84,4 @@ of cards and observers mounted, plus photos within 300px of the viewport.
 ## Notes / answers from Ming
 
 ## Handoff
+- 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71

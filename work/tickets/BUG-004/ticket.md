@@ -75,3 +75,4 @@ The filters only exist to the right of it in the same scrolling row.
 ## Notes / answers from Ming
 
 ## Handoff
+- 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71

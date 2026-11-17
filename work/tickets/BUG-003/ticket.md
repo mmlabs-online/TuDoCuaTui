@@ -71,3 +71,4 @@ width: 190px; transform: scale(0.8)`, and `.collage-2` is placed at `left: 88px`
 ## Notes / answers from Ming
 
 ## Handoff
+- 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71
