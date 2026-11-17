@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-10 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/73 |
 
 ## Goal
 The editor's "Tự điền từ ảnh" calls F-701 and fills only empty fields, never overwriting what Ming typed, with undo.
@@ -67,3 +67,8 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
 - Done: re-planned on the Node API, implemented, review attempt 1 PASS (no security review: UI-only diff, no listed paths). Branch `ticket/F-702` pushed, rebased on main.
 - In progress / next: PR not opened yet — no `gh` / GitHub MCP on this machine; Ming opens it from the compare URL (body drafted by the session). Write the PR URL into the PR field when it exists. After merge: phone check with Claude key, Gemini key, no key (M-27 end-to-end).
 - Gotchas: 7 `pnpm test` failures on Windows are pre-existing on main (ECONNRESET, backslash paths). Follow-ups: rename `AiSettingsError` (A6), Gemini free-tier notice (A11), review nits.
+
+### 2026-11-17 — claude — DONE
+- Done: opened PR #73 (the earlier run ended "PR pending"; `gh` was not on that session's path).
+- In progress / next: Ming reviews and merges PR #73, then the phone checks listed in the PR.
+- Gotchas: overlaps PR #72 (F-202.1) in `Editor.tsx`/`copy.ts`/`index.css` — rebase whichever merges second; after F-202.1, route the AI photo through `preparePhoto` (D48).
