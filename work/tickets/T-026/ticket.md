@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T09:04:39Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -59,4 +59,10 @@ org-admin-api **USR-13** (raise the TTL bound, amend ADR-0005). Amends the T-019
 ## Notes / answers from Ming
 - 2026-11-17: "tôi muốn kéo xài. token 12 hours", then "chọn C" (D46).
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+### 2026-11-17 — claude — BLOCKED
+- Done: consult (software-architect), plan.md `Status: READY` with assumptions A1–A3.
+- In progress / next: Ming approves the plan (confirm or override A1–A3); then `/run T-026` implements.
+- Gotchas: deploy T-026 to production before M-29 turns on 12-hour tokens; A1 (SPA refresh cadence → 12 h client-side revocation latency) is a consequence D46 did not list.
