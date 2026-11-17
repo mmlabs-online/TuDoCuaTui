@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | DONE |
+| State | REWORK |
 | Priority | P1 |
 | Size | L |
 | Milestone | M1 |
@@ -11,9 +11,9 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-17 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-17T07:31:33Z |
 | PR | — |
 
 ## Goal
@@ -116,3 +116,5 @@ Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A9" (A1�
 - Done: attempt 1 implemented (Figma Make and local mode removed, dev token proxy, docs); review PASS; security review no 🔴, two 🟡 (non-loopback `server.host` via `--host`, unvalidated `TUDO_DEV_API`) plus minor `dev-token.sh` items; reviewer: `scripts/dev-token.sh` not executable in git.
 - In progress / next: open the PR (no `gh` CLI on this machine; body drafted for Ming). Recommended: one more implementer pass for the two 🟡 items and the chmod before merge.
 - Gotchas: run tests from the Linux filesystem in WSL; from `/mnt/d` the server CLI tests time out (host I/O, same on `main`).
+
+Ming 2026-11-17: "ok, sửa rồi mở PR" — before the PR, one more implementer pass for the security 🟡 items, the `dev-token.sh` fixes and chmod, and the README wording for D45 (local dev may use the production DB).
