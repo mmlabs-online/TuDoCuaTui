@@ -6,7 +6,7 @@ export const SETTINGS_COPY = {
   eyebrow: "CÀI ĐẶT",
   title: "Cài đặt AI",
   provider: "Nhà cung cấp",
-  providerOptions: { claude: "Claude", gemini: "Gemini (sắp có)" },
+  providerOptions: { claude: "Claude", gemini: "Gemini" },
   model: "Model",
   apiKey: "API key",
   keyPlaceholder: "Dán API key",

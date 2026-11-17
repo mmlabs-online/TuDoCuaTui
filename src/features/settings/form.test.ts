@@ -24,12 +24,13 @@ const KEY = "sk-ant-" + "a".repeat(20);
 describe("models", () => {
   it("lists the allowlist per provider", () => {
     expect(modelsFor("claude")).toHaveLength(3);
-    expect(modelsFor("gemini")).toEqual([]);
+    expect(modelsFor("gemini")).toHaveLength(3);
   });
-  it("keeps an allowed model, else the default (empty for Gemini)", () => {
+  it("keeps an allowed model, else the provider's default", () => {
     expect(nextModelOnProviderChange("claude", "claude-opus-5-5")).toBe("claude-opus-5-5");
     expect(nextModelOnProviderChange("claude", "other")).toBe("claude-haiku-5-5");
-    expect(nextModelOnProviderChange("gemini", "claude-opus-5-5")).toBe("");
+    expect(nextModelOnProviderChange("gemini", "claude-opus-5-5")).toBe("gemini-2.5-flash");
+    expect(nextModelOnProviderChange("gemini", "gemini-2.5-pro")).toBe("gemini-2.5-pro");
   });
 });
 
@@ -70,7 +71,8 @@ describe("canSave", () => {
     expect(canSave({ ...base, model: "nope", key: KEY }, view())).toBe(false);
     expect(canSave({ ...base, key: "short" }, view())).toBe(false);
   });
-  it("is false for Gemini (no models)", () => {
+  it("is true for Gemini with its default model and a valid key", () => {
+    expect(canSave({ provider: "gemini", model: "gemini-2.5-flash", key: KEY }, view())).toBe(true);
     expect(canSave({ provider: "gemini", model: "", key: KEY }, view())).toBe(false);
   });
   it("is false when the provider changed while a key is saved and no key is typed", () => {

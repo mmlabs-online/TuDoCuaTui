@@ -2,6 +2,7 @@
 // Claude key check: GET /v1/models/{id} (no tokens spent). A pure adapter: no store, KEK, user or logging.
 // The key goes only into the x-api-key header of a request to the pinned host. Only the status is read.
 import { mapClaudeError } from "./providerErrors.js";
+import { readCapped } from "./readCapped.js";
 import { buildTagSchema, TAG_INSTRUCTION } from "./tagging.js";
 
 export const CLAUDE_MODELS_URL = "https://api.anthropic.com/v1/models/";
@@ -31,34 +32,6 @@ export async function checkClaudeKey({ fetch, key, model, timeoutMs = 10_000 }) 
 export const CLAUDE_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
 export const TAG_TOOL_NAME = "tag_item";
 const MAX_RESPONSE_BYTES = 64 * 1024;
-
-/**
- * Reads at most MAX_RESPONSE_BYTES of the body and parses it; null when over the cap or not JSON.
- * @param {Response} res
- * @returns {Promise<unknown>}
- */
-async function readCapped(res) {
-  const reader = res.body?.getReader();
-  if (!reader) return null;
-  /** @type {Uint8Array[]} */
-  const chunks = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.length;
-    if (total > MAX_RESPONSE_BYTES) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Tags a JPEG with forced tool use. Returns the raw (unsanitized) tool input; parseTagSuggestion validates it.
@@ -109,7 +82,7 @@ export async function tagPhotoWithClaude({ fetch, key, model, image, signal, tim
       signal: AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]),
     });
     if (!res.ok) return { ok: false, code: mapClaudeError(res.status) };
-    const data = /** @type {any} */ (await readCapped(res));
+    const data = /** @type {any} */ (await readCapped(res, MAX_RESPONSE_BYTES));
     const blocks = Array.isArray(data?.content) ? data.content : [];
     const uses = blocks.filter((/** @type {any} */ b) => b?.type === "tool_use");
     const [use] = uses;

@@ -9,17 +9,18 @@ export interface AiModel {
   isDefault: boolean;
 }
 
-/**
- * Allowlist of models per provider. Gemini is intentionally empty until its ids are verified against
- * Google's docs (T-009 note, 2026-11-10); with no models, Gemini cannot be selected or saved.
- */
+/** Allowlist of models per provider. Gemini ids confirmed by Ming on 2026-11-17 against ai.google.dev/gemini-api/docs/models. */
 export const AI_MODELS: Record<AiProvider, readonly AiModel[]> = {
   claude: [
     { id: "claude-opus-5-5", label: "Claude Opus 5.5", isDefault: false },
     { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5", isDefault: false },
     { id: "claude-haiku-5-5", label: "Claude Haiku 5.5", isDefault: true },
   ],
-  gemini: [],
+  gemini: [
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", isDefault: false },
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", isDefault: true },
+    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite", isDefault: false },
+  ],
 };
 
 export const MODEL_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,99}$/;
