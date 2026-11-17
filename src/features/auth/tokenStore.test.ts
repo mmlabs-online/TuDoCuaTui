@@ -85,6 +85,17 @@ describe("getToken", () => {
     expect(s.client.token).toHaveBeenCalledTimes(2);
   });
 
+  it("caches a 12-hour token until expires_in - 60 s", async () => {
+    const s = setup({ expiresIn: 43200 });
+    await s.store.getToken();
+    s.advance(43_140_000 - 1);
+    expect(await s.store.getToken()).toBe("tok1");
+    expect(s.client.token).toHaveBeenCalledTimes(1);
+    s.advance(1);
+    expect(await s.store.getToken()).toBe("tok2");
+    expect(s.client.token).toHaveBeenCalledTimes(2);
+  });
+
   it("getToken(stale) refreshes only while the stale token is current", async () => {
     const s = setup();
     const t1 = (await s.store.getToken())!;

@@ -70,6 +70,11 @@ describe("request shapes", () => {
     expect(req().headers["X-MM-App"]).toBe("tudocuatui");
   });
 
+  it("token accepts expires_in 43200 (D46)", async () => {
+    const { client } = setup(() => json({ ...tokenBody, expires_in: 43200 }));
+    expect(await client.token(ID)).toEqual({ accessToken: "tok-secret", expiresIn: 43200 });
+  });
+
   it("logout and resend", async () => {
     const a = setup(() => new Response(null, { status: 204 }));
     await a.client.logout(ID);
