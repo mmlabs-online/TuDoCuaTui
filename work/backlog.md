@@ -60,7 +60,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | MERGED | P1 | M | security, architecture | T-018 | plan-approval | 1 | 2026-11-13 |
 | T-010 | Settings screen: AI provider, API key and model | MERGED | P1 | S | ui, security | T-018.2 | none | 1 | 2026-11-13 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | MERGED | P1 | M | architecture, security | T-018.2 | plan-approval | 1 | 2026-11-14 |
-| F-701.1 | Gemini provider for AI photo tagging and the key test | BLOCKED | P2 | S | security, architecture | F-701 | plan-approval | 0 | 2026-11-14 |
+| F-701.1 | Gemini provider for AI photo tagging and the key test | IN_PROGRESS | P2 | S | security, architecture | F-701 | plan-approval | 0 | 2026-11-14 |
 | F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | BLOCKED | P1 | S | ui | F-701, T-010 | none | 0 | 2026-11-10 |
 | T-005.1 | Connect the Node server to Google Drive | MERGED | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 1 | 2026-11-11 |
 | T-005.5 | Drive connect script and deploy secrets for TuDo photos | MERGED | P0 | S | security | T-005.1 | plan-approval | 1 | 2026-11-11 |
