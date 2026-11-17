@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T06:41:50Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -111,3 +111,8 @@ Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A9" (A1�
 - Done: consult (software-architect), plan.md `Status: READY` with assumptions A1–A9.
 - In progress / next: Ming approves the plan (confirm or override A1–A9) by writing "Plan approved (YYYY-MM-DD)" under *Notes / answers from Ming*; then `/run T-025` implements.
 - Gotchas: High paths touched (`src/features/auth/AuthRoot.tsx`, comment-only `Dockerfile` / `.dockerignore`); T-019 and F-702 overlap `AuthRoot.tsx`, `main.tsx` and `Editor.tsx`; well over 400 changed lines, fallback split named in the plan.
+
+### 2026-11-17 — claude — DONE
+- Done: attempt 1 implemented (Figma Make and local mode removed, dev token proxy, docs); review PASS; security review no 🔴, two 🟡 (non-loopback `server.host` via `--host`, unvalidated `TUDO_DEV_API`) plus minor `dev-token.sh` items; reviewer: `scripts/dev-token.sh` not executable in git.
+- In progress / next: open the PR (no `gh` CLI on this machine; body drafted for Ming). Recommended: one more implementer pass for the two 🟡 items and the chmod before merge.
+- Gotchas: run tests from the Linux filesystem in WSL; from `/mnt/d` the server CLI tests time out (host I/O, same on `main`).
