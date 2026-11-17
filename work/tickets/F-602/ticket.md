@@ -2,18 +2,18 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
 | Epic | E6 — Import & Export |
 | Areas | data, db, architecture, security |
-| Gate | none |
+| Gate | plan-approval |
 | Depends on | F-004.3 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-17T13:48:50Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -81,8 +81,14 @@ A full backup that can be restored safely, so Ming does not lose the wardrobe.
 - Manual: export → delete items → restore → export → diff, on the real app.
 
 ## Notes / answers from Ming
+- Waiting for Ming: plan approval (High tier). plan.md covers slice **F-602.1** (server: `GET /api/backup`, `POST /api/restore`, all under `server/**`, High in `.github/risk-tiers.yml`); the client half becomes F-602.2 (see plan.md "Split proposal"). Reply "Plan approved" here (or in chat) to resume.
 - 2026-11-17: scope refreshed for the current backend (Node API, Postgres RLS, Drive, no local mode — D44)
   at Ming's request. The local-mode acceptance criterion was dropped.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-17 — claude — BLOCKED
+- Done: consults (software-architect, database-optimizer) saved; planner wrote plan.md (READY) for slice F-602.1 (server). Whole ticket ≈ 900 non-test lines → split: F-602.1 server, F-602.2 client (depends on F-602.1 MERGED).
+- In progress / next: Ming approves the plan (High tier: `server/**`). Then: create F-602.2 ticket + board row on `main`, run F-602.1 (IMPLEMENT → REVIEW with security auditor). The 8 defaults under plan.md "Needs Ming's decision" are adopted unless Ming overrides.
+- Gotchas: never use `ON CONFLICT DO UPDATE` inside the restore transaction (42501 on foreign rows aborts it); guard UPDATEs with `IS DISTINCT FROM` (trigger bumps `updated_at`); remap must be deterministic (uuidv5) or cross-account restore duplicates.
