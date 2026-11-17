@@ -1,6 +1,7 @@
 import { localToday } from "@/lib/dates";
 import type { Item } from "@/types/item";
 import { ApiError, PhotoSaveError } from "./apiErrors";
+import type { Backup, RestoreSummary } from "./backup";
 import { createAuthedFetch, type AuthOptions } from "./authFetch";
 import { apiPhotoUrl, isUuid, itemToRow, rowToItem } from "./mappers";
 import { preparePhoto } from "./photoPrep";
@@ -111,6 +112,13 @@ export function createHttpRepo(
         lastWorn: r!.last_worn ?? "",
         already: !!r!.already,
       };
+    },
+    async exportAll() {
+      return (await call<Backup>("GET", "/backup"))!;
+    },
+    async restore(backup) {
+      const r = await call<{ summary: RestoreSummary }>("POST", "/restore", backup);
+      return r!.summary;
     },
   };
 }

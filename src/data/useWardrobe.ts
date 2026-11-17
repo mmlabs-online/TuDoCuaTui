@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
+import type { Backup } from "./backup";
 import { runImport } from "./importRunner";
 import type { GetToken } from "./authFetch";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
@@ -97,6 +98,17 @@ export function useWardrobe({
     [repo],
   );
 
+  const exportBackup = useCallback(() => repo.exportAll(), [repo]);
+
+  const restoreBackup = useCallback(
+    async (backup: Backup) => {
+      const summary = await repo.restore(backup);
+      await refresh();
+      return summary;
+    },
+    [repo, refresh],
+  );
+
   /** Sequential on purpose: keeps request rate and storage uploads gentle. */
   const importMany = useCallback(
     async (
@@ -123,6 +135,8 @@ export function useWardrobe({
     remove,
     wear,
     importMany,
+    exportBackup,
+    restoreBackup,
     message,
   };
 }
