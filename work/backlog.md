@@ -84,4 +84,4 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | PLANNING | P1 | S | ui | — | none | 0 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | PLANNING | P2 | XS | ui | — | none | 0 | 2026-11-17 |
 | BUG-004 | Search box overflows and scrolls sideways on mobile | PLANNING | P1 | XS | ui | — | none | 0 | 2026-11-17 |
-| BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | PLANNING | P1 | XS | ui | — | none | 0 | 2026-11-17 |
+| BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | IN_PROGRESS | P1 | XS | ui | — | none | 0 | 2026-11-17 |
