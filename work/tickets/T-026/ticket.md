@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T09:40:47Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/70 |
 
 ## Goal
 The TuDo server accepts Identity access tokens up to 12 hours old, so a dev token from `scripts/dev-token.sh` (and a
@@ -66,3 +66,8 @@ Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A3" (A1�
 - Done: consult (software-architect), plan.md `Status: READY` with assumptions A1–A3.
 - In progress / next: Ming approves the plan (confirm or override A1–A3); then `/run T-026` implements.
 - Gotchas: deploy T-026 to production before M-29 turns on 12-hour tokens; A1 (SPA refresh cadence → 12 h client-side revocation latency) is a consequence D46 did not list.
+
+### 2026-11-17 — claude — DONE
+- Done: attempt 1 implemented (`MAX_TOKEN_AGE_S = 43200`, literal age tests, two SPA tests, docs); review PASS (7 full runs green); security no 🔴 (one 🟡: 1 s timing margin in the 43229 s test). PR #70 opened.
+- In progress / next: Ming merges PR #70; release and deploy T-026 before M-29 (Identity 12-hour TTL, org-admin-api USR-13).
+- Gotchas: wrong order fails closed (401 after 15 min + retry burst); A1 client-side revocation latency up to 12 h.
