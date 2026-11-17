@@ -11,3 +11,15 @@ test('close button is named "Đóng" and closes', () => {
   fireEvent.click(screen.getByRole("button", { name: IMPORT_EXPORT_COPY.export.close }));
   expect(onClose).toHaveBeenCalled();
 });
+
+test("busy disables both export options", () => {
+  const onExport = vi.fn();
+  render(<ExportModal onClose={vi.fn()} onExport={onExport} busy />);
+  const options = document.querySelectorAll<HTMLButtonElement>(".export-options button");
+  expect(options).toHaveLength(2);
+  for (const b of options) {
+    expect(b.disabled).toBe(true);
+    fireEvent.click(b);
+  }
+  expect(onExport).not.toHaveBeenCalled();
+});

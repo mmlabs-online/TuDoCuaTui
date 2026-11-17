@@ -5,8 +5,12 @@ import {
   API_ERROR_COPY,
   ApiError,
   apiErrorMessage,
+  BACKUP_REASON_COPY,
+  describeBackupField,
   PHOTO_UPLOAD_ERROR_COPY,
   PhotoSaveError,
+  RESTORE_ERROR_COPY,
+  restoreErrorMessage,
 } from "./apiErrors";
 
 const SERVER_CODES = [
@@ -102,5 +106,86 @@ describe("PhotoSaveError photo copy", () => {
     );
     expect(new PhotoSaveError(item, new Error("boom")).message).toContain("boom");
     expect(new PhotoSaveError(item, null).message).toBe(API_ERROR_COPY.photoNotSaved);
+  });
+});
+
+describe("restore errors", () => {
+  const err = (code: string, field?: string, reason?: string, requestId?: string) =>
+    new ApiError(code === "internal" ? 500 : 400, code, field, reason, requestId);
+
+  test("API_ERROR_COPY has restore_busy and restore_conflict", () => {
+    for (const code of ["restore_busy", "restore_conflict"]) {
+      expect(new ApiError(503, code).message).not.toBe(API_ERROR_COPY.generic);
+    }
+  });
+
+  test("restoreErrorMessage: busy, conflict and the restore overrides", () => {
+    expect(restoreErrorMessage(err("restore_busy"))).toBe(API_ERROR_COPY.restore_busy);
+    expect(restoreErrorMessage(err("restore_conflict"))).toBe(API_ERROR_COPY.restore_conflict);
+    for (const code of ["request_timeout", "rate_limited", "payload_too_large", "invalid_json"]) {
+      const m = restoreErrorMessage(err(code));
+      expect(m).toBe((RESTORE_ERROR_COPY as Record<string, string>)[code]);
+      expect(m).not.toBe((API_ERROR_COPY as Record<string, unknown>)[code]);
+    }
+    expect(restoreErrorMessage(new ApiError(0, "network"))).toBe(RESTORE_ERROR_COPY.network);
+  });
+
+  test("restoreErrorMessage: internal keeps the request id; unknown codes and non-ApiErrors are generic", () => {
+    expect(restoreErrorMessage(err("internal", undefined, undefined, "r-1"))).toBe(
+      API_ERROR_COPY.internal("r-1"),
+    );
+    expect(restoreErrorMessage(err("weird"))).toBe(API_ERROR_COPY.generic);
+    expect(restoreErrorMessage(new Error("x"))).toBe(API_ERROR_COPY.generic);
+  });
+
+  test("invalid_input with an item field and nameRequired names the item and reuses editor copy", () => {
+    const m = restoreErrorMessage(err("invalid_input", "items[3].name", "nameRequired"));
+    expect(m).toContain("món #4");
+    expect(m).toContain(EDITOR_COPY.errors.nameRequired);
+  });
+
+  test("invalid_input reasons each give a Vietnamese reason; unknown ones the generic text", () => {
+    const base = RESTORE_ERROR_COPY.invalidFile;
+    expect(restoreErrorMessage(err("invalid_input", "locations[0].parent_id", "cycle"))).toBe(
+      `${base} — vị trí #1 (parent_id): ${BACKUP_REASON_COPY.cycle}`,
+    );
+    expect(
+      restoreErrorMessage(err("invalid_input", "wearLogs[5].worn_on", "dateInvalid")),
+    ).toContain("lượt mặc #6");
+    expect(restoreErrorMessage(err("invalid_input", "items", "tooMany"))).toBe(
+      `${base} — items: ${BACKUP_REASON_COPY.tooMany}`,
+    );
+    expect(restoreErrorMessage(err("invalid_input", undefined, "unknownKey"))).toBe(base);
+    expect(restoreErrorMessage(err("invalid_input", "items[0].x", "brandNewReason"))).toBe(base);
+  });
+
+  test("every reason the server can send has copy", () => {
+    for (const r of [
+      "notObject",
+      "versionUnsupported",
+      "unknownKey",
+      "invalidType",
+      "tooMany",
+      "idInvalid",
+      "duplicateId",
+      "invalidValue",
+      "tooLong",
+      "duplicateName",
+      "danglingRef",
+      "cycle",
+      "timestampInvalid",
+      "duplicateWear",
+    ]) {
+      expect(BACKUP_REASON_COPY[r]).toBeTruthy();
+    }
+  });
+
+  test("describeBackupField", () => {
+    expect(describeBackupField("items[3].tags[1]")).toBe("món #4 (tags)");
+    expect(describeBackupField("items[0]")).toBe("món #1");
+    expect(describeBackupField("locations[0]")).toBe("vị trí #1");
+    expect(describeBackupField("wearLogs[12].item_id")).toBe("lượt mặc #13 (item_id)");
+    expect(describeBackupField("version")).toBe("version");
+    expect(describeBackupField(undefined)).toBe("");
   });
 });

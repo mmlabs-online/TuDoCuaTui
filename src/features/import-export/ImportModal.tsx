@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/Modal";
+import type { Backup, RestoreSummary } from "@/data/backup";
 import type { ImportResult } from "@/data/useWardrobe";
 import type { Item } from "@/types/item";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
@@ -10,6 +11,7 @@ import { buildCsvPreview } from "@/features/import-export/csv/preview";
 import { type CsvPhase, ImportCsvTab } from "@/features/import-export/ImportCsvTab";
 import { ImportJsonTab } from "@/features/import-export/ImportJsonTab";
 import { ImportPhotosTab } from "@/features/import-export/ImportPhotosTab";
+import { useJsonRestore } from "@/features/import-export/useJsonRestore";
 
 const COPY = IMPORT_EXPORT_COPY.import;
 
@@ -18,6 +20,8 @@ export function ImportModal({
   locations,
   importMany,
   onImported,
+  restoreBackup,
+  onRestored,
 }: {
   onClose: () => void;
   locations: string[];
@@ -26,12 +30,15 @@ export function ImportModal({
     opts: { onProgress: (done: number, total: number) => void; signal: AbortSignal },
   ) => Promise<ImportResult[]>;
   onImported: (count: number) => void;
+  restoreBackup: (b: Backup) => Promise<RestoreSummary>;
+  onRestored: (s: RestoreSummary) => void;
 }) {
   const [tab, setTab] = useState(0);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<CsvPhase>("edit");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
+  const json = useJsonRestore(restoreBackup, onRestored, onClose);
   const controllerRef = useRef<AbortController | null>(null);
   const preview = useMemo(() => buildCsvPreview(text, { locations }), [text, locations]);
 
@@ -56,21 +63,19 @@ export function ImportModal({
 
   const csvReady = preview.kind === "ready" && preview.items.length > 0;
   const primary =
-    tab !== 1
-      ? {
-          label: tab === 0 ? COPY.startImport : COPY.checkAndImport,
-          disabled: true,
-          onClick: undefined,
-        }
-      : phase === "running"
-        ? { label: COPY.processing, disabled: true, onClick: undefined }
-        : phase === "done"
-          ? { label: COPY.csv.done, disabled: false, onClick: onClose }
-          : {
-              label: COPY.csv.importN(preview.kind === "ready" ? preview.items.length : 0),
-              disabled: !csvReady,
-              onClick: start,
-            };
+    tab === 0
+      ? { label: COPY.startImport, disabled: true, onClick: undefined }
+      : tab === 2
+        ? json.primary
+        : phase === "running"
+          ? { label: COPY.processing, disabled: true, onClick: undefined }
+          : phase === "done"
+            ? { label: COPY.csv.done, disabled: false, onClick: onClose }
+            : {
+                label: COPY.csv.importN(preview.kind === "ready" ? preview.items.length : 0),
+                disabled: !csvReady,
+                onClick: start,
+              };
 
   return (
     <Modal onClose={onClose}>
@@ -91,7 +96,7 @@ export function ImportModal({
           <button
             className={tab === i ? "active" : ""}
             onClick={() => setTab(i)}
-            disabled={phase === "running"}
+            disabled={phase === "running" || json.phase === "running"}
             key={x}
           >
             {x}
@@ -110,7 +115,7 @@ export function ImportModal({
             results={results}
           />
         )}
-        {tab === 2 && <ImportJsonTab />}
+        {tab === 2 && <ImportJsonTab json={json} />}
       </div>
       <div className="modal-footer">
         <div />

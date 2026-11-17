@@ -1,6 +1,7 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Item } from "@/types/item";
+import { fixtureBackup } from "@/test/fixtures";
 import { createMemoryRepo } from "@/test/memoryRepo";
 import { API_ERROR_COPY } from "./apiErrors";
 import type { WardrobeRepo } from "./repo";
@@ -106,6 +107,30 @@ describe("useWardrobe", () => {
         await result.current.remove(starter[0]);
       });
       expect(result.current.items.map((i) => i.id)).toEqual(["s2"]);
+    });
+
+    test("restoreBackup calls repo.restore then reloads items", async () => {
+      const repo = repoSwitch.memory!;
+      const restore = vi.spyOn(repo, "restore");
+      const list = vi.spyOn(repo, "list");
+      const { result } = await setup();
+      const listsBefore = list.mock.calls.length;
+      let summary: unknown;
+      await act(async () => {
+        summary = await result.current.restoreBackup(fixtureBackup);
+      });
+      expect(restore).toHaveBeenCalledWith(fixtureBackup);
+      expect(list.mock.calls.length).toBe(listsBefore + 1);
+      expect(summary).toMatchObject({ items: { inserted: 3 }, photosMissing: 1 });
+    });
+
+    test("exportBackup returns the repo backup", async () => {
+      const { result } = await setup();
+      await act(async () => {
+        await result.current.restoreBackup(fixtureBackup);
+      });
+      const out = await result.current.exportBackup();
+      expect(out).toMatchObject({ version: 1, items: fixtureBackup.items });
     });
 
     test("wear +1 updates only the matching item", async () => {

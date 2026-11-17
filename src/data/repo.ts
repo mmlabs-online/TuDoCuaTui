@@ -1,4 +1,5 @@
 import type { Item } from "@/types/item";
+import type { Backup, RestoreSummary } from "./backup";
 
 export type WearResult = Pick<Item, "wearCount" | "lastWorn">;
 /** `already` is true when +1 found a wear for today (nothing added); always false for -1. */
@@ -13,4 +14,8 @@ export interface WardrobeRepo {
   remove(item: Item): Promise<void>;
   /** +1 = "Mặc hôm nay", -1 = undo the latest wear. */
   wear(item: Item, delta: 1 | -1): Promise<WearOutcome>;
+  /** The whole account as a version-1 backup (F-602). */
+  exportAll(): Promise<Backup>;
+  /** Upsert by id, never deletes, never touches photos. The server validates (D49). */
+  restore(backup: Backup): Promise<RestoreSummary>;
 }

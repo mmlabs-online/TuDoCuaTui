@@ -3,6 +3,7 @@ import { EDITOR_COPY } from "@/features/items/copy";
 import type { Item } from "@/types/item";
 import { API_ERROR_COPY, ApiError, PHOTO_UPLOAD_ERROR_COPY, PhotoSaveError } from "./apiErrors";
 import { PhotoPrepError } from "./photoPrep";
+import { fixtureBackup } from "@/test/fixtures";
 import { createHttpRepo } from "./repo.http";
 
 afterEach(() => {
@@ -301,6 +302,52 @@ describe("createHttpRepo", () => {
       lastWorn: "2026-03-10",
       already: true,
     });
+  });
+});
+
+describe("backup and restore", () => {
+  const summary = {
+    locations: { inserted: 2, updated: 0, unchanged: 0, merged: 0, remapped: 0 },
+    items: { inserted: 3, updated: 0, unchanged: 0, remapped: 0 },
+    wearLogs: { inserted: 2, unchanged: 0 },
+    photosMissing: 1,
+  };
+
+  test("exportAll GETs /api/backup and returns the body unchanged", async () => {
+    const { fetchFn, repo } = setup(() => json(fixtureBackup));
+    expect(await repo.exportAll()).toEqual(fixtureBackup);
+    const c = call(fetchFn);
+    expect(c.url).toBe("/api/backup");
+    expect(c.init.method).toBe("GET");
+  });
+
+  test("restore POSTs the backup as JSON to /api/restore and returns summary", async () => {
+    const { fetchFn, repo } = setup(() => json({ summary }));
+    expect(await repo.restore(fixtureBackup)).toEqual(summary);
+    const c = call(fetchFn);
+    expect(c.url).toBe("/api/restore");
+    expect(c.init.method).toBe("POST");
+    expect(c.headers["Content-Type"]).toBe("application/json");
+    expect(c.init.body).toBe(JSON.stringify(fixtureBackup));
+  });
+
+  test("restore 400 invalid_input keeps field and reason; 503 restore_busy is an ApiError with that code", async () => {
+    const bad = setup(() =>
+      json(
+        { error: { code: "invalid_input", field: "items[3].name", reason: "nameRequired" } },
+        400,
+      ),
+    );
+    await expect(bad.repo.restore(fixtureBackup)).rejects.toMatchObject({
+      status: 400,
+      code: "invalid_input",
+      field: "items[3].name",
+      reason: "nameRequired",
+    });
+    const busy = setup(() => json({ error: { code: "restore_busy" } }, 503));
+    const e = await busy.repo.restore(fixtureBackup).catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(ApiError);
+    expect(e).toMatchObject({ status: 503, code: "restore_busy" });
   });
 });
 

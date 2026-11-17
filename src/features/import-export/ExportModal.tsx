@@ -7,9 +7,11 @@ const COPY = IMPORT_EXPORT_COPY.export;
 export function ExportModal({
   onClose,
   onExport,
+  busy = false,
 }: {
   onClose: () => void;
   onExport: (x: "json" | "csv") => void;
+  busy?: boolean;
 }) {
   return (
     <Modal onClose={onClose}>
@@ -25,7 +27,7 @@ export function ExportModal({
       <div className="export-content">
         <p>{COPY.hint}</p>
         <div className="export-options">
-          <button onClick={() => onExport("json")}>
+          <button onClick={() => onExport("json")} disabled={busy}>
             <span className="file-icon">{"{ }"}</span>
             <div>
               <b>JSON</b>
@@ -33,7 +35,7 @@ export function ExportModal({
             </div>
             <Icon name="export" />
           </button>
-          <button onClick={() => onExport("csv")}>
+          <button onClick={() => onExport("csv")} disabled={busy}>
             <span className="file-icon">CSV</span>
             <div>
               <b>CSV</b>
