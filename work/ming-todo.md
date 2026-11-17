@@ -260,7 +260,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       verify sign-in/out on phone and desktop, photos, and isolation with a second test account temporarily added to
       the Access policy (A16). Rollback: `TUDO_AUTH_MODE: access`.
       2026-11-15 (D39): Access is already gone; identity switch PR https://github.com/mmlabs-online/deployment/pull/71 (v0.2.6). After deploy: `/healthz` shows `auth: identity`, sign in in a private window, re-enter the Claude key.
-- [ ] **M-22 — Finish the Access removal** (after the release that contains T-019.9, PR on branch `claude/magical-cori-2ssw8l`; M-21 done):
+- [x] (2026-11-17, Ming confirmed in session) **M-22 — Finish the Access removal** (after the release that contains T-019.9, PR on branch `claude/magical-cori-2ssw8l`; M-21 done):
       1. Merge the T-019.9 release PR on `mmlabs-online/deployment` as usual. No compose change is needed: the new image accepts the current compose.
       2. `curl -s https://tudocuatui.mmlabs.online/healthz` → `{"status":"ok","auth":"identity"}`.
       3. `curl -i https://tudocuatui.mmlabs.online/api/items` → `401`.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | MERGED |
 | Priority | P1 |
 | Size | L (planner proposes a split) |
 | Milestone | M1 |
@@ -110,3 +110,7 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 ### 2026-11-17 — claude — IN_PROGRESS (umbrella)
 - Done: every sub-ticket (T-019.1–T-019.14) is MERGED; no code work remains.
 - In progress / next: waits only on Ming's M-22 (finish the Access removal). When M-22 is ticked, set T-019 to MERGED.
+
+### 2026-11-17 — claude — MERGED
+- Done: Ming confirmed M-22 (Access removal finished). All sub-tickets T-019.1–T-019.14 MERGED; umbrella closed.
+- In progress / next: M-26 (drop the Access variables in the deployment repo) is still open and tracked in `ming-todo.md`.

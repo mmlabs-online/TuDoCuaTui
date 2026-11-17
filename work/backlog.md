@@ -34,7 +34,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-014 | HTTP `WardrobeRepo` and no-login mode in the app | MERGED | P0 | M | ui, data | T-013.2 | none | 1 | 2026-11-11 |
 | T-015 | Switch the image and deploy from nginx to the Node server | MERGED | P0 | M | architecture, security | T-013, T-011 | plan-approval | 0 | 2026-11-11 |
 | T-016 | Remove Supabase from the app | MERGED | P1 | S | security, architecture | T-014, T-015 | plan-approval | 1 | 2026-11-13 |
-| T-019 | Sign in with mmlabs Identity (api.mmlabs.online) — umbrella | IN_PROGRESS | P1 | L | architecture, security, db | T-016; Ming M-22 | plan-approval | 0 | 2026-11-17 |
+| T-019 | Sign in with mmlabs Identity (api.mmlabs.online) — umbrella | MERGED | P1 | L | architecture, security, db | T-016; Ming M-22 | plan-approval | 0 | 2026-11-17 |
 | T-019.11 | Auth screens UI: sign-in, sign-up, verify email (not wired) | MERGED | P1 | M | ui, security | T-016 | plan-approval | 1 | 2026-11-13 |
 | T-019.1 | Ownership expand migration and owner backfill | MERGED | P1 | M | db, security | T-016 | plan-approval | 1 | 2026-11-14 |
 | T-019.2 | Scope items, locations, wear logs and photos by user_id (contract migration) | MERGED | P1 | M | db, security, architecture | T-019.1 | plan-approval | 1 | 2026-11-14 |
