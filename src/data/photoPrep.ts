@@ -1,5 +1,6 @@
 import { EDITOR_COPY } from "@/features/items/copy";
-import { loadImage, renderJpeg } from "./photos";
+import { mainThreadDeps } from "./photos";
+import { getOffThreadDeps } from "./photoWorkerClient";
 
 export const MAX_INPUT_BYTES = 10 * 1024 * 1024;
 /** Mirrors `MAX_BYTES` in server/photos.js (2 MiB). */
@@ -60,28 +61,29 @@ export class PhotoPrepError extends Error {
 export interface DecodedImage {
   width: number;
   height: number;
-  source: CanvasImageSource;
   release(): void;
 }
 
-export interface PhotoDeps {
-  load(src: Blob): Promise<DecodedImage>;
+export interface PhotoDeps<T extends DecodedImage = DecodedImage> {
+  load(src: Blob): Promise<T>;
   render(
-    img: DecodedImage,
+    img: T,
     max: number,
     quality: number,
   ): Promise<{ blob: Blob; width: number; height: number }>;
 }
 
-/** Any accepted phone photo → a JPEG of at most MAX_UPLOAD_BYTES, or a PhotoPrepError. */
-export async function preparePhoto(
+type Prepared = { blob: Blob; width: number; height: number };
+
+/** Any accepted phone photo → a JPEG of at most MAX_UPLOAD_BYTES, or a PhotoPrepError (using exactly `deps`). */
+export async function prepareWith<T extends DecodedImage>(
   file: Blob,
-  deps: PhotoDeps = { load: loadImage, render: renderJpeg },
-): Promise<{ blob: Blob; width: number; height: number }> {
+  deps: PhotoDeps<T>,
+): Promise<Prepared> {
   if (file.size > MAX_INPUT_BYTES) throw new PhotoPrepError("tooLarge");
   const kind = photoKind({ type: file.type, name: (file as File).name });
   if (!kind) throw new PhotoPrepError("unsupportedType");
-  let img: DecodedImage;
+  let img: T;
   try {
     img = await deps.load(file);
   } catch {
@@ -89,7 +91,7 @@ export async function preparePhoto(
   }
   try {
     for (const { max, quality } of ENCODE_STEPS) {
-      let out: { blob: Blob; width: number; height: number };
+      let out: Prepared;
       try {
         out = await deps.render(img, max, quality);
       } catch {
@@ -101,4 +103,28 @@ export async function preparePhoto(
   } finally {
     img.release();
   }
+}
+
+const DETERMINISTIC: PhotoPrepCode[] = ["tooLarge", "unsupportedType", "tooLargeAfterResize"];
+
+/** Off-thread first (when the browser can); any other failure is retried once on the main thread. */
+export async function preparePhotoAuto(
+  file: Blob,
+  sources: { offThread: () => PhotoDeps | null; main: PhotoDeps },
+): Promise<Prepared> {
+  const off = sources.offThread();
+  if (!off) return prepareWith(file, sources.main);
+  try {
+    return await prepareWith(file, off);
+  } catch (e) {
+    if (e instanceof PhotoPrepError && DETERMINISTIC.includes(e.code)) throw e;
+    return prepareWith(file, sources.main);
+  }
+}
+
+/** Without `deps`: resize in a worker when supported, else on the main thread. */
+export function preparePhoto(file: Blob, deps?: PhotoDeps): Promise<Prepared> {
+  return deps
+    ? prepareWith(file, deps)
+    : preparePhotoAuto(file, { offThread: getOffThreadDeps, main: mainThreadDeps });
 }

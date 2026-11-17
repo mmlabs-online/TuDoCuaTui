@@ -204,6 +204,7 @@ describe("security headers", () => {
     expect(parseCsp(SPA_CSP)).toEqual({
       "default-src": ["'self'"],
       "script-src": ["'self'", CHALLENGES],
+      "worker-src": ["'self'"],
       "style-src": ["'self'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
       "img-src": ["'self'", "blob:", "data:"],
@@ -219,11 +220,13 @@ describe("security headers", () => {
   it("CSP has no unsafe sources and keeps Turnstile out of connect-src", () => {
     expect(SPA_CSP).not.toMatch(/'unsafe-inline'|'unsafe-eval'|\*|http:/);
     const csp = parseCsp(SPA_CSP);
-    for (const d of ["connect-src", "default-src", "img-src"]) {
+    for (const d of ["connect-src", "default-src", "img-src", "worker-src"]) {
       expect(csp[d]).not.toContain(CHALLENGES);
     }
     expect(csp["script-src"]).not.toContain("data:");
     expect(csp["script-src"]).not.toContain("blob:");
+    expect(csp["worker-src"]).not.toContain("blob:");
+    expect(csp["worker-src"]).not.toContain("data:");
   });
 
   it("SPA responses carry HSTS", async () => {
