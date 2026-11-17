@@ -10,7 +10,7 @@
 | Areas | ui, data, architecture, security |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | M-28 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
 | Claimed by | — |
@@ -36,15 +36,27 @@ clauses of D9, D21 and D30.
   repo and the Identity sign-in.
 - **Server unreachable**: when `/healthz` does not answer as the Node server, show a clear error state (Vietnamese
   copy, retry) instead of falling back to demo data.
-- **Dev loop**: `pnpm dev` proxies `/api` and `/healthz` to the local Node server (`localhost:3000`), and sign-in on
-  `http://localhost:5173` works once M-28 registers that origin. Document it in the README.
+- **Dev loop (option C, D44)**: Identity cannot register a localhost origin (the `ops-org-admin-api` `register-app`
+  input only accepts `https://<sub>.mmlabs.online`), so local development uses a **dev-only proxy that injects a
+  bearer token**:
+  - `pnpm dev` proxies `/api` and `/healthz` to the local Node server (`localhost:3000`) and adds
+    `Authorization: Bearer <token>` on the Node side of the proxy. The plugin is `apply: "serve"` only and never part
+    of `pnpm build`.
+  - The token is a real Identity access token (audience `tudocuatui`, 15 min) for Ming's own account, obtained by a
+    helper script (e.g. `scripts/dev-token.sh`) that signs in with `curl`, setting the `Origin` header to the
+    production TuDo origin and `X-MM-App: tudocuatui`. The password is read with `read -s` and passed on stdin, never
+    as an argument or into a file. The token is kept in a git-ignored file (or env var) that the proxy reads per
+    request, so refreshing it needs no restart.
+  - The SPA treats the dev proxy as signed in (no sign-in screen, no token in the browser). This is a dev-only path;
+    the planner designs it so production builds cannot reach it.
+  - Document the dev loop and its limits (15 min token, Turnstile after 3 failed sign-ins) in the README.
 - **Docs**: project `CLAUDE.md` (drop `@AGENTS.md`, drop R10, rewrite R1 for API-only, replace the stale Supabase
   stack/description with Node API + Postgres + Google Drive + mmlabs Identity); README local-mode sections;
   `docs/feature-list.md` local-mode / Figma Make mentions; `.env.example` if it mentions local mode.
 
 ## Out of scope
 - Any change to the server, migrations, auth verification or deploy config.
-- A dev proxy that injects a bearer token (option b, not chosen).
+- Registering a localhost or dev subdomain origin in Identity (options A and B, not chosen).
 - UI redesign; tests unrelated to the removed code.
 
 ## Acceptance criteria
@@ -55,7 +67,9 @@ clauses of D9, D21 and D30.
 - [ ] No local repo, demo items or `"local"` data mode remain in `src/`; no `localStorage` use stores wardrobe data.
 - [ ] When the Node server is unreachable or `/healthz` is not its JSON, the app shows an error state with a retry,
       never demo data (unit test).
-- [ ] `pnpm dev` with the Node server running locally reaches `/api` through the Vite proxy (manual).
+- [ ] `pnpm dev` with the Node server running locally and a fresh dev token loads the signed-in app through the Vite
+      proxy (manual); the token never appears in the browser (no `VITE_*` variable, not in `dist/`, not in JS-visible
+      storage) (unit/grep test).
 - [ ] `CLAUDE.md`, README and `docs/feature-list.md` describe the API-only app; R10 removed, R1 rewritten.
 - [ ] Checks green.
 
@@ -68,7 +82,12 @@ clauses of D9, D21 and D30.
   - Hard to reverse: no sync back from Figma Make after `.figma/` is gone.
   - `figmaSiteConfiguration` also shapes the production HTML; missing a tag changes production silently. Diff
     `dist/` before and after.
-  - Until M-28 is done, local development stops at the sign-in screen (Identity origin is production only, M-19).
+  - The token script sets `Origin` to the production TuDo origin on purpose, to get past Identity's origin allowlist
+    from a non-browser client; Ming accepted this (D44). It must only ever use Ming's own credentials.
+  - The dev token is a live credential with write access to whatever DB the local server uses; the local server must
+    point at a local database (and Drive off or a test folder), never production.
+  - The token file must be git-ignored. Note: on 2026-11-17 the working tree's `.gitignore` had lost its `.env*` line
+    (uncommitted local change); do not rely on `.env*` alone, check `git check-ignore` for the token file.
   - Other `localStorage` uses (theme, legacy session, filters) are not wardrobe data; keep them unless the plan says
     otherwise.
 
@@ -76,10 +95,13 @@ clauses of D9, D21 and D30.
 - Unit: mode/health probe without the local branch (server down, HTML answer, JSON answer); error state renders;
   remove tests of deleted code.
 - Manual: `pnpm build` and diff `dist/index.html` / `dist/robots.txt` against `main`; `pnpm dev` + local Node server
-  → sign-in on localhost (after M-28) → items load.
+  + `scripts/dev-token.sh` → app opens signed in → items load; let the token expire → clear error, refresh token →
+  works without restart.
 
 ## Notes / answers from Ming
 - 2026-11-17: remove Figma Make and local mode (option B); update `CLAUDE.md`; record a decision (D44); keep it as one
   ticket; dev sign-in via a localhost origin in Identity (option a, M-28).
+- 2026-11-17: option a is impossible (the `register-app` workflow only accepts `https://<sub>.mmlabs.online`). Ming
+  chose **C**: dev proxy with a real token from a script; M-28 dropped. Ming: run T-025 to plan approval now.
 
 ## Handoff
