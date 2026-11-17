@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S2 |
 | Priority | P1 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Introduced in | v0.2.6 (T-010, commit 0438350) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-17 |
 | Claimed by | claude@2026-11-17T13:49:40Z |
 | PR | — |
