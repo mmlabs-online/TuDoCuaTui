@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { EDITOR_COPY } from "@/features/items/copy";
 import type { Item } from "@/types/item";
-import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, PHOTO_UPLOAD_ERROR_COPY, PhotoSaveError } from "./apiErrors";
+import { PhotoPrepError } from "./photoPrep";
 import { createHttpRepo } from "./repo.http";
 
 afterEach(() => {
-  resize.mockClear();
+  prepare.mockClear();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -13,12 +14,12 @@ afterEach(() => {
 const ID = "11111111-1111-4111-8111-111111111111";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-const resize = vi.fn(async (_b: Blob) => ({
+const prepare = vi.fn(async (_b: Blob) => ({
   blob: new Blob(["jpeg-bytes"], { type: "image/jpeg" }),
 }));
 const setup = (res: () => Response | Promise<Response>) => {
   const fetchFn = vi.fn(async (..._a: Parameters<typeof fetch>) => res());
-  return { fetchFn, repo: createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize) };
+  return { fetchFn, repo: createHttpRepo(fetchFn as unknown as typeof fetch, "/api", prepare) };
 };
 const call = (fetchFn: ReturnType<typeof vi.fn>, n = 0) => {
   const [url, init] = fetchFn.mock.calls[n] as [string, RequestInit];
@@ -171,19 +172,20 @@ describe("createHttpRepo", () => {
     expect(it.photoPath).toBeUndefined();
   });
 
-  test("save with a data: photo PUTs the item, then the resized JPEG to /items/<id>/photo", async () => {
+  test("save with a blob: photo prepares it before the item PUT and uploads the JPEG", async () => {
     let n = 0;
     const { repo, fetchFn } = setup(() =>
       json({ item: ++n === 1 ? row : { ...row, primary_photo_id: PHOTO_ID } }),
     );
     const saved = await repo.save(item({ photo: DATA_URL }));
+    expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(fetchFn.mock.invocationCallOrder[0]);
     expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(call(fetchFn).init.body).not.toContain("data:image");
     const c = call(fetchFn, 1);
     expect(c.url).toBe(`/api/items/${ID}/photo`);
     expect(c.init.method).toBe("PUT");
     expect(c.headers["Content-Type"]).toBe("image/jpeg");
-    expect(c.init.body).toBe((await resize.mock.results[0].value).blob);
+    expect(c.init.body).toBe((await prepare.mock.results[0].value).blob);
     expect(saved.photoPath).toBe(PHOTO_ID);
     expect(saved.photo).toBe(`/api/photos/${PHOTO_ID}`);
   });
@@ -229,7 +231,17 @@ describe("createHttpRepo", () => {
     await repo.save(item({ photo: `/api/photos/${PHOTO_ID}`, photoPath: PHOTO_ID }));
     expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(fetchFn.mock.calls.every((c) => !String(c[0]).includes("/photo"))).toBe(true);
-    expect(resize).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  test("a photo that fails preparation throws before any request", async () => {
+    const { repo, fetchFn } = setup(() => json({ item: row }));
+    const failure = new PhotoPrepError("tooLarge");
+    prepare.mockRejectedValueOnce(failure);
+    const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
+    expect(err).toBe(failure);
+    expect(err).not.toBeInstanceOf(PhotoSaveError);
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 
   test("a failing photo step throws PhotoSaveError with the saved item and Vietnamese copy", async () => {
@@ -246,7 +258,10 @@ describe("createHttpRepo", () => {
 
   test.each([
     [409, "photo_quota_exceeded"],
+    [413, "payload_too_large"],
+    [415, "unsupported_media_type"],
     [429, "rate_limited"],
+    [503, "photos_unavailable"],
   ] as const)("a %i %s photo step throws PhotoSaveError with that copy", async (status, code) => {
     let n = 0;
     const { repo } = setup(() =>
@@ -254,7 +269,8 @@ describe("createHttpRepo", () => {
     );
     const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
     expect(err).toBeInstanceOf(PhotoSaveError);
-    expect(err.message).toContain(API_ERROR_COPY[code]);
+    const photoCopy = (PHOTO_UPLOAD_ERROR_COPY as Record<string, string>)[code];
+    expect(err.message).toContain(photoCopy ?? API_ERROR_COPY[code]);
   });
 
   test("remove DELETEs and resolves on 204", async () => {
@@ -358,7 +374,7 @@ describe("identity mode (getToken)", () => {
       const st = q.shift() ?? 200;
       return st === 401 ? new Response("", { status: 401 }) : json({ locations: ["A"] });
     });
-    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize, auth);
+    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", prepare, auth);
     return { fetchFn, repo };
   };
 
@@ -389,7 +405,7 @@ describe("identity mode (getToken)", () => {
       headers: new Headers(),
     } as Response;
     const fetchFn = vi.fn(async () => redirect);
-    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", resize, {
+    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", prepare, {
       getToken: async () => "t",
       onAuthLost,
     });

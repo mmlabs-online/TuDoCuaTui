@@ -8,6 +8,17 @@ export const EDITOR_COPY = {
     pickFromLibrary: "Chọn từ thư viện",
     loadFailed: "Không tải được ảnh",
     loadFailedHint: "Nhấp để chọn ảnh khác",
+    hint: "JPG, PNG, WebP, HEIC · tối đa 10 MB",
+    preparing: "Đang xử lý ảnh…",
+    uploading: "Đang tải ảnh lên…",
+    errors: {
+      tooLarge: "Ảnh lớn hơn 10 MB — hãy chọn ảnh nhỏ hơn",
+      unsupportedType: "Chỉ nhận ảnh JPG, PNG, WebP hoặc HEIC",
+      heicUnsupported:
+        "Trình duyệt này chưa đọc được ảnh HEIC — hãy chọn ảnh JPG/PNG hoặc dùng Safari",
+      unreadable: "Không đọc được ảnh này — thử ảnh khác nhé",
+      tooLargeAfterResize: "Ảnh vẫn quá lớn sau khi nén — thử ảnh khác nhé",
+    },
   },
   errors: {
     nameRequired: "Vui lòng nhập tên món đồ",

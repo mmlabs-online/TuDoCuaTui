@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Item, Status } from "@/types/item";
 import { Btn } from "@/components/Btn";
@@ -6,6 +6,7 @@ import { Field } from "@/components/Field";
 import { Icon } from "@/components/Icon";
 import { Confirm } from "@/components/Confirm";
 import { Modal } from "@/components/Modal";
+import { PhotoPrepError, preparePhoto } from "@/data/photoPrep";
 import { usePhotoUrl } from "@/data/usePhotoUrl";
 import { categoryNames, colorMap, colors, seasons, statuses } from "@/constants/wardrobe";
 import { toDateOnly } from "@/features/import-export/csv/serialize";
@@ -62,11 +63,36 @@ export function Editor({
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
   const stored = usePhotoUrl(item.photo, { lazy: false });
   const loadFailed = !!item.photo && (item.photo === brokenSrc || stored.failed);
-  const upload = (f?: File) => {
+  const ownUrl = useRef<string | null>(null);
+  const pickSeq = useRef(0);
+  const [preparing, setPreparing] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const revokeOwn = () => {
+    if (ownUrl.current) URL.revokeObjectURL(ownUrl.current);
+    ownUrl.current = null;
+  };
+  useEffect(() => revokeOwn, []);
+  const upload = async (f?: File) => {
     if (!f) return;
-    const r = new FileReader();
-    r.onload = () => update("photo", String(r.result));
-    r.readAsDataURL(f);
+    const seq = ++pickSeq.current;
+    setPhotoError(null);
+    setPreparing(true);
+    try {
+      const { blob } = await preparePhoto(f);
+      if (seq !== pickSeq.current) return;
+      const url = URL.createObjectURL(blob);
+      revokeOwn();
+      ownUrl.current = url;
+      update("photo", url);
+    } catch (e) {
+      if (seq === pickSeq.current) {
+        setPhotoError(
+          e instanceof PhotoPrepError ? e.message : EDITOR_COPY.photo.errors.unreadable,
+        );
+      }
+    } finally {
+      if (seq === pickSeq.current) setPreparing(false);
+    }
   };
   return (
     <>
@@ -87,7 +113,7 @@ export function Editor({
               onClick={() => file.current?.click()}
               onDrop={(e) => {
                 e.preventDefault();
-                upload(e.dataTransfer.files[0]);
+                void upload(e.dataTransfer.files[0]);
               }}
               onDragOver={(e) => e.preventDefault()}
             >
@@ -117,11 +143,28 @@ export function Editor({
                   <small>
                     Nhấp hoặc kéo ảnh vào đây
                     <br />
-                    JPG, PNG · tối đa 10MB
+                    {EDITOR_COPY.photo.hint}
                   </small>
                 </>
               )}
+              {preparing ? (
+                <span className="photo-busy" role="status">
+                  {EDITOR_COPY.photo.preparing}
+                </span>
+              ) : (
+                saving &&
+                /^(blob|data):/.test(item.photo) && (
+                  <span className="photo-busy" role="status">
+                    {EDITOR_COPY.photo.uploading}
+                  </span>
+                )
+              )}
             </button>
+            {photoError && (
+              <small className="photo-error" role="alert">
+                {photoError}
+              </small>
+            )}
             <div className="photo-source-actions">
               <Btn type="button" onClick={() => camera.current?.click()}>
                 {EDITOR_COPY.photo.takePhoto}
@@ -142,7 +185,10 @@ export function Editor({
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => upload(e.target.files?.[0])}
+              onChange={(e) => {
+                void upload(e.target.files?.[0]);
+                e.target.value = "";
+              }}
             />
             <input
               ref={camera}
@@ -150,12 +196,19 @@ export function Editor({
               accept="image/*"
               capture="environment"
               hidden
-              onChange={(e) => upload(e.target.files?.[0])}
+              onChange={(e) => {
+                void upload(e.target.files?.[0]);
+                e.target.value = "";
+              }}
             />
             {(item.photo || item.photoPath) && (
               <button
                 className="remove-photo"
                 onClick={() => {
+                  pickSeq.current++;
+                  setPreparing(false);
+                  setPhotoError(null);
+                  revokeOwn();
                   update("photo", "");
                   update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
                   update("photoPath", undefined);
@@ -348,7 +401,12 @@ export function Editor({
             <Btn className="editor-cancel" onClick={requestClose}>
               Huỷ
             </Btn>
-            <Btn kind="primary" className="editor-save" disabled={saving} onClick={handleSave}>
+            <Btn
+              kind="primary"
+              className="editor-save"
+              disabled={saving || preparing}
+              onClick={handleSave}
+            >
               {saving ? EDITOR_COPY.saving : EDITOR_COPY.save}
             </Btn>
           </div>

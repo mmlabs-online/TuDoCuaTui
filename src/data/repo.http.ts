@@ -3,7 +3,8 @@ import type { Item } from "@/types/item";
 import { ApiError, PhotoSaveError } from "./apiErrors";
 import { createAuthedFetch, type AuthOptions } from "./authFetch";
 import { apiPhotoUrl, isUuid, itemToRow, rowToItem } from "./mappers";
-import { resizeImage, urlToBlob } from "./photos";
+import { preparePhoto } from "./photoPrep";
+import { urlToBlob } from "./photos";
 import type { WardrobeRepo, WearOutcome } from "./repo";
 
 type ApiItemRow = Parameters<typeof rowToItem>[0] & { primary_photo_id?: string | null };
@@ -13,7 +14,7 @@ type FetchFn = typeof fetch;
 export function createHttpRepo(
   fetchFn: FetchFn = (...a) => fetch(...a),
   base = "/api",
-  resize: (src: Blob) => Promise<{ blob: Blob }> = resizeImage,
+  prepare: (src: Blob) => Promise<{ blob: Blob }> = preparePhoto,
   auth: AuthOptions = {},
 ): WardrobeRepo {
   const authedFetch = createAuthedFetch({ fetchFn, ...auth });
@@ -70,6 +71,11 @@ export function createHttpRepo(
     },
     async save(item: Item) {
       const id = isUuid(item.id) ? item.id : crypto.randomUUID();
+      // Prepared first: a bad photo fails before anything is saved.
+      const upload =
+        item.photo.startsWith("data:") || item.photo.startsWith("blob:")
+          ? (await prepare(await urlToBlob(item.photo))).blob
+          : null;
       const { id: _i, location_id: _l, ...row } = itemToRow(item, null);
       const r = await call<{ item: ApiItemRow }>("PUT", `/items/${id}`, {
         ...row,
@@ -77,9 +83,8 @@ export function createHttpRepo(
       });
       let saved = r!.item;
       try {
-        if (item.photo.startsWith("data:") || item.photo.startsWith("blob:")) {
-          const { blob } = await resize(await urlToBlob(item.photo));
-          saved = (await call<{ item: ApiItemRow }>("PUT", `/items/${id}/photo`, blob))!.item;
+        if (upload) {
+          saved = (await call<{ item: ApiItemRow }>("PUT", `/items/${id}/photo`, upload))!.item;
         } else if (item.removedPhotoId && !item.photoPath) {
           // Only an explicit removal in the editor; the server ignores the id if it is no longer the primary photo.
           await call("DELETE", `/items/${id}/photo?photo=${item.removedPhotoId}`);

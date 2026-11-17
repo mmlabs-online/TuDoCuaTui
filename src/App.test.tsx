@@ -10,7 +10,13 @@ import { createMemoryRepo } from "@/test/memoryRepo";
 
 vi.mock("@/data/photos", () => ({
   resizeImage: async () => ({ blob: new Blob(["jpeg"], { type: "image/jpeg" }) }),
-  urlToBlob: async () => new Blob(["raw"]),
+  loadImage: async () => ({ width: 100, height: 100, source: {}, release() {} }),
+  renderJpeg: async () => ({
+    blob: new Blob(["jpeg"], { type: "image/jpeg" }),
+    width: 100,
+    height: 100,
+  }),
+  urlToBlob: async () => new Blob(["raw"], { type: "image/jpeg" }),
 }));
 
 // Per-describe switch: UI describes run on the in-memory repo; the API describes use the real HTTP repo + fetch stubs.
@@ -530,6 +536,11 @@ describe("App (photos over the API)", () => {
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
   it("a failed photo step keeps the editor open and the retry PUTs the same item id", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      value: () => "blob:photo",
+      configurable: true,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", { value: () => {}, configurable: true });
     const calls: { method: string; url: string }[] = [];
     let photoAttempts = 0;
     vi.stubGlobal(
