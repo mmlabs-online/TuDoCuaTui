@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
 import { runImport } from "./importRunner";
-import type { DataMode } from "./mode";
 import type { GetToken } from "./authFetch";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
-import { createLocalRepo } from "./repo";
 import { createHttpRepo } from "./repo.http";
 
 export type ImportResult =
@@ -18,24 +16,19 @@ const message = (e: unknown) => {
 
 /**
  * Single source of truth for wardrobe data.
- * `mode` api → Node API; local (default) → localStorage + demo data.
+ * Always the Node API. With `getToken` (production sign-in) photos are fetched with the bearer and shown as
+ * blob: URLs (D34); without it (the dev proxy authenticates) they load from their plain URL.
  */
-export function useWardrobe(
-  starter: Item[],
-  defaultLocations: string[],
-  mode: DataMode = "local",
-  { getToken, onAuthLost }: { getToken?: GetToken; onAuthLost?: () => void } = {},
-) {
+export function useWardrobe({
+  getToken,
+  onAuthLost,
+}: { getToken?: GetToken; onAuthLost?: () => void } = {}) {
   const repo = useMemo(
-    () =>
-      mode === "api"
-        ? createHttpRepo(undefined, undefined, undefined, { getToken, onAuthLost })
-        : createLocalRepo(starter, defaultLocations),
-    [], // starter/defaultLocations are module constants
+    () => createHttpRepo(undefined, undefined, undefined, { getToken, onAuthLost }),
+    [], // getToken is injected once
   );
-  // Identity mode only: photos are fetched with the bearer and shown as blob: URLs (D34).
   const photos = useMemo<PhotoLoader | null>(
-    () => (mode === "api" && getToken ? createPhotoLoader({ getToken, onAuthLost }) : null),
+    () => (getToken ? createPhotoLoader({ getToken, onAuthLost }) : null),
     [], // getToken is injected once
   );
   useEffect(() => () => photos?.clear(), [photos]);
@@ -120,7 +113,6 @@ export function useWardrobe(
   );
 
   return {
-    mode: repo.mode,
     photos,
     items,
     locations,

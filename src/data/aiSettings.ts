@@ -95,13 +95,3 @@ export function createHttpAiSettings(
     },
   };
 }
-
-const unavailable = () => Promise.reject(new AiSettingsError(0, "not_available"));
-
-/** Local mode: AI needs the server, so every call fails with `not_available`. */
-export const localAiSettings: AiSettingsClient = {
-  get: unavailable,
-  save: unavailable,
-  deleteKey: unavailable,
-  test: unavailable,
-};

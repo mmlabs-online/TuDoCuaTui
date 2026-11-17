@@ -1,10 +1,23 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Item } from "@/types/item";
+import { createMemoryRepo } from "@/test/memoryRepo";
 import { API_ERROR_COPY } from "./apiErrors";
+import type { WardrobeRepo } from "./repo";
 import { type ImportResult, useWardrobe } from "./useWardrobe";
 
 vi.mock("./photos", () => ({ resizeImage: vi.fn(), urlToBlob: vi.fn() }));
+
+// Per-test switch: the "memory" describe swaps the HTTP repo for the in-memory double; the others use the real one.
+const repoSwitch = vi.hoisted(() => ({ memory: null as WardrobeRepo | null }));
+vi.mock("./repo.http", async (orig) => {
+  const actual = await orig<typeof import("./repo.http")>();
+  return {
+    ...actual,
+    createHttpRepo: (...a: Parameters<typeof actual.createHttpRepo>) =>
+      repoSwitch.memory ?? actual.createHttpRepo(...a),
+  };
+});
 
 const makeItem = (over: Partial<Item> = {}): Item => ({
   id: "a",
@@ -35,7 +48,7 @@ const starter = [
 const defaults = ["Tủ phòng ngủ", "Kệ giày"];
 
 const setup = async () => {
-  const hook = renderHook(() => useWardrobe(starter, defaults));
+  const hook = renderHook(() => useWardrobe());
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
 };
@@ -43,10 +56,16 @@ const setup = async () => {
 afterEach(cleanup);
 
 describe("useWardrobe", () => {
-  describe("local mode", () => {
-    test("loads starter items and default plus item locations", async () => {
-      const hook = renderHook(() => useWardrobe(starter, defaults));
-      expect(hook.result.current.mode).toBe("local");
+  describe("with a memory repo", () => {
+    beforeEach(() => {
+      repoSwitch.memory = createMemoryRepo(starter, defaults);
+    });
+    afterEach(() => {
+      repoSwitch.memory = null;
+    });
+
+    test("loads items and default plus item locations", async () => {
+      const hook = renderHook(() => useWardrobe());
       expect(hook.result.current.loading).toBe(true);
       await waitFor(() => expect(hook.result.current.loading).toBe(false));
       expect(hook.result.current.items).toEqual(starter);
@@ -188,15 +207,15 @@ describe("useWardrobe", () => {
       const { result } = await setup();
       expect(result.current).not.toHaveProperty("signOut");
     });
+
+    test("message returns Error messages and the generic text for unknown values", async () => {
+      const { message } = (await setup()).result.current;
+      expect(message(new Error("Mất mạng"))).toBe("Mất mạng");
+      for (const v of [{}, null, "x"]) expect(message(v)).toBe("Có lỗi xảy ra, thử lại nhé");
+    });
   });
 
-  test("message returns Error messages and the generic text for unknown values", async () => {
-    const { message } = (await setup()).result.current;
-    expect(message(new Error("Mất mạng"))).toBe("Mất mạng");
-    for (const v of [{}, null, "x"]) expect(message(v)).toBe("Có lỗi xảy ra, thử lại nhé");
-  });
-
-  describe("api mode", () => {
+  describe("HTTP repo", () => {
     afterEach(() => vi.unstubAllGlobals());
 
     const photoFetch = () =>
@@ -209,20 +228,17 @@ describe("useWardrobe", () => {
             ),
       );
 
-    test("photo loader: null in local mode and without getToken; present with getToken; unmount revokes", async () => {
+    test("photo loader: null without getToken; present with getToken; unmount revokes", async () => {
       vi.stubGlobal("fetch", photoFetch());
       const getToken = async () => "t";
-      const local = renderHook(() => useWardrobe(starter, defaults, "local", { getToken }));
-      expect(local.result.current.photos).toBeNull();
-      await waitFor(() => expect(local.result.current.loading).toBe(false));
-      const noToken = renderHook(() => useWardrobe(starter, defaults, "api"));
+      const noToken = renderHook(() => useWardrobe());
       expect(noToken.result.current.photos).toBeNull();
       await waitFor(() => expect(noToken.result.current.loading).toBe(false));
 
       let n = 0;
       const create = vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:t/${n++}`);
       const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-      const api = renderHook(() => useWardrobe(starter, defaults, "api", { getToken }));
+      const api = renderHook(() => useWardrobe({ getToken }));
       await waitFor(() => expect(api.result.current.loading).toBe(false));
       const loader = api.result.current.photos!;
       expect(loader).not.toBeNull();
@@ -234,7 +250,7 @@ describe("useWardrobe", () => {
       revoke.mockRestore();
     });
 
-    test("loads through the HTTP repo and reports mode api", async () => {
+    test("loads through the HTTP repo", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(
@@ -247,9 +263,8 @@ describe("useWardrobe", () => {
             ),
         ),
       );
-      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      const { result } = renderHook(() => useWardrobe());
       await waitFor(() => expect(result.current.loading).toBe(false));
-      expect(result.current.mode).toBe("api");
       expect(result.current.items).toEqual([]);
       expect(result.current.locations).toEqual(["L"]);
     });
@@ -265,7 +280,7 @@ describe("useWardrobe", () => {
         "fetch",
         vi.fn(async () => json({ error: { code: "db_unavailable" } }, 503)),
       );
-      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      const { result } = renderHook(() => useWardrobe());
       await waitFor(() => expect(result.current.loading).toBe(false));
       expect(result.current.error).toBe(API_ERROR_COPY.db_unavailable);
     });
@@ -283,7 +298,7 @@ describe("useWardrobe", () => {
           return json({ item: { id, name, category: "top", status: "active" } });
         }),
       );
-      const { result } = renderHook(() => useWardrobe(starter, defaults, "api"));
+      const { result } = renderHook(() => useWardrobe());
       await waitFor(() => expect(result.current.loading).toBe(false));
       let out: ImportResult[] = [];
       await act(async () => {
@@ -299,7 +314,7 @@ describe("useWardrobe", () => {
     });
   });
 
-  describe("identity mode", () => {
+  describe("with getToken", () => {
     afterEach(() => vi.unstubAllGlobals());
     test("repo and photo loader both get getToken on the first render; onAuthLost is forwarded", async () => {
       const calls: string[] = [];
@@ -326,9 +341,7 @@ describe("useWardrobe", () => {
       );
       const getToken = vi.fn(async (_r?: string) => "tok");
       const onAuthLost = vi.fn();
-      const { result, rerender } = renderHook(() =>
-        useWardrobe(starter, defaults, "api", { getToken, onAuthLost }),
-      );
+      const { result, rerender } = renderHook(() => useWardrobe({ getToken, onAuthLost }));
       await waitFor(() => expect(result.current.loading).toBe(false));
       expect(calls.some((c) => c.endsWith("Bearer tok"))).toBe(true);
       expect(onAuthLost).toHaveBeenCalled();

@@ -1,4 +1,3 @@
-import type { Runtime } from "@/data/mode";
 import { TOKEN_PAGES, tokenPageOf, type TokenPage } from "@/shared/tokenPages";
 
 export type TokenLink = { page: TokenPage; hash: string };
@@ -17,10 +16,4 @@ export function takeTokenHash(
   const hash = loc.hash;
   hist.replaceState(null, "", TOKEN_PAGES[page]);
   return { page, hash };
-}
-
-/** The auth chunk loads for the identity gate, or for a token-page visit in api mode. */
-export function needsAuth({ mode, auth }: Runtime, link: TokenLink | null): boolean {
-  if (mode !== "api") return false;
-  return auth === "identity" || link !== null;
 }

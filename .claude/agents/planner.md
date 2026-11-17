@@ -24,7 +24,7 @@ Write **only** `work/tickets/<ID>/plan.md`, using `work/templates/plan.md`. Do n
 ## Rules
 1. **Quote, don't invent.** Acceptance criteria come from the ticket, the feature list and `work/decisions.md`. Quote the section you rely on. Do not add "nice" requirements.
 2. **Realistic scope.** A ticket is at most about one day. If it is bigger than one implement/review cycle (rough guide: more than ~400 changed lines), say so in `## Split proposal` and plan only the first slice.
-3. **Every acceptance criterion is testable.** Write how the reviewer will verify it (a unit test name, a command, an observable behaviour in local mode). Criteria that only Ming can verify (a real phone, the hosted Supabase project, the hosting dashboard) go under `## Ming verification after merge`, not in the reviewer's table.
+3. **Every acceptance criterion is testable.** Write how the reviewer will verify it (a unit test name, a command, an observable behaviour in `pnpm dev` with the dev token proxy). Criteria that only Ming can verify (a real phone, the hosted Supabase project, the hosting dashboard) go under `## Ming verification after merge`, not in the reviewer's table.
 4. **Name the files.** List every file to create or modify with one line on why. The implementer must not touch files outside this list without recording why.
 5. **Respect R1–R10 in `CLAUDE.md`.** If the ticket cannot be done without breaking a rule, stop and ask.
 6. **Pure logic first.** Parsers, mappers, validation, filters and repo behaviour go into plain TypeScript modules with unit tests listed explicitly, including edge cases (Vietnamese diacritics, empty values, local vs Supabase mode, UTC+7 dates).

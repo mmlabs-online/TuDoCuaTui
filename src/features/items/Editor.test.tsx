@@ -13,13 +13,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const renderEditor = (
-  update = vi.fn(),
-  showMockAi = true,
-  photoById?: boolean,
-  item: Item = blankItem(),
-  isNew = true,
-) => {
+const renderEditor = (update = vi.fn(), item: Item = blankItem(), isNew = true) => {
   render(
     <Editor
       item={item}
@@ -32,8 +26,6 @@ const renderEditor = (
       onDelete={vi.fn()}
       onDuplicate={vi.fn()}
       onWorn={vi.fn()}
-      showMockAi={showMockAi}
-      photoById={photoById}
     />,
   );
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
@@ -82,23 +74,11 @@ describe("photo inputs", () => {
   });
 });
 
-describe("mock AI", () => {
-  test('hides "Tự điền từ ảnh" when showMockAi is false', () => {
-    renderEditor(vi.fn(), false);
-    expect(screen.queryByRole("button", { name: /Tự điền từ ảnh/ })).toBeNull();
-  });
-
-  test('shows "Tự điền từ ảnh" when showMockAi is true', () => {
-    renderEditor(vi.fn(), true);
-    expect(screen.getByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
-  });
-});
-
-describe("API mode photos", () => {
+describe("photos", () => {
   const stored = { ...blankItem(), id: "x", name: "Áo", photoPath: "photo-id" };
 
   test('shows the real picker and no "Sắp có"', () => {
-    const { inputs } = renderEditor(vi.fn(), false, true);
+    const { inputs } = renderEditor(vi.fn());
     expect(screen.queryByText(/Sắp có/)).toBeNull();
     expect(screen.getByRole("button", { name: EDITOR_COPY.photo.takePhoto })).toBeTruthy();
     expect(inputs).toHaveLength(2);
@@ -107,7 +87,7 @@ describe("API mode photos", () => {
   const withPhoto = { ...stored, photo: "/api/photos/photo-id" };
 
   test("API item with a photo URL shows the image and Bỏ ảnh", () => {
-    renderEditor(vi.fn(), false, true, withPhoto, false);
+    renderEditor(vi.fn(), withPhoto, false);
     expect(document.querySelector(".upload-zone.has-photo img")?.getAttribute("src")).toBe(
       "/api/photos/photo-id",
     );
@@ -115,33 +95,19 @@ describe("API mode photos", () => {
   });
 
   test("img error shows loadFailed copy, keeps Bỏ ảnh", () => {
-    renderEditor(vi.fn(), false, true, withPhoto, false);
+    renderEditor(vi.fn(), withPhoto, false);
     fireEvent.error(document.querySelector(".upload-zone img")!);
     expect(screen.getByText(EDITOR_COPY.photo.loadFailed)).toBeTruthy();
     expect(document.querySelector(".upload-zone.has-photo")).toBeNull();
     expect(screen.getByRole("button", { name: "Bỏ ảnh" })).toBeTruthy();
   });
 
-  test("Bỏ ảnh with photoById clears photo and photoPath", () => {
-    const { update } = renderEditor(vi.fn(), false, true, withPhoto, false);
+  test("Bỏ ảnh clears photo and photoPath", () => {
+    const { update } = renderEditor(vi.fn(), withPhoto, false);
     fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
     expect(update).toHaveBeenCalledWith("photo", "");
     expect(update).toHaveBeenCalledWith("photoPath", undefined);
     expect(update).toHaveBeenCalledWith("removedPhotoId", "photo-id");
-  });
-
-  test("local mode: Bỏ ảnh clears only photo", () => {
-    const { update } = renderEditor(
-      vi.fn(),
-      false,
-      false,
-      { ...stored, photo: "data:image/png;base64,xx" },
-      false,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
-    expect(update).toHaveBeenCalledWith("photo", "");
-    expect(update).not.toHaveBeenCalledWith("photoPath", undefined);
-    expect(update).not.toHaveBeenCalledWith("removedPhotoId", expect.anything());
   });
 });
 
@@ -154,7 +120,7 @@ describe("category select", () => {
   });
 });
 
-describe("photo loader (identity mode)", () => {
+describe("photo loader", () => {
   const PID = "11111111-1111-4111-8111-111111111111";
   const renderWithLoader = (photo: string, promise: Promise<string>) => {
     const acquire = vi.fn(() => ({ promise, release: vi.fn() }));
@@ -176,8 +142,6 @@ describe("photo loader (identity mode)", () => {
           onDelete={vi.fn()}
           onDuplicate={vi.fn()}
           onWorn={vi.fn()}
-          showMockAi={false}
-          photoById
         />
       </PhotoLoaderContext.Provider>,
     );
@@ -208,11 +172,8 @@ describe("photo loader (identity mode)", () => {
 });
 
 describe("photo privacy notice", () => {
-  test("no photo privacy notice with or without photoById", () => {
-    renderEditor(vi.fn(), true, true);
-    expect(screen.queryByText(/Google Drive/)).toBeNull();
-    cleanup();
-    renderEditor(vi.fn(), true, false);
+  test("no photo privacy notice", () => {
+    renderEditor();
     expect(screen.queryByText(/Google Drive/)).toBeNull();
   });
 });
@@ -232,7 +193,6 @@ describe("header", () => {
         onDelete={vi.fn()}
         onDuplicate={vi.fn()}
         onWorn={vi.fn()}
-        showMockAi
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.close }));
@@ -255,7 +215,6 @@ describe("footer", () => {
         onDelete={vi.fn()}
         onDuplicate={onDuplicate}
         onWorn={vi.fn()}
-        showMockAi
       />,
     );
   };

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CATEGORY_TO_DB, COLOR_TO_DB, SEASON_TO_DB, STATUS_TO_DB } from "@/data/mappers";
-import { locations, starter } from "@/data/demo";
+import { fixtureItems as starter, fixtureLocations as locations } from "@/test/fixtures";
 import { normalize } from "@/lib/text";
 import { mapRows, parseDate, parsePrice, splitMulti } from "./map";
 import { parseCsv } from "./parse";

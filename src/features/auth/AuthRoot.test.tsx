@@ -32,7 +32,7 @@ describe("AuthRoot", () => {
     );
     vi.stubGlobal("fetch", fetchFn);
     const replace = vi.spyOn(history, "replaceState");
-    render(<AuthRoot renderApp={renderApp} verifyHash={HASH} identity />);
+    render(<AuthRoot renderApp={renderApp} verifyHash={HASH} />);
     await verifyThenContinue();
     expect(replace).toHaveBeenCalledWith(null, "", "/");
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.verified);
@@ -57,26 +57,15 @@ describe("AuthRoot", () => {
             }),
       ),
     );
-    render(<AuthRoot renderApp={renderApp} verifyHash={HASH} identity />);
+    render(<AuthRoot renderApp={renderApp} verifyHash={HASH} />);
     await verifyThenContinue();
     expect(await screen.findByText("app-with-auth")).toBeTruthy();
-  });
-
-  it("verify hash + access -> verify page, then renderApp() with no props", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 204 })),
-    );
-    render(<AuthRoot renderApp={renderApp} verifyHash={HASH} identity={false} />);
-    await verifyThenContinue();
-    expect(screen.getByText("app-plain")).toBeTruthy();
-    expect(renderApp).toHaveBeenLastCalledWith();
   });
 
   it("no hash + identity -> the gate (sign-in, no network)", () => {
     const fetchFn = vi.fn();
     vi.stubGlobal("fetch", fetchFn);
-    render(<AuthRoot renderApp={renderApp} verifyHash={null} identity />);
+    render(<AuthRoot renderApp={renderApp} verifyHash={null} />);
     expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
     expect(fetchFn).not.toHaveBeenCalled();
   });
@@ -101,7 +90,7 @@ describe("AuthRoot", () => {
       );
       vi.stubGlobal("fetch", fetchFn);
       const replace = vi.spyOn(history, "replaceState");
-      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity />);
+      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} />);
       expect(fetchFn).not.toHaveBeenCalled();
       await fillAndReset();
       await act(async () => {
@@ -116,28 +105,12 @@ describe("AuthRoot", () => {
       expect(fetchFn.mock.calls[0][1]?.credentials).toBe("omit");
     });
 
-    it("reset hash + access -> reset page, then renderApp() with no props", async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => new Response(null, { status: 204 })),
-      );
-      renderApp.mockClear();
-      render(
-        <AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity={false} />,
-      );
-      await fillAndReset();
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.continue }));
-      });
-      expect(await screen.findByText("app-plain")).toBeTruthy();
-    });
-
     it("token_invalid + identity -> Gửi link mới -> forgot screen", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => json({ error: { code: "token_invalid" } }, 422)),
       );
-      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} identity />);
+      render(<AuthRoot renderApp={renderApp} verifyHash={null} resetHash={RESET} />);
       await fillAndReset();
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.requestNew }));

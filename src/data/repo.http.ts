@@ -60,7 +60,6 @@ export function createHttpRepo(
   };
 
   return {
-    mode: "api",
     async list() {
       const r = await call<{ items: ApiItemRow[] }>("GET", "/items");
       return r!.items.map(toItem);

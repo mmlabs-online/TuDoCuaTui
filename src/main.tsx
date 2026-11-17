@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { detectRuntime } from "./data/mode";
-import { needsAuth, takeTokenHash } from "./lib/boot";
+import { probeServer } from "./data/serverProbe";
+import { ServerUnavailable } from "./features/layout/ServerUnavailable";
+import { takeTokenHash } from "./lib/boot";
 import { clearLegacyAuthKeys } from "./lib/legacySession";
+import { startup, type View } from "./lib/startup";
 import { applySavedTheme } from "./lib/theme";
 import "./index.css";
 
@@ -13,27 +15,33 @@ if (import.meta.env.PROD) clearLegacyAuthKeys();
 // Before any request: the verify-email / reset-password token must leave the address bar first (D36).
 const link = takeTokenHash();
 
-void detectRuntime().then(async (rt) => {
-  const root = ReactDOM.createRoot(document.getElementById("root")!);
-  if (!needsAuth(rt, link)) {
+const root = ReactDOM.createRoot(document.getElementById("root")!);
+
+async function show(v: View) {
+  if (v.kind === "unavailable") {
+    root.render(<ServerUnavailable dev={v.dev} onRetry={v.retry} />);
+    return;
+  }
+  if (v.kind === "devApp") {
+    // `pnpm dev` only: the dev proxy adds the token server-side, so there is no sign-in and no getToken.
     root.render(
       <React.StrictMode>
-        <App mode={rt.mode} />
+        <App />
       </React.StrictMode>,
     );
     return;
   }
-  // Lazy: local mode never loads the auth code (nor api mode without identity auth, outside a token page).
-  // A failed load never falls back to local.
+  // Lazy: the auth code loads only here. A failed load never falls back to anything.
   const { default: AuthRoot } = await import("./features/auth/AuthRoot");
   root.render(
     <React.StrictMode>
       <AuthRoot
-        identity={rt.auth === "identity"}
         verifyHash={link?.page === "verify" ? link.hash : null}
         resetHash={link?.page === "reset" ? link.hash : null}
-        renderApp={(p) => <App mode={rt.mode} {...p} />}
+        renderApp={(p) => <App {...p} />}
       />
     </React.StrictMode>,
   );
-});
+}
+
+void startup({ probe: () => probeServer(), dev: import.meta.env.DEV, show });

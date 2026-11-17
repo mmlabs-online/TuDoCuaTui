@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { starter } from "@/data/demo";
+import { fixtureItems as starter } from "@/test/fixtures";
 import { toCsv } from "@/features/import-export/csv/serialize";
 import { download, exportFile } from "@/features/import-export/download";
 

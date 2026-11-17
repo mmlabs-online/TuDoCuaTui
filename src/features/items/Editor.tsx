@@ -25,8 +25,6 @@ export function Editor({
   onDelete,
   onDuplicate,
   onWorn,
-  showMockAi,
-  photoById = false,
 }: {
   item: Item;
   locations: string[];
@@ -38,9 +36,6 @@ export function Editor({
   onDelete: () => void;
   onDuplicate: () => void;
   onWorn: (n: number) => void;
-  showMockAi: boolean;
-  /** API mode: a stored photo is known by its id (`photoPath`); `item.photo` is its `/api/photos/<id>` URL. */
-  photoById?: boolean;
 }) {
   const file = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -157,29 +152,13 @@ export function Editor({
               hidden
               onChange={(e) => upload(e.target.files?.[0])}
             />
-            {showMockAi && (
-              <Btn
-                className="ai-btn"
-                onClick={() => {
-                  update("name", item.name || "Áo sơ mi dáng rộng");
-                  update("category", "Áo");
-                  update("colors", ["Kem"]);
-                  update("seasons", ["Xuân", "Hạ"]);
-                  update("tags", ["đi làm", "tối giản"]);
-                }}
-              >
-                <Icon name="sparkle" /> Tự điền từ ảnh
-              </Btn>
-            )}
-            {(item.photo || (photoById && item.photoPath)) && (
+            {(item.photo || item.photoPath) && (
               <button
                 className="remove-photo"
                 onClick={() => {
                   update("photo", "");
-                  if (photoById) {
-                    update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
-                    update("photoPath", undefined);
-                  }
+                  update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
+                  update("photoPath", undefined);
                 }}
               >
                 Bỏ ảnh

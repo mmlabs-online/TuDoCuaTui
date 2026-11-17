@@ -16,10 +16,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function setup(
-  importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]>>(),
-  showMockAi = true,
-) {
+function setup(importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]>>()) {
   const onClose = vi.fn();
   const onImported = vi.fn();
   const view = render(
@@ -28,7 +25,6 @@ function setup(
       locations={[]}
       importMany={importMany}
       onImported={onImported}
-      showMockAi={showMockAi}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "CSV / Excel" }));
@@ -128,26 +124,12 @@ describe("ImportModal", () => {
   });
 });
 
-describe("mock AI", () => {
-  const renderModal = (showMockAi: boolean) =>
+describe("photos tab", () => {
+  it("Photos tab shows no AI checkbox", () => {
     render(
-      <ImportModal
-        onClose={vi.fn()}
-        locations={[]}
-        importMany={vi.fn()}
-        onImported={vi.fn()}
-        showMockAi={showMockAi}
-      />,
+      <ImportModal onClose={vi.fn()} locations={[]} importMany={vi.fn()} onImported={vi.fn()} />,
     );
-
-  it("Photos tab hides the AI checkbox when showMockAi is false", () => {
-    renderModal(false);
-    expect(screen.queryByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeNull();
-  });
-
-  it("Photos tab shows the AI checkbox when showMockAi is true", () => {
-    renderModal(true);
-    expect(screen.getByText(IMPORT_EXPORT_COPY.import.photos.aiTitle)).toBeTruthy();
+    expect(screen.queryByRole("checkbox")).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | L |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-17 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/69 |
 
 ## Goal
 The app always runs against the Node API with real data and Identity sign-in. The Figma Make scaffolding and the
@@ -104,4 +104,22 @@ clauses of D9, D21 and D30.
 - 2026-11-17: option a is impossible (the `register-app` workflow only accepts `https://<sub>.mmlabs.online`). Ming
   chose **C**: dev proxy with a real token from a script; M-28 dropped. Ming: run T-025 to plan approval now.
 
+Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A9" (A1–A9 confirmed as written).
+
 ## Handoff
+### 2026-11-17 — claude — BLOCKED
+- Done: consult (software-architect), plan.md `Status: READY` with assumptions A1–A9.
+- In progress / next: Ming approves the plan (confirm or override A1–A9) by writing "Plan approved (YYYY-MM-DD)" under *Notes / answers from Ming*; then `/run T-025` implements.
+- Gotchas: High paths touched (`src/features/auth/AuthRoot.tsx`, comment-only `Dockerfile` / `.dockerignore`); T-019 and F-702 overlap `AuthRoot.tsx`, `main.tsx` and `Editor.tsx`; well over 400 changed lines, fallback split named in the plan.
+
+### 2026-11-17 — claude — DONE
+- Done: attempt 1 implemented (Figma Make and local mode removed, dev token proxy, docs); review PASS; security review no 🔴, two 🟡 (non-loopback `server.host` via `--host`, unvalidated `TUDO_DEV_API`) plus minor `dev-token.sh` items; reviewer: `scripts/dev-token.sh` not executable in git.
+- In progress / next: open the PR (no `gh` CLI on this machine; body drafted for Ming). Recommended: one more implementer pass for the two 🟡 items and the chmod before merge.
+- Gotchas: run tests from the Linux filesystem in WSL; from `/mnt/d` the server CLI tests time out (host I/O, same on `main`).
+
+Ming 2026-11-17: "ok, sửa rồi mở PR" — before the PR, one more implementer pass for the security 🟡 items, the `dev-token.sh` fixes and chmod, and the README wording for D45 (local dev may use the production DB).
+
+### 2026-11-17 — claude — DONE (attempt 2)
+- Done: attempt 2 fixed the security 🟡 items (loopback guards for `server.host` / `allowedHosts` / `TUDO_DEV_API`), `dev-token.sh` trap and reads, executable bit, README per D45; review PASS (1254 tests); security no 🔴. PR #69 opened.
+- In progress / next: Ming reviews and merges PR #69, then runs the post-merge checks in the PR body.
+- Gotchas: security 🟡 C1 (README inline `DATABASE_URL` → shell history) is open in the PR body; hardening B1/B2/C2/C4/C5 are follow-ups.

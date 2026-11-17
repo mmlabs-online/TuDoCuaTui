@@ -16,7 +16,3 @@ server/test
 *.log
 .plugins
 .opencode-skills
-# vite.config.ts imports .figma/make/site.json (R10: read-only); the rest of .figma is not needed.
-.figma/README.md
-.figma/make/*
-!.figma/make/site.json

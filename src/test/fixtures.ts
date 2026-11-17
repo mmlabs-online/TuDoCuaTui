@@ -1,3 +1,4 @@
+// Test-only sample wardrobe (formerly the local-mode demo data, removed by D44).
 import type { Item, Status } from "@/types/item";
 
 const photos = [
@@ -14,14 +15,14 @@ const photos = [
   "https://images.unsplash.com/photo-1621198059871-0d5f9b449233?auto=format&fit=crop&w=700&q=85",
 ];
 
-export const locations = [
+export const fixtureLocations = [
   "Tủ phòng ngủ – ngăn 1",
   "Tủ phòng ngủ – ngăn 2",
   "Hộp dưới gầm giường",
   "Kệ giày cửa ra vào",
 ];
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
-export const starter: Item[] = [
+export const fixtureItems: Item[] = [
   [
     "Áo sơ mi linen trắng",
     "Áo",
