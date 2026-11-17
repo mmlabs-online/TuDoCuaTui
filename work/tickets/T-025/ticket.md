@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | L |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-17T06:41:50Z |
 | PR | — |
 
 ## Goal
@@ -104,7 +104,7 @@ clauses of D9, D21 and D30.
 - 2026-11-17: option a is impossible (the `register-app` workflow only accepts `https://<sub>.mmlabs.online`). Ming
   chose **C**: dev proxy with a real token from a script; M-28 dropped. Ming: run T-025 to plan approval now.
 
-Waiting for Ming: plan approval (High tier)
+Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A9" (A1–A9 confirmed as written).
 
 ## Handoff
 ### 2026-11-17 — claude — BLOCKED
