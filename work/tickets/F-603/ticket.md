@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-07 |
-| Claimed by | claude@2026-11-17T16:02:23Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/77 |
 
 ## Goal
 Ming photographs the closet and turns 30 photos into 30 items in one go.
@@ -67,3 +67,8 @@ Ming photographs the closet and turns 30 photos into 30 items in one go.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-17 — claude — DONE
+- Done: slice F-603.1 (runner, Photos tab, quota handling). Attempt 1 REWORK: progress, summary and "Thử lại" were hidden under the modal footer at 390px. Attempt 2 PASS. Security review PASS (3 🟡 follow-ups). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/77.
+- In progress / next: Ming merges PR #77; then F-603.2 (worker resize + CSP `worker-src`, the 200 ms criterion).
+- Gotchas: conflicts with PR #76 (F-602.2) in App.test.tsx, useWardrobe.ts and ImportModal(.test).tsx; whichever merges second needs a merge with main.
