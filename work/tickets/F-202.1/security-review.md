@@ -43,3 +43,26 @@ Scope: `src/data/photoPrep.ts`, `src/data/photos.ts`, `src/data/repo.http.ts`, `
 
 ### Open questions
 - Server-side metadata stripping, or client-only? Suggested default: client-only, recorded in `work/decisions.md`.
+
+## Attempt 2 (2026-11-17, security-ai-generated-code-auditor) — re-check of 791d711
+
+Result: Y1 and Y2 fixed with regression tests; the rework introduced no new security issue. No 🔴. Read-only; nothing run.
+
+**🟢 Y1 fixed** (`src/features/items/Editor.tsx:80-86`): unmount cleanup bumps `pickSeq` then `revokeOwn()`; the `seq !== pickSeq.current` check (line 94) runs before `URL.createObjectURL` (line 95), so a late pick creates no URL and never calls `update("photo")`. Test `Editor.test.tsx:114-125` (unmount during pick → no `update("photo")`, no `createObjectURL`). StrictMode double cleanup is harmless.
+
+**🟢 Y2 fixed** (`Editor.tsx:74-79`, `:401-404`): `resetPhoto()` bumps `pickSeq`, clears `preparing`/`photoError`, revokes `ownUrl`; runs before `onDuplicate()` and is shared with "Bỏ ảnh" (line 220). Tests `Editor.test.tsx:127-133`, `:135-146`.
+
+**🟢 Revoking during a save is safe**: `repo.http.ts:75-78` reads the blob before any PUT; an already-started `fetch(blob:)` is not cancelled by revoke. Worst case is a plain save error, never a partial save.
+
+**🟡 Pre-existing, out of this diff (R7) — Duplicate and Delete stay clickable during a save** (`Editor.tsx:395-404`, `App.tsx:87-95`, `:195-206`). Duplicate during a successful save loses the copy silently; during a `PhotoSaveError` the copy gets the original's id and `isNew=false`, so the next save overwrites the original with "(bản sao)" data. Own-account integrity only. Suggested follow-up: `disabled={saving || preparing}` on Duplicate and Delete, plus a test.
+
+### Recommendations
+1. Y1/Y2 closed; no further security changes for this ticket.
+2. Record the 🟡 as a follow-up / `debt` issue.
+3. Attempt-1 follow-ups stand (G3, G4, G5).
+
+### Risks
+- The fix depends on the `seq` check staying before `URL.createObjectURL`; test 114-125 guards it.
+
+### Open questions
+- None new. Server-side EXIF stripping still open; default: client-only, recorded in `work/decisions.md`.

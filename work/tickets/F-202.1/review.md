@@ -96,3 +96,65 @@ From the plan (M-6 in `work/ming-todo.md`):
 - `server/ai/tagPhoto.test.ts` › "413 for a streamed body over 2 MB without a length" is flaky (`ECONNRESET`).
 - From `security-review.md`: avoid the double re-encode (G3), a pixel cap in `loadImage` (G4), map English `cause.message` in
   `PhotoSaveError` to Vietnamese copy (G5), and a decision on server-side EXIF stripping.
+
+## Attempt 2 — 2026-11-17
+Verdict: PASS
+
+Reviewed: branch `ticket/F-202.1` at `fbdfa5a` (rework commit `791d711`) against `origin/main`. Checks run under WSL (Ubuntu-24.04) on `/mnt/d`.
+
+### Checks (run by reviewer)
+- typecheck: green (`tsc --noEmit && tsc -p tsconfig.server.json`, exit 0).
+- format:check: green ("All matched files use the correct format.", 271 files).
+- test: `Tests 15 failed | 1276 passed | 205 skipped (1496)`, `Test Files 3 failed | 102 passed | 10 skipped (115)`.
+  - The 15 failures are exactly the pre-existing server CLI spawn timeouts recorded in Attempt 1 (13 in `server/index.cli.test.ts`,
+    1 in `server/photo-relocate.cli.test.ts`, 1 in `server/photo-sweep.cli.test.ts`), identical names, also failing on `origin/main`.
+    No new failure. The flaky `tagPhoto.test.ts` 413 case passed in this run.
+  - `Editor.test.tsx` 29/29, `App.test.tsx` 41/41.
+  - impl-log Attempt 2 (1275 passed / 16 failed incl. the flaky tagPhoto case) is consistent with this run.
+- build: green (`index-*.js` 263.48 kB, `AuthRoot-*.js` 30.36 kB, CSS 53.49 kB; +0.05 kB vs Attempt 1).
+
+### Regression evidence (Issues 1 and 2)
+Temporary `git worktree` at `157c8b8` (attempt-1 code) with the new `Editor.test.tsx` copied in and `node_modules` linked:
+`Tests 3 failed | 26 passed (29)`; the 3 failures are exactly "closing during a pick ignores its result", "duplicate frees the picked
+photo URL" and "duplicate during a pick ignores its result". All three pass on `791d711`. Worktree removed afterwards.
+
+### Acceptance criteria
+- [x] 1–4, 6 — unchanged since Attempt 1; the same tests still pass.
+- [x] 5. Object URLs revoked on replace, remove and close — unmount cleanup now bumps `pickSeq` before `revokeOwn()`
+  (`src/features/items/Editor.tsx:80-86`), and the `seq !== pickSeq.current` guard (`:94`) runs before `URL.createObjectURL` (`:95`),
+  so a pick that resolves after close neither creates a URL nor calls `update("photo")`. Evidence: `Editor.test.tsx` › "closing during
+  a pick ignores its result". Duplicate: `resetPhoto()` (`:74-79`) is called before `onDuplicate()` (`:401-404`) and shared with
+  "Bỏ ảnh" (`:220`); evidence: "duplicate frees the picked photo URL", "duplicate during a pick ignores its result". App's duplicate
+  handler clears `photo`, so the copy never points at the revoked URL (`src/App.tsx:195-205`).
+- [x] 7. Checks — green apart from the 15 pre-existing environmental server CLI failures.
+
+### Previous issues
+- Issue 1 (🔴): fixed as instructed, with a regression test that fails on the old code.
+- Issue 2 (🟡): fixed as instructed, with two tests that fail on the old code.
+
+### Scope
+Rework touched only `src/features/items/Editor.tsx` and `src/features/items/Editor.test.tsx`, both in the plan's file list. Commit
+`fbdfa5a` only changes the ticket state. No out-of-plan files.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations. The rework adds no data access (R1), no copy (R6), no styling (R9); new behaviour is tested (R8).
+
+### Nits (do not block)
+- 💭 The unmount cleanup repeats two of the four `resetPhoto()` steps inline; that is correct (no state updates after unmount),
+  a one-line comment would make the intent obvious.
+- 💭 Attempt 1 nits still stand (type import direction `photos.ts` ↔ `photoPrep.ts`, `name!` in `photoKind`, PNG transparency).
+
+### Ming verification after merge
+Unchanged from Attempt 1 (M-6 in `work/ming-todo.md`):
+1. iPhone (Safari), deployed app: camera photo via "Chụp ảnh" saves and shows in the grid; a HEIC photo from "Chọn từ thư viện" uploads.
+2. Android (Chrome): the same with the camera and the gallery.
+3. Desktop Chrome: pick a `.heic` file; the HEIC message appears and nothing is uploaded.
+4. Any browser: pick a file over 10 MB (e.g. 12 MB); the size message appears and nothing is uploaded.
+5. Slow connection (DevTools "Slow 4G"): the photo shows "Đang tải ảnh lên…" while saving.
+
+### Follow-ups (out of scope)
+- From `security-review.md` Attempt 2 (pre-existing, not in this diff): "Nhân bản" and "Xoá" stay clickable during a save. Duplicate
+  during a save that fails with `PhotoSaveError` keeps the original's id with `isNew=false`, so the next save overwrites the original
+  with the copy's data. Suggested fix: `disabled={saving || preparing}` on Duplicate and Delete, plus a test. Worth a `debt` issue.
+- Attempt 1 follow-ups still stand: F-202.3 HEIC decoder decisions, server CLI spawn-test timeouts under WSL, flaky tagPhoto 413
+  test, security G3/G4/G5 and the server-side EXIF stripping decision.
