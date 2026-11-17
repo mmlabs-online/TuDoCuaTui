@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | BACKLOG |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -54,4 +54,11 @@ Split of one L-size request into T-009 → T-010 → F-701 → F-702.
   `unsupported_media_type`, `payload_too_large`, `request_timeout`, `ai_busy`, `server_misconfigured`, `db_unavailable`.
   Claude only until F-701.1.
 
+- 2026-11-17: **Unpaused** (Ming "ok"). F-701, F-701.1 and T-010 are MERGED on the Node API; T-025/D44 removed the
+  local/demo mode. Re-plan against `POST /api/ai/tag-photo` with the identity bearer token; providers Claude + Gemini.
+
 ## Handoff
+
+### 2026-11-17 — claude — BACKLOG
+- Done: BLOCKED → BACKLOG; all dependencies MERGED.
+- In progress / next: `/run F-702` plans on the Node API (notes from 2026-11-12 and 2026-11-14 above apply).

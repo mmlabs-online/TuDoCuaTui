@@ -10,7 +10,7 @@
 | Areas | architecture, security, db |
 | Gate | plan-approval |
 | Depends on | T-016 |
-| Needs Ming | — |
+| Needs Ming | M-22 |
 | Attempts | 0 |
 | Created | 2026-11-13 |
 | Claimed by | — |
@@ -106,3 +106,7 @@ same way ricotdin is moving to it, so that the app no longer relies only on Clou
 - Done: Ming approved the umbrella plan with A1–A20 defaults. Created sub-tickets T-019.1–T-019.10, Ming items M-17–M-22, decisions D31–D34, all on `main`.
 - In progress / next: T-019.1 needs M-17 (Ming's mmlabs `sub`) before it is runnable. T-019 is DONE when all sub-tickets are MERGED and M-22 is done.
 - Gotchas: plan.md still says M-16–M-21; read them as M-17–M-22 (+1).
+
+### 2026-11-17 — claude — IN_PROGRESS (umbrella)
+- Done: every sub-ticket (T-019.1–T-019.14) is MERGED; no code work remains.
+- In progress / next: waits only on Ming's M-22 (finish the Access removal). When M-22 is ticked, set T-019 to MERGED.
