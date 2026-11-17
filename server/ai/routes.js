@@ -6,6 +6,7 @@ import { dbLogFields, mapDbError } from "../errors.js";
 import { readJson, sendError, sendJson } from "../http.js";
 import { AI_ERROR_STATUS, AI_MODELS } from "./catalog.js";
 import { checkClaudeKey } from "./claude.js";
+import { checkGeminiKey } from "./gemini.js";
 import { openStoredKey, sealKey } from "./crypto.js";
 import { keyHintOf, maskHint } from "./mask.js";
 import {
@@ -38,20 +39,22 @@ function toView(row) {
  * Provider and model are checked before decryption: no plaintext for a request that cannot go out.
  * @param {AiContext & { store: AiStore }} ai
  * @param {string} userId required: never defaults to "the" row
- * @returns {Promise<{ ok: true, provider: "claude", model: string, key: string } | { ok: false, status: number, code: string }>}
+ * @returns {Promise<{ ok: true, provider: import("./catalog.js").AiProvider, model: string, key: string } | { ok: false, status: number, code: string }>}
  */
 export async function loadSettingsKey(ai, userId) {
   if (typeof userId !== "string" || userId === "") throw new Error("userId required");
   const secret = await ai.store.getSecret(userId);
   if (!secret) return { ok: false, status: 409, code: "not_configured" };
   const { provider, model } = secret;
-  if (!isAllowedProvider(provider) || provider !== "claude" || !isAllowedModel(provider, model)) {
+  if (!isAllowedProvider(provider) || !isAllowedModel(provider, model)) {
     return { ok: false, status: 400, code: "invalid_model" };
   }
   const opened = await openStoredKey(ai.kek, userId, secret);
   if (!opened.ok) return { ok: false, status: AI_ERROR_STATUS[opened.code], code: opened.code };
   return { ok: true, provider, model, key: opened.key };
 }
+
+const CHECKERS = { claude: checkClaudeKey, gemini: checkGeminiKey };
 
 /**
  * POST /api/ai-settings/test: checks the saved key with the provider. Body is exactly {}.
@@ -81,7 +84,7 @@ async function handleTest(req, res, { route, ai, userId, id, log }) {
   try {
     const s = await loadSettingsKey(/** @type {AiContext & { store: AiStore }} */ (ai), userId);
     if (!s.ok) return fail(s.status, s.code);
-    const r = await checkClaudeKey({ fetch: ai.fetch, key: s.key, model: s.model });
+    const r = await CHECKERS[s.provider]({ fetch: ai.fetch, key: s.key, model: s.model });
     if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
     log({ event: "ai_settings", id, action: "test", code: "ok" });
     return sendJson(res, 200, { ok: true });

@@ -123,6 +123,8 @@ function fakeProvider(respond: (init: RequestInit) => Response | Promise<Respons
 }
 const status = (s: number) => () => new Response(`{"echo":"${SENTINEL}"}`, { status: s });
 const MODEL_URL = "https://api.anthropic.com/v1/models/claude-haiku-5-5";
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash";
 
 async function withSecret(over: { provider?: string; model?: string } = {}) {
   const kek = await newKek();
@@ -193,7 +195,7 @@ describe("PUT validation", () => {
     const cases: [unknown, number, string][] = [
       [{ provider: "openai", model: "x" }, 400, "invalid_provider"],
       [{ provider: "claude", model: "gpt-4" }, 400, "invalid_model"],
-      [{ provider: "gemini", model: "gemini-2.5-pro" }, 400, "invalid_model"],
+      [{ provider: "gemini", model: "gemini-x" }, 400, "invalid_model"],
       [{ ...valid, apiKey: "a".repeat(19) }, 400, "invalid_key_format"],
       [{ ...valid, apiKey: "a".repeat(10) + " " + "a".repeat(10) }, 400, "invalid_key_format"],
       [{ ...valid, extra: 1 }, 400, "bad_request"],
@@ -204,6 +206,18 @@ describe("PUT validation", () => {
       const res = await put(base, body);
       expect([res.status, await code(res)]).toEqual([status, c]);
     }
+  });
+
+  it("accepts a Gemini model", async () => {
+    const { base } = await start({ store: fakeStore().store });
+    const res = await put(base, { provider: "gemini", model: GEMINI_MODEL, apiKey: SENTINEL });
+    expect(res.status).toBe(200);
+    const { settings } = (await res.json()) as { settings: Record<string, unknown> };
+    expect(settings).toMatchObject({
+      provider: "gemini",
+      model: GEMINI_MODEL,
+      modelSupported: true,
+    });
   });
 
   it("415 without JSON, 400 invalid_json, 413 above 4096 bytes", async () => {
@@ -433,7 +447,7 @@ describe("POST /test results", () => {
     }
   });
 
-  it("not_configured (no row / no key), invalid_model (catalog, gemini), key_unreadable; no fetch for the first two", async () => {
+  it("not_configured (no row / no key), invalid_model (catalog, unlisted gemini), key_unreadable; no fetch for the first two", async () => {
     const prov = fakeProvider(status(200));
     const none = await start({ store: fakeStore().store, fetch: prov.fetch });
     const a = await postTest(none.base);
@@ -448,7 +462,7 @@ describe("POST /test results", () => {
     const rb = await postTest(b.base);
     expect([rb.status, await code(rb)]).toEqual([400, "invalid_model"]);
 
-    const gem = await withSecret({ provider: "gemini" });
+    const gem = await withSecret({ provider: "gemini", model: "gemini-x" });
     const c = await start({
       kek: gem.kek,
       store: fakeStore(aRow, undefined, gem.secret).store,
@@ -469,6 +483,96 @@ describe("POST /test results", () => {
     const entry = d.logs.find((l) => l.event === "ai_settings")!;
     expect(Object.keys(entry).sort()).toEqual(["action", "code", "event", "id"]);
     expect(entry).toMatchObject({ action: "test", code: "key_unreadable" });
+  });
+});
+
+describe("POST /test with a Gemini row", () => {
+  const googleError = (st: number, reason?: string) => () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: st,
+          message: `bad key ${SENTINEL}`,
+          status: "INVALID_ARGUMENT",
+          ...(reason
+            ? { details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason }] }
+            : {}),
+        },
+      }),
+      { status: st },
+    );
+  const gemini = () => withSecret({ provider: "gemini", model: GEMINI_MODEL });
+
+  it("calls models.get on the pinned host -> 200 {ok:true}", async () => {
+    const { kek, secret } = await gemini();
+    const prov = fakeProvider(status(200));
+    const { base, logs } = await start({
+      kek,
+      store: fakeStore(aRow, undefined, secret).store,
+      fetch: prov.fetch,
+    });
+    const res = await postTest(base);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(prov.calls).toHaveLength(1);
+    expect(prov.calls[0].url).toBe(GEMINI_URL);
+    expect(prov.calls[0].init.headers).toEqual({ "x-goog-api-key": SENTINEL });
+    const entry = logs.find((l) => l.event === "ai_settings")!;
+    expect(Object.keys(entry).sort()).toEqual(["action", "code", "event", "id"]);
+    expect(entry).toMatchObject({ action: "test", code: "ok" });
+  });
+
+  it("Gemini status table", async () => {
+    const { kek, secret } = await gemini();
+    const cases: [() => Response, number, string][] = [
+      [googleError(400, "API_KEY_INVALID"), 422, "invalid_key"],
+      [googleError(401), 422, "invalid_key"],
+      [googleError(403), 422, "key_forbidden"],
+      [googleError(404), 422, "model_unavailable"],
+      [googleError(429), 429, "provider_rate_limited"],
+      [googleError(500), 502, "provider_unavailable"],
+    ];
+    for (const [respond, st, c] of cases) {
+      const prov = fakeProvider(respond);
+      const { base } = await start({
+        kek,
+        store: fakeStore(aRow, undefined, secret).store,
+        fetch: prov.fetch,
+      });
+      const res = await postTest(base);
+      expect([res.status, await code(res)]).toEqual([st, c]);
+    }
+  });
+
+  it("/test Gemini: sentinel never leaves the server", async () => {
+    const { kek, secret } = await gemini();
+    const seen: string[] = [];
+    const logsAll: unknown[] = [];
+    const callsAll: Call[] = [];
+    const rejecting = () => {
+      throw new TypeError(`fetch failed ${SENTINEL}`);
+    };
+    for (const respond of [status(200), googleError(400, "API_KEY_INVALID"), rejecting]) {
+      const prov = fakeProvider(respond);
+      const s = await start({
+        kek,
+        store: fakeStore(aRow, undefined, secret).store,
+        fetch: prov.fetch,
+      });
+      const res = await postTest(s.base);
+      seen.push(await res.text(), JSON.stringify([...res.headers.entries()]));
+      logsAll.push(s.logs);
+      callsAll.push(...prov.calls);
+    }
+    expect(callsAll).toHaveLength(3);
+    for (const c of callsAll) {
+      expect(c.url).toBe(GEMINI_URL);
+      expect(new URL(c.url).search).toBe("");
+      const { headers, ...rest } = c.init;
+      expect(headers).toEqual({ "x-goog-api-key": SENTINEL });
+      expect(JSON.stringify([c.url, rest])).not.toContain(SENTINEL);
+    }
+    expect(JSON.stringify([seen, logsAll])).not.toContain(SENTINEL);
   });
 });
 
@@ -603,9 +707,9 @@ describe("loadSettingsKey", () => {
     });
   });
 
-  it("gemini or unknown model -> 400 invalid_model without decrypting", async () => {
+  it("unlisted gemini or unknown model -> 400 invalid_model without decrypting", async () => {
     for (const s of [
-      { provider: "gemini", model: "x", ciphertext: "garbage" },
+      { provider: "gemini", model: "gemini-x", ciphertext: "garbage" },
       { provider: "claude", model: "nope", ciphertext: "garbage" },
     ]) {
       expect(await loadSettingsKey(await ai(s), OWNER_A)).toEqual({
@@ -627,6 +731,16 @@ describe("loadSettingsKey", () => {
       ok: true,
       provider: "claude",
       model: "claude-haiku-5-5",
+      key: SENTINEL,
+    });
+  });
+
+  it("valid Gemini row -> the key", async () => {
+    const { kek, secret } = await withSecret({ provider: "gemini", model: GEMINI_MODEL });
+    expect(await loadSettingsKey(await ai(secret, kek), OWNER_A)).toEqual({
+      ok: true,
+      provider: "gemini",
+      model: GEMINI_MODEL,
       key: SENTINEL,
     });
   });

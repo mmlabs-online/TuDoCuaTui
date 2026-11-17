@@ -160,7 +160,7 @@ describe("error codes", () => {
     expect(s.state.fetches).toHaveLength(0);
   });
 
-  it("gemini or unknown model -> 400 invalid_model (even under another KEK)", async () => {
+  it("unlisted gemini or unknown model -> 400 invalid_model (even under another KEK)", async () => {
     const other = await importKek(randomBytes(32).toString("base64"));
     const ct = await sealKey(other, OWNER_A, "gemini", SENTINEL);
     for (const secret of [
@@ -465,6 +465,127 @@ describe("secrets and logs", () => {
     }
     expect(tags.map((l) => l.code)).toEqual(["ok", "invalid_photo"]);
     expect(JSON.stringify(s.logs)).not.toContain("Áo sơ mi");
+  });
+});
+
+describe("gemini", () => {
+  const GEMINI_URL =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  const geminiAnswer = (obj: unknown, finishReason = "STOP") =>
+    new Response(
+      JSON.stringify({
+        candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify(obj) }] } }],
+      }),
+    );
+  const googleError = (st: number, reason?: string) => () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: st,
+          message: `bad key ${SENTINEL}`,
+          ...(reason
+            ? { details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason }] }
+            : {}),
+        },
+      }),
+      { status: st },
+    );
+  const startGemini = async (fetch: Fetch) => {
+    const kek = await importKek(randomBytes(32).toString("base64"));
+    const secret = {
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      ciphertext: await sealKey(kek, OWNER_A, "gemini", SENTINEL),
+    };
+    return start({ kek, secret, fetch });
+  };
+
+  it("gemini: success returns sanitized suggestion", async () => {
+    const dirty = {
+      name: "x".repeat(121),
+      category: "bag",
+      colors: ["purple", "den"],
+      seasons: ["winter", "winter"],
+      material: "cotton",
+      brand: null,
+      tags: [],
+    };
+    const s = await startGemini(() => geminiAnswer(dirty));
+    const res = await post(s.base);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      suggestion: {
+        name: null,
+        category: null,
+        colors: ["den"],
+        seasons: ["winter"],
+        material: "cotton",
+        brand: null,
+        tags: [],
+      },
+    });
+    expect(s.state.fetches).toHaveLength(1);
+    expect(s.state.fetches[0].url).toBe(GEMINI_URL);
+  });
+
+  it("gemini: provider errors map to status + code", async () => {
+    const cases: [Fetch, number, string][] = [
+      [googleError(400, "API_KEY_INVALID"), 422, "invalid_key"],
+      [googleError(403), 422, "key_forbidden"],
+      [googleError(404), 422, "model_unavailable"],
+      [googleError(429), 429, "provider_rate_limited"],
+      [googleError(500), 502, "provider_unavailable"],
+      [() => geminiAnswer(GOOD, "MAX_TOKENS"), 502, "provider_bad_response"],
+    ];
+    for (const [f, status, code] of cases) {
+      const s = await startGemini(f);
+      const res = await post(s.base);
+      expect([res.status, await err(res)]).toEqual([status, code]);
+    }
+  });
+
+  it("gemini: sentinel never leaves the server", async () => {
+    const cases: Fetch[] = [
+      () => geminiAnswer(GOOD),
+      googleError(400, "API_KEY_INVALID"),
+      () => {
+        throw new TypeError("fetch failed " + SENTINEL);
+      },
+    ];
+    for (const f of cases) {
+      const image = jpeg(40);
+      const s = await startGemini(f);
+      const res = await post(s.base, image);
+      const text = await res.text();
+      const headers = JSON.stringify([...res.headers]);
+      expect(text + headers + JSON.stringify(s.logs)).not.toContain(SENTINEL);
+      expect(s.state.fetches).toHaveLength(1);
+      const { url, init } = s.state.fetches[0];
+      expect(url).toBe(GEMINI_URL);
+      expect(url).not.toContain(SENTINEL);
+      const { headers: sent, ...rest } = init;
+      expect(sent).toEqual({ "x-goog-api-key": SENTINEL, "content-type": "application/json" });
+      expect(JSON.stringify(rest)).not.toContain(SENTINEL);
+      const b64 = image.toString("base64");
+      expect(text + JSON.stringify(s.logs)).not.toContain(b64);
+      expect(String(init.body)).toContain(b64);
+      const tags = s.logs.filter((l) => l.event === "ai_tag");
+      expect(tags).toHaveLength(1);
+      expect(Object.keys(tags[0]).sort()).toEqual(["code", "event", "id", "ms"]);
+    }
+  });
+
+  it("provider dispatch", async () => {
+    const claude = await start();
+    expect((await post(claude.base)).status).toBe(200);
+    expect(claude.state.fetches).toHaveLength(1);
+    expect(claude.state.fetches[0].url).toBe("https://api.anthropic.com/v1/messages");
+    expect(claude.state.fetches[0].init.headers).not.toHaveProperty("x-goog-api-key");
+    const gem = await startGemini(() => geminiAnswer(GOOD));
+    expect((await post(gem.base)).status).toBe(200);
+    expect(gem.state.fetches).toHaveLength(1);
+    expect(gem.state.fetches[0].url).toBe(GEMINI_URL);
+    expect(gem.state.fetches[0].init.headers).not.toHaveProperty("x-api-key");
   });
 });
 

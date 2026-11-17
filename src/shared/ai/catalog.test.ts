@@ -18,9 +18,16 @@ describe("catalog", () => {
     expect(defaultModelOf("claude")).toBe("claude-haiku-5-5");
   });
 
-  it("gemini ships with no models until the ids are verified", () => {
-    expect(AI_MODELS.gemini).toEqual([]);
-    expect(defaultModelOf("gemini")).toBeNull();
+  it("gemini has exactly the confirmed models, one default", () => {
+    expect(AI_MODELS.gemini.map((m) => m.id)).toEqual([
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ]);
+    expect(AI_MODELS.gemini.filter((m) => m.isDefault).map((m) => m.id)).toEqual([
+      "gemini-2.5-flash",
+    ]);
+    expect(defaultModelOf("gemini")).toBe("gemini-2.5-flash");
   });
 
   it("ids are unique and match the DB CHECK pattern", () => {

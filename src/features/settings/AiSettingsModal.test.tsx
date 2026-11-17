@@ -62,10 +62,22 @@ describe("AiSettingsModal", () => {
     expect(document.body.innerHTML).not.toContain("sk-ant");
   });
 
-  it("lists Gemini as disabled and disables Save for an invalid combination", async () => {
-    await open(fake());
+  it("lists Gemini as enabled; choosing it selects the default Gemini model", async () => {
+    await open(fake({ get: vi.fn(async () => view()) }));
     const gemini = screen.getByRole("option", { name: COPY.providerOptions.gemini });
-    expect((gemini as HTMLOptionElement).disabled).toBe(true);
+    expect(COPY.providerOptions.gemini).toBe("Gemini");
+    expect((gemini as HTMLOptionElement).disabled).toBe(false);
+    const [provider, model] = Array.from(document.querySelectorAll("select"));
+    fireEvent.change(provider, { target: { value: "gemini" } });
+    expect(provider.value).toBe("gemini");
+    expect(model.value).toBe("gemini-2.5-flash");
+    expect((btn(COPY.save) as HTMLButtonElement).disabled).toBe(true);
+    type(KEY);
+    expect((btn(COPY.save) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables Save for an invalid combination", async () => {
+    await open(fake());
     expect((btn(COPY.save) as HTMLButtonElement).disabled).toBe(true);
     type("short");
     expect((btn(COPY.save) as HTMLButtonElement).disabled).toBe(true);

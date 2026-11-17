@@ -6,10 +6,12 @@ import { sendError, sendJson } from "../http.js";
 import { MAX_BYTES, readBody, rejectUnread } from "../photos.js";
 import { AI_ERROR_STATUS } from "./catalog.js";
 import { tagPhotoWithClaude } from "./claude.js";
+import { tagPhotoWithGemini } from "./gemini.js";
 import { loadSettingsKey } from "./routes.js";
 import { parseTagSuggestion } from "./tagging.js";
 
-const TAGGERS = { claude: tagPhotoWithClaude };
+/** @type {Record<import("./catalog.js").AiProvider, typeof tagPhotoWithClaude | typeof tagPhotoWithGemini>} */
+const TAGGERS = { claude: tagPhotoWithClaude, gemini: tagPhotoWithGemini };
 
 /**
  * @param {import("node:http").IncomingMessage} req

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | F-701 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-14 |
 | Claimed by | — |
-| PR | — |
+| PR | [#68](https://github.com/mmlabs-online/TuDoCuaTui/pull/68) |
 
 ## Goal
 Users who choose Gemini in Settings can test their key and tag a photo, the same way Claude works after F-701.
@@ -50,4 +50,17 @@ Design notes: `work/tickets/F-701/consult-software-architect.md` R6.
 ## Notes / answers from Ming
 - 2026-11-14: split approved with the F-701 plan (A1).
 
+- Waiting for Ming: plan approval (High tier), including the Gemini model ids (A1)
+- 2026-11-17 (Ming): "duyệt F-701.1, giữ đề xuất" — Plan approved; A1 model ids confirmed as proposed: `gemini-2.5-flash` (default), `gemini-2.5-flash-lite`, `gemini-2.5-pro`. A2–A16 as written.
+
 ## Handoff
+
+### 2026-11-17 — claude — BLOCKED
+- Done: architect consult; plan READY (A1–A16; ~230 prod + 550 test lines; optional M-27 real-key smoke).
+- In progress / next: Ming approves and confirms model ids → implement → review (+ security) → PR. On DONE, /run adds M-27 to ming-todo.
+- Gotchas: implementer must not ship model ids Ming has not confirmed.
+
+### 2026-11-17 — claude — DONE
+- Done: plan approved (model ids confirmed); implement attempt 1; review PASS; security no 🔴 (3 🟡 → follow-ups). M-27 added to ming-todo. PR #68.
+- In progress / next: Ming merges and releases; optional M-27 real-key check; allow `generativelanguage.googleapis.com` if egress is restricted.
+- Gotchas: the real Gemini API shape (v1beta, schema dialect, thinkingConfig, error shape) is untested until M-27; end-to-end tagging needs the F-702 UI (console fetch lacks the bearer in identity mode).
