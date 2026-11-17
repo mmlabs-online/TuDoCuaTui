@@ -52,3 +52,40 @@ and `server/photoQuota.js`.
 
 ### Open questions
 None.
+
+## Attempt 2 (rework) — security-ai-generated-code-auditor, 2026-11-17
+
+**Result: PASS. The rework adds no new security issue: no 🔴, no new 🟡.**
+
+The auditor read the three changed files directly (no shell, so no git diff): `src/features/import-export/ImportPhotosTab.tsx`,
+`src/features/import-export/ImportPhotosTab.test.tsx` and `src/index.css` (around lines 2406-2458).
+
+### Findings
+1. **No new data access (R1 holds).** `ImportPhotosTab.tsx` has no `fetch` and no new imports. All work still goes
+   through the hook (`photos.addFiles` lines 39 and 55, `photos.run` line 127, the `setLocation`/`setStatus`
+   setters lines 72 and 85). The upload path is unchanged, so everything still goes through `repo.save` and
+   `preparePhoto`.
+2. **File names and errors are rendered safely.** User-supplied file names appear only as React text children
+   (`{j.file.name}` at lines 122 and 140; `current.name` at line 99 through `PHOTOS.running`, a plain template
+   string in `src/features/import-export/copy.ts:46`); error messages at line 122 are text too. No
+   `dangerouslySetInnerHTML` or `innerHTML` in `src/features/import-export`. The only inline style is the
+   progress-bar width (line 103), built from a number (`pct`, line 28).
+3. **The drop zone is safe to hide.** The drop zone and the location/status defaults render only when
+   `phase === "edit"` (lines 43-95), so nothing can be dropped or picked during a run. The test at line 97
+   asserts this. (The `if (editing)` check at line 49 and `disabled={!editing}` at lines 63, 74 and 86 can no
+   longer change anything, but do no harm.)
+4. **No secrets.** No `VITE_*` variable, key, token or URL added.
+5. **The CSS change is layout only.** The `.bulk-drop`, `.photo-defaults`, `.photo-files` and `.import-summary`
+   rules have no `url()`, attribute-built `content:` or external resources.
+6. **The test file only uses fixtures** (`File` objects, `vi.fn` stubs, `ApiError(0, "network")`); no network
+   calls, no real credentials.
+
+### Recommendations
+None for this rework. The attempt-1 🟡 items stay follow-ups: the batch keeps running after a 401 or a network
+error; no client-side cooldown after a 429; a 429 or 409 on the photo step leaves an item with no photo.
+
+### Risks
+None new.
+
+### Open questions
+None.
