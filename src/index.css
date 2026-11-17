@@ -304,6 +304,9 @@ main {
 .filter-select {
   position: relative;
 }
+.filter-row {
+  display: contents;
+}
 .filter-select select {
   appearance: none;
   height: 40px;
@@ -1119,8 +1122,8 @@ main {
   .toolbar {
     grid-template-columns: 1fr repeat(3, auto);
   }
-  .filter-select:nth-of-type(4),
-  .filter-select:nth-of-type(5) {
+  .filter-row .filter-select:nth-of-type(3),
+  .filter-row .filter-select:nth-of-type(4) {
     display: none;
   }
   .item-grid {
@@ -1205,18 +1208,23 @@ main {
   }
   .toolbar {
     display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    flex-direction: column;
+    gap: 8px;
   }
   .searchbox {
-    min-width: calc(100vw - 48px);
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--surface);
+    width: 100%;
+    min-width: 0;
+  }
+  .filter-row {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    padding-right: 28px;
   }
   .filter-select {
     display: block !important;
+    flex: none;
   }
   .filter-select select {
     max-width: none;
@@ -2562,7 +2570,7 @@ main {
     white-space: nowrap;
   }
   .stats-grid,
-  .toolbar,
+  .filter-row,
   .categories {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
