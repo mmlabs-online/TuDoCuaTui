@@ -7,7 +7,7 @@
 | Size | M |
 | Milestone | M1 |
 | Epic | E6 — Import & Export |
-| Areas | data, db |
+| Areas | data, db, architecture, security |
 | Gate | none |
 | Depends on | F-004.3 |
 | Needs Ming | — |
@@ -20,48 +20,69 @@
 A full backup that can be restored safely, so Ming does not lose the wardrobe.
 
 ## Feature reference
-`docs/feature-list.md` F-602. Decisions: `work/decisions.md`.
+`docs/feature-list.md` F-602. Decisions: `work/decisions.md` (D1, D44).
 
 ## Scope
-- Export `{ version: 1, exportedAt, locations[], items[], wearLogs[] }` with DB ids, enum ids (not labels)
-  and photo storage paths, but no signed URLs and no data: URLs.
-- Restore validates the file (version, shape), then upserts locations → items → wear logs by id. Running it
-  twice changes nothing.
-- New repo methods `exportAll()` / `restore(backup, onProgress)`, implemented for both modes.
-- Update the backup tab copy: it says "các món mới sẽ được thêm vào", but restoring also overwrites items
-  with the same id.
+- Export `{ version: 1, exportedAt, locations[], items[], wearLogs[] }` with DB ids and enum ids (not labels).
+  Photos are referenced by their `item_photos` id only, for information; no `/api/photos` URLs, no blob: or
+  data: URLs, no photo bytes.
+- The export comes from the server in one call, scoped to the signed-in user (new endpoint, e.g.
+  `GET /api/backup`), because the current API has no way to list wear logs.
+- Restore validates the file (version, shape, sizes) on the client and again on the server, then upserts
+  locations → items → wear logs by id in **one transaction** on the server (new endpoint, e.g.
+  `POST /api/restore`). Running it twice changes nothing.
+- Id rules (D1): an id that is free or already owned by the caller is kept; an id owned by another user gets a
+  new id and every reference (item → location, wear log → item) is remapped. Ownership is enforced by the
+  existing per-request `app.user_id` RLS, never by ids from the file.
+- Restore never creates or relinks photos, and never clears the photo of an item that already exists. Items
+  restored without a live photo show no photo; the summary counts them.
+- New repo methods `exportAll()` / `restore(backup)` on `WardrobeRepo` (HTTP implementation only, D44).
+- Replace the "coming soon" JSON import tab (`ImportJsonTab.tsx`) and the current JSON export (which dumps UI
+  items) with the real flow; fix the copy: restoring also overwrites items with the same id, and photos are not
+  in the file.
+- Request body limit and a per-user rate limit for restore, consistent with the other `/api` routes.
 
 ## Out of scope
 - Restoring photo files (F-605 ZIP export, M3).
+- A "wipe my account" button.
 
 ## Acceptance criteria
-- [ ] Export → wipe the same account → restore → export again gives identical JSON, apart from timestamps
-      and photo URLs (decision D1 rewrites the feature list's "empty account").
+- [ ] Export → delete the items of the same account → restore → export again gives identical JSON, apart from
+      timestamps and photo references (D1).
 - [ ] Restoring the same file twice changes nothing.
-- [ ] Restoring into a different account succeeds: rows whose id belongs to someone else get new ids, and
-      every reference (item → location, wear log → item) is remapped; photos are skipped and counted in the
-      summary (decision D1).
-- [ ] A local-mode export restores in local mode (synthetic wear logs are acceptable).
+- [ ] Restoring into a different account succeeds: rows whose id belongs to someone else get new ids, every
+      reference is remapped, the other user's rows are untouched; photos are skipped and counted in the
+      summary (D1).
+- [ ] An invalid or oversized file is rejected with a Vietnamese message and writes nothing (transaction).
+- [ ] 390px and dark mode.
 
 ## Technical notes
-- Files: `src/data/repo.ts`, `src/data/backup.ts` (schema + validation), `src/features/import-export/*`.
-- Mismatches with the code (decision D1):
-  - `items.id` is a global primary key. Restoring a backup into a **second** account while the first still
-    exists hits rows owned by the first user: RLS makes the upsert fail. The AC only works on the same
-    account (after wiping it) or with id remapping.
-  - Photo paths start with the owner's user id, and storage RLS blocks other users, so photos cannot be
-    re-linked into another account.
-  - Local mode has no wear logs, only `wearCount` / `lastWorn` counters, and demo ids are `"1"`…`"16"`
-    (not UUIDs). A local-mode export can only produce synthetic wear logs.
-  - Today's JSON export dumps UI items, including signed URLs (which expire) and, in local mode, full
-    data: URLs. The ExportModal says photos are not in the file, which is wrong in local mode.
+- Files: `server/api.js`, `server/items.js` (or a new `server/backup.js`), `server/validate.js`,
+  `src/data/repo.ts`, `src/data/repo.http.ts`, `src/data/backup.ts` (schema + validation),
+  `src/features/import-export/*`.
+- Backend (re-scoped 2026-11-17, D23/D44): self-hosted Postgres, `items`, `locations`, `wear_logs`,
+  `item_photos`, all with `user_id` and RLS keyed on `app.user_id` (`db/migrations/20261114200000_row_level_security.sql`).
+  `items.id` is a global primary key, so a foreign-owned id is invisible under RLS and an upsert on it fails —
+  hence the D1 remap. Detect "owned by someone else" without leaking other users' data (e.g. insert
+  `on conflict do nothing` and remap when nothing was written for an id the caller does not own).
+- Deleting an item deletes its Drive photo, so after a wipe the photo ids in the backup are dead; that is why
+  restore never relinks photos.
+- `wear_count` / `last_worn` are derived (R5): they are not in the export and must come out identical after
+  restore through `items_with_stats`.
+- No migration is expected. If the planner finds one is needed, the ticket becomes High tier and needs
+  `plan-approval`.
+- Consult `security-ai-generated-code-auditor` (new write endpoint, cross-user ids).
 - Expected tier: Medium.
 
 ## Test plan
-- Unit: backup validation; restore idempotency against a fake repo; id remapping for foreign-owned ids.
-- Manual: export → wipe → restore → export → diff, in Supabase mode.
+- Unit: backup validation; id remapping; restore idempotency against a fake repo.
+- DB tests (`*.db.test.ts`): restore in one transaction; foreign-owned ids remapped; another user's rows
+  unchanged; second restore is a no-op.
+- Manual: export → delete items → restore → export → diff, on the real app.
 
 ## Notes / answers from Ming
+- 2026-11-17: scope refreshed for the current backend (Node API, Postgres RLS, Drive, no local mode — D44)
+  at Ming's request. The local-mode acceptance criterion was dropped.
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
