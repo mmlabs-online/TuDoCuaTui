@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | L |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T06:29:22Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -104,4 +104,10 @@ clauses of D9, D21 and D30.
 - 2026-11-17: option a is impossible (the `register-app` workflow only accepts `https://<sub>.mmlabs.online`). Ming
   chose **C**: dev proxy with a real token from a script; M-28 dropped. Ming: run T-025 to plan approval now.
 
+Waiting for Ming: plan approval (High tier)
+
 ## Handoff
+### 2026-11-17 — claude — BLOCKED
+- Done: consult (software-architect), plan.md `Status: READY` with assumptions A1–A9.
+- In progress / next: Ming approves the plan (confirm or override A1–A9) by writing "Plan approved (YYYY-MM-DD)" under *Notes / answers from Ming*; then `/run T-025` implements.
+- Gotchas: High paths touched (`src/features/auth/AuthRoot.tsx`, comment-only `Dockerfile` / `.dockerignore`); T-019 and F-702 overlap `AuthRoot.tsx`, `main.tsx` and `Editor.tsx`; well over 400 changed lines, fallback split named in the plan.
