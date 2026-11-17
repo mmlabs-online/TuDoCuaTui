@@ -102,6 +102,49 @@ describe("photo preparation", () => {
   const pick = (input: HTMLInputElement, f = pic()) =>
     fireEvent.change(input, { target: { files: [f] } });
 
+  const deferred = () => {
+    let resolve!: (v: { blob: Blob; width: number; height: number }) => void;
+    const promise = new Promise<{ blob: Blob; width: number; height: number }>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  };
+  const done = { blob: new Blob(["j"], { type: "image/jpeg" }), width: 1, height: 1 };
+
+  test("closing during a pick ignores its result", async () => {
+    const d = deferred();
+    prep.mockReturnValueOnce(d.promise);
+    const { gallery, update } = renderEditor();
+    pick(gallery);
+    cleanup();
+    d.resolve(done);
+    await d.promise;
+    await Promise.resolve();
+    expect(update).not.toHaveBeenCalledWith("photo", expect.anything());
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  test("duplicate frees the picked photo URL", async () => {
+    const { gallery, update } = renderEditor(vi.fn(), blankItem(), false);
+    pick(gallery);
+    await waitFor(() => expect(update).toHaveBeenCalledWith("photo", "blob:1"));
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.duplicate }));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
+  });
+
+  test("duplicate during a pick ignores its result", async () => {
+    const d = deferred();
+    prep.mockReturnValueOnce(d.promise);
+    const { gallery, update } = renderEditor(vi.fn(), blankItem(), false);
+    pick(gallery);
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.duplicate }));
+    d.resolve(done);
+    await d.promise;
+    await Promise.resolve();
+    expect(update).not.toHaveBeenCalledWith("photo", expect.anything());
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
   test("a file over 10 MB shows the size message and does not set the photo", async () => {
     const { gallery, update } = renderEditor();
     prep.mockRejectedValueOnce(new PhotoPrepError("tooLarge"));

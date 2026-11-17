@@ -71,7 +71,19 @@ export function Editor({
     if (ownUrl.current) URL.revokeObjectURL(ownUrl.current);
     ownUrl.current = null;
   };
-  useEffect(() => revokeOwn, []);
+  const resetPhoto = () => {
+    pickSeq.current++;
+    setPreparing(false);
+    setPhotoError(null);
+    revokeOwn();
+  };
+  useEffect(
+    () => () => {
+      pickSeq.current++;
+      revokeOwn();
+    },
+    [],
+  );
   const upload = async (f?: File) => {
     if (!f) return;
     const seq = ++pickSeq.current;
@@ -205,10 +217,7 @@ export function Editor({
               <button
                 className="remove-photo"
                 onClick={() => {
-                  pickSeq.current++;
-                  setPreparing(false);
-                  setPhotoError(null);
-                  revokeOwn();
+                  resetPhoto();
                   update("photo", "");
                   update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
                   update("photoPath", undefined);
@@ -389,7 +398,10 @@ export function Editor({
               <Btn
                 className="editor-duplicate"
                 aria-label={EDITOR_COPY.duplicate}
-                onClick={onDuplicate}
+                onClick={() => {
+                  resetPhoto();
+                  onDuplicate();
+                }}
               >
                 <Icon name="copy" /> <span className="btn-label">{EDITOR_COPY.duplicate}</span>
               </Btn>

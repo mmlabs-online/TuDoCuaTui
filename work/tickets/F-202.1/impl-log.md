@@ -39,3 +39,26 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: about +375 / -67 lines tracked, plus the two new photoPrep files.
+
+## Attempt 2 — 2026-11-17 (REWORK: review attempt 1)
+
+### Files touched
+| File | Required because |
+|---|---|
+| `src/features/items/Editor.tsx` | Issue 1: unmount cleanup now bumps `pickSeq` before `revokeOwn()`. Issue 2: new `resetPhoto()` helper (the four "Bỏ ảnh" reset steps), used by "Bỏ ảnh" and called before `onDuplicate()` |
+| `src/features/items/Editor.test.tsx` | Regression tests: "closing during a pick ignores its result", "duplicate frees the picked photo URL", "duplicate during a pick ignores its result". All three fail on the attempt-1 code (verified by stashing Editor.tsx) |
+
+### Checks
+- typecheck: green
+- format:check: green (oxfmt, "Finished ... 271 files")
+- test: 1275 passed, 16 failed, 205 skipped. The 16 are the 15 pre-existing server CLI timeouts (`server/index.cli.test.ts`, `photo-relocate.cli.test.ts`, `photo-sweep.cli.test.ts`, not fixed) plus the known flaky `server/ai/tagPhoto.test.ts` 413 case. `src/features/items`: 72/72 pass.
+- build: green
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new.
+
+### Scope self-check
+Only the two review issues were addressed; no follow-ups taken.
