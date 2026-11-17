@@ -124,3 +124,68 @@ The title (h1) and the Import button are clear at every width.
 
 ### Follow-ups (out of scope)
 - Sticky top bar overlapping the hero title on scroll (already noted).
+
+## Attempt 2 — 2026-11-17
+Verdict: PASS
+
+Reviewed commit `b7e4c75` (rework; `src/index.css` +12 lines, impl-log attempt 2). Reviewer scratch dir:
+`/tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/rev003c/`.
+
+### Checks (run by reviewer)
+- typecheck: pass (`tsc --noEmit && tsc -p tsconfig.server.json`, exit 0)
+- format:check: pass ("All matched files use the correct format", 274 files)
+- test: pass (Test Files 108 passed | 10 skipped; Tests 1269 passed | 205 skipped) — matches impl-log
+- build: pass (`✓ built in 433ms`); working tree clean afterwards
+
+### Regression check (re-run by reviewer, compiled CSS)
+Built `a6bf7a2^`, `bc1d00c` and HEAD myself from `git archive` trees outside the repo (`vite build --outDir rev003c/build-*`)
+and ran the implementer's `hero-check.cjs` (real `Hero.tsx` markup, icon + text `.btn.btn-secondary`; asserts every
+visible card inside `.intro` ±4px and no card box intersecting any `.hero-copy > *` or `.mobile-import .btn` box; exit 1
+on failure) at 360/375/390/414/490/650px, light and dark, with Google Fonts loaded and with the font `@import` stripped.
+| Build | Fonts on | Fonts off |
+|---|---|---|
+| `a6bf7a2^` (pre-fix) | RESULT FAIL, 12/12 (`.collage-2` outside `.intro`, e.g. 390: card 336–435 vs intro right 378) | FAIL 12/12 |
+| `bc1d00c` (pre-rework) | RESULT FAIL, 8/12 (360–414 light+dark: card 1 over paragraph; over Export at 360–390) | FAIL 8/12 |
+| HEAD | **RESULT PASS, 12/12, exit 0** | **PASS 12/12, exit 0** |
+Margins at HEAD: 360px card 1 left 236 vs paragraph box right 228 and Export right 224; 390px card 1 left 246 vs
+paragraph box right 241; cards end at 340 (360) / 366 (390) vs `.intro` right 348 / 378. Outputs:
+`rev003c/out/{pre,bc1d00c,HEAD}{,-off}.txt`. These match impl-log attempt 2.
+
+- **Nothing above 650px changed**: the compiled CSS of HEAD vs `bc1d00c` differs only by
+  `@media (width<=430px){.hero-collage{right:14px;transform:scale(.56)}}` and
+  `@media (width<=380px){.hero-collage{right:10px;transform:scale(.48)}}`; card and blocker geometry at 490 and 650px is
+  identical between the two builds. No later rule in `src/index.css` overrides `.hero-collage` (last at
+  `src/index.css:2349-2354`).
+- **BUG-004 toolbar check** (`bug004-toolbar.cjs` on `build-HEAD`, with the original `a5-before.json` baseline):
+  exit 0, 32 PASS, 0 FAIL (`rev003c/bug004.txt`).
+- **Screenshots viewed** (`rev003c/out/HEAD/hero-on-{light,dark}-{360,390}.png`): both cards ("Mới mua", "Yêu thích")
+  fully inside the hero card, clear of the title, the paragraph and the Import/Export buttons, in both themes.
+
+### Acceptance criteria
+- [x] Regression check fails before the fix and passes after — evidence: table above (fails on `a6bf7a2^` and
+      `bc1d00c`, passes on HEAD, compiled CSS, 360–650px, light and dark), recorded in impl-log attempt 2.
+- [x] Expected behaviour in light and dark at 390, 490 and 650px (and 360/375/414) — evidence: hero check PASS 12/12
+      and screenshots. Screenshots for the PR: `bug-003-r2/out/after/` (implementer) and `rev003c/out/HEAD/` (reviewer).
+- [x] All checks pass — evidence: Checks above.
+
+### Issues
+None.
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. CSS-only change inside the ticket's file (R7); R9 verified at 360–414px and in dark mode.
+
+### Ming verification after merge
+- Real phone, light and dark: both collage photos visible inside the hero card, not covering the text or the
+  Import/Export buttons.
+
+### Nits (do not block)
+- 💭 Collage size at 360px (scale 0.48): the photo cards render about 54×70px and stay recognisable as two photos, so
+  the decoration still reads. The labels ("Mới mua", "Yêu thích", 12px × 0.48 ≈ 6px) are barely legible at ≤ 380px
+  (≈ 7px at 0.56, ≈ 8px at 0.68 before the rework). The ticket only asks that labels sit inside the card, and the
+  collage is decorative, so acceptable; if Ming finds the labels too small on a real phone, a follow-up could raise the
+  label font-size inside the ≤ 430px steps.
+- 💭 `hero-check.cjs` reports `fontsLoaded=true` even with the fonts import stripped (`document.fonts.check` returns true
+  when no matching face is registered), so the flag is not a reliable font indicator; both runs pass anyway.
+
+### Follow-ups (out of scope)
+- Sticky top bar overlapping the hero title on scroll (already noted).

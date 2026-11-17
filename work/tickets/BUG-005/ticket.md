@@ -17,8 +17,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T13:49:40Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/71 |
 
 ## Report
 Ming, 2026-11-17: "Đổi lại icon chỗ set AI key thành AI" (change the icon of the AI key settings button to "AI").
@@ -68,3 +68,8 @@ the same shape as `sun` (`src/components/Icon.tsx:34-39`). Added by T-010.
 
 ## Handoff
 - 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71
+
+### 2026-11-17 — claude — MERGED
+- Done: fixed in the BUG-002..005 batch on claude/magical-cori-2ssw8l (plan → implement → review PASS, attempt 1); merged by Ming with https://github.com/mmlabs-online/TuDoCuaTui/pull/71.
+- In progress / next: Ming checks on a real phone and desktop, light and dark.
+- Gotchas: Playwright checks are one-off scripts outside the repo (D42); results are in impl-log.md.
