@@ -63,7 +63,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-010 | Settings screen: AI provider, API key and model | MERGED | P1 | S | ui, security | T-018.2 | none | 1 | 2026-11-13 |
 | F-701 | Edge Function `tag-item-photo` using the user's AI settings | MERGED | P1 | M | architecture, security | T-018.2 | plan-approval | 1 | 2026-11-14 |
 | F-701.1 | Gemini provider for AI photo tagging and the key test | MERGED | P2 | S | security, architecture | F-701 | plan-approval | 1 | 2026-11-17 |
-| F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | DONE | P1 | S | ui | F-701, T-010 | none | 1 | 2026-11-17 |
+| F-702 | "✨ Tự điền từ ảnh" in the editor (real AI) | MERGED | P1 | S | ui | F-701, T-010 | none | 1 | 2026-11-17 |
 | T-005.1 | Connect the Node server to Google Drive | MERGED | P0 | M | architecture, security | T-013.2, T-015 | plan-approval | 1 | 2026-11-11 |
 | T-005.5 | Drive connect script and deploy secrets for TuDo photos | MERGED | P0 | S | security | T-005.1 | plan-approval | 1 | 2026-11-11 |
 | T-005.2 | Upload and delete item photos via Google Drive (API mode) | MERGED | P0 | M | data, db, security | T-005.1 | plan-approval | 1 | 2026-11-12 |
@@ -82,7 +82,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-602.2 | JSON backup and restore in the app (client) | BACKLOG | P0 | M | ui, data | F-602 | none | 0 | 2026-11-17 |
 | T-001 | Hide mock AI controls until M3 | MERGED | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
 | F-603 | Bulk photo import | BACKLOG | P0 | M | ui, data | F-601.3, F-202.1 | none | 0 | 2026-11-07 |
-| BUG-002 | Item grid renders every item at once instead of 12 at a time | DONE | P1 | S | ui | — | none | 1 | 2026-11-17 |
+| BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | REWORK | P2 | XS | ui | — | none | 2 | 2026-11-17 |
-| BUG-004 | Search box overflows and scrolls sideways on mobile | DONE | P1 | XS | ui | — | none | 1 | 2026-11-17 |
-| BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | DONE | P1 | XS | ui | — | none | 1 | 2026-11-17 |
+| BUG-004 | Search box overflows and scrolls sideways on mobile | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
+| BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
