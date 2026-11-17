@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,9 +11,9 @@
 | Gate | plan-approval |
 | Depends on | F-004.3 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-17T14:25:04Z |
 | PR | — |
 
 ## Goal
@@ -81,6 +81,7 @@ A full backup that can be restored safely, so Ming does not lose the wardrobe.
 - Manual: export → delete items → restore → export → diff, on the real app.
 
 ## Notes / answers from Ming
+- 2026-11-17: **Plan approved** by Ming, with all 8 defaults under plan.md "Needs Ming's decision" (recorded as D49). F-602.2 (client) created on `main`.
 - Waiting for Ming: plan approval (High tier). plan.md covers slice **F-602.1** (server: `GET /api/backup`, `POST /api/restore`, all under `server/**`, High in `.github/risk-tiers.yml`); the client half becomes F-602.2 (see plan.md "Split proposal"). Reply "Plan approved" here (or in chat) to resume.
 - 2026-11-17: scope refreshed for the current backend (Node API, Postgres RLS, Drive, no local mode — D44)
   at Ming's request. The local-mode acceptance criterion was dropped.
