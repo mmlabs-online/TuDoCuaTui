@@ -331,3 +331,9 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       that is how updates work there). After T-025, local development signs in from that origin; without it `pnpm dev`
       stops at the sign-in screen. Risk: any page served on your own `localhost:5173` can request TuDo tokens for a
       signed-in account; accept or decline here.
+
+### T-026 / org-admin-api USR-13 — 12-hour access tokens (D46)
+- [ ] **M-29 — Turn on 12-hour tokens in Identity** (after org-admin-api USR-13 is merged and released): in the
+      deployment repo, set `ACCESS_TOKEN_TTL_SECONDS=43200` for org-admin-api and redeploy it. Check: a fresh
+      `scripts/dev-token.sh` prints `expires_in 43200`. Without T-026 deployed too, TuDo rejects tokens older than
+      15 minutes.
