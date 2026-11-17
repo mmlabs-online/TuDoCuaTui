@@ -73,3 +73,47 @@ Scope note: per plan.md this attempt covers slice F-603.1 only. The worker/CSP p
 - Move `formatWait` to a shared module (outside `features/auth`) and use it from both copies.
 - When Drive is not configured the server answers `503 photos_unavailable` without `Retry-After` (`server/photos.js:148`): the runner then waits 5 s and retries every file once, so a 30-photo batch spends ~2.5 min failing. Consider stopping the batch on a 503 without `Retry-After`, or after two consecutive 503 failures.
 - Picking the same file twice creates two items (no de-duplication of picks).
+
+## Attempt 2 — 2026-11-17 (slice F-603.1, rework of Issue 1)
+Verdict: PASS
+
+### Checks (run by reviewer, at 8538d7e/ab8b0e0)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json`: exit 0, no errors
+- format:check: "Finished … on 289 files", no unformatted files, exit 0
+- test: Test Files 115 passed | 11 skipped (126); Tests 1432 passed | 221 skipped (1653) (matches impl-log; +0 files, the new assertions sit inside existing tests)
+- build: `✓ built in 405ms`, exit 0
+- 390×844 light/dark (R9), re-run by reviewer with the same harness (real `ImportModal` + real `runPhotoImport`, fake `save`), own screenshots in
+  `/tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/f-603-r2/rev/rv-{light,dark}-{running,failed,stopped}.png`.
+  Sticky footer top = 771 px in every case; `scrollWidth` 390 (no horizontal overflow); `.bulk-drop` not rendered after start.
+  - running: `.progress` 403–451 px (light and dark): above the footer, label and % separated by the new gap.
+  - failed: summary 303–517, "Thử lại (2)" 462–506 (light and dark).
+  - stopped by 429: summary 207–533 / 191–517, stop note 262–316 / 246–300, "Thử lại (3)" 478–522 / 462–506 (light / dark).
+  - Screenshots checked: stop note, failed list and retry button readable in both themes, all without scrolling. Matches impl-log Attempt 2 numbers (light stopped differs by 16 px, an animation-timing difference, still well above the footer).
+
+### Acceptance criteria
+- [x] 1–14, 16: unchanged since Attempt 1 (evidence there); all tests still pass.
+- [x] 4 / 7 visibility: `ImportPhotosTab.test.tsx › shows "Đang nhập k/N" and the current file name` now asserts the pick button is gone and the progress text precedes the list; `› 429 shows imported count and wait time` asserts the stop note and "Thử lại (1)" precede the list: pass. 390px geometry above.
+- [x] 15 390px / dark mode: Issue 1 fixed, see the re-check above.
+
+### Issue 1 (Attempt 1) — resolved
+- `src/features/import-export/ImportPhotosTab.tsx:43-95`: drop zone and defaults render only when `phase === "edit"`; `:96-130` progress/summary now come before the count/warning/list (`:131-148`). Exactly the requested order.
+
+### Scope of the rework
+- `git diff 45df4a6 8538d7e --stat`: `ImportPhotosTab.tsx`, `ImportPhotosTab.test.tsx`, `src/index.css` (+1 line `gap: 8px` on `.progress > div`, the Attempt 1 nit; shared with the CSV progress bar, harmless), `impl-log.md`. Nothing beyond the review's list. Block contents were moved, not changed (the JSX diff is a re-indent plus the `editing &&` wrapper).
+- Behaviour note: hiding the defaults after start removes nothing the user could use (they were already `disabled` outside edit; adding files after a run was already impossible).
+
+### Rules R1–R10 (CLAUDE.md)
+No violations found. R6: no new copy. R8: rendering order covered by tests. R9: verified above.
+
+### Nits (do not block)
+- 💭 `ImportPhotosTab.tsx:49,63,74,86`: `if (editing)` / `disabled={!editing}` are now always true/false inside the `editing &&` block; dead conditions could be dropped later.
+- 💭 Attempt 1 nits on English `TypeError` messages and the green summary background with red stop text still apply (readable, as seen in `rv-*-stopped.png`).
+
+### Ming verification after merge (from plan.md)
+- 30 photos from an iPhone and from an Android phone on the real app: all 30 become items with photos (owner is quota-exempt; a non-owner account shows the 50/day stop).
+- HEIC from desktop Chrome shows the D47 error for that file and the rest of the batch continues.
+- 390px and dark mode on a real phone.
+- "No long task over 200 ms" is verified with F-603.2, not this slice.
+
+### Follow-ups (out of scope)
+- Same as Attempt 1 (shared `formatWait`; 503 without `Retry-After` when Drive is unconfigured; duplicate picks).
