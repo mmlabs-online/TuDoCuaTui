@@ -5,7 +5,7 @@ argument-hint: "<description> [P0|P1|P2]"
 
 Create a ticket from: `$ARGUMENTS`
 
-If the description is a bug (something that worked or should work and does not), use `/bug` instead (D42).
+If the description is a bug (something that worked or should work and does not), use `/repug` instead (D42).
 
 1. Read `work/backlog.md` and `docs/feature-list.md`.
    - If the description matches a feature `F-xxx` that has no ticket yet, use that ID (and the feature's

@@ -23,14 +23,14 @@ Record a bug from: `$ARGUMENTS` (plus any screenshot Ming attached).
 4. Insert a board row in `work/backlog.md`: S1 bugs go **above** the first runnable `BACKLOG` row; others after the
    last ticket they depend on, else at the end of the open rows. Title starts with nothing special; the ID shows it is a bug.
 5. Commit the record on the **batch branch** (D42): branch `bug/<first ID>` from the latest `origin/main`, created
-   by the first `/bug` of a batch (in a cloud session with a mandated branch, use that branch and say so). Later bugs
+   by the first `/repug` of a batch (in a cloud session with a mandated branch, use that branch and say so). Later bugs
    of the same batch reuse it. Commit `chore: board — add <ID> (<short title>)` and push (`git push -u origin <branch>`).
    The record commit holds only `work/tickets/<ID>/ticket.md` and its `work/backlog.md` row.
 6. Show Ming the bug (short Vietnamese: ID, severity, what is wrong, root cause confirmed/suspected, affected versions)
    and **ask with `AskUserQuestion`** (header `Bug`), listing every bug recorded in this batch so far:
    - **A. Mở PR và kết thúc** — go to 7 (record PR).
    - **B. Ghi nhận thêm bug** — reply "Mô tả bug tiếp theo (kèm ảnh nếu có)" and end the turn. Ming's next message is
-     the next bug: run steps 1–6 again for it on the same batch branch (no need to type `/bug` again), then ask again.
+     the next bug: run steps 1–6 again for it on the same batch branch (no need to type `/repug` again), then ask again.
    - **C. Sửa luôn rồi mở PR** — go to 8.
    An answer that is none of these (Other): follow it if clear, else ask again.
 7. **Record PR** (option A): open a PR into `main` (GitHub MCP `create_pull_request`; if one is open for the branch,
