@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-14 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-17T02:13:44Z |
 | PR | — |
 
 ## Goal
@@ -51,6 +51,7 @@ Design notes: `work/tickets/F-701/consult-software-architect.md` R6.
 - 2026-11-14: split approved with the F-701 plan (A1).
 
 - Waiting for Ming: plan approval (High tier), including the Gemini model ids (A1)
+- 2026-11-17 (Ming): "duyệt F-701.1, giữ đề xuất" — Plan approved; A1 model ids confirmed as proposed: `gemini-2.5-flash` (default), `gemini-2.5-flash-lite`, `gemini-2.5-pro`. A2–A16 as written.
 
 ## Handoff
 
