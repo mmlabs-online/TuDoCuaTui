@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { EDITOR_COPY } from "@/features/items/copy";
 import { NAME_MAX } from "@/features/items/validate";
-import { API_ERROR_COPY, ApiError, apiErrorMessage, PhotoSaveError } from "./apiErrors";
+import {
+  API_ERROR_COPY,
+  ApiError,
+  apiErrorMessage,
+  PHOTO_UPLOAD_ERROR_COPY,
+  PhotoSaveError,
+} from "./apiErrors";
 
 const SERVER_CODES = [
   "invalid_input",
@@ -70,5 +76,31 @@ describe("PhotoSaveError", () => {
       `${API_ERROR_COPY.photoNotSaved} — ${API_ERROR_COPY.photo_upload_failed}`,
     );
     expect(new PhotoSaveError(saved, null).message).toBe(API_ERROR_COPY.photoNotSaved);
+  });
+});
+
+describe("PhotoSaveError photo copy", () => {
+  const item = { id: "x" } as never;
+
+  test("PhotoSaveError uses the photo copy for 413 and 415", () => {
+    for (const [status, code] of [
+      [413, "payload_too_large"],
+      [415, "unsupported_media_type"],
+    ] as const) {
+      const m = new PhotoSaveError(item, new ApiError(status, code)).message;
+      expect(m).toContain(PHOTO_UPLOAD_ERROR_COPY[code]);
+      expect(m).not.toContain(API_ERROR_COPY[code]);
+    }
+  });
+
+  test("PhotoSaveError keeps the existing copy for 429, 503 and other causes", () => {
+    expect(new PhotoSaveError(item, new ApiError(429, "rate_limited")).message).toContain(
+      API_ERROR_COPY.rate_limited,
+    );
+    expect(new PhotoSaveError(item, new ApiError(503, "photos_unavailable")).message).toContain(
+      API_ERROR_COPY.photos_unavailable,
+    );
+    expect(new PhotoSaveError(item, new Error("boom")).message).toContain("boom");
+    expect(new PhotoSaveError(item, null).message).toBe(API_ERROR_COPY.photoNotSaved);
   });
 });

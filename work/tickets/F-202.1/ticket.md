@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-004.2, T-005.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-07 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/72 |
 
 ## Goal
 Photos taken on an iPhone or Android phone upload successfully, with clear feedback.
@@ -74,3 +74,8 @@ Photos taken on an iPhone or Android phone upload successfully, with clear feedb
 - 2026-11-07: Ming delegated the open decisions to Annie ("tự quyết định"). The choices are in `work/decisions.md`; ticket text that says "decision Dn" refers to them.
 
 ## Handoff
+
+### 2026-11-17 — claude — DONE
+- Done: scope refreshed for Node API + Drive; plan → implement → review. Attempt 1 REWORK (in-flight photo pick survived editor close / duplicate — could save item A's photo onto item B); attempt 2 PASS. Security audit: no 🔴. PR #72 opened.
+- In progress / next: Ming reviews and merges PR #72, then M-6 phone checks. Proposed F-202.3 (lazy HEIC decoder) needs Ming's decisions (CSP `'wasm-unsafe-eval'`, LGPL chunk) — see plan.md Split proposal.
+- Gotchas: pnpm/node_modules work only under WSL on this machine. 15 server CLI spawn tests time out under WSL on `origin/main` too. Another session switched this worktree's branch mid-run (`/bug`→`/repug` chore); use a separate `git worktree` per session. F-702's PR also edits `Editor.tsx`/`copy.ts` — rebase whichever merges second.
