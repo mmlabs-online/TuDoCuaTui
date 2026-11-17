@@ -1,12 +1,20 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { useState } from "react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
+import { AiSettingsError } from "@/data/aiSettings";
+import type { TagSuggestion } from "@/data/aiTagging";
 import type { PhotoLoader } from "@/data/photoUrls";
 import { PhotoLoaderContext } from "@/data/usePhotoUrl";
+import type { AiSettingsView } from "@/shared/ai/catalog";
+import type { AiErrorCode } from "@/shared/ai/errors";
 import { Editor } from "./Editor";
 import { blankItem } from "./blankItem";
 import { EDITOR_COPY } from "./copy";
+
+const photos = vi.hoisted(() => ({ urlToBlob: vi.fn(), resizeImage: vi.fn() }));
+vi.mock("@/data/photos", () => photos);
 
 afterEach(() => {
   cleanup();
@@ -234,5 +242,291 @@ describe("footer", () => {
     renderEditor();
     expect(document.querySelector(".editor-duplicate")).toBeNull();
     expect(document.querySelector(".editor-save")).not.toBeNull();
+  });
+});
+
+describe("AI fill", () => {
+  const DATA = "data:image/jpeg;base64,AAAA";
+  const SUG: TagSuggestion = {
+    name: "Áo AI",
+    category: "dress",
+    colors: ["trang"],
+    seasons: ["summer"],
+    material: "Cotton",
+    brand: "Zara",
+    tags: ["đi làm"],
+  };
+  const view = (o: Partial<AiSettingsView> = {}): AiSettingsView => ({
+    provider: "claude",
+    model: "claude-haiku-5-5",
+    keyHint: "••••wxyz",
+    hasKey: true,
+    modelSupported: true,
+    updatedAt: "2026-11-17T00:00:00Z",
+    ...o,
+  });
+  const mkAi = (
+    get: () => Promise<AiSettingsView | null> = async () => view(),
+    tag: (b: Blob, s?: AbortSignal) => Promise<TagSuggestion> = async () => SUG,
+  ) => ({
+    settings: { get: vi.fn(get) },
+    tagger: { tag: vi.fn(tag) },
+    settingsRev: 0,
+    onOpenSettings: vi.fn(),
+  });
+  type Ai = ReturnType<typeof mkAi>;
+
+  const jpeg = new Blob(["jpeg"], { type: "image/jpeg" });
+  beforeEach(() => {
+    photos.urlToBlob.mockReset().mockImplementation(async () => new Blob(["raw"]));
+    photos.resizeImage.mockReset().mockImplementation(async () => ({ blob: jpeg }));
+  });
+
+  function Harness({
+    initial,
+    isNew,
+    ai,
+    spy,
+  }: {
+    initial: Item;
+    isNew: boolean;
+    ai: Ai;
+    spy: Mock;
+  }) {
+    const [item, setItem] = useState(initial);
+    const update = <K extends keyof Item>(k: K, v: Item[K]) => {
+      spy(k, v);
+      setItem((p) => ({ ...p, [k]: v }));
+    };
+    return (
+      <Editor
+        item={item}
+        locations={[]}
+        isNew={isNew}
+        saving={false}
+        update={update}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onDuplicate={vi.fn()}
+        onWorn={vi.fn()}
+        ai={ai}
+      />
+    );
+  }
+  const setup = (o: { item?: Partial<Item>; isNew?: boolean; ai?: Ai } = {}) => {
+    const ai = o.ai ?? mkAi();
+    const spy = vi.fn();
+    const initial = { ...blankItem(), photo: DATA, ...o.item };
+    const isNew = o.isNew ?? true;
+    const ui = render(<Harness initial={initial} isNew={isNew} ai={ai} spy={spy} />);
+    const rerender = (next: Ai) =>
+      ui.rerender(<Harness initial={initial} isNew={isNew} ai={next} spy={spy} />);
+    return { ai, spy, rerender, unmount: ui.unmount };
+  };
+  const aiBtn = () =>
+    screen.getByRole("button", { name: /Tự điền từ ảnh|Đang phân tích ảnh/ }) as HTMLButtonElement;
+  const ready = () => screen.findByText(/Ảnh sẽ được gửi tới/);
+  const keysOf = (spy: Mock) => spy.mock.calls.map((c) => c[0]);
+  const deferred = <T,>() => {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((r) => (resolve = r));
+    return { promise, resolve };
+  };
+
+  test("disclosure names Claude", async () => {
+    setup();
+    expect((await ready()).textContent).toBe("Ảnh sẽ được gửi tới Claude bằng key của bạn");
+    expect(aiBtn().disabled).toBe(false);
+  });
+
+  test("disclosure names Gemini", async () => {
+    setup({ ai: mkAi(async () => view({ provider: "gemini" })) });
+    expect((await ready()).textContent).toBe("Ảnh sẽ được gửi tới Gemini bằng key của bạn");
+  });
+
+  test.each([
+    ["no settings", null],
+    ["no key", view({ hasKey: false })],
+  ])("%s: button disabled, explains setup, opens settings", async (_n, v) => {
+    const { ai } = setup({ ai: mkAi(async () => v) });
+    await screen.findByText(new RegExp(EDITOR_COPY.ai.notConfigured));
+    expect(aiBtn().disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.ai.openSettings }));
+    expect(ai.onOpenSettings).toHaveBeenCalledTimes(1);
+    fireEvent.click(aiBtn());
+    expect(ai.tagger.tag).not.toHaveBeenCalled();
+  });
+
+  test("no photo", async () => {
+    setup({ item: { photo: "" } });
+    await screen.findByText(EDITOR_COPY.ai.noPhoto);
+    expect(aiBtn().disabled).toBe(true);
+  });
+
+  test("resizes the photo before posting", async () => {
+    const { ai } = setup();
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalled());
+    expect(photos.urlToBlob).toHaveBeenCalledWith(DATA);
+    expect(photos.resizeImage).toHaveBeenCalledWith(await photos.urlToBlob.mock.results[0].value);
+    expect(ai.tagger.tag.mock.calls[0][0]).toBe(jpeg);
+  });
+
+  test("fills only empty fields", async () => {
+    const { spy } = setup({
+      item: { id: "x", name: "Áo của tôi", colors: ["Đen"] },
+      isNew: false,
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    await screen.findByText(new RegExp(EDITOR_COPY.ai.filled(4)));
+    expect(keysOf(spy).sort()).toEqual(["brand", "material", "seasons", "tags"]);
+  });
+
+  test("new item: category filled unless the user picked one", async () => {
+    const first = setup();
+    await ready();
+    fireEvent.click(aiBtn());
+    await screen.findByText(new RegExp(EDITOR_COPY.ai.filled(7)));
+    expect(first.spy).toHaveBeenCalledWith("category", "Đầm");
+    cleanup();
+
+    const { spy } = setup();
+    await ready();
+    fireEvent.change(screen.getByDisplayValue("Áo"), { target: { value: "Giày/dép" } });
+    fireEvent.click(aiBtn());
+    await screen.findByText(new RegExp(EDITOR_COPY.ai.filled(6)));
+    expect(spy.mock.calls.filter((c) => c[0] === "category")).toEqual([["category", "Giày/dép"]]);
+  });
+
+  test('"Hoàn tác" restores the previous values', async () => {
+    const { spy } = setup();
+    await ready();
+    fireEvent.click(aiBtn());
+    fireEvent.click(await screen.findByRole("button", { name: EDITOR_COPY.ai.undo }));
+    expect(spy).toHaveBeenCalledWith("name", "");
+    expect(spy).toHaveBeenCalledWith("category", "Áo");
+    expect(spy).toHaveBeenCalledWith("colors", []);
+    expect(spy).toHaveBeenCalledWith("tags", []);
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.undo })).toBeNull();
+  });
+
+  test("a second tap while pending sends nothing", async () => {
+    const { ai } = setup({ ai: mkAi(undefined, () => new Promise(() => {})) });
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalledTimes(1));
+    expect(aiBtn().getAttribute("aria-busy")).toBe("true");
+    expect(aiBtn().disabled).toBe(true);
+    expect(aiBtn().textContent).toContain(EDITOR_COPY.ai.busy);
+    fireEvent.click(aiBtn());
+    expect(ai.tagger.tag).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    ["not_configured", EDITOR_COPY.ai.notConfigured, true],
+    ["invalid_key", "Key không hợp lệ hoặc đã bị thu hồi", true],
+    ["ai_busy", "AI đang bận, thử lại sau vài giây", false],
+    ["provider_unavailable", "Nhà cung cấp AI đang gặp sự cố, thử lại sau", false],
+    ["network", "Không kết nối được máy chủ", false],
+  ])("error %s shows its Vietnamese message", async (code, text, link) => {
+    const { spy } = setup({
+      ai: mkAi(undefined, async () => {
+        throw new AiSettingsError(0, code as AiErrorCode);
+      }),
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain(text);
+    expect(!!within(alert).queryByRole("button", { name: EDITOR_COPY.ai.openSettings })).toBe(link);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("nothing to fill", async () => {
+    setup({
+      item: {
+        id: "x",
+        name: "A",
+        brand: "B",
+        material: "M",
+        colors: ["Đen"],
+        seasons: ["Hạ"],
+        tags: ["t"],
+      },
+      isNew: false,
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    await screen.findByText(EDITOR_COPY.ai.nothing);
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.undo })).toBeNull();
+  });
+
+  test("a result for a replaced photo is ignored", async () => {
+    const d = deferred<TagSuggestion>();
+    const { ai, spy } = setup({ ai: mkAi(undefined, () => d.promise) });
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalled());
+    const gallery = document.querySelector<HTMLInputElement>("input[type=file]:not([capture])")!;
+    fireEvent.change(gallery, {
+      target: { files: [new File(["y"], "b.jpg", { type: "image/jpeg" })] },
+    });
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("photo", expect.stringMatching(/^data:/)));
+    d.resolve(SUG);
+    await waitFor(() => expect(aiBtn().getAttribute("aria-busy")).toBe("false"));
+    expect(keysOf(spy)).toEqual(["photo"]);
+  });
+
+  test("unmount aborts the request", async () => {
+    let signal: AbortSignal | undefined;
+    const { ai, unmount } = setup({
+      ai: mkAi(undefined, (_b, s) => {
+        signal = s;
+        return new Promise(() => {});
+      }),
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalled());
+    expect(signal!.aborted).toBe(false);
+    unmount();
+    expect(signal!.aborted).toBe(true);
+  });
+
+  test("settings load error: retry; misconfigured has no retry", async () => {
+    let n = 0;
+    const { ai } = setup({
+      ai: mkAi(async () => {
+        if (++n === 1) throw new AiSettingsError(0, "network");
+        return view();
+      }),
+    });
+    await screen.findByText(new RegExp(EDITOR_COPY.ai.loadFailed));
+    expect(aiBtn().disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.ai.retry }));
+    await ready();
+    expect(ai.settings.get).toHaveBeenCalledTimes(2);
+    expect(aiBtn().disabled).toBe(false);
+    cleanup();
+
+    setup({
+      ai: mkAi(async () => {
+        throw new AiSettingsError(503, "server_misconfigured");
+      }),
+    });
+    await screen.findByText("AI chưa được cấu hình trên máy chủ");
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.retry })).toBeNull();
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.openSettings })).toBeNull();
+  });
+
+  test("settingsRev change reloads settings", async () => {
+    const { ai, rerender } = setup();
+    await ready();
+    expect(ai.settings.get).toHaveBeenCalledTimes(1);
+    rerender({ ...ai, settingsRev: 1 });
+    await waitFor(() => expect(ai.settings.get).toHaveBeenCalledTimes(2));
   });
 });

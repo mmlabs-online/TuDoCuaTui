@@ -1936,6 +1936,31 @@ main {
 .photo-column .remove-photo {
   color: #ffc9a3;
 }
+.ai-fill {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.ai-fill-note,
+.ai-fill-error {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.photo-column .ai-fill-note {
+  color: #fff8eb;
+}
+.photo-column .ai-fill-error {
+  color: #ffc9a3;
+}
+.ai-fill-link {
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
 .photo-source-actions {
   display: none;
 }
