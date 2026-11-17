@@ -55,7 +55,15 @@ export function createHttpRepo(
     if (!res.ok) {
       const e = (json as { error?: Record<string, string> } | null)?.error;
       if (!e?.code) throw new ApiError(res.status, "unexpected");
-      throw new ApiError(res.status, e.code, e.field, e.reason, e.requestId);
+      const retryAfter = res.headers.get("Retry-After");
+      throw new ApiError(
+        res.status,
+        e.code,
+        e.field,
+        e.reason,
+        e.requestId,
+        retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : undefined,
+      );
     }
     return json as T;
   };

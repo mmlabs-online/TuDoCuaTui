@@ -24,6 +24,7 @@ function setup(importMany = vi.fn<(l: Item[], o: Opts) => Promise<ImportResult[]
       onClose={onClose}
       locations={[]}
       importMany={importMany}
+      importPhotos={vi.fn()}
       onImported={onImported}
     />,
   );
@@ -127,7 +128,13 @@ describe("ImportModal", () => {
 describe("photos tab", () => {
   it("Photos tab shows no AI checkbox", () => {
     render(
-      <ImportModal onClose={vi.fn()} locations={[]} importMany={vi.fn()} onImported={vi.fn()} />,
+      <ImportModal
+        onClose={vi.fn()}
+        locations={[]}
+        importMany={vi.fn()}
+        importPhotos={vi.fn()}
+        onImported={vi.fn()}
+      />,
     );
     expect(screen.queryByRole("checkbox")).toBeNull();
   });

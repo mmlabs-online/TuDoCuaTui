@@ -417,7 +417,7 @@ describe("App import/export", () => {
     await renderApp();
     openImport();
     expect(screen.getByText("Kéo nhiều ảnh vào đây")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Bắt đầu import" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Nhập 0 ảnh" })).toBeTruthy();
     expect(tabButton("Ảnh hàng loạt").className).toContain("active");
 
     fireEvent.click(tabButton("CSV / Excel"));
@@ -518,11 +518,10 @@ describe("App import/export", () => {
     expect(area().value).toBe(CSV_TEMPLATE);
   });
 
-  it("Photos and JSON tabs are disabled until F-603 / F-602 and add nothing", async () => {
+  it("Photos tab with no files and the JSON tab are disabled and add nothing", async () => {
     await renderApp();
     openImport();
-    expect(primary("Bắt đầu import").disabled).toBe(true);
-    expect(screen.getByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeTruthy();
+    expect(primary("Nhập 0 ảnh").disabled).toBe(true);
     fireEvent.click(tabButton("JSON (backup)"));
     expect(primary("Kiểm tra & import").disabled).toBe(true);
     expect(screen.getByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeTruthy();

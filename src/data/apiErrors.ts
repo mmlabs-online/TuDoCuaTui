@@ -60,6 +60,8 @@ export class ApiError extends Error {
     public field?: string,
     public reason?: string,
     public requestId?: string,
+    /** Seconds from the `Retry-After` header (429/503), when the server sent one. */
+    public retryAfterSec?: number,
   ) {
     super(apiErrorMessage(code, reason, requestId));
     this.name = "ApiError";
@@ -70,7 +72,7 @@ export class ApiError extends Error {
 export class PhotoSaveError extends Error {
   constructor(
     public item: Item,
-    cause: unknown,
+    public cause: unknown,
   ) {
     const override =
       cause instanceof ApiError

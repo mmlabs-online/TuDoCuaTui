@@ -10,6 +10,7 @@ import { buildCsvPreview } from "@/features/import-export/csv/preview";
 import { type CsvPhase, ImportCsvTab } from "@/features/import-export/ImportCsvTab";
 import { ImportJsonTab } from "@/features/import-export/ImportJsonTab";
 import { ImportPhotosTab } from "@/features/import-export/ImportPhotosTab";
+import { type ImportPhotosFn, usePhotoImport } from "@/features/import-export/usePhotoImport";
 
 const COPY = IMPORT_EXPORT_COPY.import;
 
@@ -17,6 +18,7 @@ export function ImportModal({
   onClose,
   locations,
   importMany,
+  importPhotos,
   onImported,
 }: {
   onClose: () => void;
@@ -25,6 +27,7 @@ export function ImportModal({
     list: Item[],
     opts: { onProgress: (done: number, total: number) => void; signal: AbortSignal },
   ) => Promise<ImportResult[]>;
+  importPhotos: ImportPhotosFn;
   onImported: (count: number) => void;
 }) {
   const [tab, setTab] = useState(0);
@@ -32,6 +35,7 @@ export function ImportModal({
   const [phase, setPhase] = useState<CsvPhase>("edit");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
+  const photos = usePhotoImport({ importPhotos, onImported });
   const controllerRef = useRef<AbortController | null>(null);
   const preview = useMemo(() => buildCsvPreview(text, { locations }), [text, locations]);
 
@@ -55,22 +59,30 @@ export function ImportModal({
   };
 
   const csvReady = preview.kind === "ready" && preview.items.length > 0;
+  const photosBusy = photos.phase === "running";
+  const photoCount = photos.jobs.length;
   const primary =
-    tab !== 1
-      ? {
-          label: tab === 0 ? COPY.startImport : COPY.checkAndImport,
-          disabled: true,
-          onClick: undefined,
-        }
-      : phase === "running"
+    tab === 0
+      ? photosBusy
         ? { label: COPY.processing, disabled: true, onClick: undefined }
-        : phase === "done"
-          ? { label: COPY.csv.done, disabled: false, onClick: onClose }
-          : {
-              label: COPY.csv.importN(preview.kind === "ready" ? preview.items.length : 0),
-              disabled: !csvReady,
-              onClick: start,
-            };
+        : photos.phase === "edit"
+          ? {
+              label: COPY.photos.importN(photoCount),
+              disabled: photoCount === 0,
+              onClick: () => void photos.run(),
+            }
+          : { label: COPY.csv.done, disabled: false, onClick: onClose }
+      : tab !== 1
+        ? { label: COPY.checkAndImport, disabled: true, onClick: undefined }
+        : phase === "running"
+          ? { label: COPY.processing, disabled: true, onClick: undefined }
+          : phase === "done"
+            ? { label: COPY.csv.done, disabled: false, onClick: onClose }
+            : {
+                label: COPY.csv.importN(preview.kind === "ready" ? preview.items.length : 0),
+                disabled: !csvReady,
+                onClick: start,
+              };
 
   return (
     <Modal onClose={onClose}>
@@ -91,7 +103,7 @@ export function ImportModal({
           <button
             className={tab === i ? "active" : ""}
             onClick={() => setTab(i)}
-            disabled={phase === "running"}
+            disabled={phase === "running" || photosBusy}
             key={x}
           >
             {x}
@@ -99,7 +111,7 @@ export function ImportModal({
         ))}
       </div>
       <div className="import-content">
-        {tab === 0 && <ImportPhotosTab />}
+        {tab === 0 && <ImportPhotosTab photos={photos} locations={locations} />}
         {tab === 1 && (
           <ImportCsvTab
             text={text}

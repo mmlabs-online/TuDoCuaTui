@@ -273,6 +273,56 @@ describe("createHttpRepo", () => {
     expect(err.message).toContain(photoCopy ?? API_ERROR_COPY[code]);
   });
 
+  test.each([
+    [429, "rate_limited", "3600"],
+    [503, "photos_unavailable", "5"],
+  ] as const)("ApiError carries Retry-After seconds (%i)", async (status, code, header) => {
+    const { repo } = setup(
+      () =>
+        new Response(JSON.stringify({ error: { code } }), {
+          status,
+          headers: { "Content-Type": "application/json", "Retry-After": header },
+        }),
+    );
+    const err = await repo.list().catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.retryAfterSec).toBe(Number(header));
+  });
+
+  test("PhotoSaveError cause keeps retryAfterSec", async () => {
+    let n = 0;
+    const { repo } = setup(() =>
+      ++n === 1
+        ? json({ item: row })
+        : new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": "90" },
+          }),
+    );
+    const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
+    expect(err).toBeInstanceOf(PhotoSaveError);
+    expect(err.cause).toBeInstanceOf(ApiError);
+    expect(err.cause.retryAfterSec).toBe(90);
+  });
+
+  test.each([undefined, "abc", "Wed, 21 Oct 2026 07:28:00 GMT", "-5"])(
+    "missing or non-numeric Retry-After (%s) → undefined",
+    async (header) => {
+      const { repo } = setup(
+        () =>
+          new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              ...(header !== undefined && { "Retry-After": header }),
+            },
+          }),
+      );
+      const err = await repo.list().catch((e) => e);
+      expect(err.retryAfterSec).toBeUndefined();
+    },
+  );
+
   test("remove DELETEs and resolves on 204", async () => {
     const { repo, fetchFn } = setup(() => new Response(null, { status: 204 }));
     await expect(repo.remove(item())).resolves.toBeUndefined();
