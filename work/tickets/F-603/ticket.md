@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | REWORK |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -11,7 +11,7 @@
 | Gate | none |
 | Depends on | F-601.3, F-202.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-07 |
 | Claimed by | claude@2026-11-17T16:02:23Z |
 | PR | — |
