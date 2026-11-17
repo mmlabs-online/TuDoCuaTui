@@ -17,8 +17,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T13:49:40Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/74 |
 
 ## Report
 Ming, 2026-11-17: "Lỗi UI trên màn hình mobile. Banner bị mất ảnh" (UI bug on mobile: the banner loses its photos).
@@ -72,3 +72,8 @@ width: 190px; transform: scale(0.8)`, and `.collage-2` is placed at `left: 88px`
 
 ## Handoff
 - 2026-11-17 — claude — recorded; record PR https://github.com/mmlabs-online/TuDoCuaTui/pull/71
+
+### 2026-11-17 — claude — DONE
+- Done: attempt 1 (scale 0.68 collage) passed review on raw CSS and shipped in PR #71; the BUG-004 reviewer's cross-check on the compiled CSS found card 1 overlapping the hero text and the Export button at 360–414px, so re-review → REWORK. Attempt 2 adds ≤430px / ≤380px collage steps; review PASS. Fix PR https://github.com/mmlabs-online/TuDoCuaTui/pull/74.
+- In progress / next: Ming merges PR #74 and checks on a real phone (labels are ~6px at ≤380px).
+- Gotchas: CSS layout checks must use the compiled CSS (vite build); raw src/index.css has no Tailwind preflight.
