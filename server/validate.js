@@ -198,3 +198,168 @@ export function parseWearInput(body, now) {
     value: { delta: /** @type {1 | -1} */ (b.delta), today: /** @type {string} */ (b.today) },
   };
 }
+
+// ---------- Backup file (F-602.1): GET /api/backup output, POST /api/restore input ----------
+
+export const BACKUP_CAPS = { bytes: 8 * 1024 * 1024, locations: 200, items: 3000, wearLogs: 50000 };
+
+const BACKUP_KEYS = ["version", "exportedAt", "locations", "items", "wearLogs"];
+const ISO_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const INT32 = 2147483647;
+
+/** @param {unknown} s */
+function isTimestamp(s) {
+  if (typeof s !== "string" || !ISO_MS.test(s) || Number(s.slice(0, 4)) < 1000) return false;
+  const t = Date.parse(s);
+  return !Number.isNaN(t) && new Date(t).toISOString() === s;
+}
+
+/**
+ * Validates a backup file and returns a normalized copy built from known keys only (never a `user_id`).
+ * Items reuse parseItemInput; its errors come back with an indexed field.
+ * @param {unknown} body @param {typeof BACKUP_CAPS} [caps]
+ */
+export function parseBackup(body, caps = BACKUP_CAPS) {
+  if (!isObject(body)) return fail(null, "notObject");
+  const b = /** @type {Record<string, unknown>} */ (body);
+  if (b.version !== 1) return fail("version", "versionUnsupported");
+  if (Object.keys(b).some((k) => !BACKUP_KEYS.includes(k))) return fail(null, "unknownKey");
+  if (typeof b.exportedAt !== "string") return fail("exportedAt", "invalidType");
+  /** @type {[string, number][]} */
+  const lists = [
+    ["locations", caps.locations],
+    ["items", caps.items],
+    ["wearLogs", caps.wearLogs],
+  ];
+  for (const [k] of lists) if (!Array.isArray(b[k])) return fail(k, "invalidType");
+  for (const [k, cap] of lists) {
+    if (/** @type {unknown[]} */ (b[k]).length > cap) return fail(k, "tooMany");
+  }
+  const rawLocs = /** @type {unknown[]} */ (b.locations);
+  const rawItems = /** @type {unknown[]} */ (b.items);
+  const rawLogs = /** @type {unknown[]} */ (b.wearLogs);
+
+  /** @param {string} f @param {unknown} v @returns {{ value: string } | Fail} */
+  const reqId = (f, v) => (isUuid(v) ? { value: /** @type {string} */ (v) } : fail(f, "idInvalid"));
+  /** @param {string} f @param {unknown} v @returns {{ value: string | null } | Fail} */
+  const optId = (f, v) => (v === undefined || v === null ? { value: null } : reqId(f, v));
+
+  const locIds = new Set();
+  const locNames = new Set();
+  const locations = [];
+  for (let i = 0; i < rawLocs.length; i++) {
+    const r = rawLocs[i];
+    const at = `locations[${i}]`;
+    if (!isObject(r)) return fail(at, "notObject");
+    const o = /** @type {Record<string, unknown>} */ (r);
+    const id = reqId(`${at}.id`, o.id);
+    if ("ok" in id) return id;
+    if (locIds.has(id.value)) return fail(`${at}.id`, "duplicateId");
+    locIds.add(id.value);
+    if (typeof o.name !== "string") return fail(`${at}.name`, "nameRequired");
+    if (hasNul(o.name)) return fail(`${at}.name`, "invalidValue");
+    const name = o.name.normalize("NFC").trim();
+    if (name === "") return fail(`${at}.name`, "nameRequired");
+    if (cpLen(name) > 80) return fail(`${at}.name`, "tooLong");
+    if (locNames.has(name)) return fail(`${at}.name`, "duplicateName");
+    locNames.add(name);
+    const so = o.sort_order === undefined || o.sort_order === null ? 0 : o.sort_order;
+    if (typeof so !== "number" || !Number.isSafeInteger(so) || Math.abs(so) > INT32) {
+      return fail(`${at}.sort_order`, "invalidValue");
+    }
+    const parent = optId(`${at}.parent_id`, o.parent_id);
+    if ("ok" in parent) return parent;
+    if (parent.value === id.value) return fail(`${at}.parent_id`, "invalidValue");
+    if (!isTimestamp(o.created_at)) return fail(`${at}.created_at`, "timestampInvalid");
+    locations.push({
+      id: id.value,
+      name,
+      parent_id: parent.value,
+      sort_order: so,
+      created_at: /** @type {string} */ (o.created_at),
+    });
+  }
+  for (let i = 0; i < locations.length; i++) {
+    const p = locations[i].parent_id;
+    if (p !== null && !locIds.has(p)) return fail(`locations[${i}].parent_id`, "danglingRef");
+  }
+  const parentOf = new Map(locations.map((l) => [l.id, l.parent_id]));
+  for (let i = 0; i < locations.length; i++) {
+    const seen = new Set([locations[i].id]);
+    for (let p = locations[i].parent_id; p !== null; p = parentOf.get(p) ?? null) {
+      if (seen.has(p)) return fail(`locations[${i}].parent_id`, "cycle");
+      seen.add(p);
+    }
+  }
+
+  const itemIds = new Set();
+  const items = [];
+  for (let i = 0; i < rawItems.length; i++) {
+    const r = rawItems[i];
+    const at = `items[${i}]`;
+    if (!isObject(r)) return fail(at, "notObject");
+    const o = /** @type {Record<string, unknown>} */ (r);
+    const id = reqId(`${at}.id`, o.id);
+    if ("ok" in id) return id;
+    if (itemIds.has(id.value)) return fail(`${at}.id`, "duplicateId");
+    itemIds.add(id.value);
+    // location_name is not part of the file: ignore it like any other unknown key.
+    const p = parseItemInput({ ...o, location_name: undefined });
+    if (!p.ok) return fail(p.field === null ? at : `${at}.${p.field}`, p.reason);
+    const loc = optId(`${at}.location_id`, o.location_id);
+    if ("ok" in loc) return loc;
+    if (loc.value !== null && !locIds.has(loc.value)) {
+      return fail(`${at}.location_id`, "danglingRef");
+    }
+    const photo = optId(`${at}.photo_id`, o.photo_id);
+    if ("ok" in photo) return photo;
+    if (!isTimestamp(o.created_at)) return fail(`${at}.created_at`, "timestampInvalid");
+    if (!isTimestamp(o.updated_at)) return fail(`${at}.updated_at`, "timestampInvalid");
+    const { location_name: _ignored, ...fields } = p.value;
+    items.push({
+      id: id.value,
+      ...fields,
+      location_id: loc.value,
+      created_at: /** @type {string} */ (o.created_at),
+      updated_at: /** @type {string} */ (o.updated_at),
+      photo_id: photo.value,
+    });
+  }
+
+  const logIds = new Set();
+  const pairs = new Set();
+  const wearLogs = [];
+  for (let i = 0; i < rawLogs.length; i++) {
+    const r = rawLogs[i];
+    const at = `wearLogs[${i}]`;
+    if (!isObject(r)) return fail(at, "notObject");
+    const o = /** @type {Record<string, unknown>} */ (r);
+    const id = reqId(`${at}.id`, o.id);
+    if ("ok" in id) return id;
+    if (logIds.has(id.value)) return fail(`${at}.id`, "duplicateId");
+    logIds.add(id.value);
+    const item = reqId(`${at}.item_id`, o.item_id);
+    if ("ok" in item) return item;
+    if (!itemIds.has(item.value)) return fail(`${at}.item_id`, "danglingRef");
+    if (!isCalendarDate(o.worn_on)) return fail(`${at}.worn_on`, "dateInvalid");
+    const key = `${item.value}|${o.worn_on}`;
+    if (pairs.has(key)) return fail(at, "duplicateWear");
+    pairs.add(key);
+    wearLogs.push({
+      id: id.value,
+      item_id: item.value,
+      worn_on: /** @type {string} */ (o.worn_on),
+    });
+  }
+
+  return {
+    ok: /** @type {const} */ (true),
+    value: {
+      version: /** @type {const} */ (1),
+      exportedAt: b.exportedAt,
+      locations,
+      items,
+      wearLogs,
+    },
+  };
+}

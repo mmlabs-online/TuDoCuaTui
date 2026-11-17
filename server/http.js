@@ -57,11 +57,12 @@ export function sendError(res, status, code, extra = {}, headers = {}) {
 
 /**
  * Reads a JSON request body (application/json only, size-limited, strict UTF-8).
+ * With `timeouts` a slow sender answers 408 `request_timeout` (total and idle); without it nothing is timed.
  * @param {import("node:http").IncomingMessage} req
- * @param {{ limit?: number }} [opts]
+ * @param {{ limit?: number, timeouts?: { totalMs: number, idleMs: number } }} [opts]
  * @returns {Promise<{ ok: true, value: unknown } | { ok: false, status: number, code: string }>}
  */
-export async function readJson(req, { limit = 262144 } = {}) {
+export async function readJson(req, { limit = 262144, timeouts } = {}) {
   const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
   if (type !== "application/json") {
     return { ok: false, status: 415, code: "unsupported_media_type" };
@@ -72,19 +73,41 @@ export async function readJson(req, { limit = 262144 } = {}) {
   const chunks = [];
   let total = 0;
   // Events instead of `for await`: breaking out of the iterator would destroy the socket and lose the 413.
-  const overflow = await new Promise((resolve) => {
+  const outcome = await new Promise((resolve) => {
+    /** @type {NodeJS.Timeout | undefined} */
+    let totalTimer;
+    /** @type {NodeJS.Timeout | undefined} */
+    let idleTimer;
+    /** @param {string} v */
+    const done = (v) => {
+      clearTimeout(totalTimer);
+      clearTimeout(idleTimer);
+      resolve(v);
+    };
+    /** @param {string} v */
+    const stop = (v) => {
+      req.removeAllListeners("data");
+      req.pause();
+      done(v);
+    };
+    const arm = () => {
+      if (!timeouts) return;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => stop("timeout"), timeouts.idleMs);
+    };
+    if (timeouts) totalTimer = setTimeout(() => stop("timeout"), timeouts.totalMs);
+    arm();
     req.on("data", (chunk) => {
+      arm();
       total += chunk.length;
-      if (total > limit) {
-        req.removeAllListeners("data");
-        req.pause();
-        resolve(true);
-      } else chunks.push(chunk);
+      if (total > limit) stop("overflow");
+      else chunks.push(chunk);
     });
-    req.on("end", () => resolve(false));
-    req.on("error", () => resolve(false));
+    req.on("end", () => done("end"));
+    req.on("error", () => done("end"));
   });
-  if (overflow) return tooBig;
+  if (outcome === "overflow") return tooBig;
+  if (outcome === "timeout") return { ok: false, status: 408, code: "request_timeout" };
   try {
     const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
     return { ok: true, value: JSON.parse(text) };
