@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S2 |
 | Priority | P1 |
 | Size | S |
@@ -15,7 +15,7 @@
 | Introduced in | unknown — the grid has rendered the full list since the Figma Make export |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-17 |
 | Claimed by | claude@2026-11-17T13:49:40Z |
 | PR | — |
