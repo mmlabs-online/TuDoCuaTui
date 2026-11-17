@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M1 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-17T09:40:47Z |
 | PR | — |
 
 ## Goal
@@ -59,7 +59,7 @@ org-admin-api **USR-13** (raise the TTL bound, amend ADR-0005). Amends the T-019
 ## Notes / answers from Ming
 - 2026-11-17: "tôi muốn kéo xài. token 12 hours", then "chọn C" (D46).
 
-Waiting for Ming: plan approval (High tier)
+Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A3" (A1–A3 confirmed as written).
 
 ## Handoff
 ### 2026-11-17 — claude — BLOCKED
