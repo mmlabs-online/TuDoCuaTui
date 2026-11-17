@@ -40,71 +40,57 @@ export function ImportPhotosTab({
           input.value = "";
         }}
       />
-      <div
-        className={`bulk-drop${dragging ? " drag-over" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (editing) setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          photos.addFiles(Array.from(e.dataTransfer.files));
-        }}
-      >
-        <span>
-          <Icon name="upload" size={25} />
-        </span>
-        <h3>{PHOTOS.dropTitle}</h3>
-        <p>{PHOTOS.dropHint}</p>
-        <Btn onClick={() => fileRef.current?.click()} disabled={!editing}>
-          {PHOTOS.pickPhotos}
-        </Btn>
-      </div>
-      <div className="two-cols photo-defaults">
-        <Field label={PHOTOS.locationLabel}>
-          <input
-            list="photo-import-locations"
-            value={photos.location}
-            onChange={(e) => photos.setLocation(e.target.value)}
-            placeholder={PHOTOS.locationPlaceholder}
-            disabled={!editing}
-          />
-          <datalist id="photo-import-locations">
-            {locations.map((l) => (
-              <option key={l} value={l} />
-            ))}
-          </datalist>
-        </Field>
-        <Field label={PHOTOS.statusLabel}>
-          <select
-            value={photos.status}
-            onChange={(e) => photos.setStatus(e.target.value as Status)}
-            disabled={!editing}
-          >
-            {statuses.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      {jobs.length > 0 && (
+      {editing && (
         <>
-          <p className="csv-preview-title">{PHOTOS.fileCount(jobs.length)}</p>
-          {exceedsDailyLimit(jobs.length) && (
-            <p className="photo-warning">{PHOTOS.dailyWarning(PHOTO_DAILY_LIMIT)}</p>
-          )}
-          <ul className="csv-preview photo-files">
-            {jobs.map((j) => (
-              <li key={j.key}>
-                <span>{j.file.name}</span>
-                <b className={j.state === "done" ? "" : j.state === "pending" ? "" : "csv-error"}>
-                  {PHOTOS.state[j.state]}
-                </b>
-              </li>
-            ))}
-          </ul>
+          <div
+            className={`bulk-drop${dragging ? " drag-over" : ""}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (editing) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              photos.addFiles(Array.from(e.dataTransfer.files));
+            }}
+          >
+            <span>
+              <Icon name="upload" size={25} />
+            </span>
+            <h3>{PHOTOS.dropTitle}</h3>
+            <p>{PHOTOS.dropHint}</p>
+            <Btn onClick={() => fileRef.current?.click()} disabled={!editing}>
+              {PHOTOS.pickPhotos}
+            </Btn>
+          </div>
+          <div className="two-cols photo-defaults">
+            <Field label={PHOTOS.locationLabel}>
+              <input
+                list="photo-import-locations"
+                value={photos.location}
+                onChange={(e) => photos.setLocation(e.target.value)}
+                placeholder={PHOTOS.locationPlaceholder}
+                disabled={!editing}
+              />
+              <datalist id="photo-import-locations">
+                {locations.map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label={PHOTOS.statusLabel}>
+              <select
+                value={photos.status}
+                onChange={(e) => photos.setStatus(e.target.value as Status)}
+                disabled={!editing}
+              >
+                {statuses.map((x) => (
+                  <option key={x}>{x}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </>
       )}
       {phase === "running" && current && (
@@ -141,6 +127,24 @@ export function ImportPhotosTab({
             <Btn onClick={() => void photos.run()}>{PHOTOS.retry(failed.length + pending)}</Btn>
           )}
         </div>
+      )}
+      {jobs.length > 0 && (
+        <>
+          <p className="csv-preview-title">{PHOTOS.fileCount(jobs.length)}</p>
+          {exceedsDailyLimit(jobs.length) && (
+            <p className="photo-warning">{PHOTOS.dailyWarning(PHOTO_DAILY_LIMIT)}</p>
+          )}
+          <ul className="csv-preview photo-files">
+            {jobs.map((j) => (
+              <li key={j.key}>
+                <span>{j.file.name}</span>
+                <b className={j.state === "done" ? "" : j.state === "pending" ? "" : "csv-error"}>
+                  {PHOTOS.state[j.state]}
+                </b>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </>
   );

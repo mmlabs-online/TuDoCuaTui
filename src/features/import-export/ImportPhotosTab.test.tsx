@@ -31,6 +31,9 @@ function setup(importPhotos: Fn = allDone, locations: string[] = ["Tủ A"]) {
 
 const names = (n: number) => Array.from({ length: n }, (_, i) => photo(`IMG_${i + 1}.jpg`));
 
+const precedes = (a: Node, b: Node) =>
+  Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
 describe("ImportPhotosTab", () => {
   it('lists picked files and enables "Nhập N ảnh"', () => {
     const { pick } = setup();
@@ -91,6 +94,8 @@ describe("ImportPhotosTab", () => {
     act(() => opts.onCurrent?.(1));
     expect(screen.getByText("Đang nhập 2/2: b")).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Chọn ảnh từ máy" })).toBeNull();
+    expect(precedes(screen.getByText("Đang nhập 2/2: b"), screen.getByText("a.jpg"))).toBe(true);
     await act(async () => release({ jobs: [] }));
   });
 
@@ -131,6 +136,11 @@ describe("ImportPhotosTab", () => {
     expect(screen.getByText(/Đã dừng: đã nhập 1 ảnh\..*thử lại sau 2 giờ nhé/)).toBeTruthy();
     expect(screen.getByText("Chưa xử lý: 1")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Thử lại (1)" })).toBeTruthy();
+    const note = screen.getByText(/Đã dừng: đã nhập 1 ảnh/);
+    expect(precedes(note, screen.getByText("a.jpg"))).toBe(true);
+    expect(
+      precedes(screen.getByRole("button", { name: "Thử lại (1)" }), screen.getByText("a.jpg")),
+    ).toBe(true);
   });
 
   it("tabs are disabled while running", async () => {

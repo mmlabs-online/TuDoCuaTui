@@ -843,6 +843,7 @@ main {
   margin-top: 14px;
 }
 .progress > div {
+  gap: 8px;
   display: flex;
   justify-content: space-between;
   font-size: 9px;

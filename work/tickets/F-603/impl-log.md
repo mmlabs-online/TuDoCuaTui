@@ -43,3 +43,29 @@
 ### Scope self-check
 - Could the diff be smaller? No; the ImportModal re-indent of the `primary` ternary is the only avoidable noise.
 - Diff size: ~+350 / -38 in modified files, plus ~620 lines in new files (about 360 of them tests).
+
+## Attempt 2 (REWORK: review Issue 1, run status hidden under the footer at 390px)
+
+### Files touched
+- `src/features/import-export/ImportPhotosTab.tsx`: drop zone and defaults render only in the edit phase; the progress block and the summary (stop note, failed list, "Thử lại") now come before the count/warning/file list. Required because: review Issue 1 fix instruction.
+- `src/features/import-export/ImportPhotosTab.test.tsx`: while running, "Chọn ảnh từ máy" is not rendered and the progress text precedes the file list; after a 429 stop the stop note and "Thử lại" precede the list. Required because: review Issue 1.
+- `src/index.css`: `gap: 8px` on `.progress > div` (reviewer nit, one line).
+
+### Checks
+- typecheck: pass; format:check: pass ("All matched files use the correct format"); test: 115 files passed, 1432 tests passed (11 files skipped as before); build: pass.
+
+### 390x844 re-check (harness copied to /tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/f-603-r2, `check.cjs`)
+8 files, viewport screenshots without scrolling; sticky footer top = 771 px, horizontal overflow none (scrollWidth 390), drop zone not rendered:
+- running (light/dark): progress 403-451 px, above the footer.
+- failed (light/dark): summary 303-517, "Thử lại" 462-506.
+- stopped 429 (light/dark): summary 191-517, stop note 246-300, "Thử lại" 462-506.
+Screenshots: /tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/f-603-r2/r2-{light,dark}-{running,failed,stopped}.png (`r2-dark-stopped.png` shows summary, stop note and retry all above the footer; the light running shot was taken mid slide-in animation, the geometry above is the settled position).
+
+### Out-of-plan files
+None.
+
+### Follow-ups
+None new (other nits left alone).
+
+### Scope self-check
+Only Issue 1 and the one-line gap nit changed.
