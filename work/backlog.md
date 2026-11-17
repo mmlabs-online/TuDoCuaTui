@@ -81,7 +81,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-602 | JSON backup and restore (slice F-602.1: server) | MERGED | P0 | M | data, db, architecture, security | F-004.3 | plan-approval | 2 | 2026-11-17 |
 | F-602.2 | JSON backup and restore in the app (client) | DONE | P0 | M | ui, data | F-602 | none | 1 | 2026-11-17 |
 | T-001 | Hide mock AI controls until M3 | MERGED | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
-| F-603 | Bulk photo import | PLANNING | P0 | M | ui, data | F-601.3, F-202.1 | none | 0 | 2026-11-17 |
+| F-603 | Bulk photo import | DONE | P0 | M | ui, data | F-601.3, F-202.1 | none | 2 | 2026-11-17 |
 | F-603.2 | Resize photos off the main thread for bulk import | BACKLOG | P0 | S | data, security | F-603 | none | 0 | 2026-11-17 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | MERGED | P2 | XS | ui | — | none | 2 | 2026-11-17 |
