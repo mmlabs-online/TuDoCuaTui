@@ -76,6 +76,14 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
         <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
       </>
     ),
+    ai: (
+      <>
+        <path d="M3.5 19 8.5 5l5 14" />
+        <path d="M5.3 14h6.4" />
+        <path d="M18.5 5v14" />
+        <path d="M16.5 5h4M16.5 19h4" />
+      </>
+    ),
     sparkle: (
       <>
         <path d="m12 3 1.3 4.2L17 9l-3.7 1.8L12 15l-1.3-4.2L7 9l3.7-1.8L12 3Z" />
@@ -94,6 +102,7 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
+      data-icon={name}
     >
       {paths[name]}
     </svg>
