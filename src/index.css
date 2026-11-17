@@ -360,6 +360,12 @@ main {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px 12px;
 }
+.grid-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  min-height: 1px;
+}
 .item-card {
   text-align: left;
   min-width: 0;

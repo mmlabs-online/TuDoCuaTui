@@ -29,3 +29,5 @@ export const EDITOR_COPY = {
     confirm: "Bỏ thay đổi",
   },
 } as const;
+
+export const GRID_COPY = { loadMore: "Xem thêm" } as const;

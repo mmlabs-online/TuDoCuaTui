@@ -30,6 +30,11 @@ export function useItemFilters(items: Item[]) {
     );
   }, [items, query, category, filters, sort]);
 
+  const filterKey = useMemo(
+    () => JSON.stringify([query, category, filters, sort]),
+    [query, category, filters, sort],
+  );
+
   const resetFilters = () => {
     setQuery("");
     setCategory("Tất cả");
@@ -54,6 +59,7 @@ export function useItemFilters(items: Item[]) {
     setSort,
     counts,
     visible,
+    filterKey,
     hasActiveFilters,
     setFilter,
     toggleSpecial,

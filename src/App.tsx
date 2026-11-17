@@ -55,6 +55,7 @@ function App({
     setSort,
     counts,
     visible,
+    filterKey,
     hasActiveFilters,
     setFilter,
     toggleSpecial,
@@ -170,6 +171,7 @@ function App({
               loading={loading}
               visible={visible}
               total={items.length}
+              resetKey={filterKey}
               onOpen={(item) => {
                 setEditor({ ...item });
                 setIsNew(false);
