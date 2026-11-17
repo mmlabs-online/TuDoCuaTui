@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T17:14:17Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/78 |
 
 ## Goal
 Importing 30 phone photos in one go keeps the app responsive: decoding and re-encoding each photo runs in a
@@ -67,3 +67,8 @@ re-encoding every photo in the browser through `preparePhoto`).
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-17 — claude — DONE
+- Done: module worker resize with main-thread fallback; CSP `worker-src 'self'`. Review PASS (attempt 1); security review PASS (4 🟡). Playwright at 4× CPU: worker 0 long tasks over 200 ms vs 30 on the main-thread baseline. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/78.
+- In progress / next: Ming merges PR #78, then checks Turnstile on sign-up and forgot-password, 30 photos on real phones, portrait photos upright, Safari HEIC.
+- Gotchas: tests that mock `@/data/photos` must include every export `photoPrep` uses (`mainThreadDeps`).
