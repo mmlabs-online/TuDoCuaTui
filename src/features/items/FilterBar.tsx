@@ -51,31 +51,33 @@ export function FilterBar({
             </button>
           )}
         </label>
-        <FilterSelect
-          value={filters.status}
-          onChange={(v) => onFilter("status", v)}
-          label="Trạng thái"
-          options={statuses}
-        />
-        <FilterSelect
-          value={filters.season}
-          onChange={(v) => onFilter("season", v)}
-          label="Mùa"
-          options={seasons}
-        />
-        <FilterSelect
-          value={filters.location}
-          onChange={(v) => onFilter("location", v)}
-          label="Vị trí lưu trữ"
-          options={locationOptions}
-        />
-        <FilterSelect
-          value={filters.color}
-          onChange={(v) => onFilter("color", v)}
-          label="Màu"
-          options={colors}
-        />
-        <FilterSelect value={sort} onChange={onSort} label="Sắp xếp" options={sortOptions} sort />
+        <div className="filter-row">
+          <FilterSelect
+            value={filters.status}
+            onChange={(v) => onFilter("status", v)}
+            label="Trạng thái"
+            options={statuses}
+          />
+          <FilterSelect
+            value={filters.season}
+            onChange={(v) => onFilter("season", v)}
+            label="Mùa"
+            options={seasons}
+          />
+          <FilterSelect
+            value={filters.location}
+            onChange={(v) => onFilter("location", v)}
+            label="Vị trí lưu trữ"
+            options={locationOptions}
+          />
+          <FilterSelect
+            value={filters.color}
+            onChange={(v) => onFilter("color", v)}
+            label="Màu"
+            options={colors}
+          />
+          <FilterSelect value={sort} onChange={onSort} label="Sắp xếp" options={sortOptions} sort />
+        </div>
       </div>
       <div className="categories">
         {["Tất cả", ...categoryNames].map((c) => (

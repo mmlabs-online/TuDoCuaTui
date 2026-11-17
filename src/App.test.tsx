@@ -34,8 +34,18 @@ afterEach(() => {
 
 const cards = () => Array.from(document.querySelectorAll<HTMLElement>(".item-card"));
 
+// The grid shows 12 at a time (BUG-002); jsdom has no IntersectionObserver, so page in via "Xem thêm".
+const showAll = () => {
+  for (let b = screen.queryByRole("button", { name: "Xem thêm" }); b;) {
+    fireEvent.click(b);
+    b = screen.queryByRole("button", { name: "Xem thêm" });
+  }
+};
+
 async function renderApp() {
   const view = render(<App />);
+  await screen.findByRole("button", { name: "Xem thêm" });
+  showAll();
   await waitFor(() => expect(cards()).toHaveLength(starter.length));
   return view;
 }
@@ -81,6 +91,7 @@ describe("App (UI)", () => {
     expect(cards()).toHaveLength(0);
     const noResults = document.querySelector<HTMLElement>(".no-results")!;
     fireEvent.click(within(noResults).getByRole("button", { name: "Xoá bộ lọc" }));
+    showAll();
     expect(cards()).toHaveLength(16);
 
     fireEvent.change(box, { target: { value: "so mi linen" } });
@@ -98,6 +109,7 @@ describe("App (UI)", () => {
     expect(cards()).toHaveLength(shown);
     expect(chip("Quần/váy").className).toContain("active");
     fireEvent.click(chip("Tất cả"));
+    showAll();
     expect(cards()).toHaveLength(16);
   });
 
@@ -121,6 +133,7 @@ describe("App (UI)", () => {
   it('sort "Tên A→Z" orders cards by Vietnamese name', async () => {
     await renderApp();
     fireEvent.change(selectWithLabel("Sắp xếp"), { target: { value: "Tên A→Z" } });
+    showAll();
     expect(cards().map((c) => c.querySelector("h3")?.textContent)).toEqual(
       starter.map((n) => n.name).sort((a, b) => a.localeCompare(b, "vi")),
     );
@@ -135,6 +148,7 @@ describe("App (UI)", () => {
       expect(cards()).toHaveLength(n);
       expect(statCard(label).className).toContain("active");
       fireEvent.click(statCard(label));
+      showAll();
       expect(cards()).toHaveLength(16);
     }
   });
