@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Introduced in | unknown — the mobile hero CSS is already in v0.2.0 (Figma Make export) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-17 |
 | Claimed by | claude@2026-11-17T13:49:40Z |
 | PR | — |
