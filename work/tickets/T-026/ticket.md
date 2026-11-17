@@ -10,7 +10,7 @@
 | Areas | security, architecture |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | M-29 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-17 |
 | Claimed by | — |
