@@ -97,3 +97,83 @@ and DB tests (gap per Issue 1). R9/R10: n/a.
 ### Ming verification after merge (carried to the PR)
 - None for this slice alone (no UI uses the endpoints). Optional: `GET /api/backup` with a signed-in session on the
   deployed app returns the JSON. The manual export → delete → restore → export diff belongs to F-602.2.
+
+## Attempt 2 — 2026-11-17
+Verdict: PASS
+
+Reviewed: slice F-602.1 (server only), rework commit `c135a89`, branch `ticket/F-602` at `d63b493`
+(= `origin/ticket/F-602`), diff vs `origin/main`. Checks were run in a fresh native WSL clone of the remote branch
+(`pnpm install --frozen-lockfile`) against a throwaway `postgres:16` container on 127.0.0.1:55447. The clone and
+the container have been removed. The branch merges cleanly into the current `origin/main` (`git merge-tree`).
+
+### Checks (run by reviewer)
+- typecheck: `tsc --noEmit && tsc -p tsconfig.server.json` exit 0.
+- format:check: "All matched files use the correct format." exit 0.
+- test: `pnpm test` with `TEST_DATABASE_URL` set: 117 files passed, **1514 passed, 0 failed**. This matches the
+  impl-log. A verbose run of the 5 touched suites gave 88 passed. `server/backup.db.test.ts` ran 16 tests, none
+  skipped, including the new "upper-case ids in the file restore to one of each, ids kept lower case, rerun changes
+  nothing" (69 ms) and the near-cap case (1.38 s).
+- build: `pnpm build` exit 0.
+
+### Rework verification
+- **Issue 1 (= security S1), fixed.** `server/validate.js:245-246`: `reqId` now returns `v.toLowerCase()`, and
+  `optId` goes through it. So location, item and wear-log ids, `parent_id`, `location_id`, `item_id` and
+  `photo_id` are all lower case before the duplicate and reference checks. Reviewer probe against real Postgres
+  (owner role, RLS on):
+  - The attempt-1 file (upper-case location, item and wear-log ids) now gives 200 with `items.inserted: 1,
+    remapped: 0` and `wearLogs.inserted: 1`. Rows are exactly 1/1/1. The second run reports everything
+    `unchanged`, and the snapshot is identical. In attempt 1 this wrote 2 items.
+  - User A's own export with every UUID upper-cased, restored by A: all `unchanged`, snapshot identical. Restored
+    by B: 2/3/4 rows with derived ids. B's second run leaves the rows unchanged.
+  - New tests: `validate.test.ts` "lower-cases every id; A and a in one list are a duplicate", and the
+    `backup.db.test.ts` case above.
+- **Issue 2, fixed.** `server/validate.js:50` adds `lone()` (`/\p{Surrogate}/u`, which matches only unpaired
+  surrogates in `u` mode). It is checked at `:263` for the location name, and at `:312-322` on every string and
+  string-array element of the parsed item value. `parseItemInput` and the PUT path are unchanged. Reviewer probe
+  (raw JSON body with `\uD800`/`\uDC00`/`\uDFFF` escapes) covered item `name`, `tags[1]`, `notes` and location
+  `name`. Each gives 400 `{code: "invalid_input", field: "items[0].name" | "items[0].tags[1]" | "items[0].notes" |
+  "locations[0].name", reason: "invalidValue"}` with 0 rows. The only log lines are the restore event
+  (`code: invalid_input`) and the access line. There is no DB error line, so the request never reached SQL. A
+  valid surrogate pair (emoji in a name) still restores with 200. New test: `validate.test.ts` "rejects lone
+  surrogates with field and reason" (item field, array element, location name).
+- Nit 1 from attempt 1 was handled: the test was renamed. The AC3 test and the probe cover the cross-account
+  rerun.
+
+### Acceptance criteria (plan.md verification table)
+- [x] AC1: `backup.db.test.ts` "AC1: export, delete items, restore…" and "AC1: full wipe…" pass.
+- [x] AC2: "AC2 same account…" passes, and so does the upper-case-id rerun test. The reviewer probe shows
+  hand-edited upper-case files are now idempotent too.
+- [x] AC3: "AC3: B restores A's file…" passes, plus the merge-by-name, parent-remap, foreign wear-log id and
+  squatted derived id tests.
+- [x] AC4 (server half): "AC4: every derived id squatted -> 409", "AC4: an invalid file -> 400 …", "AC4: a body
+  over the cap -> 413 …" and the `parseBackup` unit cases pass. Lone surrogates now fail in validation.
+- [x] AC5: the `backup.test.ts` limit cases (415/413/400/503/429/408) and the `rateLimit.test.ts` custom limits
+  pass. The wiring in `server/app.js` is unchanged since attempt 1.
+- [x] AC6: "export: caller's rows only, exact keys…" passes.
+
+### Scope
+The rework touched `server/validate.js`, `server/validate.test.ts` and `server/backup.db.test.ts`, which are all
+in the plan's file list, plus the ticket workflow files. No out-of-plan change.
+
+### Rules R1–R10
+No violations. R1/R3/R4/R9: no change from attempt 1 (no client code, no secrets, no photo writes). R2: no
+migration. R5: derived values still come from the view. R6: the server returns codes and reasons only. R7: the
+rework is limited to the two issues and the test rename. R8: the new logic has unit tests and DB tests.
+
+### Nits (do not block)
+- 💭 (carried) The `backup.js` location UPDATE still sends `name = mine.name` when only `sort_order` changed.
+  This is harmless.
+
+### Follow-ups (out of scope)
+Carried from attempt 1 and the security review:
+- A `debt` issue for `readJson` body timeouts on the other JSON routes.
+- The order-dependent swap of two owned location names (it converges on a second run).
+- Security N7: the global restore slot (`total: 1`) together with the 60 s slow-body window. Revisit if sign-up
+  opens beyond invited users.
+- Security N8: export is not bounded by `BACKUP_CAPS`. An account with more than 3000 items exports a file that
+  restore rejects. Cover this in F-602.2 copy or a debt issue.
+
+### Ming verification after merge (carried to the PR)
+- Nothing is required for this slice alone, because no UI uses the endpoints yet. Optional check: `GET
+  /api/backup` with a signed-in session on the deployed app returns the JSON. The manual export → delete →
+  restore → export diff belongs to F-602.2.

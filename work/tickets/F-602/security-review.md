@@ -45,3 +45,27 @@ Scope: `server/backup.js`, `server/validate.js` (parseBackup), `server/http.js` 
 
 ### Open questions
 - Is TuDoCuaTui sign-in limited to a known set of Identity users? If not, N7 becomes 🟡 (raise `total` or shorten `totalMs`).
+
+## Attempt 2 (2026-11-17, security-ai-generated-code-auditor) — re-check of c135a89
+
+**Verdict: S1 is fixed. The surrogate check covers every string from the file that reaches SQL. Nothing new. No blockers.**
+
+Scope: `server/validate.js`, `server/backup.js` (whole files), new tests `server/validate.test.ts:298-330`, `server/backup.db.test.ts:335-365`. Nothing run.
+
+**🟢 S1 fixed.** `reqId` returns `v.toLowerCase()` after `isUuid` (`validate.js:245-246`); `optId` (`:248`) delegates, so `parent_id`, `location_id`, `photo_id` are lower-cased. All comparisons in `parseBackup` use the normalized value (duplicates `:260/:307/:353`, self-parent `:275`, dangling refs `:287/:325/:357`, cycle walk `:289-295`, wear key `:359`), and `restoreBackup` lookups now match Postgres output (`backup.js:181-213, :238-241, :287-308, :323, :333, :365`). `derivedId` hashes the lower-case id; `uuidv5` emits lower-case (`:36`); `userId` is already lower-case (`db.test.ts:148-150`, `user.js:15`). Tests: `validate.test.ts:298-315`, `backup.db.test.ts:335-365` (1 location / 1 item / 1 log, ids lower-case, rerun no-op).
+
+**🟢 Surrogate check not bypassable.** `locations[].name` checked raw before NFC/trim (`validate.js:263`); item strings and string-array elements checked on `parseItemInput` output (`:313-322`) — `name`, `brand`, `size`, `material`, `notes`, `colors[]`, `tags[]`; enums allow-listed; `location_name` dropped (`:310`, `:332`). Ids, timestamps, dates match strict ASCII regexes (`:42`, `:209`, `:56`). `exportedAt` (`:229`) never reaches SQL or the response (`backup.js:442`). `/\p{Surrogate}/u` matches only unpaired code units. Tests `validate.test.ts:317-330`.
+
+**🟢 N-a: test gaps (not security).** No upper-case `parent_id`/`photo_id` case; no surrogate case for `brand`/`notes`/`colors` (same generic loop). Optional.
+
+**🟢 N-b: pre-existing, outside this slice.** `parseItemInput` (PUT `/api/items`) has no lone-surrogate check; Postgres stores U+FFFD silently. Data quality, own data only; optional `debt` issue (R7).
+
+**🟢 Nothing new introduced**; attempt-1 notes N1–N10 still hold.
+
+### Recommendations
+1. S1 resolved.
+2. Optional: upper-case `parent_id` assertion (N-a).
+3. Optional: `debt` issue for N-b.
+
+### Risks / open questions
+- Unchanged: N7 (restore availability across users), N8 (export larger than caps). Still open: is sign-in limited to a known set of Identity users?
