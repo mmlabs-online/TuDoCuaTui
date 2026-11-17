@@ -2,7 +2,8 @@
 # Dev only (D44): sign in to mmlabs Identity as the owner and write a 15-minute bearer token to a file that the
 # `pnpm dev` proxy reads on every request. The token never goes to the browser, the repo or stdout.
 #
-# - Only for the owner's own account, against a local Node server that uses a LOCAL database (never production data).
+# - Only for the owner's own account, against a local Node server. A local database is the safe default; the
+#   production database through the tunnel is allowed (D45) with its guardrails (see README, Development).
 # - Sets the production Origin and X-MM-App because Identity cannot register a localhost origin.
 # - The password is read with `read -s`; it reaches curl only through a pipe (printf is a builtin, so it is in
 #   no process argument list) and is never written to a file.
@@ -21,6 +22,7 @@ UUID_RE='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 umask 077
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+trap 'exit 130' INT TERM HUP
 jar="$work/jar"
 resp="$work/resp"
 
@@ -44,10 +46,10 @@ post() {
 email="${TUDO_DEV_EMAIL:-}"
 if [ -z "$email" ]; then
   printf 'Email: ' >&2
-  read -r email </dev/tty
+  IFS= read -r email </dev/tty
 fi
 printf 'Password: ' >&2
-read -rs pw </dev/tty
+IFS= read -rs pw </dev/tty
 printf '\n' >&2
 
 status="$(printf '%s\n%s' "$email" "$pw" |

@@ -11,7 +11,7 @@ never reaches the browser.
 
 ```bash
 pnpm install
-# 1. A local Node server with a LOCAL database (never point DATABASE_URL at production), Drive unset:
+# 1. A local Node server (local database by default, see the D45 note below), Drive unset:
 pnpm build && MM_IDENTITY_ISSUER=https://api.mmlabs.online TUDO_OWNER_SUB=<uuid> DATABASE_URL=<local> pnpm start
 # 2. A token for your own account (asks for email and password; the password is never written anywhere):
 scripts/dev-token.sh
@@ -26,6 +26,14 @@ pnpm dev
   failed sign-ins Identity asks for Turnstile: sign in once at `https://tudocuatui.mmlabs.online`, then retry.
 - `pnpm dev` binds to `127.0.0.1:8443` only (override the port with `TUDO_DEV_PORT`); under WSL open
   `http://localhost:8443` from Windows. The Node server target is `http://127.0.0.1:3000` (`TUDO_DEV_API`).
+- `pnpm dev` refuses to start with `--host` or `allowedHosts: true`, and `TUDO_DEV_API` must be a loopback address.
+  Browsers that send no `Sec-Fetch-Site` header are treated as same-origin: use a current browser. Identity's
+  `Origin` check is not an authentication factor; the password is.
+- A local database is the safe default. Using the production database through the tunnel is allowed (D45) with these
+  guardrails: never run `server/migrate.js` against production; `pg_dump` first; give the production `DATABASE_URL`
+  only at runtime, not in a file; keep `AI_KEK` unset unless it is the production KEK (a different KEK re-encrypts the
+  stored AI key and production then answers `key_unreadable`); with the production Google credentials, photo deletes
+  are real.
 - If the Node server is not running, the app shows "Không kết nối được máy chủ" with a retry, never demo data.
 - `pnpm preview` has no proxy and no token.
 

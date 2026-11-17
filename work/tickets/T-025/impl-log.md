@@ -70,3 +70,25 @@
 ### Scope self-check
 - Could the diff be smaller? No: it is mostly deletions (Figma plugin block, local repo, demo data, their tests) and moves (fixtures, memory repo).
 - Diff size: about +1056 / -1525 lines (69 files).
+
+## Attempt 2 — 2026-11-17 (REWORK: security should-fix, D45 docs)
+
+### Files touched
+- `dev/devTokenProxy.ts`: `configResolved` guard (`assertLocalServer`: host must be 127.0.0.1/localhost/::1, `allowedHosts: true` refused); `proxyTarget` throws unless `TUDO_DEV_API` is loopback. Required by security findings 1 and 2.
+- `dev/devTokenProxy.test.ts`: tests for both guards (example.com and tudocuatui.mmlabs.online rejected; `--host`/0.0.0.0 and allowedHosts true rejected).
+- `scripts/dev-token.sh`: trap on EXIT INT TERM HUP, `IFS= read -r` for both reads (finding 7); header comment reworded to D45; mode set to executable in git (review should-fix).
+- `README.md`: Sec-Fetch-Site and Origin-check lines (findings 3, 8); D45 guardrails replace "never production".
+
+### Check results
+- typecheck: clean. format:check: clean after `pnpm format`. build: ok.
+- test: `vitest run src dev scripts` 68 files, 835 tests passed (832 + 3 new). Full `pnpm test` not run (slow /mnt/d server CLI tests, as in attempt 1).
+- Note: the trap uses `trap 'exit 130' INT TERM HUP` next to the EXIT trap, so an interrupt stops the script and the EXIT trap removes the temp dir (a bare cleanup handler on INT would let the script continue).
+
+### Out-of-plan files
+- None.
+
+### Follow-ups
+- None.
+
+### Scope self-check
+- Only the listed findings (1, 2, 3, 7, 8, review should-fix, D45 wording) were changed; no behaviour change for D45.

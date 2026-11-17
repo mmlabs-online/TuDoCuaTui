@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_TARGET,
+  assertLocalServer,
   PROXY_KEY,
   devTokenProxy,
   proxyTarget,
@@ -179,5 +180,29 @@ describe("source scan", () => {
     for (const f of [...walk(path.join(root, "src")), path.join(root, "index.html")]) {
       expect(fs.readFileSync(f, "utf8"), f).not.toMatch(re);
     }
+  });
+});
+
+describe("dev server guards", () => {
+  it("rejects a non-loopback TUDO_DEV_API", () => {
+    expect(() => proxyTarget({ TUDO_DEV_API: "http://example.com" })).toThrow();
+    expect(() => proxyTarget({ TUDO_DEV_API: "https://tudocuatui.mmlabs.online" })).toThrow();
+    expect(() => proxyTarget({ TUDO_DEV_API: "nonsense" })).toThrow();
+    expect(proxyTarget({ TUDO_DEV_API: "http://localhost:4000" })).toBe("http://localhost:4000");
+    expect(proxyTarget({ TUDO_DEV_API: "http://[::1]:4000" })).toBe("http://[::1]:4000");
+  });
+
+  it("allows only a loopback server host", () => {
+    for (const host of [undefined, "127.0.0.1", "localhost", "::1"]) {
+      expect(() => assertLocalServer({ host })).not.toThrow();
+    }
+    for (const host of [true, "0.0.0.0", "192.168.1.5", ""]) {
+      expect(() => assertLocalServer({ host })).toThrow();
+    }
+  });
+
+  it("refuses allowedHosts: true", () => {
+    expect(() => assertLocalServer({ host: "127.0.0.1", allowedHosts: true })).toThrow();
+    expect(() => assertLocalServer({ host: "127.0.0.1", allowedHosts: ["a.test"] })).not.toThrow();
   });
 });

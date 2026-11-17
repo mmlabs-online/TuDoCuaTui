@@ -19,8 +19,36 @@ const JWT_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 export const PROXY_KEY = "^/(api|healthz)(/|$)";
 export const DEFAULT_TARGET = "http://127.0.0.1:3000";
 
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+/** The proxy adds the owner's bearer token, so it may only talk to a loopback backend. */
 export function proxyTarget(env: NodeJS.ProcessEnv): string {
-  return env.TUDO_DEV_API || DEFAULT_TARGET;
+  const target = env.TUDO_DEV_API || DEFAULT_TARGET;
+  let hostname: string;
+  try {
+    hostname = new URL(target).hostname;
+  } catch {
+    throw new Error("[dev-token] TUDO_DEV_API is not a valid URL");
+  }
+  if (!LOOPBACK.has(hostname)) {
+    throw new Error("[dev-token] TUDO_DEV_API must point to 127.0.0.1, localhost or ::1");
+  }
+  return target;
+}
+
+/** The dev server must not be reachable from the network while it adds the bearer token. */
+export function assertLocalServer(server: { host?: string | boolean; allowedHosts?: unknown }) {
+  const host = server.host;
+  if (host !== undefined && (typeof host !== "string" || !LOOPBACK.has(host))) {
+    throw new Error(
+      "[dev-token] the dev server must listen on 127.0.0.1, localhost or ::1 (no --host)",
+    );
+  }
+  if (server.allowedHosts === true) {
+    throw new Error(
+      "[dev-token] server.allowedHosts: true is not allowed with the dev token proxy",
+    );
+  }
 }
 
 /** Default is outside the repo, so git and Docker can never see it. */
@@ -80,6 +108,9 @@ export function devTokenProxy(): Plugin {
   return {
     name: "tudo-dev-token-proxy",
     apply: (_config, env) => env.command === "serve" && !env.isPreview,
+    configResolved(config) {
+      assertLocalServer(config.server);
+    },
     config() {
       return {
         server: {
