@@ -843,6 +843,7 @@ main {
   margin-top: 14px;
 }
 .progress > div {
+  gap: 8px;
   display: flex;
   justify-content: space-between;
   font-size: 9px;
@@ -2417,6 +2418,44 @@ main {
   margin: 4px 0 0;
   padding: 0;
 }
+.bulk-drop.drag-over {
+  border-color: var(--green);
+  background: var(--soft);
+}
+.bulk-drop {
+  min-height: 175px;
+  height: auto;
+  padding: 14px;
+  text-align: center;
+}
+.photo-defaults {
+  margin-top: 14px;
+}
+.photo-files {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.photo-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.photo-files li b {
+  flex: none;
+  font-size: 10px;
+}
+.photo-warning {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 10px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+}
+.import-summary .btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
 .coming-soon {
   font-size: 10px;
   color: var(--muted);
@@ -2572,6 +2611,8 @@ main {
   .csv-error,
   .import-summary,
   .coming-soon,
+  .photo-warning,
+  .photo-files li b,
   .import-content pre,
   .collage-card span,
   .intro > .hero-copy > p:last-child {

@@ -3,6 +3,12 @@ import type { Item } from "@/types/item";
 import { PhotoSaveError } from "./apiErrors";
 import type { Backup } from "./backup";
 import { runImport } from "./importRunner";
+import {
+  abortableWait,
+  runPhotoImport,
+  type PhotoImportOptions,
+  type PhotoJob,
+} from "./photoImport";
 import type { GetToken } from "./authFetch";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
 import { createHttpRepo } from "./repo.http";
@@ -124,6 +130,22 @@ export function useWardrobe({
     [repo],
   );
 
+  /** One item per photo through `save` (which prepares each photo first, D48); saved items show up at once. */
+  const importPhotos = useCallback(
+    (jobs: PhotoJob[], opts: PhotoImportOptions) =>
+      runPhotoImport(
+        jobs,
+        {
+          save,
+          wait: abortableWait,
+          createUrl: (f) => URL.createObjectURL(f),
+          revokeUrl: (u) => URL.revokeObjectURL(u),
+        },
+        opts,
+      ),
+    [save],
+  );
+
   return {
     photos,
     items,
@@ -135,6 +157,7 @@ export function useWardrobe({
     remove,
     wear,
     importMany,
+    importPhotos,
     exportBackup,
     restoreBackup,
     message,

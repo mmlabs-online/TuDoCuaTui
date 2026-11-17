@@ -11,6 +11,14 @@ export const CSV_MAP_COPY = {
   futureDate: (v: string) => `Ngày mua không được ở tương lai: ${v}`,
 };
 
+/** "2 giờ" / "5 phút" from a `Retry-After` in seconds; unknown → "ít phút". */
+export function formatWait(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "ít phút";
+  if (seconds < 60) return `${Math.ceil(seconds)} giây`;
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)} phút`;
+  return `${Math.ceil(seconds / 3600)} giờ`;
+}
+
 /** UI copy for the import and export modals (F-004.3). */
 export const IMPORT_EXPORT_COPY = {
   import: {
@@ -21,7 +29,6 @@ export const IMPORT_EXPORT_COPY = {
     tabs: ["Ảnh hàng loạt", "CSV / Excel", "JSON (backup)"],
     cancel: "Huỷ",
     processing: "Đang xử lý…",
-    startImport: "Bắt đầu import",
     checkAndImport: "Kiểm tra & import",
     comingSoon: "Sắp có — hiện chỉ nhập được bằng CSV.",
     photos: {
@@ -31,7 +38,26 @@ export const IMPORT_EXPORT_COPY = {
       locationLabel: "Vị trí lưu trữ mặc định",
       locationPlaceholder: "Chọn vị trí…",
       statusLabel: "Trạng thái mặc định",
-      defaultStatus: "Đang dùng",
+      fallbackName: "Món đồ mới",
+      importN: (n: number) => `Nhập ${n} ảnh`,
+      fileCount: (n: number) => `${n} ảnh đã chọn`,
+      dailyWarning: (limit: number) =>
+        `Mỗi ngày chỉ tải lên được khoảng ${limit} ảnh. Nếu vượt quá, việc nhập sẽ dừng lại và bạn có thể thử lại sau.`,
+      running: (k: number, n: number, name: string) => `Đang nhập ${k}/${n}: ${name}`,
+      state: {
+        pending: "Chờ",
+        done: "Xong",
+        failed: "Lỗi",
+        photoFailed: "Chưa có ảnh",
+      },
+      summaryImported: (n: number) => `Đã nhập: ${n}`,
+      summaryFailed: (n: number) => `Lỗi: ${n}`,
+      summaryPending: (n: number) => `Chưa xử lý: ${n}`,
+      retry: (n: number) => `Thử lại (${n})`,
+      stoppedRateLimited: (imported: number, wait: string) =>
+        `Đã dừng: đã nhập ${imported} ảnh. Bạn đã đạt giới hạn tải ảnh trong 24 giờ, thử lại sau ${wait} nhé. Các ảnh còn lại vẫn nằm trong danh sách.`,
+      stoppedQuota: (imported: number) =>
+        `Đã dừng: đã nhập ${imported} ảnh. Bạn đã lưu đủ số ảnh tối đa — xoá bớt ảnh của món khác rồi thử lại. Các ảnh còn lại vẫn nằm trong danh sách.`,
     },
     csv: {
       title: "Nhập danh sách từ bảng tính",

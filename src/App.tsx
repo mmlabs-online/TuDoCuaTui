@@ -262,6 +262,7 @@ function App({
             onClose={() => setImportOpen(false)}
             locations={wardrobe.locations}
             importMany={wardrobe.importMany}
+            importPhotos={wardrobe.importPhotos}
             onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
             restoreBackup={wardrobe.restoreBackup}
             onRestored={() => notify(IMPORT_EXPORT_COPY.restored)}

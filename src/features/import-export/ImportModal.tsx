@@ -11,6 +11,7 @@ import { buildCsvPreview } from "@/features/import-export/csv/preview";
 import { type CsvPhase, ImportCsvTab } from "@/features/import-export/ImportCsvTab";
 import { ImportJsonTab } from "@/features/import-export/ImportJsonTab";
 import { ImportPhotosTab } from "@/features/import-export/ImportPhotosTab";
+import { type ImportPhotosFn, usePhotoImport } from "@/features/import-export/usePhotoImport";
 import { useJsonRestore } from "@/features/import-export/useJsonRestore";
 
 const COPY = IMPORT_EXPORT_COPY.import;
@@ -19,6 +20,7 @@ export function ImportModal({
   onClose,
   locations,
   importMany,
+  importPhotos,
   onImported,
   restoreBackup,
   onRestored,
@@ -29,6 +31,7 @@ export function ImportModal({
     list: Item[],
     opts: { onProgress: (done: number, total: number) => void; signal: AbortSignal },
   ) => Promise<ImportResult[]>;
+  importPhotos: ImportPhotosFn;
   onImported: (count: number) => void;
   restoreBackup: (b: Backup) => Promise<RestoreSummary>;
   onRestored: (s: RestoreSummary) => void;
@@ -38,6 +41,7 @@ export function ImportModal({
   const [phase, setPhase] = useState<CsvPhase>("edit");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
+  const photos = usePhotoImport({ importPhotos, onImported });
   const json = useJsonRestore(restoreBackup, onRestored, onClose);
   const controllerRef = useRef<AbortController | null>(null);
   const preview = useMemo(() => buildCsvPreview(text, { locations }), [text, locations]);
@@ -62,9 +66,19 @@ export function ImportModal({
   };
 
   const csvReady = preview.kind === "ready" && preview.items.length > 0;
+  const photosBusy = photos.phase === "running";
+  const photoCount = photos.jobs.length;
   const primary =
     tab === 0
-      ? { label: COPY.startImport, disabled: true, onClick: undefined }
+      ? photosBusy
+        ? { label: COPY.processing, disabled: true, onClick: undefined }
+        : photos.phase === "edit"
+          ? {
+              label: COPY.photos.importN(photoCount),
+              disabled: photoCount === 0,
+              onClick: () => void photos.run(),
+            }
+          : { label: COPY.csv.done, disabled: false, onClick: onClose }
       : tab === 2
         ? json.primary
         : phase === "running"
@@ -96,7 +110,7 @@ export function ImportModal({
           <button
             className={tab === i ? "active" : ""}
             onClick={() => setTab(i)}
-            disabled={phase === "running" || json.phase === "running"}
+            disabled={phase === "running" || photosBusy || json.phase === "running"}
             key={x}
           >
             {x}
@@ -104,7 +118,7 @@ export function ImportModal({
         ))}
       </div>
       <div className="import-content">
-        {tab === 0 && <ImportPhotosTab />}
+        {tab === 0 && <ImportPhotosTab photos={photos} locations={locations} />}
         {tab === 1 && (
           <ImportCsvTab
             text={text}

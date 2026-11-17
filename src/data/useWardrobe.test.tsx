@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Item } from "@/types/item";
 import { fixtureBackup } from "@/test/fixtures";
 import { createMemoryRepo } from "@/test/memoryRepo";
-import { API_ERROR_COPY } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
+import type { PhotoJob } from "./photoImport";
 import type { WardrobeRepo } from "./repo";
 import { type ImportResult, useWardrobe } from "./useWardrobe";
 
@@ -179,6 +180,39 @@ describe("useWardrobe", () => {
         [2, 2],
       ]);
       expect(result.current.items).toHaveLength(4);
+    });
+
+    test("importPhotos upserts saved items and PhotoSaveError items", async () => {
+      const base = createMemoryRepo(starter, defaults);
+      repoSwitch.memory = {
+        ...base,
+        async save(item) {
+          const saved = await base.save({ ...item, photo: "" });
+          if (item.name === "P2") throw new PhotoSaveError(saved, new ApiError(0, "network"));
+          return saved;
+        },
+      };
+      const createUrl = URL.createObjectURL;
+      URL.createObjectURL = () => "blob:x";
+      URL.revokeObjectURL = () => {};
+      const { result } = await setup();
+      const mk = (n: number): PhotoJob => ({
+        key: `k${n}`,
+        file: new File(["x"], `P${n}.jpg`, { type: "image/jpeg" }),
+        name: `P${n}`,
+        itemId: `00000000-0000-4000-8000-00000000000${n}`,
+        state: "pending",
+      });
+      let out!: Awaited<ReturnType<typeof result.current.importPhotos>>;
+      await act(async () => {
+        out = await result.current.importPhotos([mk(1), mk(2)], {
+          defaults: { location: "Kệ mới", status: "Đang dùng" },
+        });
+      });
+      URL.createObjectURL = createUrl;
+      expect(out.jobs.map((j) => j.state)).toEqual(["done", "photoFailed"]);
+      expect(result.current.items.map((i) => i.name).slice(0, 2)).toEqual(["P2", "P1"]);
+      expect(result.current.locations).toContain("Kệ mới");
     });
 
     test("importMany works without options", async () => {
