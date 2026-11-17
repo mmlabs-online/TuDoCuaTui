@@ -55,6 +55,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-022 | Hotfix — CSP blocks photo upload (connect-src data:/blob:) | MERGED | P0 | XS | security | T-019.8 | none | 0 | 2026-11-16 |
 | T-024 | Mobile layout and readability | MERGED | P1 | M | ui | — | none | 0 | 2026-11-16 |
 | T-023 | Lower the password minimum to 6 characters | MERGED | P1 | S | ui, security | — | plan-approval | 1 | 2026-11-16 |
+| T-025 | Remove Figma Make and the local/demo mode | BACKLOG | P1 | L | ui, data, architecture, security | — (Ming M-28) | plan-approval | 0 | 2026-11-17 |
 | T-009 | Store per-user AI provider settings and an encrypted API key | MERGED | P1 | M | db, security, architecture | T-004 | plan-approval | 2 | 2026-11-10 |
 | T-018 | Store AI provider settings and an encrypted API key on the Node server (slice T-018.1) | MERGED | P1 | M | db, security, architecture | T-009, T-013.2, T-015 | plan-approval | 1 | 2026-11-13 |
 | T-018.2 | AI key test endpoint and the AI_KEK deploy wiring | MERGED | P1 | M | security, architecture | T-018 | plan-approval | 1 | 2026-11-13 |

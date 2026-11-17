@@ -322,3 +322,11 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ### F-701.1 — Gemini
 - [ ] **M-27 (optional) — Real-key Gemini smoke test** (after a release containing F-701.1 is deployed): in Settings choose Gemini, paste a Gemini key (`AIza…`), save, press "Kiểm tra" for **each** listed model (`gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro`; expect "Key hoạt động"; `model_unavailable` means an id is wrong or retired). Press "Kiểm tra" once with a deliberately broken key (expect the `invalid_key` message; if it says "provider unavailable" instead, tell Claude the case — a Google reason missing from the allowlist). Tagging a real photo: in identity mode a plain console `fetch("/api/ai/tag-photo")` has no bearer token and answers 401, so the end-to-end tag check waits for the F-702 UI (or run it from the app once F-702 ships). This is the only check against the real Generative Language API (`v1beta`, schema dialect, `thinkingConfig`, `finishReason`, error shape — plan A11). If the deployment restricts egress, allow `generativelanguage.googleapis.com`.
+
+### T-025 — no Figma Make, no local mode (D44)
+- [ ] **M-28 — Allow sign-in from localhost** (blocks T-025): in org-admin-api production, add the origin
+      `http://localhost:5173` to app `tudocuatui` (keep `https://tudocuatui.mmlabs.online`). Actions →
+      `ops-org-admin-api`, the command that updates an app's origins (or `register-app` again with both origins, if
+      that is how updates work there). After T-025, local development signs in from that origin; without it `pnpm dev`
+      stops at the sign-in screen. Risk: any page served on your own `localhost:5173` can request TuDo tokens for a
+      signed-in account; accept or decline here.
