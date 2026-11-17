@@ -8,11 +8,15 @@ import { Confirm } from "@/components/Confirm";
 import { Modal } from "@/components/Modal";
 import { PhotoPrepError, preparePhoto } from "@/data/photoPrep";
 import { usePhotoUrl } from "@/data/usePhotoUrl";
+import { SETTINGS_COPY } from "@/features/settings/copy";
 import { categoryNames, colorMap, colors, seasons, statuses } from "@/constants/wardrobe";
 import { toDateOnly } from "@/features/import-export/csv/serialize";
+import { aiErrorText, needsSettings, photoSourceFor } from "./aiFill";
+import { blankItem } from "./blankItem";
 import { EDITOR_COPY } from "./copy";
 import { isDirty } from "./dirty";
 import { ageInDays } from "./filters";
+import { useAiFill, type EditorAi } from "./useAiFill";
 import { hasErrors, NAME_MAX, validateItem, type ItemErrorCode } from "./validate";
 
 export function Editor({
@@ -26,6 +30,7 @@ export function Editor({
   onDelete,
   onDuplicate,
   onWorn,
+  ai,
 }: {
   item: Item;
   locations: string[];
@@ -37,6 +42,8 @@ export function Editor({
   onDelete: () => void;
   onDuplicate: () => void;
   onWorn: (n: number) => void;
+  /** Without it the editor has no AI block. */
+  ai?: EditorAi;
 }) {
   const file = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -83,6 +90,21 @@ export function Editor({
       revokeOwn();
     },
     [],
+  );
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const fill = useAiFill({
+    ai,
+    item,
+    photoSrc: loadFailed ? null : photoSourceFor(item.photo, stored.src),
+    categoryFillable: isNew && !categoryTouched && item.category === blankItem().category,
+    update,
+  });
+  const a = fill.availability;
+  const aiCopy = EDITOR_COPY.ai;
+  const settingsLink = (
+    <button type="button" className="ai-fill-link" onClick={ai?.onOpenSettings}>
+      {aiCopy.openSettings}
+    </button>
   );
   const upload = async (f?: File) => {
     if (!f) return;
@@ -185,6 +207,65 @@ export function Editor({
                 {EDITOR_COPY.photo.pickFromLibrary}
               </Btn>
             </div>
+            {ai && (
+              <div className="ai-fill">
+                <Btn
+                  type="button"
+                  className="ai-btn"
+                  aria-busy={fill.busy}
+                  disabled={a.kind !== "ready" || fill.busy}
+                  onClick={fill.run}
+                >
+                  <Icon name="sparkle" /> {fill.busy ? aiCopy.busy : aiCopy.button}
+                </Btn>
+                {a.kind === "ready" && (
+                  <small className="ai-fill-note">
+                    {aiCopy.disclosure(SETTINGS_COPY.providerOptions[a.provider])}
+                  </small>
+                )}
+                {a.kind === "no_photo" && <small className="ai-fill-note">{aiCopy.noPhoto}</small>}
+                {a.kind === "no_key" && (
+                  <small className="ai-fill-note">
+                    {aiCopy.notConfigured} {settingsLink}
+                  </small>
+                )}
+                {a.kind === "model_unsupported" && (
+                  <small className="ai-fill-note">
+                    {SETTINGS_COPY.unsupportedModel} {settingsLink}
+                  </small>
+                )}
+                {a.kind === "misconfigured" && (
+                  <small className="ai-fill-note">{aiErrorText("server_misconfigured")}</small>
+                )}
+                {a.kind === "load_error" && (
+                  <small className="ai-fill-note">
+                    {aiCopy.loadFailed}{" "}
+                    <button type="button" className="ai-fill-link" onClick={fill.retry}>
+                      {aiCopy.retry}
+                    </button>
+                  </small>
+                )}
+                {fill.error && (
+                  <small role="alert" className="ai-fill-error">
+                    {aiErrorText(fill.error.code, fill.error.requestId)}{" "}
+                    {needsSettings(fill.error.code) && settingsLink}
+                  </small>
+                )}
+                {fill.notice && (
+                  <small role="status" className="ai-fill-note">
+                    {fill.notice.kind === "filled" ? aiCopy.filled(fill.notice.n) : aiCopy.nothing}
+                    {fill.canUndo && (
+                      <>
+                        {" "}
+                        <button type="button" className="ai-fill-link" onClick={fill.undo}>
+                          {aiCopy.undo}
+                        </button>
+                      </>
+                    )}
+                  </small>
+                )}
+              </div>
+            )}
             <div className="photo-caption">
               <div>
                 <small>MÓN ĐỒ CỦA BẠN</small>
@@ -265,7 +346,13 @@ export function Editor({
                 />
               </Field>
               <Field label="Loại">
-                <select value={item.category} onChange={(e) => update("category", e.target.value)}>
+                <select
+                  value={item.category}
+                  onChange={(e) => {
+                    setCategoryTouched(true);
+                    update("category", e.target.value);
+                  }}
+                >
                   {categoryNames.map((x) => (
                     <option key={x}>{x}</option>
                   ))}

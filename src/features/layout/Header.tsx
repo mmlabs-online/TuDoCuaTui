@@ -39,7 +39,7 @@ export function Header({
         </button>
         {onSettings && (
           <button className="icon-btn" onClick={onSettings} aria-label={SETTINGS_COPY.open}>
-            <Icon name="settings" />
+            <Icon name="ai" />
           </button>
         )}
         {onSignOut && (

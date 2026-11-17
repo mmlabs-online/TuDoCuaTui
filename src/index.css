@@ -304,6 +304,9 @@ main {
 .filter-select {
   position: relative;
 }
+.filter-row {
+  display: contents;
+}
 .filter-select select {
   appearance: none;
   height: 40px;
@@ -359,6 +362,12 @@ main {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px 12px;
+}
+.grid-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  min-height: 1px;
 }
 .item-card {
   text-align: left;
@@ -1113,8 +1122,8 @@ main {
   .toolbar {
     grid-template-columns: 1fr repeat(3, auto);
   }
-  .filter-select:nth-of-type(4),
-  .filter-select:nth-of-type(5) {
+  .filter-row .filter-select:nth-of-type(3),
+  .filter-row .filter-select:nth-of-type(4) {
     display: none;
   }
   .item-grid {
@@ -1199,18 +1208,23 @@ main {
   }
   .toolbar {
     display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    flex-direction: column;
+    gap: 8px;
   }
   .searchbox {
-    min-width: calc(100vw - 48px);
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--surface);
+    width: 100%;
+    min-width: 0;
+  }
+  .filter-row {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    padding-right: 28px;
   }
   .filter-select {
     display: block !important;
+    flex: none;
   }
   .filter-select select {
     max-width: none;
@@ -1936,6 +1950,31 @@ main {
 .photo-column .remove-photo {
   color: #ffc9a3;
 }
+.ai-fill {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.ai-fill-note,
+.ai-fill-error {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.photo-column .ai-fill-note {
+  color: #fff8eb;
+}
+.photo-column .ai-fill-error {
+  color: #ffc9a3;
+}
+.ai-fill-link {
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
 .photo-source-actions {
   display: none;
 }
@@ -2232,11 +2271,12 @@ main {
   }
   .hero-collage {
     position: absolute;
-    right: -45px;
-    bottom: 0;
-    width: 190px;
+    right: 20px;
+    bottom: 10px;
+    width: 200px;
     height: 190px;
-    transform: scale(0.8);
+    transform: scale(0.68);
+    transform-origin: right bottom;
   }
   .collage-card {
     width: 112px;
@@ -2555,7 +2595,7 @@ main {
     white-space: nowrap;
   }
   .stats-grid,
-  .toolbar,
+  .filter-row,
   .categories {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);

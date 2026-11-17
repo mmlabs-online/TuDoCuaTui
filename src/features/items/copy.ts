@@ -20,6 +20,20 @@ export const EDITOR_COPY = {
       tooLargeAfterResize: "Ảnh vẫn quá lớn sau khi nén — thử ảnh khác nhé",
     },
   },
+  ai: {
+    button: "Tự điền từ ảnh",
+    busy: "Đang phân tích ảnh…",
+    disclosure: (provider: string) => `Ảnh sẽ được gửi tới ${provider} bằng key của bạn`,
+    notConfigured: "Chưa cài đặt AI — chọn nhà cung cấp và nhập API key trong Cài đặt",
+    openSettings: "Mở cài đặt",
+    undo: "Hoàn tác",
+    filled: (n: number) => `Đã điền ${n} mục`,
+    nothing: "AI không có gì để điền thêm",
+    noPhoto: "Thêm ảnh để dùng tự điền",
+    loadFailed: "Không tải được cài đặt AI",
+    retry: "Thử lại",
+    rateLimited: "Đã hết lượt dùng AI, thử lại sau",
+  },
   errors: {
     nameRequired: "Vui lòng nhập tên món đồ",
     nameTooLong: (max: number) => `Tên tối đa ${max} ký tự`,
@@ -40,3 +54,5 @@ export const EDITOR_COPY = {
     confirm: "Bỏ thay đổi",
   },
 } as const;
+
+export const GRID_COPY = { loadMore: "Xem thêm" } as const;

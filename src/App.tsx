@@ -23,6 +23,7 @@ import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
 import { createHttpAiSettings } from "@/data/aiSettings";
+import { createHttpAiTagger } from "@/data/aiTagging";
 import type { GetToken } from "@/data/authFetch";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
@@ -42,6 +43,10 @@ function App({
     () => createHttpAiSettings(undefined, undefined, { getToken, onAuthLost }),
     [], // getToken/onAuthLost are injected once, as for useWardrobe
   );
+  const aiTagger = useMemo(
+    () => createHttpAiTagger(undefined, undefined, { getToken, onAuthLost }),
+    [], // same injection as aiClient
+  );
   const { items, loading } = wardrobe;
   const locationOptions = wardrobe.locations;
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === "dark");
@@ -55,6 +60,7 @@ function App({
     setSort,
     counts,
     visible,
+    filterKey,
     hasActiveFilters,
     setFilter,
     toggleSpecial,
@@ -65,6 +71,7 @@ function App({
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiSettingsRev, setAiSettingsRev] = useState(0);
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast, notify } = useToast();
@@ -170,6 +177,7 @@ function App({
               loading={loading}
               visible={visible}
               total={items.length}
+              resetKey={filterKey}
               onOpen={(item) => {
                 setEditor({ ...item });
                 setIsNew(false);
@@ -189,6 +197,12 @@ function App({
             isNew={isNew}
             saving={saving}
             update={update}
+            ai={{
+              settings: aiClient,
+              tagger: aiTagger,
+              settingsRev: aiSettingsRev,
+              onOpenSettings: () => setSettingsOpen(true),
+            }}
             onClose={() => setEditor(null)}
             onSave={save}
             onDelete={() => setConfirm(true)}
@@ -259,7 +273,13 @@ function App({
           />
         )}
         {settingsOpen && (
-          <AiSettingsModal client={aiClient} onClose={() => setSettingsOpen(false)} />
+          <AiSettingsModal
+            client={aiClient}
+            onClose={() => {
+              setSettingsOpen(false);
+              setAiSettingsRev((r) => r + 1);
+            }}
+          />
         )}
         <Toast message={toast} />
       </div>

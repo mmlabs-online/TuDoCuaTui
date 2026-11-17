@@ -40,8 +40,18 @@ afterEach(() => {
 
 const cards = () => Array.from(document.querySelectorAll<HTMLElement>(".item-card"));
 
+// The grid shows 12 at a time (BUG-002); jsdom has no IntersectionObserver, so page in via "Xem thêm".
+const showAll = () => {
+  for (let b = screen.queryByRole("button", { name: "Xem thêm" }); b;) {
+    fireEvent.click(b);
+    b = screen.queryByRole("button", { name: "Xem thêm" });
+  }
+};
+
 async function renderApp() {
   const view = render(<App />);
+  await screen.findByRole("button", { name: "Xem thêm" });
+  showAll();
   await waitFor(() => expect(cards()).toHaveLength(starter.length));
   return view;
 }
@@ -61,10 +71,49 @@ const statCard = (label: RegExp) => screen.getByRole("button", { name: label });
 describe("App (UI)", () => {
   beforeEach(useMemoryRepo);
 
-  it("the editor has no mock AI button", async () => {
-    await renderApp();
-    fireEvent.click(cards()[0]);
-    expect(screen.queryByRole("button", { name: /Tự điền từ ảnh/ })).toBeNull();
+  describe("AI fill", () => {
+    const CLAUDE = {
+      provider: "claude",
+      model: "claude-haiku-5-5",
+      keyHint: "••••wxyz",
+      hasKey: true,
+      modelSupported: true,
+      updatedAt: "2026-11-17T00:00:00Z",
+    };
+    const stubSettings = (settings: unknown) => {
+      const fetchStub = vi.fn(
+        async () =>
+          new Response(JSON.stringify({ settings }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+      );
+      vi.stubGlobal("fetch", fetchStub);
+      return fetchStub;
+    };
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("the editor shows the AI button", async () => {
+      stubSettings(CLAUDE);
+      await renderApp();
+      fireEvent.click(cards()[0]);
+      expect(await screen.findByRole("button", { name: /Tự điền từ ảnh/ })).toBeTruthy();
+      expect(await screen.findByText(/Ảnh sẽ được gửi tới Claude/)).toBeTruthy();
+    });
+
+    it('"Mở cài đặt" opens the AI settings modal over the editor; closing it reloads the settings', async () => {
+      const fetchStub = stubSettings(null);
+      await renderApp();
+      fireEvent.click(cards()[0]);
+      fireEvent.click(await screen.findByRole("button", { name: "Mở cài đặt" }));
+      expect(await screen.findByText("Cài đặt AI")).toBeTruthy();
+      expect(screen.getByText("CHI TIẾT MÓN ĐỒ")).toBeTruthy();
+      const loads = () => fetchStub.mock.calls.length;
+      await waitFor(() => expect(loads()).toBe(2)); // editor + settings modal
+      fireEvent.click(screen.getAllByRole("button", { name: "Đóng" }).at(-1)!);
+      await waitFor(() => expect(screen.queryByText("Cài đặt AI")).toBeNull());
+      await waitFor(() => expect(loads()).toBe(3));
+      expect(screen.getByText("CHI TIẾT MÓN ĐỒ")).toBeTruthy();
+    });
   });
 
   it('shows "Phiên bản dev"', async () => {
@@ -87,6 +136,7 @@ describe("App (UI)", () => {
     expect(cards()).toHaveLength(0);
     const noResults = document.querySelector<HTMLElement>(".no-results")!;
     fireEvent.click(within(noResults).getByRole("button", { name: "Xoá bộ lọc" }));
+    showAll();
     expect(cards()).toHaveLength(16);
 
     fireEvent.change(box, { target: { value: "so mi linen" } });
@@ -104,6 +154,7 @@ describe("App (UI)", () => {
     expect(cards()).toHaveLength(shown);
     expect(chip("Quần/váy").className).toContain("active");
     fireEvent.click(chip("Tất cả"));
+    showAll();
     expect(cards()).toHaveLength(16);
   });
 
@@ -127,6 +178,7 @@ describe("App (UI)", () => {
   it('sort "Tên A→Z" orders cards by Vietnamese name', async () => {
     await renderApp();
     fireEvent.change(selectWithLabel("Sắp xếp"), { target: { value: "Tên A→Z" } });
+    showAll();
     expect(cards().map((c) => c.querySelector("h3")?.textContent)).toEqual(
       starter.map((n) => n.name).sort((a, b) => a.localeCompare(b, "vi")),
     );
@@ -141,6 +193,7 @@ describe("App (UI)", () => {
       expect(cards()).toHaveLength(n);
       expect(statCard(label).className).toContain("active");
       fireEvent.click(statCard(label));
+      showAll();
       expect(cards()).toHaveLength(16);
     }
   });
