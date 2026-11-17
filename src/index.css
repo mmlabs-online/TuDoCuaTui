@@ -2835,3 +2835,25 @@ main {
     min-height: 44px;
   }
 }
+
+/* F-202.1 photo busy + error */
+.upload-zone {
+  position: relative;
+}
+.photo-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+.photo-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  line-height: 1.4;
+}

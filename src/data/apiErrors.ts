@@ -28,6 +28,12 @@ export const API_ERROR_COPY = {
   generic: "Có lỗi xảy ra, thử lại nhé",
 } as const;
 
+/** Photo-step overrides: the generic copy above is about item data. */
+export const PHOTO_UPLOAD_ERROR_COPY = {
+  payload_too_large: "Ảnh quá lớn để tải lên — thử chọn lại ảnh nhé",
+  unsupported_media_type: "Định dạng ảnh không được hỗ trợ — hãy dùng JPG, PNG, WebP hoặc HEIC",
+} as const;
+
 const EDITOR_REASONS: ItemErrorCode[] = [
   "nameRequired",
   "nameTooLong",
@@ -66,7 +72,11 @@ export class PhotoSaveError extends Error {
     public item: Item,
     cause: unknown,
   ) {
-    const detail = (cause as Error | null)?.message;
+    const override =
+      cause instanceof ApiError
+        ? (PHOTO_UPLOAD_ERROR_COPY as Record<string, string>)[cause.code]
+        : undefined;
+    const detail = override || (cause as Error | null)?.message;
     super(detail ? `${API_ERROR_COPY.photoNotSaved} — ${detail}` : API_ERROR_COPY.photoNotSaved);
     this.name = "PhotoSaveError";
   }

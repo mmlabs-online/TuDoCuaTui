@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
+import { PhotoPrepError, preparePhoto } from "@/data/photoPrep";
 import { categoryNames } from "@/constants/wardrobe";
 import type { Item } from "@/types/item";
 import { AiSettingsError } from "@/data/aiSettings";
@@ -13,6 +14,29 @@ import { Editor } from "./Editor";
 import { blankItem } from "./blankItem";
 import { EDITOR_COPY } from "./copy";
 
+vi.mock("@/data/photoPrep", async (orig) => ({
+  ...(await orig<typeof import("@/data/photoPrep")>()),
+  preparePhoto: vi.fn(),
+}));
+const prep = vi.mocked(preparePhoto);
+const pic = (name = "a.jpg", type = "image/jpeg") => new File(["x"], name, { type });
+
+beforeEach(() => {
+  let n = 0;
+  prep.mockReset();
+  prep.mockResolvedValue({ blob: new Blob(["j"], { type: "image/jpeg" }), width: 1, height: 1 });
+  Object.defineProperty(URL, "createObjectURL", {
+    value: vi.fn(() => `blob:${++n}`),
+    configurable: true,
+    writable: true,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    value: vi.fn(),
+    configurable: true,
+    writable: true,
+  });
+});
+
 const photos = vi.hoisted(() => ({ urlToBlob: vi.fn(), resizeImage: vi.fn() }));
 vi.mock("@/data/photos", () => photos);
 
@@ -21,21 +45,21 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const props = (item: Item, saving = false, update = vi.fn()) => ({
+  item,
+  locations: [],
+  isNew: true,
+  saving,
+  update,
+  onClose: vi.fn(),
+  onSave: vi.fn(),
+  onDelete: vi.fn(),
+  onDuplicate: vi.fn(),
+  onWorn: vi.fn(),
+});
+
 const renderEditor = (update = vi.fn(), item: Item = blankItem(), isNew = true) => {
-  render(
-    <Editor
-      item={item}
-      locations={[]}
-      isNew={isNew}
-      saving={false}
-      update={update}
-      onClose={vi.fn()}
-      onSave={vi.fn()}
-      onDelete={vi.fn()}
-      onDuplicate={vi.fn()}
-      onWorn={vi.fn()}
-    />,
-  );
+  render(<Editor {...props(item, false, update)} isNew={isNew} />);
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
   const camera = inputs.find((i) => i.hasAttribute("capture"))!;
   const gallery = inputs.find((i) => !i.hasAttribute("capture"))!;
@@ -72,13 +96,154 @@ describe("photo inputs", () => {
     expect(spy.mock.contexts[1]).toBe(gallery);
   });
 
-  test("a file from the camera input sets the photo", async () => {
+  test("a picked file sets a blob: URL of the prepared JPEG", async () => {
     const { camera, update } = renderEditor();
-    const file = new File(["x"], "a.jpg", { type: "image/jpeg" });
-    fireEvent.change(camera, { target: { files: [file] } });
-    await waitFor(() =>
-      expect(update).toHaveBeenCalledWith("photo", expect.stringMatching(/^data:image\/jpeg/)),
+    const prepared = new Blob(["j"], { type: "image/jpeg" });
+    prep.mockResolvedValueOnce({ blob: prepared, width: 1, height: 1 });
+    fireEvent.change(camera, { target: { files: [pic()] } });
+    await waitFor(() => expect(update).toHaveBeenCalledWith("photo", "blob:1"));
+    expect(URL.createObjectURL).toHaveBeenCalledWith(prepared);
+  });
+});
+
+describe("photo preparation", () => {
+  const pick = (input: HTMLInputElement, f = pic()) =>
+    fireEvent.change(input, { target: { files: [f] } });
+
+  const deferred = () => {
+    let resolve!: (v: { blob: Blob; width: number; height: number }) => void;
+    const promise = new Promise<{ blob: Blob; width: number; height: number }>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  };
+  const done = { blob: new Blob(["j"], { type: "image/jpeg" }), width: 1, height: 1 };
+
+  test("closing during a pick ignores its result", async () => {
+    const d = deferred();
+    prep.mockReturnValueOnce(d.promise);
+    const { gallery, update } = renderEditor();
+    pick(gallery);
+    cleanup();
+    d.resolve(done);
+    await d.promise;
+    await Promise.resolve();
+    expect(update).not.toHaveBeenCalledWith("photo", expect.anything());
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  test("duplicate frees the picked photo URL", async () => {
+    const { gallery, update } = renderEditor(vi.fn(), blankItem(), false);
+    pick(gallery);
+    await waitFor(() => expect(update).toHaveBeenCalledWith("photo", "blob:1"));
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.duplicate }));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
+  });
+
+  test("duplicate during a pick ignores its result", async () => {
+    const d = deferred();
+    prep.mockReturnValueOnce(d.promise);
+    const { gallery, update } = renderEditor(vi.fn(), blankItem(), false);
+    pick(gallery);
+    fireEvent.click(screen.getByRole("button", { name: EDITOR_COPY.duplicate }));
+    d.resolve(done);
+    await d.promise;
+    await Promise.resolve();
+    expect(update).not.toHaveBeenCalledWith("photo", expect.anything());
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  test("a file over 10 MB shows the size message and does not set the photo", async () => {
+    const { gallery, update } = renderEditor();
+    prep.mockRejectedValueOnce(new PhotoPrepError("tooLarge"));
+    pick(gallery);
+    expect((await screen.findByRole("alert")).textContent).toBe(EDITOR_COPY.photo.errors.tooLarge);
+    expect(update).not.toHaveBeenCalledWith("photo", expect.anything());
+  });
+
+  test("an undecodable HEIC shows the HEIC message", async () => {
+    const { gallery } = renderEditor();
+    prep.mockRejectedValueOnce(new PhotoPrepError("heicUnsupported"));
+    pick(gallery, pic("a.heic", "image/heic"));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      EDITOR_COPY.photo.errors.heicUnsupported,
     );
+  });
+
+  test("an unexpected error shows the unreadable message", async () => {
+    const { gallery } = renderEditor();
+    prep.mockRejectedValueOnce(new Error("boom"));
+    pick(gallery);
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      EDITOR_COPY.photo.errors.unreadable,
+    );
+  });
+
+  test("a new pick clears the previous error", async () => {
+    const { gallery } = renderEditor();
+    prep.mockRejectedValueOnce(new PhotoPrepError("tooLarge"));
+    pick(gallery);
+    await screen.findByRole("alert");
+    prep.mockReturnValueOnce(new Promise(() => {}));
+    pick(gallery);
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  test("shows the preparing state while a pick is processed and disables Save", async () => {
+    const { gallery } = renderEditor();
+    prep.mockReturnValueOnce(new Promise(() => {}));
+    pick(gallery);
+    expect((await screen.findByRole("status")).textContent).toBe(EDITOR_COPY.photo.preparing);
+    expect(
+      (screen.getByRole("button", { name: EDITOR_COPY.save }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  test("shows the uploading state while saving a new photo", () => {
+    const base = { ...blankItem(), photo: "blob:abc" };
+    const { rerender } = render(<Editor {...props(base, true)} />);
+    expect(screen.getByRole("status").textContent).toBe(EDITOR_COPY.photo.uploading);
+    rerender(<Editor {...props({ ...base, photo: "/api/photos/p" }, true)} />);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  test("replacing or removing the photo revokes the previous object URL", async () => {
+    const { gallery } = renderEditor(vi.fn(), { ...blankItem(), photo: "blob:x" });
+    pick(gallery);
+    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
+    pick(gallery);
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1"));
+    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:2");
+  });
+
+  test("unmount revokes the object URL", async () => {
+    const { gallery } = renderEditor();
+    pick(gallery);
+    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
+    cleanup();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
+  });
+
+  test("a stale pick that finishes after a newer pick is ignored", async () => {
+    const { gallery, update } = renderEditor();
+    let first!: (v: { blob: Blob; width: number; height: number }) => void;
+    prep.mockReturnValueOnce(new Promise((r) => (first = r)));
+    pick(gallery);
+    const second = new Blob(["2"], { type: "image/jpeg" });
+    prep.mockResolvedValueOnce({ blob: second, width: 1, height: 1 });
+    pick(gallery);
+    await waitFor(() => expect(update).toHaveBeenCalledWith("photo", "blob:1"));
+    first({ blob: new Blob(["1"]), width: 1, height: 1 });
+    await Promise.resolve();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  test("the hint lists the accepted formats", () => {
+    renderEditor();
+    expect(screen.getByText(EDITOR_COPY.photo.hint, { exact: false })).toBeTruthy();
   });
 });
 
@@ -474,7 +639,7 @@ describe("AI fill", () => {
     fireEvent.change(gallery, {
       target: { files: [new File(["y"], "b.jpg", { type: "image/jpeg" })] },
     });
-    await waitFor(() => expect(spy).toHaveBeenCalledWith("photo", expect.stringMatching(/^data:/)));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("photo", expect.stringMatching(/^blob:/)));
     d.resolve(SUG);
     await waitFor(() => expect(aiBtn().getAttribute("aria-busy")).toBe("false"));
     expect(keysOf(spy)).toEqual(["photo"]);
