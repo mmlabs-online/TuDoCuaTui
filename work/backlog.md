@@ -82,3 +82,4 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-001 | Hide mock AI controls until M3 | MERGED | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
 | F-603 | Bulk photo import | BACKLOG | P0 | M | ui, data | F-601.3, F-202.1 | none | 0 | 2026-11-07 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | BACKLOG | P1 | S | ui | — | none | 0 | 2026-11-17 |
+| BUG-003 | Hero banner photos are cut off on mobile | BACKLOG | P2 | XS | ui | — | none | 0 | 2026-11-17 |
