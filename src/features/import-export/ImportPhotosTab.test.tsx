@@ -22,6 +22,8 @@ function setup(importPhotos: Fn = allDone, locations: string[] = ["Tủ A"]) {
       importMany={vi.fn()}
       importPhotos={fn}
       onImported={onImported}
+      restoreBackup={vi.fn()}
+      onRestored={vi.fn()}
     />,
   );
   const pick = (...files: File[]) =>

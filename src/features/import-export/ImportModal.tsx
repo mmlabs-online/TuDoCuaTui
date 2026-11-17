@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
 import { Modal } from "@/components/Modal";
+import type { Backup, RestoreSummary } from "@/data/backup";
 import type { ImportResult } from "@/data/useWardrobe";
 import type { Item } from "@/types/item";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
@@ -11,6 +12,7 @@ import { type CsvPhase, ImportCsvTab } from "@/features/import-export/ImportCsvT
 import { ImportJsonTab } from "@/features/import-export/ImportJsonTab";
 import { ImportPhotosTab } from "@/features/import-export/ImportPhotosTab";
 import { type ImportPhotosFn, usePhotoImport } from "@/features/import-export/usePhotoImport";
+import { useJsonRestore } from "@/features/import-export/useJsonRestore";
 
 const COPY = IMPORT_EXPORT_COPY.import;
 
@@ -20,6 +22,8 @@ export function ImportModal({
   importMany,
   importPhotos,
   onImported,
+  restoreBackup,
+  onRestored,
 }: {
   onClose: () => void;
   locations: string[];
@@ -29,6 +33,8 @@ export function ImportModal({
   ) => Promise<ImportResult[]>;
   importPhotos: ImportPhotosFn;
   onImported: (count: number) => void;
+  restoreBackup: (b: Backup) => Promise<RestoreSummary>;
+  onRestored: (s: RestoreSummary) => void;
 }) {
   const [tab, setTab] = useState(0);
   const [text, setText] = useState("");
@@ -36,6 +42,7 @@ export function ImportModal({
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
   const photos = usePhotoImport({ importPhotos, onImported });
+  const json = useJsonRestore(restoreBackup, onRestored, onClose);
   const controllerRef = useRef<AbortController | null>(null);
   const preview = useMemo(() => buildCsvPreview(text, { locations }), [text, locations]);
 
@@ -72,8 +79,8 @@ export function ImportModal({
               onClick: () => void photos.run(),
             }
           : { label: COPY.csv.done, disabled: false, onClick: onClose }
-      : tab !== 1
-        ? { label: COPY.checkAndImport, disabled: true, onClick: undefined }
+      : tab === 2
+        ? json.primary
         : phase === "running"
           ? { label: COPY.processing, disabled: true, onClick: undefined }
           : phase === "done"
@@ -103,7 +110,7 @@ export function ImportModal({
           <button
             className={tab === i ? "active" : ""}
             onClick={() => setTab(i)}
-            disabled={phase === "running" || photosBusy}
+            disabled={phase === "running" || photosBusy || json.phase === "running"}
             key={x}
           >
             {x}
@@ -122,7 +129,7 @@ export function ImportModal({
             results={results}
           />
         )}
-        {tab === 2 && <ImportJsonTab />}
+        {tab === 2 && <ImportJsonTab json={json} />}
       </div>
       <div className="modal-footer">
         <div />

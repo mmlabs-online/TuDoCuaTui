@@ -3,9 +3,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 
 import App from "@/App";
 import { categoryNames } from "@/constants/wardrobe";
+import { API_ERROR_COPY, ApiError } from "@/data/apiErrors";
 import type { WardrobeRepo } from "@/data/repo";
 import { CSV_TEMPLATE } from "@/features/import-export/csv/template";
-import { fixtureItems as starter, fixtureLocations } from "@/test/fixtures";
+import { fixtureBackup, fixtureItems as starter, fixtureLocations } from "@/test/fixtures";
 import { createMemoryRepo } from "@/test/memoryRepo";
 
 vi.mock("@/data/photos", () => ({
@@ -518,19 +519,18 @@ describe("App import/export", () => {
     expect(area().value).toBe(CSV_TEMPLATE);
   });
 
-  it("Photos tab with no files and the JSON tab are disabled and add nothing", async () => {
+  it("Photos tab with no files is disabled and adds nothing; the JSON tab is live", async () => {
     await renderApp();
     openImport();
     expect(primary("Nhập 0 ảnh").disabled).toBe(true);
     fireEvent.click(tabButton("JSON (backup)"));
     expect(primary("Kiểm tra & import").disabled).toBe(true);
-    expect(screen.getByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeTruthy();
-    fireEvent.click(primary("Kiểm tra & import"));
+    expect(screen.queryByText("Sắp có — hiện chỉ nhập được bằng CSV.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(cards()).toHaveLength(16);
   });
 
-  it("export JSON and CSV download files and keep the modal open", async () => {
+  it("export JSON downloads the server backup (pretty JSON, version 1) and CSV is unchanged", async () => {
     const blobs: Blob[] = [];
     const createObjectURL = vi.fn((b: Blob) => {
       blobs.push(b);
@@ -556,10 +556,12 @@ describe("App import/export", () => {
     await renderApp();
     openExport();
     fireEvent.click(exportOption(0));
+    await screen.findByText("Đã xuất JSON");
     expect(names).toEqual(["tu-do-cua-toi.json"]);
     expect(blobs[0].type).toBe("application/json");
-    expect(JSON.parse(await read(blobs[0]))).toHaveLength(16);
-    await screen.findByText("Đã xuất JSON");
+    const text = await read(blobs[0]);
+    expect(JSON.parse(text)).toMatchObject({ version: 1, items: [], locations: [], wearLogs: [] });
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2));
 
     fireEvent.click(exportOption(1));
     expect(names).toEqual(["tu-do-cua-toi.json", "tu-do-cua-toi.csv"]);
@@ -568,6 +570,61 @@ describe("App import/export", () => {
     await screen.findByText("Đã xuất CSV");
     expect(revokeObjectURL).toHaveBeenCalledTimes(2);
     expect(screen.getByText("SAO LƯU & CHIA SẺ")).toBeTruthy();
+  });
+
+  it("JSON tab restores a pasted backup, shows the summary and toast; a following JSON export has the restored rows", async () => {
+    const blobs: Blob[] = [];
+    Object.defineProperty(URL, "createObjectURL", {
+      value: vi.fn((b: Blob) => {
+        blobs.push(b);
+        return "blob:x";
+      }),
+      configurable: true,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", { value: vi.fn(), configurable: true });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    await renderApp();
+    openImport();
+    fireEvent.click(tabButton("JSON (backup)"));
+    fireEvent.change(screen.getByPlaceholderText('{"version": 1, "items": [...], ...}'), {
+      target: { value: JSON.stringify(fixtureBackup) },
+    });
+    fireEvent.click(primary("Kiểm tra & import"));
+    fireEvent.click(primary("Khôi phục"));
+    await screen.findByText("Món thêm mới: 3");
+    expect(screen.getByText("1 món chưa có ảnh")).toBeTruthy();
+    await screen.findByText("Đã khôi phục bản sao lưu");
+    fireEvent.click(primary("Xong"));
+
+    openExport();
+    fireEvent.click(exportOption(0));
+    await screen.findByText("Đã xuất JSON");
+    const text = await new Promise<string>((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.readAsText(blobs[0]);
+    });
+    expect(JSON.parse(text).items.map((i: { name: string }) => i.name)).toEqual(
+      fixtureBackup.items.map((i) => i.name),
+    );
+  });
+
+  it("export JSON failure shows the API message as a toast and downloads nothing", async () => {
+    repoSwitch.memory = () => ({
+      ...createMemoryRepo(starter, fixtureLocations),
+      exportAll: async () => {
+        throw new ApiError(503, "db_unavailable");
+      },
+    });
+    const createObjectURL = vi.fn(() => "blob:x");
+    Object.defineProperty(URL, "createObjectURL", { value: createObjectURL, configurable: true });
+    await renderApp();
+    openExport();
+    fireEvent.click(exportOption(0));
+    await screen.findByText(API_ERROR_COPY.db_unavailable);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(screen.queryByText("Đã xuất JSON")).toBeNull();
   });
 
   it("Escape and the close button close the modals", async () => {

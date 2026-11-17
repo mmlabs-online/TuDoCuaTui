@@ -1,17 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fixtureItems as starter } from "@/test/fixtures";
+import { fixtureBackup, fixtureItems as starter } from "@/test/fixtures";
 import { toCsv } from "@/features/import-export/csv/serialize";
-import { download, exportFile } from "@/features/import-export/download";
+import { backupFile, download, exportFile } from "@/features/import-export/download";
 
 describe("exportFile", () => {
-  it("json", () => {
-    expect(exportFile(starter, "json")).toEqual({
-      content: JSON.stringify(starter, null, 2),
+  it("backupFile is pretty JSON (2 spaces) named tu-do-cua-toi.json", () => {
+    expect(backupFile(fixtureBackup)).toEqual({
+      content: JSON.stringify(fixtureBackup, null, 2),
       mime: "application/json",
       filename: "tu-do-cua-toi.json",
     });
-    expect(exportFile([], "json").content).toBe("[]");
   });
 
   it("csv", () => {

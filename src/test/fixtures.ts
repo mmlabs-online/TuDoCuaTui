@@ -1,4 +1,5 @@
 // Test-only sample wardrobe (formerly the local-mode demo data, removed by D44).
+import type { Backup } from "@/data/backup";
 import type { Item, Status } from "@/types/item";
 
 const photos = [
@@ -251,3 +252,55 @@ export const fixtureItems: Item[] = [
   lastWorn: daysAgo(x[10] as number),
   createdAt: daysAgo(i * 3),
 }));
+
+const U = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const row = (n: number, name: string, over: Partial<Backup["items"][number]> = {}) => ({
+  id: U(100 + n),
+  name,
+  category: "top",
+  status: "active",
+  brand: null,
+  size: null,
+  material: null,
+  price: null,
+  purchase_date: null,
+  location_id: U(1),
+  colors: [],
+  seasons: [],
+  tags: [],
+  notes: null,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+  photo_id: null,
+  ...over,
+});
+/** A valid version-1 backup as the server exports it (F-602). */
+export const fixtureBackup: Backup = {
+  version: 1,
+  exportedAt: "2026-11-17T18:30:00.000Z",
+  locations: [
+    {
+      id: U(1),
+      name: "Tủ phòng ngủ",
+      parent_id: null,
+      sort_order: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
+    },
+    {
+      id: U(2),
+      name: "Kệ giày",
+      parent_id: null,
+      sort_order: 1,
+      created_at: "2026-01-01T00:00:00.000Z",
+    },
+  ],
+  items: [
+    row(1, "Áo sơ mi linen trắng"),
+    row(2, "Quần jeans xanh", { photo_id: U(900) }),
+    row(3, "Giày sneaker trắng", { location_id: U(2) }),
+  ],
+  wearLogs: [
+    { id: U(200), item_id: U(101), worn_on: "2026-11-01" },
+    { id: U(201), item_id: U(102), worn_on: "2026-11-02" },
+  ],
+};

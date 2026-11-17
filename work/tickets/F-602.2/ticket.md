@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P0 |
 | Size | M |
 | Milestone | M1 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-17 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/76 |
 
 ## Goal
 Ming can download a full JSON backup and restore it from the app, with clear Vietnamese feedback.
@@ -58,3 +58,8 @@ Wire format and error codes: `work/tickets/F-602/plan.md` (merged with F-602).
   and its 8 defaults.
 
 ## Handoff
+
+### 2026-11-17 — claude — DONE
+- Done: plan (READY, Medium, no gate) → implement attempt 1 → review PASS; security audit PASS (no 🔴, 2 🟡 → follow-ups). PR #76.
+- In progress / next: Ming merges PR #76, then the real-app checks in the PR (round-trip diff, second restore no-op, iPhone Safari download/pick, 390px + dark). Do not restore from `pnpm dev` (D45).
+- Gotchas: on this machine `node_modules` works only under WSL (Ubuntu-24.04, `bash -ic` for mise); `gh` exists only in WSL. 15 server CLI spawn tests time out under WSL on /mnt/d (environment). Follow-ups 1–2 from security-review.md (`exportedAt` normalisation; pretty-print vs 8 MiB pre-check) are worth a small ticket.

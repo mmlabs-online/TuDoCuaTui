@@ -4,7 +4,7 @@ import type { Item } from "@/types/item";
 import { PhotoSaveError } from "@/data/apiErrors";
 import { PhotoLoaderContext } from "@/data/usePhotoUrl";
 import { useWardrobe } from "@/data/useWardrobe";
-import { download } from "@/features/import-export/download";
+import { download, downloadBackup } from "@/features/import-export/download";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { ExportModal } from "@/features/import-export/ExportModal";
 import { ImportModal } from "@/features/import-export/ImportModal";
@@ -70,6 +70,8 @@ function App({
   const [isNew, setIsNew] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const exportingRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiSettingsRev, setAiSettingsRev] = useState(0);
   const [confirm, setConfirm] = useState(false);
@@ -262,14 +264,32 @@ function App({
             importMany={wardrobe.importMany}
             importPhotos={wardrobe.importPhotos}
             onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
+            restoreBackup={wardrobe.restoreBackup}
+            onRestored={() => notify(IMPORT_EXPORT_COPY.restored)}
           />
         )}
         {exportOpen && (
           <ExportModal
             onClose={() => setExportOpen(false)}
-            onExport={(type) => {
-              download(items, type);
-              notify(IMPORT_EXPORT_COPY.exported(type));
+            busy={exportBusy}
+            onExport={async (type) => {
+              if (type === "csv") {
+                download(items, type);
+                notify(IMPORT_EXPORT_COPY.exported(type));
+                return;
+              }
+              if (exportingRef.current) return;
+              exportingRef.current = true;
+              setExportBusy(true);
+              try {
+                downloadBackup(await wardrobe.exportBackup());
+                notify(IMPORT_EXPORT_COPY.exported(type));
+              } catch (e) {
+                notify(wardrobe.message(e));
+              } finally {
+                exportingRef.current = false;
+                setExportBusy(false);
+              }
             }}
           />
         )}
