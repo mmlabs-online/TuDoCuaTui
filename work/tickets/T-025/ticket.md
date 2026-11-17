@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 2 |
 | Created | 2026-11-17 |
-| Claimed by | claude@2026-11-17T07:31:33Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/69 |
 
 ## Goal
 The app always runs against the Node API with real data and Identity sign-in. The Figma Make scaffolding and the
@@ -118,3 +118,8 @@ Plan approved (2026-11-17) — Ming: "Plan approved, giữ nguyên A1–A9" (A1�
 - Gotchas: run tests from the Linux filesystem in WSL; from `/mnt/d` the server CLI tests time out (host I/O, same on `main`).
 
 Ming 2026-11-17: "ok, sửa rồi mở PR" — before the PR, one more implementer pass for the security 🟡 items, the `dev-token.sh` fixes and chmod, and the README wording for D45 (local dev may use the production DB).
+
+### 2026-11-17 — claude — DONE (attempt 2)
+- Done: attempt 2 fixed the security 🟡 items (loopback guards for `server.host` / `allowedHosts` / `TUDO_DEV_API`), `dev-token.sh` trap and reads, executable bit, README per D45; review PASS (1254 tests); security no 🔴. PR #69 opened.
+- In progress / next: Ming reviews and merges PR #69, then runs the post-merge checks in the PR body.
+- Gotchas: security 🟡 C1 (README inline `DATABASE_URL` → shell history) is open in the PR body; hardening B1/B2/C2/C4/C5 are follow-ups.
