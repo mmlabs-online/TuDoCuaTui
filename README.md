@@ -20,7 +20,7 @@ pnpm dev
 ```
 
 - The token is written to `~/.config/tudocuatui/dev-token` (override with `TUDO_DEV_TOKEN_FILE`), outside the repo. It
-  lasts 15 minutes. Run `scripts/dev-token.sh` again when requests start failing, then press "Thử lại" or reload. No
+  lasts 12 hours (D46; 15 minutes until Identity issues 12-hour tokens, M-29). Run `scripts/dev-token.sh` again when requests start failing, then press "Thử lại" or reload. No
   Vite restart is needed.
 - The script signs in with the production `Origin` because Identity cannot register a localhost origin. After 3
   failed sign-ins Identity asks for Turnstile: sign in once at `https://tudocuatui.mmlabs.online`, then retry.

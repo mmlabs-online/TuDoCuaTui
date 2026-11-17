@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dev only (D44): sign in to mmlabs Identity as the owner and write a 15-minute bearer token to a file that the
+# Dev only (D44): sign in to mmlabs Identity as the owner and write a bearer token valid for up to 12 hours (D46) to a file that the
 # `pnpm dev` proxy reads on every request. The token never goes to the browser, the repo or stdout.
 #
 # - Only for the owner's own account, against a local Node server. A local database is the safe default; the

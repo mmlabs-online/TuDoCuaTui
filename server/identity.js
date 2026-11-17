@@ -9,6 +9,7 @@ export const AUDIENCE = "tudocuatui";
 export const MAX_TOKEN_CHARS = 4096;
 export const ISSUER_PROD = "https://api.mmlabs.online";
 const ROLE_PREFIX = "tudocuatui:";
+const MAX_TOKEN_AGE_S = 43200; // D46: 12-hour Identity tokens
 const CLAIMS = new Set(["iss", "aud", "typ", "iat", "nbf", "exp", "sub", "jti"]);
 const TOKEN_RE = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
 
@@ -111,7 +112,7 @@ export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs
           typ: "at+jwt",
           requiredClaims: ["exp", "iat", "sub", "jti", "iss", "aud"],
           clockTolerance: 30,
-          maxTokenAge: 900,
+          maxTokenAge: MAX_TOKEN_AGE_S,
         });
         if (typeof payload.aud !== "string") return { ok: false, code: "claim_aud" };
         if (typeof payload.jti !== "string" || payload.jti === "")

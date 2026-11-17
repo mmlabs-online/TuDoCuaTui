@@ -157,8 +157,16 @@ describe("verifier", () => {
     expect(await check(await t({ exp: now() - 31 }))).toEqual({ ok: false, code: "expired" });
     expect((await check(await t({ exp: now() - 29, iat: now() - 100 }))).ok).toBe(true);
     expect(await check(await t({ iat: now() + 31 }))).toEqual({ ok: false, code: "claim_iat" });
-    expect(await check(await t({ iat: now() - 931 }))).toEqual({ ok: false, code: "expired" });
     expect(await check(await t({ nbf: now() + 31 }))).toEqual({ ok: false, code: "claim_nbf" });
+  });
+
+  it("token age bound is 12 hours (D46)", async () => {
+    const { k, check } = await setup();
+    const t = (iat: number) => sign(k.privateKey, { ...goodClaims(), iat, exp: now() + 600 });
+    expect((await check(await t(now()))).ok).toBe(true);
+    expect((await check(await t(now() - 43140))).ok).toBe(true);
+    expect((await check(await t(now() - 43229))).ok).toBe(true);
+    expect(await check(await t(now() - 43231))).toEqual({ ok: false, code: "expired" });
   });
 
   it("missing required claims and a numeric jti", async () => {
