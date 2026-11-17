@@ -74,7 +74,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-004.3 | Extract modals and shrink `App.tsx` under 250 lines | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-201 | Harden the item editor | MERGED | P0 | M | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-202.2 | Lazy-load grid images and refresh expired signed URLs | SUPERSEDED | P0 | S | data | F-004.2, T-005.3 | none | 0 | 2026-11-12 |
-| F-202.1 | Accept phone photo formats with size check and progress | BACKLOG | P0 | M | ui, data | F-004.2, T-005.2 | none | 0 | 2026-11-07 |
+| F-202.1 | Accept phone photo formats with size check and progress | PLANNING | P0 | M | ui, data | F-004.2, T-005.2 | none | 0 | 2026-11-17 |
 | T-002 | Fix date-only wear math and align local wear rules | MERGED | P0 | S | data | F-005, F-004.2 | none | 1 | 2026-11-09 |
 | F-1002 | Camera capture on photo inputs | MERGED | P0 | S | ui | F-004.2 | none | 1 | 2026-11-09 |
 | F-601.3 | CSV import preview and import run | MERGED | P0 | M | ui, data | F-601.2, F-004.3 | none | 1 | 2026-11-09 |
