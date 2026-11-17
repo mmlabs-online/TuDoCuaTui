@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Dev only: start the full local dev loop in one terminal (D44/D45).
-#   1. the Postgres tunnel container (production DB on 127.0.0.1:15432, D45)
-#   2. a dev token, if the current one is missing or expired (scripts/dev-token.sh)
-#   3. the Node API server in the background, with DATABASE_URL given at runtime only
+#   1. a fresh dev token (scripts/dev-token.sh); the script stops unless it succeeds
+#   2. the Postgres tunnel container (production DB on 127.0.0.1:15432, D45)
+#   3. the DB password, then the Node API server in the background (DATABASE_URL given at runtime only)
 #   4. `pnpm dev` in the foreground; Ctrl-C stops both
 #
 # Guardrails (D45): this script never runs server/migrate.js. The DB password is read with `read -s` and only
@@ -32,13 +32,7 @@ if grep -q '^[[:space:]]*DATABASE_URL=' .env.local; then
 fi
 command -v pnpm >/dev/null || fail "pnpm not found (run: mise install)."
 
-# 1. Postgres tunnel
-if [ "$(docker inspect -f '{{.State.Running}}' "$TUNNEL" 2>/dev/null || true)" != "true" ]; then
-  echo "Starting $TUNNEL ..."
-  docker start "$TUNNEL" >/dev/null || fail "cannot start $TUNNEL."
-fi
-
-# 2. Dev token: fetch a new one when missing or expiring within 2 minutes
+# 1. Dev token: always sign in first; nothing else starts unless this succeeds
 token_ok() {
   [ -s "$TOKEN_FILE" ] || return 1
   TOKEN_FILE="$TOKEN_FILE" node -e '
@@ -48,12 +42,19 @@ token_ok() {
       process.exit(typeof p.exp === "number" && p.exp * 1000 > Date.now() + 120000 ? 0 : 1);
     } catch { process.exit(1); }'
 }
-if ! token_ok; then
-  echo "Dev token missing or expired: signing in to Identity."
-  scripts/dev-token.sh
+echo "Step 1/4: dev token (sign in to Identity)"
+scripts/dev-token.sh || fail "dev token failed; nothing was started."
+token_ok || fail "dev token file is missing or already expired after sign-in; nothing was started."
+
+# 2. Postgres tunnel
+echo "Step 2/4: Postgres tunnel"
+if [ "$(docker inspect -f '{{.State.Running}}' "$TUNNEL" 2>/dev/null || true)" != "true" ]; then
+  echo "Starting $TUNNEL ..."
+  docker start "$TUNNEL" >/dev/null || fail "cannot start $TUNNEL."
 fi
 
 # 3. Node API server on the production DB
+echo "Step 3/4: API server"
 IFS= read -rsp "Postgres password ($DB_USER@127.0.0.1:$DB_PORT/$DB_NAME): " pw </dev/tty
 echo
 [ -n "$pw" ] || fail "empty password."
@@ -93,7 +94,8 @@ done
 
 # 4. UI
 echo
+echo "Step 4/4: UI"
 echo "Open http://localhost:8443  (production data: every change is real, D45)."
-echo "Token expired? In another terminal: scripts/dev-token.sh, then press \"Thử lại\"."
+echo "The token is fresh for this session; if it expires, re-run scripts/dev-token.sh and press \"Thử lại\"."
 echo
 pnpm dev
