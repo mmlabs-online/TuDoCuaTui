@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S2 |
 | Priority | P1 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Introduced in | unknown — `src/App.test.tsx` grew heavier through BUG-002 (show-more clicks), F-602.2, F-603 and F-703 (2026-11-17) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | claude@2026-11-18T03:52:20Z |
 | PR | — |
