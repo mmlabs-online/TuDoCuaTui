@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import {
   createPhotoWorkerHost,
+  isWorkerReply,
   probeEnv,
   type WorkerEnv,
   type WorkerReply,
@@ -106,6 +107,61 @@ describe("photoWorkerHost", () => {
     expect(s.replies[1]).toEqual({ id: 1, ok: false });
     s.handle({ op: "release", id: 1 });
     expect(s.close).toHaveBeenCalledTimes(1);
+  });
+
+  test("malformed requests are ignored without throwing or replying", async () => {
+    const s = setup();
+    const bad: unknown[] = [
+      null,
+      undefined,
+      42,
+      "load",
+      {},
+      { op: "bogus", id: 1 },
+      { op: "load", id: 1 },
+      { op: "load", id: 1, blob: "x" },
+      { op: "load", blob: new Blob(["x"]) },
+      { op: "render", id: "1", max: 1200, quality: 0.8 },
+      { op: "render", id: 1, max: NaN, quality: 0.8 },
+      { op: "render", id: 1, max: 1200, quality: 5 },
+    ];
+    for (const m of bad) expect(() => s.handle(m)).not.toThrow();
+    await flush();
+    expect(s.replies).toEqual([]);
+    expect(s.createImageBitmap).not.toHaveBeenCalled();
+  });
+
+  test("an unknown op does not release a bitmap", async () => {
+    const s = setup();
+    s.handle({ op: "load", id: 1, blob: new Blob(["x"]) });
+    await flush();
+    s.handle({ op: "bogus", id: 1 });
+    expect(s.close).not.toHaveBeenCalled();
+  });
+
+  test("isWorkerReply accepts ready/done/fail and rejects other shapes", () => {
+    const ok: unknown[] = [
+      { type: "ready", ok: true },
+      { type: "ready", ok: false },
+      { id: 1, ok: false },
+      { id: 1, ok: true, width: 3, height: 4 },
+      { id: 1, ok: true, width: 3, height: 4, blob: new Blob(["x"]) },
+    ];
+    const bad: unknown[] = [
+      undefined,
+      null,
+      5,
+      "x",
+      {},
+      { type: "ready" },
+      { id: "1", ok: true, width: 1, height: 1 },
+      { id: 1, ok: true },
+      { id: 1, ok: true, width: "a", height: 1 },
+      { id: 1, ok: true, width: 1, height: 1, blob: "x" },
+      { id: 1.5, ok: false },
+    ];
+    for (const m of ok) expect(isWorkerReply(m)).toBe(true);
+    for (const m of bad) expect(isWorkerReply(m)).toBe(false);
   });
 
   test("probeEnv is false without a 2d context or without convertToBlob", () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { ENCODE_STEPS, prepareWith, type PhotoDeps } from "./photoPrep";
+import { ENCODE_STEPS, preparePhotoAuto, prepareWith, type PhotoDeps } from "./photoPrep";
 import { scaledSize } from "./photoScale";
 import { canUseWorker, createWorkerDeps, getOffThreadDeps } from "./photoWorkerClient";
 import {
@@ -15,6 +15,7 @@ type Listener = (e: { data?: unknown }) => void;
 class FakeWorker {
   listeners: Record<string, Listener[]> = {};
   posted: WorkerRequest[] = [];
+  terminated = 0;
   handle: (m: WorkerRequest) => void;
   constructor(
     opts: {
@@ -57,6 +58,9 @@ class FakeWorker {
   addEventListener(type: string, fn: Listener) {
     (this.listeners[type] ??= []).push(fn);
   }
+  terminate() {
+    this.terminated++;
+  }
   postMessage(m: WorkerRequest) {
     this.posted.push(m);
     this.handle(m);
@@ -69,6 +73,9 @@ const caught = (p: Promise<unknown>) =>
     () => null,
     (e: Error) => e,
   );
+
+// jsdom's FileReader (the header read in prepareWith) needs the real setImmediate.
+const fakeTimers = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 
 afterEach(() => vi.useRealTimers());
 
@@ -150,7 +157,7 @@ describe("createWorkerDeps", () => {
   });
 
   test("no ready within 5 s marks it broken", async () => {
-    vi.useFakeTimers();
+    fakeTimers();
     const { deps, state } = createWorkerDeps(new FakeWorker({ ready: null }));
     const p = caught(deps.load(jpeg()));
     await vi.advanceTimersByTimeAsync(5000);
@@ -175,6 +182,128 @@ describe("createWorkerDeps", () => {
     await deps.load(jpeg());
     w.emit("messageerror");
     expect(state.broken).toBe(true);
+  });
+
+  test("markBroken terminates the worker once (ready ok:false, ready timeout, error, messageerror, request timeout)", async () => {
+    // ready ok:false
+    const a = new FakeWorker({ ready: false });
+    await caught(createWorkerDeps(a).deps.load(jpeg()));
+    expect(a.terminated).toBe(1);
+    // ready timeout
+    fakeTimers();
+    const b = new FakeWorker({ ready: null });
+    const bd = createWorkerDeps(b);
+    const pb = caught(bd.deps.load(jpeg()));
+    await vi.advanceTimersByTimeAsync(5000);
+    await pb;
+    expect(b.terminated).toBe(1);
+    vi.useRealTimers();
+    // error, then a second break signal is a no-op
+    const c = new FakeWorker();
+    createWorkerDeps(c);
+    c.emit("error");
+    c.emit("messageerror");
+    expect(c.terminated).toBe(1);
+    // messageerror
+    const d = new FakeWorker();
+    createWorkerDeps(d);
+    d.emit("messageerror");
+    expect(d.terminated).toBe(1);
+    // request timeout
+    fakeTimers();
+    const e = new FakeWorker({ dims: [[1, 1]] });
+    const { deps } = createWorkerDeps(e);
+    await vi.advanceTimersByTimeAsync(1);
+    e.handle = () => {};
+    const pe = caught(deps.load(jpeg()));
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await pe).toMatchObject({ name: "WorkerUnavailableError" });
+    expect(e.terminated).toBe(1);
+  });
+
+  test("a load with no answer within 20 s falls back to main deps and succeeds", async () => {
+    fakeTimers();
+    const w = new FakeWorker();
+    const wd = createWorkerDeps(w);
+    await vi.advanceTimersByTimeAsync(1);
+    w.handle = () => {};
+    const main: PhotoDeps = {
+      load: async () => ({ width: 100, height: 100, release() {} }),
+      render: async () => ({ blob: new Blob(["j"]), width: 100, height: 100 }),
+    };
+    const p = preparePhotoAuto(jpeg(), {
+      offThread: () => (wd.state.broken ? null : wd.deps),
+      main,
+    });
+    // let the real FileReader header read finish so the request (and its timer) exists
+    await vi.waitFor(() => expect(w.posted.length).toBe(1));
+    await vi.advanceTimersByTimeAsync(20_000);
+    await expect(p).resolves.toMatchObject({ width: 100, height: 100 });
+    expect(wd.state.broken).toBe(true);
+    expect(w.terminated).toBe(1);
+  });
+
+  test("a late reply after the request timeout is ignored", async () => {
+    fakeTimers();
+    const w = new FakeWorker({ dims: [[1, 1]] });
+    const { deps, state } = createWorkerDeps(w);
+    await vi.advanceTimersByTimeAsync(1);
+    w.handle = () => {};
+    const p = caught(deps.load(jpeg()));
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await p).toMatchObject({ name: "WorkerUnavailableError" });
+    expect(() =>
+      w.emit("message", { data: { id: 1, ok: true, width: 5, height: 5 } }),
+    ).not.toThrow();
+    expect(state.broken).toBe(true);
+    expect(await p).toMatchObject({ name: "WorkerUnavailableError" });
+  });
+
+  test("an answered request clears its timeout", async () => {
+    fakeTimers();
+    const w = new FakeWorker();
+    const { deps, state } = createWorkerDeps(w);
+    const p = deps.load(jpeg());
+    await vi.advanceTimersByTimeAsync(10);
+    await p;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(state.broken).toBe(false);
+    expect(w.terminated).toBe(0);
+  });
+
+  test("malformed replies are ignored without throwing", async () => {
+    const w = new FakeWorker({ dims: [[7, 8]] });
+    const { deps, state } = createWorkerDeps(w);
+    const p = deps.load(jpeg());
+    const bad: unknown[] = [
+      undefined,
+      null,
+      5,
+      "x",
+      { type: "ready" },
+      { id: "1", ok: true },
+      { id: 1, ok: true, width: "a" },
+    ];
+    for (const data of bad) expect(() => w.emit("message", { data })).not.toThrow();
+    const img = await p;
+    expect([img.width, img.height]).toEqual([7, 8]);
+    expect(state.broken).toBe(false);
+  });
+
+  test("a render reply without a Blob rejects the render", async () => {
+    const w = new FakeWorker({ dims: [[10, 10]] });
+    const { deps } = createWorkerDeps(w);
+    const img = await deps.load(jpeg());
+    w.handle = (m) => w.reply({ id: m.id, ok: true, width: 5, height: 5 });
+    expect(await caught(deps.render(img, 1200, 0.8))).toBeInstanceOf(Error);
+  });
+
+  test("worker deps: a decoded image over MAX_PIXELS → tooManyPixels, no render posted, release posted", async () => {
+    const w = new FakeWorker({ dims: [[10000, 6000]] });
+    const { deps } = createWorkerDeps(w);
+    const err = await caught(prepareWith(new File(["x"], "a.heic", { type: "image/heic" }), deps));
+    expect(err).toMatchObject({ code: "tooManyPixels" });
+    expect(w.posted.map((m) => m.op)).toEqual(["load", "release"]);
   });
 
   test("release posts a release message", async () => {

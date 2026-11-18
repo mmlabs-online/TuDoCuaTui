@@ -18,6 +18,7 @@ export const EDITOR_COPY = {
         "Trình duyệt này chưa đọc được ảnh HEIC — hãy chọn ảnh JPG/PNG hoặc dùng Safari",
       unreadable: "Không đọc được ảnh này — thử ảnh khác nhé",
       tooLargeAfterResize: "Ảnh vẫn quá lớn sau khi nén — thử ảnh khác nhé",
+      tooManyPixels: "Ảnh có độ phân giải quá lớn (tối đa khoảng 50 MP) — hãy chọn ảnh nhỏ hơn",
     },
   },
   ai: {

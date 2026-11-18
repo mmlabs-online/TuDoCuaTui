@@ -6,7 +6,7 @@ import type { Item, Status } from "@/types/item";
 import { AiSettingsError } from "./aiSettings";
 import type { TagSuggestion } from "./aiTagging";
 import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
-import { PhotoPrepError } from "./photoPrep";
+import { PhotoPrepError, withPhotoType } from "./photoPrep";
 import type { SaveOptions } from "./repo";
 
 /** Mirrors `PHOTO_LIMITS.dailyMax` in server/photoQuota.js (uploads per rolling 24 h). */
@@ -218,7 +218,7 @@ export async function runPhotoImport(
     if (opts.signal?.aborted) break;
     opts.onCurrent?.(i);
     for (let attempt = 0; ; attempt++) {
-      const url = deps.createUrl(cur[i].file);
+      const url = deps.createUrl(withPhotoType(cur[i].file));
       try {
         const saved = await (opts.tag
           ? deps.save(itemFor(cur[i], url), { withPrepared: withPrepared(i) })

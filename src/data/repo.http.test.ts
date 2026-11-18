@@ -245,6 +245,16 @@ describe("createHttpRepo", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  test("a photo over the pixel cap throws before any request", async () => {
+    const { repo, fetchFn } = setup(() => json({ item: row }));
+    const failure = new PhotoPrepError("tooManyPixels");
+    prepare.mockRejectedValueOnce(failure);
+    const err = await repo.save(item({ photo: DATA_URL })).catch((e) => e);
+    expect(err).toBe(failure);
+    expect(err.message).toBe(EDITOR_COPY.photo.errors.tooManyPixels);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   test("a failing photo step throws PhotoSaveError with the saved item and Vietnamese copy", async () => {
     let n = 0;
     const { repo } = setup(() =>

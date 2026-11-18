@@ -3,11 +3,13 @@ import { EDITOR_COPY } from "@/features/items/copy";
 import {
   ENCODE_STEPS,
   MAX_INPUT_BYTES,
+  MAX_PIXELS,
   MAX_UPLOAD_BYTES,
   PhotoPrepError,
   photoKind,
   preparePhoto,
   preparePhotoAuto,
+  withPhotoType,
   type PhotoPrepCode,
 } from "./photoPrep";
 
@@ -146,6 +148,86 @@ describe("preparePhoto", () => {
     bad.render.mockRejectedValueOnce(new Error("x"));
     await codeOf(preparePhoto(file(10, "image/jpeg"), bad.deps));
     expect(bad.release).toHaveBeenCalledTimes(1);
+  });
+});
+
+const pngHeader = (w: number, h: number) => {
+  const b = new Uint8Array(32);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(b.buffer).setUint32(16, w);
+  new DataView(b.buffer).setUint32(20, h);
+  return b;
+};
+const pngFile = (w: number, h: number) =>
+  new File([pngHeader(w, h)], "a.png", { type: "image/png" });
+
+describe("pixel cap", () => {
+  test("rejects an image over MAX_PIXELS from its header without decoding", async () => {
+    const s = setup();
+    expect(await codeOf(preparePhoto(pngFile(10000, 6000), s.deps))).toBe("tooManyPixels");
+    expect(s.load).not.toHaveBeenCalled();
+  });
+
+  test("an image at MAX_PIXELS passes the header check", async () => {
+    const s = setup();
+    s.img.width = 8000;
+    s.img.height = MAX_PIXELS / 8000;
+    await expect(preparePhoto(pngFile(8000, MAX_PIXELS / 8000), s.deps)).resolves.toBeTruthy();
+    expect(s.load).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects a decoded image over MAX_PIXELS on main deps without rendering", async () => {
+    const s = setup();
+    s.img.width = 10000;
+    s.img.height = 6000;
+    expect(await codeOf(preparePhoto(file(10, "image/heic"), s.deps))).toBe("tooManyPixels");
+    expect(s.render).not.toHaveBeenCalled();
+    expect(s.release).toHaveBeenCalledTimes(1);
+  });
+
+  test("tooManyPixels from the worker is not retried on main deps", async () => {
+    const off = setup();
+    off.img.width = 10000;
+    off.img.height = 6000;
+    const main = setup();
+    const code = await codeOf(
+      preparePhotoAuto(file(10, "image/jpeg"), { offThread: () => off.deps, main: main.deps }),
+    );
+    expect(code).toBe("tooManyPixels");
+    expect(main.load).not.toHaveBeenCalled();
+  });
+});
+
+describe("withPhotoType", () => {
+  test("withPhotoType gives an empty-type .HEIC file the image/heic type and keeps name and size", () => {
+    const f = new File(["abc"], "IMG_1.HEIC", { type: "", lastModified: 1234 });
+    const out = withPhotoType(f);
+    expect(out).not.toBe(f);
+    expect(out.type).toBe("image/heic");
+    expect(out.name).toBe("IMG_1.HEIC");
+    expect(out.size).toBe(3);
+    expect(out.lastModified).toBe(1234);
+  });
+
+  test("withPhotoType maps application/octet-stream by extension", () => {
+    expect(
+      withPhotoType(new File(["x"], "a.heif", { type: "application/octet-stream" })).type,
+    ).toBe("image/heic");
+    expect(withPhotoType(new File(["x"], "a.jpg", { type: "" })).type).toBe("image/jpeg");
+  });
+
+  test("withPhotoType returns the same file when it already has a type or the extension is unknown", () => {
+    const typed = new File(["x"], "a.heic", { type: "image/png" });
+    const unknown = new File(["x"], "a.gif", { type: "" });
+    expect(withPhotoType(typed)).toBe(typed);
+    expect(withPhotoType(unknown)).toBe(unknown);
+  });
+
+  test("a .HEIC File with an empty type that cannot be decoded → heicUnsupported", async () => {
+    const s = setup();
+    s.load.mockRejectedValueOnce(new Error("x"));
+    const f = new File(["x"], "IMG.HEIC", { type: "" });
+    expect(await codeOf(preparePhoto(f, s.deps))).toBe("heicUnsupported");
   });
 });
 
