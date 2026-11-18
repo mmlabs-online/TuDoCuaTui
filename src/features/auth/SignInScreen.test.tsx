@@ -47,6 +47,16 @@ describe("SignInScreen", () => {
     expect(onSignIn).toHaveBeenCalledWith({ email: "an@vi.vn", password: " pass word " });
   });
 
+  it("show password toggles the field between hidden and visible", () => {
+    setup();
+    const field = screen.getByLabelText(AUTH_COPY.fields.password);
+    expect(field.getAttribute("type")).toBe("password");
+    fireEvent.click(screen.getByLabelText(AUTH_COPY.fields.showPassword));
+    expect(field.getAttribute("type")).toBe("text");
+    fireEvent.click(screen.getByLabelText(AUTH_COPY.fields.showPassword));
+    expect(field.getAttribute("type")).toBe("password");
+  });
+
   it("submitting disables submit and never calls again", () => {
     const { onSignIn } = setup({ status: "submitting", initialEmail: "an@vi.vn" });
     const btn = screen.getByRole("button", { name: AUTH_COPY.signIn.submitting });
@@ -153,6 +163,7 @@ describe("SignInScreen", () => {
     expect(order).toEqual([
       email,
       password,
+      screen.getByLabelText(AUTH_COPY.fields.showPassword),
       screen.getByRole("button", { name: AUTH_COPY.signIn.submit }),
       screen.getByRole("button", { name: AUTH_COPY.signIn.toSignUp }),
     ]);

@@ -89,7 +89,8 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-027.3 | Polish the bulk photo import UI | MERGED | P2 | S | ui | T-027.1 | none | 1 | 2026-11-18 |
 | F-704.1 | "Hôm nay mặc gì?" — rule-based outfit suggestions | MERGED | P2 | M | ui, data | — | none | 1 | 2026-11-18 |
 | F-704.2 | Use today's weather in outfit suggestions | MERGED | P2 | M | data, security, architecture | F-704.1 | plan-approval | 1 | 2026-11-18 |
-| F-704.3 | AI-ranked outfit suggestions | PLANNING | P2 | M | data, security, architecture | F-704.1 | plan-approval | 0 | 2026-11-18 |
+| F-704.3 | AI-ranked outfit suggestions | IN_PROGRESS | P2 | M | data, security, architecture | F-704.1 | plan-approval | 0 | 2026-11-18 |
+| F-704.4 | "✨ Gợi ý bằng AI" toggle in "Hôm nay mặc gì?" | BACKLOG | P2 | M | ui, data | F-704.3 | none | 0 | 2026-11-18 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | MERGED | P2 | XS | ui | — | none | 2 | 2026-11-17 |
 | BUG-004 | Search box overflows and scrolls sideways on mobile | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |

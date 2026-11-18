@@ -21,6 +21,7 @@ export function SignInScreen(props: SignInScreenProps) {
   } = props;
   const [email, setEmail] = useState(props.initialEmail ?? "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<"email" | "password">>({});
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -91,7 +92,7 @@ export function SignInScreen(props: SignInScreenProps) {
           id="signin-password"
           ref={passwordRef}
           label={copy.fields.password}
-          type="password"
+          type={showPassword ? "text" : "password"}
           autoComplete="current-password"
           value={password}
           error={errors.password && copy.fieldErrors[errors.password]}
@@ -100,6 +101,17 @@ export function SignInScreen(props: SignInScreenProps) {
             setErrors(({ password: _, ...rest }) => rest);
           }}
         />
+        <label
+          className="flex min-h-[44px] items-center gap-2 text-xs"
+          style={{ color: "var(--muted)" }}
+        >
+          <input
+            type="checkbox"
+            checked={showPassword}
+            onChange={(e) => setShowPassword(e.target.checked)}
+          />
+          {copy.fields.showPassword}
+        </label>
         {showTurnstile && <div className="min-h-[65px]">{turnstileSlot}</div>}
         <Btn type="submit" kind="primary" disabled={submitting}>
           {submitting ? copy.signIn.submitting : copy.signIn.submit}
