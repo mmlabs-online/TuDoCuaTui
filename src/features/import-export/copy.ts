@@ -11,14 +11,6 @@ export const CSV_MAP_COPY = {
   futureDate: (v: string) => `Ngày mua không được ở tương lai: ${v}`,
 };
 
-/** "2 giờ" / "5 phút" from a `Retry-After` in seconds; unknown → "ít phút". */
-export function formatWait(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "ít phút";
-  if (seconds < 60) return `${Math.ceil(seconds)} giây`;
-  if (seconds < 3600) return `${Math.ceil(seconds / 60)} phút`;
-  return `${Math.ceil(seconds / 3600)} giờ`;
-}
-
 /** UI copy for the import and export modals (F-004.3). */
 export const IMPORT_EXPORT_COPY = {
   import: {
@@ -54,6 +46,7 @@ export const IMPORT_EXPORT_COPY = {
         title: "Dùng AI điền loại, màu, mùa…",
         hint: "Chỉ điền các mục còn trống, bạn có thể sửa lại sau",
         disclosure: (provider: string) => `Ảnh sẽ được gửi tới ${provider} bằng key của bạn`,
+        rowTagging: "AI đang xem ảnh",
         tagging: (k: number, n: number, name: string) => `Đang nhờ AI xem ảnh ${k}/${n}: ${name}`,
         state: {
           filled: "AI đã điền",
@@ -71,8 +64,10 @@ export const IMPORT_EXPORT_COPY = {
       summaryPending: (n: number) => `Chưa xử lý: ${n}`,
       retry: (n: number) => `Thử lại (${n})`,
       retryIn: (wait: string) => `Thử lại sau ${wait}`,
-      stoppedRateLimited: (imported: number, wait: string) =>
-        `Đã dừng: đã nhập ${imported} ảnh. Bạn đã đạt giới hạn tải ảnh trong 24 giờ, thử lại sau ${wait} nhé. Các ảnh còn lại vẫn nằm trong danh sách.`,
+      stoppedRateLimited: (imported: number, wait?: string) =>
+        wait
+          ? `Đã dừng: đã nhập ${imported} ảnh. Bạn đã đạt giới hạn tải ảnh trong 24 giờ, thử lại sau ${wait} nhé. Các ảnh còn lại vẫn nằm trong danh sách.`
+          : `Đã dừng: đã nhập ${imported} ảnh. Bạn đã đạt giới hạn tải ảnh trong 24 giờ — bấm Thử lại để tiếp tục. Các ảnh còn lại vẫn nằm trong danh sách.`,
       stoppedQuota: (imported: number) =>
         `Đã dừng: đã nhập ${imported} ảnh. Bạn đã lưu đủ số ảnh tối đa — xoá bớt ảnh của món khác rồi thử lại. Các ảnh còn lại vẫn nằm trong danh sách.`,
       stoppedUnauthorized: (imported: number) =>

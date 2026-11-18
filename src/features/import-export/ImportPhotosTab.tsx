@@ -4,16 +4,31 @@ import { Btn } from "@/components/Btn";
 import { Field } from "@/components/Field";
 import { Icon } from "@/components/Icon";
 import { statuses } from "@/constants/wardrobe";
-import { exceedsDailyLimit, PHOTO_DAILY_LIMIT } from "@/data/photoImport";
+import {
+  AI_BATCH_OFF,
+  exceedsDailyLimit,
+  PHOTO_DAILY_LIMIT,
+  photoJobErrorText,
+  type PhotoStop,
+} from "@/data/photoImport";
 import { aiErrorText, needsSettings, type AiAvailability } from "@/features/items/aiFill";
 import { EDITOR_COPY } from "@/features/items/copy";
 import { SETTINGS_COPY } from "@/features/settings/copy";
-import { AI_BATCH_OFF } from "@/data/photoImport";
-import { formatWait, IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
+import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import type { PhotoImportState } from "@/features/import-export/usePhotoImport";
+import { formatWait } from "@/lib/formatWait";
 import type { Status } from "@/types/item";
 
 const PHOTOS = IMPORT_EXPORT_COPY.import.photos;
+
+const STOP_MESSAGE: Record<PhotoStop["code"], (done: number, waitSec: number) => string> = {
+  rate_limited: (done, sec) =>
+    PHOTOS.stoppedRateLimited(done, sec > 0 ? formatWait(sec) : undefined),
+  photo_quota_exceeded: (done) => PHOTOS.stoppedQuota(done),
+  unauthorized: (done) => PHOTOS.stoppedUnauthorized(done),
+  network: (done) => PHOTOS.stoppedNetwork(done),
+  unavailable: (done) => PHOTOS.stoppedUnavailable(done),
+};
 
 export interface PhotosAi {
   availability: AiAvailability;
@@ -70,7 +85,7 @@ export function ImportPhotosTab({
             className={`bulk-drop${dragging ? " drag-over" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
-              if (editing) setDragging(true);
+              setDragging(true);
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => {
@@ -84,9 +99,7 @@ export function ImportPhotosTab({
             </span>
             <h3>{PHOTOS.dropTitle}</h3>
             <p>{PHOTOS.dropHint}</p>
-            <Btn onClick={() => fileRef.current?.click()} disabled={!editing}>
-              {PHOTOS.pickPhotos}
-            </Btn>
+            <Btn onClick={() => fileRef.current?.click()}>{PHOTOS.pickPhotos}</Btn>
           </div>
           <div className="two-cols photo-defaults">
             <Field label={PHOTOS.locationLabel}>
@@ -95,7 +108,6 @@ export function ImportPhotosTab({
                 value={photos.location}
                 onChange={(e) => photos.setLocation(e.target.value)}
                 placeholder={PHOTOS.locationPlaceholder}
-                disabled={!editing}
               />
               <datalist id="photo-import-locations">
                 {locations.map((l) => (
@@ -107,7 +119,6 @@ export function ImportPhotosTab({
               <select
                 value={photos.status}
                 onChange={(e) => photos.setStatus(e.target.value as Status)}
-                disabled={!editing}
               >
                 {statuses.map((x) => (
                   <option key={x}>{x}</option>
@@ -183,17 +194,7 @@ export function ImportPhotosTab({
             </p>
           )}
           {stopped && (
-            <p className="csv-error">
-              {stopped.code === "rate_limited"
-                ? PHOTOS.stoppedRateLimited(done, formatWait(stopped.retryAfterSec ?? NaN))
-                : stopped.code === "photo_quota_exceeded"
-                  ? PHOTOS.stoppedQuota(done)
-                  : stopped.code === "unauthorized"
-                    ? PHOTOS.stoppedUnauthorized(done)
-                    : stopped.code === "network"
-                      ? PHOTOS.stoppedNetwork(done)
-                      : PHOTOS.stoppedUnavailable(done)}
-            </p>
+            <p className="csv-error">{STOP_MESSAGE[stopped.code](done, photos.cooldownSec)}</p>
           )}
           <ul>
             {aiSkipped.map((j) => (
@@ -203,7 +204,7 @@ export function ImportPhotosTab({
             ))}
             {failed.map((j) => (
               <li key={j.key} className="csv-error">
-                {j.file.name}: {(j.error as Error | undefined)?.message}
+                {j.file.name}: {photoJobErrorText(j.error)}
               </li>
             ))}
           </ul>
@@ -223,15 +224,19 @@ export function ImportPhotosTab({
             <p className="photo-warning">{PHOTOS.dailyWarning(PHOTO_DAILY_LIMIT)}</p>
           )}
           <ul className="csv-preview photo-files">
-            {jobs.map((j) => (
-              <li key={j.key}>
-                <span>{j.file.name}</span>
-                <b className={j.state === "done" ? "" : j.state === "pending" ? "" : "csv-error"}>
-                  {PHOTOS.state[j.state]}
-                  {j.ai && ` · ${AI.state[j.ai]}`}
-                </b>
-              </li>
-            ))}
+            {jobs.map((j, i) => {
+              const aiText =
+                current?.tagging && current.index === i ? AI.rowTagging : j.ai && AI.state[j.ai];
+              return (
+                <li key={j.key}>
+                  <span>{j.file.name}</span>
+                  <b className={j.state === "done" ? "" : j.state === "pending" ? "" : "csv-error"}>
+                    {PHOTOS.state[j.state]}
+                    {aiText && ` · ${aiText}`}
+                  </b>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

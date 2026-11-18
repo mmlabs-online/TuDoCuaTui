@@ -238,6 +238,19 @@ describe("photos AI", () => {
     expect(box().disabled).toBe(false);
   });
 
+  it("no AI settings request while the CSV or JSON tab is shown", async () => {
+    const { settings, rerender } = mount(async () => view());
+    await screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+    expect(settings.get).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "CSV / Excel" }));
+    rerender(1);
+    fireEvent.click(screen.getByRole("button", { name: "JSON (backup)" }));
+    rerender(2);
+    expect(settings.get).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Ảnh hàng loạt" }));
+    await waitFor(() => expect(settings.get).toHaveBeenCalledTimes(2));
+  });
+
   it("settingsRev bump reloads availability", async () => {
     let has = false;
     const { settings, rerender } = mount(async () => view({ hasKey: has }));
