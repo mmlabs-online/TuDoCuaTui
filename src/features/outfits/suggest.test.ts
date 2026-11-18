@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { SEASON_TO_DB } from "@/data/mappers";
 import {
+  AI_CANDIDATE_CAP,
+  candidatePool,
+  cleanReason,
   COLD_SEASONS,
   SEASON_BY_MONTH,
   seasonOf,
   suggestOutfits,
+  toAiOutfits,
   WEATHER_COLD_MAX_C,
   WEATHER_HOT_MAX_C,
   WEATHER_RAIN_CHANCE,
@@ -18,6 +22,7 @@ import type { Item } from "@/types/item";
 const JULY = Date.UTC(2026, 6, 15, 5); // Hạ
 const SEPT = Date.UTC(2026, 8, 15, 5); // Thu
 const JAN = Date.UTC(2026, 0, 15, 5); // Đông
+const DEC = Date.UTC(2026, 11, 15, 5); // Đông
 const DAY = 86_400_000;
 
 let n = 0;
@@ -340,5 +345,164 @@ describe("weather", () => {
     for (const o of withW(many("Đầm", 3), w(28, null)).outfits) {
       expect(o.reasons).not.toContain("rain");
     }
+  });
+});
+
+describe("candidatePool", () => {
+  const pool = (items: Item[], now = JULY, weather?: WeatherInput) =>
+    candidatePool(items, { now, weather });
+
+  it("only active items in rule categories", () => {
+    const keep = mk("Áo");
+    const items = [
+      keep,
+      mk("Áo", { status: "Cất kho" }),
+      mk("Áo", { status: "Cho mượn" }),
+      mk("Bikini"),
+      mk("Loại khác"),
+    ];
+    expect(pool(items)).toEqual([keep]);
+  });
+
+  it("season step", () => {
+    const summer = mk("Áo", { seasons: ["Hạ"] });
+    const winter = mk("Áo", { seasons: ["Đông"] });
+    const none = mk("Áo", { seasons: [] });
+    expect(
+      pool([summer, winter, none])
+        .map((i) => i.id)
+        .sort(),
+    ).toEqual([summer.id, none.id].sort());
+    // nothing fits for this role: all of its items are kept
+    const w1 = mk("Quần/váy", { seasons: ["Đông"] });
+    const w2 = mk("Quần/váy", { seasons: ["Đông"] });
+    expect(
+      pool([w1, w2])
+        .map((i) => i.id)
+        .sort(),
+    ).toEqual([w1.id, w2.id].sort());
+  });
+
+  it("outer only when the rules add one", () => {
+    const outer = mk("Khoác", { seasons: ["Đông"] });
+    const top = mk("Áo");
+    const has = (list: Item[]) => list.some((i) => i.id === outer.id);
+    expect(has(pool([outer, top], JULY))).toBe(false);
+    expect(has(pool([outer, top], JULY, { minC: 15, maxC: 20, rainChance: null }))).toBe(true);
+    expect(has(pool([outer, top], DEC, { minC: 25, maxC: 33, rainChance: null }))).toBe(false);
+    expect(has(pool([outer, top], DEC))).toBe(true);
+  });
+
+  it("orders never-worn, then longest-unworn, within a role", () => {
+    const a = mk("Áo", { id: "a", wearCount: 3, lastWorn: "2026-03-01" });
+    const b = mk("Áo", { id: "b", wearCount: 3, lastWorn: "2025-01-02" });
+    const c = mk("Áo", { id: "c", wearCount: 2, lastWorn: "" });
+    const d = mk("Áo", { id: "d", wearCount: 0, lastWorn: "", createdAt: "2026-02-01" });
+    const e = mk("Áo", { id: "e", wearCount: 0, lastWorn: "", createdAt: "2026-01-01" });
+    const f = mk("Áo", { id: "f", wearCount: 0, lastWorn: "", createdAt: "2026-01-01" });
+    expect(pool([a, b, c, d, e, f]).map((i) => i.id)).toEqual(["e", "f", "d", "c", "b", "a"]);
+  });
+
+  it("caps at 40", () => {
+    expect(pool(many("Áo", 60))).toHaveLength(AI_CANDIDATE_CAP);
+    expect(AI_CANDIDATE_CAP).toBe(40);
+  });
+
+  it("round-robin keeps every role under the cap", () => {
+    const bottoms = many("Quần/váy", 3);
+    const shoes = many("Giày/dép", 2);
+    const got = pool([...many("Áo", 50), ...bottoms, ...shoes]);
+    expect(got).toHaveLength(40);
+    for (const i of [...bottoms, ...shoes]) expect(got.map((g) => g.id)).toContain(i.id);
+  });
+
+  it("same result for shuffled input", () => {
+    const items = [
+      ...many("Áo", 6),
+      ...many("Quần/váy", 4),
+      ...many("Đầm", 2),
+      ...many("Giày/dép", 3),
+    ];
+    const rev = [...items].reverse();
+    expect(pool(rev).map((i) => i.id)).toEqual(pool(items).map((i) => i.id));
+  });
+
+  it("empty wardrobe -> []", () => {
+    expect(pool([])).toEqual([]);
+  });
+});
+
+describe("cleanReason", () => {
+  it("removes bidi, zero-width, line/paragraph separators and controls", () => {
+    const dirty = "a​b‏c‮d e⁦f﻿g\u0007h\u0085i";
+    expect(cleanReason(dirty)).toBe("abcdefghi");
+  });
+
+  it("NFC and Vietnamese kept", () => {
+    const decomposed = "đi chơi mùa Đông".normalize("NFD");
+    expect(decomposed).not.toBe("đi chơi mùa Đông");
+    expect(cleanReason(decomposed)).toBe("đi chơi mùa Đông");
+  });
+
+  it("collapses whitespace, trims, cuts to 120 code points", () => {
+    expect(cleanReason("  a \n\t b   c  ")).toBe("a b c");
+    const out = cleanReason("ạ".repeat(130));
+    expect(Array.from(out)).toHaveLength(120);
+  });
+});
+
+describe("toAiOutfits", () => {
+  const top = mk("Áo");
+  const bottom = mk("Quần/váy");
+  const shoes = mk("Giày/dép");
+  const dress = mk("Đầm");
+  const archived = mk("Áo", { status: "Cất kho" });
+  const bikini = mk("Bikini");
+  const items = [top, bottom, shoes, dress, archived, bikini];
+  const o = (itemIds: string[], reason = "ok") => ({ itemIds, reason });
+  const run2 = (outfits: { itemIds: string[]; reason: string }[]) =>
+    toAiOutfits({ outfits }, items);
+
+  it("maps ids to items in server order", () => {
+    const got = run2([o([shoes.id, top.id, bottom.id], "Hợp đi chơi")]);
+    expect(got).toEqual([{ pieces: [shoes, top, bottom], reason: "Hợp đi chơi" }]);
+  });
+
+  it("drops an outfit with an unknown, archived or bikini id, keeps the rest", () => {
+    const good = o([top.id, bottom.id]);
+    const got = run2([o([top.id, "nope"]), o([archived.id, bottom.id]), o([bikini.id]), good]);
+    expect(got.map((x) => x.pieces.map((p) => p.id))).toEqual([[top.id, bottom.id]]);
+  });
+
+  it("drops empty, over-5, duplicate-id and repeated outfits", () => {
+    const six = many("Áo", 6);
+    const got = toAiOutfits(
+      {
+        outfits: [
+          o([]),
+          o(six.slice(0, 5).map((i) => i.id)),
+          o(six.map((i) => i.id)),
+          o([top.id, top.id]),
+          o([top.id, bottom.id]),
+          o([bottom.id, top.id], "again"),
+        ],
+      },
+      [top, bottom, ...six],
+    );
+    expect(got.map((x) => x.pieces.length)).toEqual([5, 2]);
+  });
+
+  it("caps at 3", () => {
+    const tops = many("Áo", 5);
+    expect(toAiOutfits({ outfits: tops.map((t) => o([t.id])) }, tops)).toHaveLength(3);
+  });
+
+  it("a one-piece alone is kept", () => {
+    expect(run2([o([dress.id])])).toHaveLength(1);
+  });
+
+  it("drops an outfit whose reason is empty after cleaning; {outfits: []} -> []", () => {
+    expect(run2([o([top.id], " ​‮ "), o([bottom.id], "ok")])).toHaveLength(1);
+    expect(run2([])).toEqual([]);
   });
 });
