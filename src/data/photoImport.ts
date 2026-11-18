@@ -10,7 +10,6 @@ import type { SaveOptions } from "./repo";
 
 /** Mirrors `PHOTO_LIMITS.dailyMax` in server/photoQuota.js (uploads per rolling 24 h). */
 export const PHOTO_DAILY_LIMIT = 50;
-const DEFAULT_WAIT_SEC = 5;
 const MAX_WAIT_SEC = 30;
 
 export const exceedsDailyLimit = (count: number) => count > PHOTO_DAILY_LIMIT;
@@ -73,7 +72,40 @@ export type PhotoJob = {
   aiFields?: AiFields;
 };
 
-export type PhotoStop = { code: "rate_limited" | "photo_quota_exceeded"; retryAfterSec?: number };
+export type PhotoStop = {
+  code: "rate_limited" | "photo_quota_exceeded" | "unauthorized" | "network" | "unavailable";
+  retryAfterSec?: number;
+};
+
+/** Errors that would fail every later file the same way: the batch stops and the rest stays pending. */
+export function photoStopFor(err: ApiError | null): PhotoStop | null {
+  if (!err) return null;
+  if (err.code === "rate_limited")
+    return { code: "rate_limited", retryAfterSec: err.retryAfterSec };
+  if (err.code === "photo_quota_exceeded") return { code: "photo_quota_exceeded" };
+  if (err.status === 401) return { code: "unauthorized" };
+  if (err.status === 0 && err.code === "network") return { code: "network" };
+  if (err.status === 503 && err.retryAfterSec === undefined) return { code: "unavailable" };
+  return null;
+}
+
+/** The stop that means the photo quota is used up (uploads would fail again). */
+export const isPhotoQuotaStop = (s?: PhotoStop | null) =>
+  s?.code === "rate_limited" || s?.code === "photo_quota_exceeded";
+
+/** Identity of a picked file: the same name, size and lastModified is the same file. */
+export const photoFileKey = (f: File) => `${f.name}\u0000${f.size}\u0000${f.lastModified}`;
+
+/** The files not yet in `existing` and not repeated earlier in `files`. */
+export function newPhotoFiles(existing: PhotoJob[], files: File[]): File[] {
+  const seen = new Set(existing.map((j) => photoFileKey(j.file)));
+  return files.filter((f) => {
+    const k = photoFileKey(f);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 
 export type PhotoImportDeps = {
   save: (item: Item, opts?: SaveOptions) => Promise<Item>;
@@ -92,6 +124,8 @@ export type PhotoImportOptions = {
   tag?: (jpeg: Blob, signal?: AbortSignal) => Promise<TagSuggestion>;
   /** True while the tag call for job `index` is pending. */
   onTagging?: (index: number, on: boolean) => void;
+  /** The previous run of this batch stopped on the photo quota: no tag call until an upload succeeds. */
+  photoQuotaHit?: boolean;
 };
 
 export const abortableWait = (ms: number, signal?: AbortSignal) =>
@@ -113,7 +147,8 @@ const apiError = (e: unknown): ApiError | null => {
 
 /**
  * Creates one item per photo, in order. `save` is `repo.save`: it prepares the photo first (D48), then
- * upserts the item and uploads the photo. Stops on the daily/stored photo limits; waits and retries once on 503.
+ * upserts the item and uploads the photo. Stops on the photo limits, 401, a network error and a 503 without
+ * Retry-After; waits and retries once on a 503 with Retry-After.
  */
 export async function runPhotoImport(
   jobs: PhotoJob[],
@@ -122,6 +157,7 @@ export async function runPhotoImport(
 ): Promise<{ jobs: PhotoJob[]; stopped?: PhotoStop; aiStopped?: string }> {
   let cur = jobs;
   let aiOff: string | null = null;
+  let quotaHeld = !!opts.photoQuotaHit;
   const patch = (i: number, p: Partial<PhotoJob>) => {
     cur = cur.map((j, k) => (k === i ? { ...j, ...p } : j));
     opts.onUpdate?.(cur);
@@ -146,7 +182,7 @@ export async function runPhotoImport(
       if (job.state === "photoFailed") return item;
       if (job.aiFields) return applyAiToBatchItem(item, job.aiFields).item;
       if (job.ai === "filled" || job.ai === "nothing" || job.ai === "skipped") return item;
-      if (aiOff) {
+      if (aiOff || quotaHeld) {
         patch(i, { ai: "off" });
         return item;
       }
@@ -177,27 +213,24 @@ export async function runPhotoImport(
         const saved = await (opts.tag
           ? deps.save(itemFor(cur[i], url), { withPrepared: withPrepared(i) })
           : deps.save(itemFor(cur[i], url)));
+        quotaHeld = false;
         patch(i, { state: "done", item: saved, error: undefined });
         break;
       } catch (e) {
         const err = apiError(e);
-        const stop = err && (err.code === "rate_limited" || err.code === "photo_quota_exceeded");
+        const stop = photoStopFor(err);
         if (e instanceof PhotoSaveError) patch(i, { state: "photoFailed", item: e.item, error: e });
         else if (cur[i].state === "photoFailed") patch(i, { error: e });
         else patch(i, { state: stop ? "pending" : "failed", error: e });
         if (stop) {
-          const code = err.code as PhotoStop["code"];
           return {
             jobs: cur,
-            stopped: { code, retryAfterSec: err.retryAfterSec },
+            stopped: stop,
             ...(aiOff ? { aiStopped: aiOff as string } : {}),
           };
         }
         if (err?.status !== 503 || attempt > 0) break;
-        await deps.wait(
-          Math.min(err.retryAfterSec ?? DEFAULT_WAIT_SEC, MAX_WAIT_SEC) * 1000,
-          opts.signal,
-        );
+        await deps.wait(Math.min(err.retryAfterSec!, MAX_WAIT_SEC) * 1000, opts.signal);
         if (opts.signal?.aborted)
           return { jobs: cur, ...(aiOff ? { aiStopped: aiOff as string } : {}) };
       } finally {

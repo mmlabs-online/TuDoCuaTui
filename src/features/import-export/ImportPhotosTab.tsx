@@ -186,7 +186,13 @@ export function ImportPhotosTab({
             <p className="csv-error">
               {stopped.code === "rate_limited"
                 ? PHOTOS.stoppedRateLimited(done, formatWait(stopped.retryAfterSec ?? NaN))
-                : PHOTOS.stoppedQuota(done)}
+                : stopped.code === "photo_quota_exceeded"
+                  ? PHOTOS.stoppedQuota(done)
+                  : stopped.code === "unauthorized"
+                    ? PHOTOS.stoppedUnauthorized(done)
+                    : stopped.code === "network"
+                      ? PHOTOS.stoppedNetwork(done)
+                      : PHOTOS.stoppedUnavailable(done)}
             </p>
           )}
           <ul>
@@ -202,7 +208,11 @@ export function ImportPhotosTab({
             ))}
           </ul>
           {failed.length + pending > 0 && (
-            <Btn onClick={() => void photos.run()}>{PHOTOS.retry(failed.length + pending)}</Btn>
+            <Btn onClick={() => void photos.run()} disabled={photos.cooldownSec > 0}>
+              {photos.cooldownSec > 0
+                ? PHOTOS.retryIn(formatWait(photos.cooldownSec))
+                : PHOTOS.retry(failed.length + pending)}
+            </Btn>
           )}
         </div>
       )}
