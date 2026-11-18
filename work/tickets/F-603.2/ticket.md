@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | DONE |
+| State | MERGED |
 | Priority | P0 |
 | Size | S |
 | Milestone | M1 |
