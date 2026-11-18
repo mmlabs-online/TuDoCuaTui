@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  isPhotoQuotaStop,
   itemNameFromFile,
+  newPhotoFiles,
   type PhotoImportOptions,
   type PhotoJob,
   type PhotoStop,
@@ -43,24 +45,44 @@ export function usePhotoImport({
   const [aiStopped, setAiStopped] = useState<string | null>(null);
   const [stopped, setStopped] = useState<PhotoStop | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  const quotaHitRef = useRef(false);
+  // After a 429 stop "Thử lại" waits until Retry-After has passed.
+  const [retryAt, setRetryAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now);
+  const cooldownSec = retryAt ? Math.max(0, Math.ceil((retryAt - now) / 1000)) : 0;
+
+  useEffect(() => {
+    if (retryAt === null) return;
+    const timer = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= retryAt) setRetryAt(null);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [retryAt]);
 
   // Closing the modal (any route ends in unmount) stops the batch after the current file.
   useEffect(() => () => controllerRef.current?.abort(), []);
 
   const addFiles = (files: Iterable<File>) => {
     if (phase !== "edit") return;
-    const added = [...files].filter(isPhotoFile).map<PhotoJob>((file) => ({
-      key: crypto.randomUUID(),
-      file,
-      name: itemNameFromFile(file.name),
-      itemId: crypto.randomUUID(),
-      state: "pending",
-    }));
-    if (added.length) setJobs((p) => [...p, ...added]);
+    const photos = [...files].filter(isPhotoFile);
+    if (!photos.length) return;
+    setJobs((p) => [
+      ...p,
+      ...newPhotoFiles(p, photos).map<PhotoJob>((file) => ({
+        key: crypto.randomUUID(),
+        file,
+        name: itemNameFromFile(file.name),
+        itemId: crypto.randomUUID(),
+        state: "pending",
+      })),
+    ]);
   };
 
   /** First run and retry are the same call: files already done are skipped. */
   const run = async () => {
+    if (cooldownSec > 0) return;
     const todo = jobs.flatMap((j, i) => (j.state === "done" ? [] : [i]));
     if (!todo.length) return;
     const before = jobs.length - todo.length;
@@ -72,6 +94,7 @@ export function usePhotoImport({
     const out = await importPhotos(jobs, {
       defaults: { location, status },
       signal: controller.signal,
+      photoQuotaHit: quotaHitRef.current,
       onUpdate: setJobs,
       onCurrent: (i) =>
         setCurrent({ k: todo.indexOf(i) + 1, n: todo.length, name: jobs[i].name, tagging: false }),
@@ -88,6 +111,14 @@ export function usePhotoImport({
     setAiStopped(out.aiStopped ?? null);
     setPhase(out.stopped ? "stopped" : "done");
     const added = out.jobs.filter((j) => j.state === "done").length - before;
+    quotaHitRef.current = isPhotoQuotaStop(out.stopped) || (quotaHitRef.current && added <= 0);
+    const t = Date.now();
+    setNow(t);
+    setRetryAt(
+      out.stopped?.code === "rate_limited" && out.stopped.retryAfterSec
+        ? t + out.stopped.retryAfterSec * 1000
+        : null,
+    );
     if (added > 0) onImported(added);
   };
 
@@ -101,6 +132,7 @@ export function usePhotoImport({
     phase,
     current,
     stopped,
+    cooldownSec,
     aiOn,
     setAiOn,
     aiStopped,

@@ -10,6 +10,9 @@ import {
   applyAiToBatchItem,
   exceedsDailyLimit,
   itemNameFromFile,
+  isPhotoQuotaStop,
+  newPhotoFiles,
+  photoStopFor,
   type PhotoImportDeps,
   type PhotoJob,
   runPhotoImport,
@@ -120,7 +123,7 @@ describe("runPhotoImport", () => {
 
   test("creates and revokes one object URL per file (also on failure)", async () => {
     const { deps, urls, revoked } = setup(async (it) => {
-      if (it.id === "id2") throw err(0, "network");
+      if (it.id === "id2") throw err(500, "internal");
       return stored(it);
     });
     await runPhotoImport([job(1), job(2), job(3)], deps, { defaults: DEFAULTS });
@@ -160,7 +163,7 @@ describe("runPhotoImport", () => {
   test("item failure retry reuses the pre-assigned id", async () => {
     let fail = true;
     const { deps } = setup(async (it) => {
-      if (fail) throw err(0, "network");
+      if (fail) throw err(500, "internal");
       return stored(it);
     });
     const first = await runPhotoImport([job(1)], deps, { defaults: DEFAULTS });
@@ -230,17 +233,80 @@ describe("runPhotoImport", () => {
     expect(out.jobs.map((j) => j.state)).toEqual(["failed", "done"]);
   });
 
-  test("wait is capped at 30 s and defaults to 5 s without Retry-After", async () => {
+  test("wait is capped at 30 s", async () => {
     const a = setup(async () => {
       throw err(503, "photos_unavailable", 120);
     });
     await runPhotoImport([job(1)], a.deps, { defaults: DEFAULTS });
     expect(a.deps.wait.mock.calls[0][0]).toBe(30000);
-    const b = setup(async () => {
+  });
+
+  test("401 stops the batch and keeps the rest pending", async () => {
+    const { deps } = setup(async (it) => {
+      if (it.id === "id2") throw err(401, "unauthorized");
+      return stored(it);
+    });
+    const out = await runPhotoImport([job(1), job(2), job(3)], deps, { defaults: DEFAULTS });
+    expect(out.stopped).toEqual({ code: "unauthorized" });
+    expect(out.jobs.map((j) => j.state)).toEqual(["done", "pending", "pending"]);
+    expect(deps.save).toHaveBeenCalledTimes(2);
+  });
+
+  test("401 on the photo step keeps the saved item (photoFailed)", async () => {
+    const { deps } = setup(async (it) => {
+      if (it.id === "id1") throw photoFail(it, err(401, "unauthorized"));
+      return stored(it);
+    });
+    const out = await runPhotoImport([job(1), job(2)], deps, { defaults: DEFAULTS });
+    expect(out.stopped?.code).toBe("unauthorized");
+    expect(out.jobs.map((j) => j.state)).toEqual(["photoFailed", "pending"]);
+    expect(out.jobs[0].item?.id).toBe("id1");
+    expect(deps.save).toHaveBeenCalledTimes(1);
+  });
+
+  test("network error stops the batch and keeps the rest pending", async () => {
+    const { deps } = setup(async (it) => {
+      if (it.id === "id2") throw err(0, "network");
+      return stored(it);
+    });
+    const out = await runPhotoImport([job(1), job(2), job(3)], deps, { defaults: DEFAULTS });
+    expect(out.stopped).toEqual({ code: "network" });
+    expect(out.jobs.map((j) => j.state)).toEqual(["done", "pending", "pending"]);
+    expect(deps.save).toHaveBeenCalledTimes(2);
+  });
+
+  test("a second run after a network stop finishes the rest with the same ids", async () => {
+    let offline = true;
+    const { deps } = setup(async (it) => {
+      if (offline && it.id === "id2") throw err(0, "network");
+      return stored(it);
+    });
+    const first = await runPhotoImport([job(1), job(2), job(3)], deps, { defaults: DEFAULTS });
+    offline = false;
+    const second = await runPhotoImport(first.jobs, deps, { defaults: DEFAULTS });
+    expect(second.stopped).toBeUndefined();
+    expect(second.jobs.map((j) => j.state)).toEqual(["done", "done", "done"]);
+    expect(deps.save.mock.calls.map((c) => c[0].id)).toEqual(["id1", "id2", "id2", "id3"]);
+  });
+
+  test("503 without Retry-After stops the batch without waiting", async () => {
+    const a = setup(async () => {
       throw err(503, "photos_unavailable");
     });
-    await runPhotoImport([job(1)], b.deps, { defaults: DEFAULTS });
-    expect(b.deps.wait.mock.calls[0][0]).toBe(5000);
+    const out = await runPhotoImport([job(1), job(2)], a.deps, { defaults: DEFAULTS });
+    expect(out.stopped).toEqual({ code: "unavailable" });
+    expect(a.deps.wait).not.toHaveBeenCalled();
+    expect(a.deps.save).toHaveBeenCalledTimes(1);
+    expect(out.jobs.map((j) => j.state)).toEqual(["pending", "pending"]);
+
+    const b = setup(async (it) => {
+      throw photoFail(it, err(503, "photos_unavailable"));
+    });
+    const out2 = await runPhotoImport([job(1), job(2)], b.deps, { defaults: DEFAULTS });
+    expect(out2.stopped?.code).toBe("unavailable");
+    expect(b.deps.wait).not.toHaveBeenCalled();
+    expect(b.deps.save).toHaveBeenCalledTimes(1);
+    expect(out2.jobs.map((j) => j.state)).toEqual(["photoFailed", "pending"]);
   });
 
   test("abort stops before the next file and during a 503 wait", async () => {
@@ -258,13 +324,58 @@ describe("runPhotoImport", () => {
 
     const c2 = new AbortController();
     const b = setup(async () => {
-      throw err(503, "photos_unavailable");
+      throw err(503, "photos_unavailable", 5);
     });
     b.deps.wait.mockImplementation(async () => c2.abort());
     const out2 = await runPhotoImport([job(1)], b.deps, { defaults: DEFAULTS, signal: c2.signal });
     expect(b.deps.save).toHaveBeenCalledTimes(1);
     expect(out2.jobs[0].state).toBe("failed");
   });
+});
+
+test("photoStopFor maps 429, 409 quota, 401, network and 503-without-Retry-After; other errors → null", () => {
+  expect(photoStopFor(err(429, "rate_limited", 60))).toEqual({
+    code: "rate_limited",
+    retryAfterSec: 60,
+  });
+  expect(photoStopFor(err(429, "rate_limited"))).toEqual({
+    code: "rate_limited",
+    retryAfterSec: undefined,
+  });
+  expect(photoStopFor(err(409, "photo_quota_exceeded"))).toEqual({ code: "photo_quota_exceeded" });
+  expect(photoStopFor(err(401, "unauthorized"))).toEqual({ code: "unauthorized" });
+  expect(photoStopFor(err(0, "network"))).toEqual({ code: "network" });
+  expect(photoStopFor(err(503, "photos_unavailable"))).toEqual({ code: "unavailable" });
+  expect(photoStopFor(err(503, "db_unavailable"))).toEqual({ code: "unavailable" });
+  expect(photoStopFor(err(503, "photos_unavailable", 5))).toBeNull();
+  expect(photoStopFor(err(502, "photo_upload_failed"))).toBeNull();
+  expect(photoStopFor(err(400, "invalid_input"))).toBeNull();
+  expect(photoStopFor(null)).toBeNull();
+});
+
+test("isPhotoQuotaStop", () => {
+  expect(isPhotoQuotaStop({ code: "rate_limited" })).toBe(true);
+  expect(isPhotoQuotaStop({ code: "photo_quota_exceeded" })).toBe(true);
+  for (const code of ["unauthorized", "network", "unavailable"] as const)
+    expect(isPhotoQuotaStop({ code })).toBe(false);
+  expect(isPhotoQuotaStop(undefined)).toBe(false);
+  expect(isPhotoQuotaStop(null)).toBe(false);
+});
+
+test("newPhotoFiles drops files already picked and repeats within one pick", () => {
+  const f = (name: string, content = "x", lastModified = 1) =>
+    new File([content], name, { type: "image/jpeg", lastModified });
+  const a = f("a.jpg");
+  const existing = [job(1, { file: a })];
+  expect(newPhotoFiles(existing, [f("a.jpg")])).toEqual([]);
+  const b = f("b.jpg");
+  expect(newPhotoFiles(existing, [b, f("b.jpg"), b])).toEqual([b]);
+  const bigger = f("a.jpg", "xx");
+  const newer = f("a.jpg", "x", 2);
+  expect(newPhotoFiles(existing, [bigger, newer])).toEqual([bigger, newer]);
+  const nfd = f("áo.jpg".normalize("NFD"));
+  const nfc = f("áo.jpg".normalize("NFC"));
+  expect(newPhotoFiles([], [nfd, nfc])).toEqual([nfd, nfc]);
 });
 
 const SUGGESTION: TagSuggestion = {
@@ -563,5 +674,56 @@ describe("runPhotoImport AI", () => {
       onTagging: (i, on) => log.push(`${i}:${on}`),
     });
     expect(log).toEqual(["0:true", "tag", "0:false"]);
+  });
+});
+
+describe("runPhotoImport photoQuotaHit", () => {
+  const quotaFail = (it: Item) => photoFail(it, err(409, "photo_quota_exceeded"));
+
+  test("photoQuotaHit: no tag call until an upload succeeds", async () => {
+    const { deps } = aiSetup((it) => {
+      throw quotaFail(it);
+    });
+    const tag = vi.fn(async () => SUGGESTION);
+    const out = await runPhotoImport(
+      [
+        job(1, {
+          state: "photoFailed",
+          item: stored(blankItem()),
+          aiFields: suggestionToFields(SUGGESTION),
+        }),
+        job(2),
+      ],
+      deps,
+      { defaults: DEFAULTS, tag, photoQuotaHit: true },
+    );
+    expect(tag).not.toHaveBeenCalled();
+    expect(out.stopped?.code).toBe("photo_quota_exceeded");
+  });
+
+  test('photoQuotaHit: a file saved before any upload succeeds gets ai "off" without a tag call', async () => {
+    const { deps } = aiSetup();
+    const tag = vi.fn(async () => SUGGESTION);
+    const out = await runPhotoImport([job(1, { state: "failed" })], deps, {
+      defaults: DEFAULTS,
+      tag,
+      photoQuotaHit: true,
+    });
+    expect(tag).not.toHaveBeenCalled();
+    expect(out.jobs[0]).toMatchObject({ state: "done", ai: "off" });
+  });
+
+  test("photoQuotaHit: tagging resumes after the first successful upload", async () => {
+    const { deps } = aiSetup();
+    const tag = vi.fn(async () => SUGGESTION);
+    const out = await runPhotoImport(
+      [job(1, { state: "photoFailed", item: stored(blankItem()) }), job(2)],
+      deps,
+      { defaults: DEFAULTS, tag, photoQuotaHit: true },
+    );
+    expect(tag).toHaveBeenCalledTimes(1);
+    expect(out.jobs.map((j) => j.state)).toEqual(["done", "done"]);
+    expect(out.jobs[0].ai).toBeUndefined();
+    expect(out.jobs[1].ai).toBe("filled");
   });
 });

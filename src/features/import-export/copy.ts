@@ -70,10 +70,17 @@ export const IMPORT_EXPORT_COPY = {
       summaryFailed: (n: number) => `Lỗi: ${n}`,
       summaryPending: (n: number) => `Chưa xử lý: ${n}`,
       retry: (n: number) => `Thử lại (${n})`,
+      retryIn: (wait: string) => `Thử lại sau ${wait}`,
       stoppedRateLimited: (imported: number, wait: string) =>
         `Đã dừng: đã nhập ${imported} ảnh. Bạn đã đạt giới hạn tải ảnh trong 24 giờ, thử lại sau ${wait} nhé. Các ảnh còn lại vẫn nằm trong danh sách.`,
       stoppedQuota: (imported: number) =>
         `Đã dừng: đã nhập ${imported} ảnh. Bạn đã lưu đủ số ảnh tối đa — xoá bớt ảnh của món khác rồi thử lại. Các ảnh còn lại vẫn nằm trong danh sách.`,
+      stoppedUnauthorized: (imported: number) =>
+        `Đã dừng: đã nhập ${imported} ảnh. Phiên đăng nhập đã hết hạn — hãy đăng nhập lại rồi thử lại. Các ảnh còn lại vẫn nằm trong danh sách.`,
+      stoppedNetwork: (imported: number) =>
+        `Đã dừng: đã nhập ${imported} ảnh. Không kết nối được máy chủ — kiểm tra mạng rồi bấm Thử lại. Các ảnh còn lại vẫn nằm trong danh sách.`,
+      stoppedUnavailable: (imported: number) =>
+        `Đã dừng: đã nhập ${imported} ảnh. Máy chủ tạm thời chưa lưu được món đồ hoặc ảnh, thử lại sau nhé. Các ảnh còn lại vẫn nằm trong danh sách.`,
     },
     csv: {
       title: "Nhập danh sách từ bảng tính",

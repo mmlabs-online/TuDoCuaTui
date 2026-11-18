@@ -5,7 +5,10 @@ import { aiErrorText } from "@/features/items/aiFill";
 import type { PhotoImportOptions, PhotoJob, PhotoStop } from "@/data/photoImport";
 import { ImportModal } from "./ImportModal";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 type Out = { jobs: PhotoJob[]; stopped?: PhotoStop };
 type Fn = (jobs: PhotoJob[], opts: PhotoImportOptions) => Promise<Out>;
@@ -138,12 +141,134 @@ describe("ImportPhotosTab", () => {
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
     expect(screen.getByText(/Đã dừng: đã nhập 1 ảnh\..*thử lại sau 2 giờ nhé/)).toBeTruthy();
     expect(screen.getByText("Chưa xử lý: 1")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Thử lại (1)" })).toBeTruthy();
+    const retry = screen.getByRole("button", { name: "Thử lại sau 2 giờ" }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(true);
     const note = screen.getByText(/Đã dừng: đã nhập 1 ảnh/);
     expect(precedes(note, screen.getByText("a.jpg"))).toBe(true);
-    expect(
-      precedes(screen.getByRole("button", { name: "Thử lại (1)" }), screen.getByText("a.jpg")),
-    ).toBe(true);
+    expect(precedes(retry, screen.getByText("a.jpg"))).toBe(true);
+  });
+
+  describe("stops (T-027.1)", () => {
+    const stopWith =
+      (stopped: PhotoStop): Fn =>
+      async (jobs) => ({
+        jobs: jobs.map((j, i) => ({
+          ...j,
+          state: i === 0 ? ("done" as const) : ("pending" as const),
+        })),
+        stopped,
+      });
+
+    it('429 stop keeps "Thử lại" disabled until Retry-After has passed', async () => {
+      vi.useFakeTimers();
+      let call = 0;
+      const { fn, pick } = setup(async (jobs) => {
+        call++;
+        if (call === 1)
+          return stopWith({ code: "rate_limited", retryAfterSec: 90 })(jobs, {} as never);
+        return allDone(jobs, {} as never);
+      });
+      pick(photo("a.jpg"), photo("b.jpg"));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
+      const waiting = () =>
+        screen.getByRole("button", { name: /^Thử lại sau/ }) as HTMLButtonElement;
+      expect(waiting().textContent).toBe("Thử lại sau 2 phút");
+      expect(waiting().disabled).toBe(true);
+      await act(async () => fireEvent.click(waiting()));
+      expect(fn).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(waiting().textContent).toBe("Thử lại sau 1 phút");
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      const retry = screen.getByRole("button", { name: "Thử lại (1)" }) as HTMLButtonElement;
+      expect(retry.disabled).toBe(false);
+      await act(async () => fireEvent.click(retry));
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('429 without Retry-After leaves "Thử lại" enabled', async () => {
+      const { pick } = setup(stopWith({ code: "rate_limited" }));
+      pick(photo("a.jpg"), photo("b.jpg"));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
+      const retry = screen.getByRole("button", { name: "Thử lại (1)" }) as HTMLButtonElement;
+      expect(retry.disabled).toBe(false);
+    });
+
+    it.each([
+      ["unauthorized", /Phiên đăng nhập đã hết hạn/],
+      ["network", /Không kết nối được máy chủ — kiểm tra mạng/],
+      ["unavailable", /Máy chủ tạm thời chưa lưu được/],
+    ] as const)("%s stop shows its message", async (code, text) => {
+      const { pick } = setup(stopWith({ code }));
+      pick(photo("a.jpg"), photo("b.jpg"));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
+      expect(screen.getByText(/Đã dừng: đã nhập 1 ảnh\./)).toBeTruthy();
+      expect(screen.getByText(text)).toBeTruthy();
+      expect(screen.getByText(/Các ảnh còn lại vẫn nằm trong danh sách/)).toBeTruthy();
+      expect(
+        (screen.getByRole("button", { name: "Thử lại (1)" }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    it('network stop shows its message and "Thử lại" re-runs', async () => {
+      let call = 0;
+      const { fn, pick, onImported } = setup(async (jobs, o) => {
+        call++;
+        return call === 1 ? stopWith({ code: "network" })(jobs, o) : allDone(jobs, o);
+      });
+      pick(photo("a.jpg"), photo("b.jpg"));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
+      expect(screen.getByText(/Không kết nối được máy chủ — kiểm tra mạng/)).toBeTruthy();
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Thử lại (1)" })));
+      expect(fn).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("Đã nhập: 2")).toBeTruthy();
+      expect(onImported.mock.calls).toEqual([[1], [1]]);
+    });
+
+    it("picking the same file twice lists it once", () => {
+      const { pick, view } = setup();
+      const a = photo("a.jpg");
+      pick(a);
+      pick(a, a);
+      const zone = screen.getByText("Kéo nhiều ảnh vào đây").closest(".bulk-drop")!;
+      fireEvent.drop(zone, { dataTransfer: { files: [a] } });
+      expect(screen.getByText("1 ảnh đã chọn")).toBeTruthy();
+      expect(view.container.querySelectorAll(".photo-files li")).toHaveLength(1);
+    });
+
+    it("after a photo-quota stop the retry passes photoQuotaHit", async () => {
+      let call = 0;
+      const { fn, pick } = setup(async (jobs) => {
+        call++;
+        const first = jobs.findIndex((j) => j.state !== "done");
+        const stop = (s: PhotoStop, add: boolean): Out => ({
+          jobs: jobs.map((j, i) => ({
+            ...j,
+            state:
+              add && i === first
+                ? ("done" as const)
+                : j.state === "done"
+                  ? j.state
+                  : ("pending" as const),
+          })),
+          stopped: s,
+        });
+        if (call === 1) return stop({ code: "photo_quota_exceeded" }, false);
+        if (call === 2) return stop({ code: "network" }, false);
+        return stop({ code: "network" }, true);
+      });
+      pick(photo("a.jpg"), photo("b.jpg"), photo("c.jpg"));
+      const run = async (name: RegExp) =>
+        act(async () => fireEvent.click(screen.getByRole("button", { name })));
+      await run(/^Nhập 3 ảnh$/);
+      await run(/^Thử lại/);
+      await run(/^Thử lại/);
+      await run(/^Thử lại/);
+      expect(fn.mock.calls.map((c) => !!c[1].photoQuotaHit)).toEqual([false, true, true, false]);
+    });
   });
 
   it("tabs are disabled while running", async () => {
