@@ -83,6 +83,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-001 | Hide mock AI controls until M3 | MERGED | P0 | S | ui | F-004.3 | none | 1 | 2026-11-10 |
 | F-603 | Bulk photo import | MERGED | P0 | M | ui, data | F-601.3, F-202.1 | none | 2 | 2026-11-17 |
 | F-603.2 | Resize photos off the main thread for bulk import | DONE | P0 | S | data, security | F-603 | none | 1 | 2026-11-17 |
+| F-703 | Tag photos with AI during bulk import | BACKLOG | P1 | S | ui, data | F-701, F-603, F-603.2 | none | 0 | 2026-11-18 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | MERGED | P2 | XS | ui | — | none | 2 | 2026-11-17 |
 | BUG-004 | Search box overflows and scrolls sideways on mobile | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
