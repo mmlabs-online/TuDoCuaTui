@@ -148,7 +148,48 @@ describe("ImportPhotosTab", () => {
     expect(precedes(retry, screen.getByText("a.jpg"))).toBe(true);
   });
 
+  it("a non-API error shows Vietnamese text in the failed list", async () => {
+    const { pick } = setup(async (jobs) => ({
+      jobs: jobs.map((j) => ({
+        ...j,
+        state: "failed" as const,
+        error: new TypeError("Failed to fetch"),
+      })),
+    }));
+    pick(photo("a.jpg"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" })));
+    expect(screen.getByText("a.jpg: Có lỗi xảy ra, thử lại nhé")).toBeTruthy();
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+  });
+
   describe("stops (T-027.1)", () => {
+    it("429 stop message counts down with the button", async () => {
+      vi.useFakeTimers();
+      const { pick } = setup(async (jobs) => ({
+        jobs: jobs.map((j, i) => ({
+          ...j,
+          state: i === 0 ? ("done" as const) : ("pending" as const),
+        })),
+        stopped: { code: "rate_limited", retryAfterSec: 90 },
+      }));
+      pick(photo("a.jpg"), photo("b.jpg"));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" })));
+      expect(screen.getByText(/thử lại sau 2 phút nhé/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Thử lại sau 2 phút" })).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(screen.getByText(/thử lại sau 1 phút nhé/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Thử lại sau 1 phút" })).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      const note = screen.getByText(/Đã dừng: đã nhập 1 ảnh/);
+      expect(note.textContent).toContain("bấm Thử lại để tiếp tục");
+      expect(note.textContent).not.toContain("thử lại sau");
+      expect(screen.getByRole("button", { name: "Thử lại (1)" })).toBeTruthy();
+    });
+
     const stopWith =
       (stopped: PhotoStop): Fn =>
       async (jobs) => ({
@@ -343,6 +384,32 @@ describe("ImportPhotosTab AI", () => {
     expect(screen.getByText("Đang nhờ AI xem ảnh 2/2: b")).toBeTruthy();
     act(() => opts.onTagging?.(1, false));
     expect(screen.getByText("Đang nhập 2/2: b")).toBeTruthy();
+    await act(async () => release({ jobs: [] }));
+  });
+
+  it("row AI label changes during the run", async () => {
+    let release!: (o: Out) => void;
+    let opts!: PhotoImportOptions;
+    let jobs0: PhotoJob[] = [];
+    const { pick } = setupAi((jobs, o) => {
+      jobs0 = jobs;
+      opts = o;
+      return new Promise<Out>((r) => (release = r));
+    });
+    await ready();
+    pick(photo("a.jpg"), photo("b.jpg"));
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" }));
+    act(() => opts.onCurrent?.(0));
+    act(() => opts.onTagging?.(0, true));
+    expect(screen.getByText("Chờ · AI đang xem ảnh")).toBeTruthy();
+    act(() => opts.onTagging?.(0, false));
+    act(() =>
+      opts.onUpdate?.(jobs0.map((j, i) => (i === 0 ? { ...j, ai: "filled" as const } : j))),
+    );
+    expect(screen.getByText("Chờ · AI đã điền")).toBeTruthy();
+    expect(screen.queryByText("Chờ · AI đang xem ảnh")).toBeNull();
+    expect(screen.getByText("b.jpg").nextElementSibling?.textContent).toBe("Chờ");
     await act(async () => release({ jobs: [] }));
   });
 

@@ -4,7 +4,7 @@ import { blankItem } from "@/features/items/blankItem";
 import { suggestionToFields } from "@/features/items/aiFill";
 import { AiSettingsError } from "./aiSettings";
 import type { TagSuggestion } from "./aiTagging";
-import { ApiError, PhotoSaveError } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
 import type { SaveOptions } from "./repo";
 import {
   applyAiToBatchItem,
@@ -12,6 +12,7 @@ import {
   itemNameFromFile,
   isPhotoQuotaStop,
   newPhotoFiles,
+  photoJobErrorText,
   photoStopFor,
   type PhotoImportDeps,
   type PhotoJob,
@@ -378,6 +379,33 @@ test("newPhotoFiles drops files already picked and repeats within one pick", () 
   expect(newPhotoFiles([], [nfd, nfc])).toEqual([nfd, nfc]);
 });
 
+describe("photoJobErrorText", () => {
+  const saved = stored(blankItem(), { photo: "" });
+  test("ApiError keeps its Vietnamese message", () => {
+    const e = err(0, "network");
+    expect(photoJobErrorText(e)).toBe(e.message);
+  });
+  test("PhotoPrepError keeps its Vietnamese message", () => {
+    const e = new PhotoPrepError("heicUnsupported");
+    expect(photoJobErrorText(e)).toBe(e.message);
+  });
+  test("PhotoSaveError with an ApiError cause keeps its message", () => {
+    const e = new PhotoSaveError(saved, err(500, "internal"));
+    expect(photoJobErrorText(e)).toBe(e.message);
+  });
+  test("PhotoSaveError with a non-API cause shows the fixed copy, no English", () => {
+    const e = new PhotoSaveError(saved, new TypeError("Failed to fetch"));
+    expect(photoJobErrorText(e)).toBe(API_ERROR_COPY.photoNotSaved);
+  });
+  test("a TypeError gives the generic copy", () => {
+    expect(photoJobErrorText(new TypeError("Failed to fetch"))).toBe(API_ERROR_COPY.generic);
+  });
+  test("undefined and a string give the generic copy", () => {
+    expect(photoJobErrorText(undefined)).toBe(API_ERROR_COPY.generic);
+    expect(photoJobErrorText("boom")).toBe(API_ERROR_COPY.generic);
+  });
+});
+
 const SUGGESTION: TagSuggestion = {
   name: "Áo sơ mi kem",
   category: "top",
@@ -474,6 +502,18 @@ describe("applyAiToBatchItem", () => {
 });
 
 describe("runPhotoImport AI", () => {
+  test("onUpdate reports the AI state before the item is saved", async () => {
+    const { deps } = aiSetup();
+    const seen: Array<[PhotoJob["ai"], PhotoJob["state"]]> = [];
+    await runPhotoImport([job(1)], deps, {
+      defaults: DEFAULTS,
+      tag: async () => SUGGESTION,
+      onUpdate: (jobs) => seen.push([jobs[0].ai, jobs[0].state]),
+    });
+    expect(seen).toContainEqual(["filled", "pending"]);
+    expect(seen.at(-1)).toEqual(["filled", "done"]);
+  });
+
   test("no tag option: tag is never called and save gets no hook", async () => {
     const tag = vi.fn(async () => SUGGESTION);
     const { deps } = aiSetup();

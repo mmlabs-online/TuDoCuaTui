@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | T-027.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/82 |
 
 ## Goal
 The bulk photo import tab reads well on a phone and its code has no leftovers. Follow-ups from F-603 and F-703
@@ -54,5 +54,11 @@ place), R9 (390px and dark mode).
 - Unit tests; one-off Playwright check at 390px light and dark (D42).
 
 ## Notes / answers from Ming
+Plan approved (2026-11-18) — Ming approved plan.md including the import swap and moved `formatWait` tests in `src/features/auth/**`.
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: import modal scrolls only its content (10/10 rows reachable at 390×844, was 2/10); per-row "AI đang xem ảnh"; Vietnamese-only failed list (`photoJobErrorText`); `STOP_MESSAGE` lookup; 429 message counts down with the button; AI settings load only on the Photos tab; one shared `formatWait` in `src/lib` (auth: import swap only, plan approved by Ming); dead code removed. Review PASS (attempt 1); security review PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/82.
+- In progress / next: Ming merges PR #82 and checks 10 photos on a real phone. Remaining: T-027.2 (worker hardening).
+- Gotchas: the import modal flex rules are scoped with `.modal:has(> .import-content)`; other modals keep `display: block`.

@@ -36,6 +36,7 @@ export function usePhotoImport({
   const [status, setStatus] = useState<Status>("Đang dùng");
   const [phase, setPhase] = useState<PhotoPhase>("edit");
   const [current, setCurrent] = useState<{
+    index: number;
     k: number;
     n: number;
     name: string;
@@ -97,7 +98,13 @@ export function usePhotoImport({
       photoQuotaHit: quotaHitRef.current,
       onUpdate: setJobs,
       onCurrent: (i) =>
-        setCurrent({ k: todo.indexOf(i) + 1, n: todo.length, name: jobs[i].name, tagging: false }),
+        setCurrent({
+          index: i,
+          k: todo.indexOf(i) + 1,
+          n: todo.length,
+          name: jobs[i].name,
+          tagging: false,
+        }),
       ...(aiOn &&
         tagger && {
           tag: (jpeg: Blob, signal?: AbortSignal) => tagger.tag(jpeg, signal),

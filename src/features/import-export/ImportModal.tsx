@@ -47,7 +47,7 @@ export function ImportModal({
   const [phase, setPhase] = useState<CsvPhase>("edit");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
-  const aiLoad = useAiLoad(ai?.settings, ai?.settingsRev);
+  const aiLoad = useAiLoad(tab === 0 ? ai?.settings : undefined, ai?.settingsRev);
   const availability = aiAvailability(aiLoad.load, true);
   const photos = usePhotoImport({
     importPhotos,

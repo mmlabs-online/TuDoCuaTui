@@ -1,3 +1,5 @@
+import { formatWait } from "@/lib/formatWait";
+
 import type { AuthError, AuthErrorCode } from "./types";
 
 export type FieldErrorCode = "required" | "invalid" | "tooShort" | "tooLong" | "mismatch";
@@ -125,14 +127,6 @@ export const AUTH_COPY = {
     reset: "Đặt lại mật khẩu",
   },
 };
-
-/** Static wait text from a Retry-After value. */
-export function formatWait(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "ít phút";
-  if (seconds < 60) return `${Math.ceil(seconds)} giây`;
-  if (seconds < 3600) return `${Math.ceil(seconds / 60)} phút`;
-  return `${Math.ceil(seconds / 3600)} giờ`;
-}
 
 export function authErrorMessage(error: AuthError): string {
   const e = AUTH_COPY.errors;

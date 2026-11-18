@@ -5,7 +5,8 @@ import { NAME_MAX } from "@/features/items/validate";
 import type { Item, Status } from "@/types/item";
 import { AiSettingsError } from "./aiSettings";
 import type { TagSuggestion } from "./aiTagging";
-import { ApiError, PhotoSaveError } from "./apiErrors";
+import { API_ERROR_COPY, ApiError, PhotoSaveError } from "./apiErrors";
+import { PhotoPrepError } from "./photoPrep";
 import type { SaveOptions } from "./repo";
 
 /** Mirrors `PHOTO_LIMITS.dailyMax` in server/photoQuota.js (uploads per rolling 24 h). */
@@ -145,6 +146,14 @@ const apiError = (e: unknown): ApiError | null => {
   return cause instanceof ApiError ? cause : null;
 };
 
+/** Vietnamese text for a failed file: API and prep errors carry their own; anything else gets generic copy. */
+export function photoJobErrorText(error: unknown): string {
+  if (error instanceof PhotoSaveError)
+    return error.cause instanceof ApiError ? error.message : API_ERROR_COPY.photoNotSaved;
+  if (error instanceof ApiError || error instanceof PhotoPrepError) return error.message;
+  return API_ERROR_COPY.generic;
+}
+
 /**
  * Creates one item per photo, in order. `save` is `repo.save`: it prepares the photo first (D48), then
  * upserts the item and uploads the photo. Stops on the photo limits, 401, a network error and a 503 without
@@ -158,6 +167,7 @@ export async function runPhotoImport(
   let cur = jobs;
   let aiOff: string | null = null;
   let quotaHeld = !!opts.photoQuotaHit;
+  const withAiStop = <T extends object>(r: T) => (aiOff ? { ...r, aiStopped: aiOff } : r);
   const patch = (i: number, p: Partial<PhotoJob>) => {
     cur = cur.map((j, k) => (k === i ? { ...j, ...p } : j));
     opts.onUpdate?.(cur);
@@ -223,20 +233,15 @@ export async function runPhotoImport(
         else if (cur[i].state === "photoFailed") patch(i, { error: e });
         else patch(i, { state: stop ? "pending" : "failed", error: e });
         if (stop) {
-          return {
-            jobs: cur,
-            stopped: stop,
-            ...(aiOff ? { aiStopped: aiOff as string } : {}),
-          };
+          return withAiStop({ jobs: cur, stopped: stop });
         }
         if (err?.status !== 503 || attempt > 0) break;
         await deps.wait(Math.min(err.retryAfterSec!, MAX_WAIT_SEC) * 1000, opts.signal);
-        if (opts.signal?.aborted)
-          return { jobs: cur, ...(aiOff ? { aiStopped: aiOff as string } : {}) };
+        if (opts.signal?.aborted) return withAiStop({ jobs: cur });
       } finally {
         deps.revokeUrl(url);
       }
     }
   }
-  return { jobs: cur, ...(aiOff ? { aiStopped: aiOff as string } : {}) };
+  return withAiStop({ jobs: cur });
 }
