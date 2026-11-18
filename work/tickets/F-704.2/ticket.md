@@ -54,5 +54,10 @@ items first." Split recorded in F-704.1.
 - Unit: suggest + weather rules; server route with a fake provider. Manual: Ming turns weather on and checks a cold/rainy day.
 
 ## Notes / answers from Ming
+Answers (2026-11-18, after the software-architect consult):
+- Provider: Open-Meteo (no key; personal use), fixed list of ~15 Vietnamese cities, no free text, no GPS.
+- Place storage: **per device** (browser localStorage, off by default) — no table, no migration.
+- Thresholds: cold when today's max ≤ **24 °C** (add outer), hot when max ≥ 32 °C (no outer), rain when chance ≥ 60 %.
+- **One ticket** (no 2a/2b split); stop for plan approval as usual.
 
 ## Handoff
