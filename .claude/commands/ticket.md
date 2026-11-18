@@ -1,25 +1,33 @@
 ---
 description: Create a new ticket in work/ from a short description.
-argument-hint: "<description> [P0|P1|P2]"
+argument-hint: "<description> [P0|P1|P2|P3]"
 ---
 
-Create a ticket from: `$ARGUMENTS`
+<!-- spaceM project-kit. Project-specific values live in `.claude/loop.config.md`. -->
 
-If the description is a bug (something that worked or should work and does not), use `/bug` instead (D42).
+Create a ticket from: `$ARGUMENTS`. Read `.claude/loop.config.md` first.
 
-1. Read `work/backlog.md` and `docs/feature-list.md`.
-   - If the description matches a feature `F-xxx` that has no ticket yet, use that ID (and the feature's
-     priority, size, milestone and dependencies).
-   - Otherwise the ID is the highest existing `T-xxx` + 1, zero-padded to 3 digits.
+If the description is a bug (something that worked or should work and does not), use `/bug` instead.
+
+1. Read `work/backlog.md` and the **Scope sources** in `loop.config.md`.
+   - If the description matches a scoped item (feature, spec section) that has no ticket yet, reference it and use its
+     priority, size and dependencies.
+   - The ID follows **Ticket IDs** in `loop.config.md`: when it defines scope-item IDs (e.g. `F-xxx` from the feature
+     list) and the ticket is for such an item, reuse that item's ID (`.n` suffix for a split). Otherwise the ID is the
+     **Ticket prefix** followed by the highest existing number with that prefix + 1, zero-padded to 3 digits
+     (e.g. `T-001`).
 2. Create `work/tickets/<ID>/ticket.md` from `work/templates/ticket.md`:
    - **Goal**: one or two sentences, in English.
-   - **Feature reference**: the `F-xxx` section of `docs/feature-list.md`. If none fits, say so and ask Ming
-     whether it is in scope before creating the ticket.
-   - **Acceptance criteria**: 3–7 testable bullets from the description and the feature list. Do not invent requirements.
-   - **Areas**: any of `ui`, `data`, `db`, `security`, `architecture` that genuinely apply.
-   - **Gate**: `plan-approval` if the ticket will touch a High path (see `CLAUDE.md` → Risk tiers), else `none`.
-   - **Depends on** / **Needs Ming**: ticket IDs and `M-n` items from `work/ming-todo.md`, or `—`.
-   - Priority from the argument if given, else the feature's priority, else `P1`. State `BACKLOG`, attempts `0`.
+   - **Scope reference**: the section of a scope source this implements. If none fits, say so and ask Ming whether it
+     is in scope before creating the ticket.
+   - **Acceptance criteria**: 3–7 testable bullets from the description and the scope sources. Do not invent requirements.
+   - **Areas**: only areas listed in the **Consult** or **Review triggers** tables of `loop.config.md` that genuinely
+     apply (plus `security` when relevant).
+   - **Gate**: `plan-approval` if the **Plan approval gate** policy in `loop.config.md` covers the ticket (it will touch a
+     High path, or its priority is covered), else `none`.
+   - **Depends on** / **Needs Ming**: ticket IDs (`<repo> <ID>` for another repo) and `M-n` items from
+     `work/ming-todo.md`, or `—`.
+   - Priority from the argument if given, else the scope item's priority, else `P2`. State `BACKLOG`, attempts `0`.
 3. If the ticket is larger than **M** (about one day), propose a split into `<ID>.1`, `<ID>.2`… instead, and
    ask Ming which to create.
 4. Insert a row into `work/backlog.md` after the last ticket it depends on (backlog order is run order).

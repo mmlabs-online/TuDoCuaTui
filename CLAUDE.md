@@ -54,69 +54,34 @@ Do not change the stack without Ming's explicit decision.
 
 ## Workflow
 
-One orchestrated loop per ticket, the same as stoktok. **The main session is the orchestrator**
-(subagents cannot dispatch other subagents), driven by `/run`.
+<!-- spaceM project-kit 1.0.1 — inserted by /apply-kit. Settings: `.claude/loop.config.md`. Kit files: `.claude/kit.lock`. -->
+
+One orchestrated loop per ticket. **The main session is the orchestrator** (subagents cannot dispatch other subagents), driven by `/run`.
 
 ```
-/ticket "..."  →  BACKLOG      (/bug "..." → BACKLOG, a BUG-xxx ticket)
-/run [ID]      →  CONSULT (optional) → PLAN → [plan approval, High tickets only] → IMPLEMENT → REVIEW ─PASS→ DONE → PR
-                                                                                     ^                  │
-                                                                                     └──── REWORK ──────┘  max 2 reworks → ESCALATED
-Ming merges the PR → MERGED (set by /run or /status when they see the merge)
+/ticket "..."   →  BACKLOG
+/bug "..."      →  BACKLOG (BUG-xxx; then: record PR, record another, or fix the batch now)
+/run [ID]       →  CONSULT → PLAN ─(gate: High path → Ming approves)→ IMPLEMENT → REVIEW ─PASS→ DONE → PR → Ming merges → MERGED
+                                                                         ^            │
+                                                                         └── REWORK ──┘  max 2 reworks → ESCALATED (stop, ask Ming)
+/solo "..."     →  small direct change outside the loop (logged in work/solo-log.md)
+/status         →  board summary
 ```
 
-- No human gate between PLAN and IMPLEMENT, **except** tickets with `Gate: plan-approval` (High tier:
-  auth, migrations, production deploy config, per workspace rule §8). For those the loop stops at
-  `BLOCKED` until Ming writes "Plan approved" under *Notes / answers from Ming*.
-- A ticket is runnable only when every ticket in its `Depends on` is `MERGED` and every Ming item it
-  lists (`M-n`) is ticked in `work/ming-todo.md`. Branches start from the latest `main`, so an
-  unmerged dependency would be missing from the branch.
-- Each ticket runs on branch `ticket/<ID>` (or the session's mandated branch in cloud sessions). The
-  loop commits and pushes there; when the ticket is `DONE` it **opens a PR into `main`**. **Ming
-  approves and merges** — agents never merge, never enable auto-merge (`auto_merge: off`).
-- Unattended: `/loop /run` keeps picking the next runnable ticket until nothing is runnable.
+- Each ticket runs on branch `ticket/<ID>` (or the session's mandated branch). The board `work/backlog.md` changes only on `main`; row order is run order.
+- A ticket is claimed with `Claimed by: claude@<timestamp>` and every run appends to `## Handoff` in its `ticket.md`.
+- **Ming approves and merges every PR — agents never merge.**
+- Project settings (ticket prefix, scope sources, checks, consult table, review triggers, High paths, guardrails): `.claude/loop.config.md`.
+- Ticket states: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus `REWORK`, `BLOCKED`, `ESCALATED`.
 
-### Commands (`.claude/commands/`)
-| Command | Purpose |
-|---|---|
-| `/ticket <description>` | Create `work/tickets/<ID>/ticket.md` and a backlog row |
-| `/run [ID]` | Run the full loop for a ticket (no ID = first runnable ticket in backlog order) |
-| `/status` | Board summary; marks merged PRs as `MERGED` |
-| `/bug <description>` | Record a bug as `work/tickets/BUG-<n>/ticket.md` (repro, expected/actual, root cause) and a backlog row, then asks: A) open the record PR and stop, B) record another bug (asks again), C) fix the batch now and open one PR |
-| `/solo <description>` | Small direct change outside the loop (still must pass checks; logged) |
+Files: `work/backlog.md` (board), `work/ming-todo.md` (Ming-only steps), `work/decisions.md`, `work/solo-log.md`,
+`work/templates/`, `work/tickets/<ID>/` (`ticket.md`, `consult-*.md`, `plan.md`, `impl-log.md`, `review.md`, review-agent files, `escalation.md`).
 
-### Agents (`.claude/agents/`)
-| Agent | Model | Writes | Role |
-|---|---|---|---|
-| `planner` | opus | `plan.md` only | Ticket → implementable plan |
-| `implementer` | sonnet | code + `impl-log.md` | Smallest diff that meets the plan |
-| `reviewer` | opus | `review.md` only | PASS / REWORK with evidence |
-| `software-architect` | opus | — (consult) | Areas `architecture` |
-| `database-optimizer` | sonnet | — (consult) | Areas `db` |
-| `security-ai-generated-code-auditor` | opus | — (consult) | Areas `security`, or a diff touching auth, RLS, migrations, storage, env |
+Kit-managed files (`.claude/commands/`, `.claude/agents/`, `work/templates/`) come from spaceM `skills-library/project-kit`; change them there, not here, so every project gets the fix.
 
-Adapted from msitarzewski/agency-agents (MIT) via the stoktok project — see `THIRD_PARTY_NOTICES.md`.
-
-### Files (`work/`)
-```
-work/backlog.md          board: one row per ticket, in run order — changed only on `main` (D16)
-work/decisions.md        decisions taken for this project (dated)
-work/ming-todo.md        human steps (M-n), ticked by Ming
-work/solo-log.md         /solo changes
-work/templates/          ticket, bug, plan, impl-log, review, escalation
-work/tickets/<ID>/
-  ticket.md              fields, goal, scope, acceptance criteria, notes, Handoff
-  consult-<agent>.md     specialist notes (optional)
-  plan.md · impl-log.md · review.md · security-review.md · escalation.md
-```
-
-Ticket IDs: `F-xxx` / `F-xxx.n` from the feature list (`.n` = a split); `T-xxx` for tickets that are not in
-the feature list; `BUG-xxx` for bugs (`/bug`, template `work/templates/bug.md`, D42): every bug fix
-ships with a regression test that fails before the fix. States: `BACKLOG` → `PLANNING` → `IN_PROGRESS` → `REVIEW` → `DONE` → `MERGED`, plus
-`REWORK`, `BLOCKED`, `ESCALATED`.
-
-Shared state (workspace rule §9): `Claimed by` in ticket.md is set to `claude@<ISO timestamp>` when a run
-starts and cleared when it ends; every run appends to `## Handoff`.
+Ticket IDs: `F-xxx` / `F-xxx.n` from the feature list (`.n` = a split); `T-xxx` for tickets that are not in the
+feature list; `BUG-xxx` for bugs (`/bug`, D42): every bug fix ships with a regression test that fails before the fix.
+Unattended: `/loop /run` keeps picking the next runnable ticket until nothing is runnable.
 
 **Claude Code only** (Ming, 2026-11-07, decision D15): Antigravity does not work on this project. Claude
 plans, implements, writes the tests and reviews. Workspace routing that sends test writing to Antigravity
