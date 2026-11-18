@@ -191,3 +191,30 @@ export function wearItem(pool, userId, id, delta, today) {
     return { wear_count: s.rows[0].wear_count, last_worn: s.rows[0].last_worn, already };
   });
 }
+
+/**
+ * Outfit-suggestion candidates (F-704.3): the caller's own active items among `ids` in one of `categories`, read
+ * from the DB so the AI never sees an id or a field the client sent. Rows come back in the order of `ids`.
+ * @param {Pool} pool @param {UserId} userId @param {string[]} ids @param {string[]} categories
+ * @returns {Promise<import("./ai/outfitSuggest.js").Candidate[]>}
+ */
+export async function loadSuggestCandidates(pool, userId, ids, categories) {
+  const r = await withUser(
+    pool,
+    userId,
+    (c) =>
+      c.query(
+        `select id, name, category, colors, seasons, material, wear_count, last_worn
+         from items_with_stats
+         where user_id = $1 and id = any($2::uuid[]) and status = 'active' and category = any($3)`,
+        [userId, ids, categories],
+      ),
+    { readOnly: true },
+  );
+  /** @type {Map<string, import("./ai/outfitSuggest.js").Candidate>} */
+  const byId = new Map(r.rows.map((/** @type {{ id: string }} */ x) => [x.id, x]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
+  });
+}

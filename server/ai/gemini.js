@@ -23,11 +23,12 @@ export const GEMINI_TAG_INSTRUCTION =
   TAG_FIELDS;
 
 /**
- * buildTagSchema() in Gemini's responseSchema dialect: uppercase types, `nullable` instead of a null type, no null
+ * A JSON schema in Gemini's responseSchema dialect: uppercase types, `nullable` instead of a null type, no null
  * in enums, no additionalProperties or maxLength.
+ * @param {unknown} schema
  * @returns {Record<string, unknown>}
  */
-export function buildGeminiSchema() {
+export function toGeminiSchema(schema) {
   /** @param {any} s @returns {any} */
   const walk = (s) => {
     /** @type {Record<string, unknown>} */
@@ -51,7 +52,12 @@ export function buildGeminiSchema() {
     }
     return out;
   };
-  return walk(buildTagSchema());
+  return walk(schema);
+}
+
+/** buildTagSchema() in Gemini's dialect. @returns {Record<string, unknown>} */
+export function buildGeminiSchema() {
+  return toGeminiSchema(buildTagSchema());
 }
 
 /** @param {Response} res */
@@ -82,12 +88,21 @@ export async function checkGeminiKey({ fetch, key, model, timeoutMs = 10_000 }) 
 }
 
 /**
- * Tags a JPEG with a JSON response schema. Returns the raw (unsanitized) object; parseTagSuggestion validates it.
- * No retries, no logging; response text and reasons are never returned.
- * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, image: Buffer, signal?: AbortSignal, timeoutMs?: number }} p
+ * One generateContent call with a JSON response schema. Returns the raw parsed object. No retries, no logging;
+ * response text and reasons are never returned.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, parts: unknown[], schema: Record<string, unknown>, temperature?: number, signal?: AbortSignal, timeoutMs: number }} p
  * @returns {Promise<{ ok: true, input: Record<string, unknown> } | { ok: false, code: ReturnType<typeof mapGeminiError> | "provider_bad_response" }>}
  */
-export async function tagPhotoWithGemini({ fetch, key, model, image, signal, timeoutMs = 45_000 }) {
+async function geminiJsonCall({
+  fetch,
+  key,
+  model,
+  parts,
+  schema,
+  temperature,
+  signal,
+  timeoutMs,
+}) {
   /** @type {Response | undefined} */
   let res;
   try {
@@ -96,20 +111,12 @@ export async function tagPhotoWithGemini({ fetch, key, model, image, signal, tim
       method: "POST",
       headers: { "x-goog-api-key": key, "content-type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inline_data: { mime_type: "image/jpeg", data: image.toString("base64") } },
-              { text: GEMINI_TAG_INSTRUCTION },
-            ],
-          },
-        ],
+        contents: [{ role: "user", parts }],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: buildGeminiSchema(),
+          responseSchema: schema,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
-          temperature: 0,
+          ...(temperature === undefined ? {} : { temperature }),
           ...(thinking ? { thinkingConfig: thinking } : {}),
         },
       }),
@@ -119,8 +126,8 @@ export async function tagPhotoWithGemini({ fetch, key, model, image, signal, tim
     if (!res.ok) return { ok: false, code: await errorCode(res) };
     const data = /** @type {any} */ (await readCapped(res, MAX_RESPONSE_BYTES));
     const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : undefined;
-    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
-    const text = parts
+    const outParts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = outParts
       .filter((/** @type {any} */ p) => typeof p?.text === "string" && p.thought !== true)
       .map((/** @type {any} */ p) => p.text)
       .join("");
@@ -143,4 +150,49 @@ export async function tagPhotoWithGemini({ fetch, key, model, image, signal, tim
   } finally {
     await res?.body?.cancel().catch(() => {});
   }
+}
+
+/**
+ * Tags a JPEG with a JSON response schema. Returns the raw (unsanitized) object; parseTagSuggestion validates it.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, image: Buffer, signal?: AbortSignal, timeoutMs?: number }} p
+ */
+export function tagPhotoWithGemini({ fetch, key, model, image, signal, timeoutMs = 45_000 }) {
+  return geminiJsonCall({
+    fetch,
+    key,
+    model,
+    signal,
+    timeoutMs,
+    temperature: 0,
+    schema: buildGeminiSchema(),
+    parts: [
+      { inline_data: { mime_type: "image/jpeg", data: image.toString("base64") } },
+      { text: GEMINI_TAG_INSTRUCTION },
+    ],
+  });
+}
+
+/**
+ * Picks outfits from a text-only prompt (F-704.3): one text part, no image. No `temperature`, so the model
+ * default applies and repeated calls vary.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, prompt: string, schema: unknown, signal?: AbortSignal, timeoutMs?: number }} p
+ */
+export function suggestWithGemini({
+  fetch,
+  key,
+  model,
+  prompt,
+  schema,
+  signal,
+  timeoutMs = 30_000,
+}) {
+  return geminiJsonCall({
+    fetch,
+    key,
+    model,
+    signal,
+    timeoutMs,
+    schema: toGeminiSchema(schema),
+    parts: [{ text: prompt }],
+  });
 }

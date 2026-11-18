@@ -45,7 +45,7 @@ describe("limiter", () => {
     expect(l.check(OWNER_B, "save")).toBe(true);
   });
 
-  it.each(["test", "save", "tag"] as const)("global ceiling for %s", (kind) => {
+  it.each(["test", "save", "tag", "suggest"] as const)("global ceiling for %s", (kind) => {
     let t = 1_000_000;
     const l = createLimiter({ now: () => t });
     const { max, windowMs } = GLOBAL_LIMITS[kind];
@@ -104,7 +104,7 @@ describe("limiter", () => {
 });
 
 describe("owner lane", () => {
-  const KINDS = ["test", "save", "tag"] as const;
+  const KINDS = ["test", "save", "tag", "suggest"] as const;
   const others = (n: number) =>
     Array.from({ length: n }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
 

@@ -14,6 +14,7 @@ export const LIMITS = {
   test: { max: 20, windowMs: HOUR_MS },
   save: { max: 30, windowMs: HOUR_MS },
   tag: { max: 100, windowMs: 24 * HOUR_MS },
+  suggest: { max: 30, windowMs: 24 * HOUR_MS },
 };
 
 /** All users together: bounds outbound calls and `/test` as a key-validity oracle (A4). */
@@ -22,6 +23,7 @@ export const GLOBAL_LIMITS = {
   test: { max: 300, windowMs: HOUR_MS },
   save: { max: 600, windowMs: HOUR_MS },
   tag: { max: 2000, windowMs: 24 * HOUR_MS },
+  suggest: { max: 600, windowMs: 24 * HOUR_MS },
 };
 
 /**

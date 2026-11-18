@@ -34,12 +34,12 @@ export const TAG_TOOL_NAME = "tag_item";
 const MAX_RESPONSE_BYTES = 64 * 1024;
 
 /**
- * Tags a JPEG with forced tool use. Returns the raw (unsanitized) tool input; parseTagSuggestion validates it.
- * The key goes only in x-api-key to the pinned host. No retries, no logging, response text never returned.
- * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, image: Buffer, signal?: AbortSignal, timeoutMs?: number }} p
+ * One forced tool-use call with the pinned URL, key header, size cap and abort handling. Returns the raw
+ * (unsanitized) tool input. No retries, no logging, response text never returned.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, content: unknown[], tool: { name: string, description: string, input_schema: unknown }, signal?: AbortSignal, timeoutMs: number }} p
  * @returns {Promise<{ ok: true, input: Record<string, unknown> } | { ok: false, code: ReturnType<typeof mapClaudeError> | "provider_bad_response" }>}
  */
-export async function tagPhotoWithClaude({ fetch, key, model, image, signal, timeoutMs = 45_000 }) {
+async function claudeToolCall({ fetch, key, model, content, tool, signal, timeoutMs }) {
   /** @type {Response | undefined} */
   let res;
   try {
@@ -53,30 +53,9 @@ export async function tagPhotoWithClaude({ fetch, key, model, image, signal, tim
       body: JSON.stringify({
         model,
         max_tokens: 1024,
-        tools: [
-          {
-            name: TAG_TOOL_NAME,
-            description: "Record the clothing item seen in the photo.",
-            input_schema: buildTagSchema(),
-          },
-        ],
-        tool_choice: { type: "tool", name: TAG_TOOL_NAME },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: image.toString("base64"),
-                },
-              },
-              { type: "text", text: TAG_INSTRUCTION },
-            ],
-          },
-        ],
+        tools: [tool],
+        tool_choice: { type: "tool", name: tool.name },
+        messages: [{ role: "user", content }],
       }),
       redirect: "error",
       signal: AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]),
@@ -90,7 +69,7 @@ export async function tagPhotoWithClaude({ fetch, key, model, image, signal, tim
     if (
       data?.stop_reason !== "tool_use" ||
       blocks.length !== 1 ||
-      use?.name !== TAG_TOOL_NAME ||
+      use?.name !== tool.name ||
       typeof input !== "object" ||
       input === null ||
       Array.isArray(input)
@@ -103,4 +82,62 @@ export async function tagPhotoWithClaude({ fetch, key, model, image, signal, tim
   } finally {
     await res?.body?.cancel().catch(() => {});
   }
+}
+
+/**
+ * Tags a JPEG with forced tool use. Returns the raw (unsanitized) tool input; parseTagSuggestion validates it.
+ * The key goes only in x-api-key to the pinned host. No retries, no logging, response text never returned.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, image: Buffer, signal?: AbortSignal, timeoutMs?: number }} p
+ */
+export function tagPhotoWithClaude({ fetch, key, model, image, signal, timeoutMs = 45_000 }) {
+  return claudeToolCall({
+    fetch,
+    key,
+    model,
+    signal,
+    timeoutMs,
+    tool: {
+      name: TAG_TOOL_NAME,
+      description: "Record the clothing item seen in the photo.",
+      input_schema: buildTagSchema(),
+    },
+    content: [
+      {
+        type: "image",
+        source: { type: "base64", media_type: "image/jpeg", data: image.toString("base64") },
+      },
+      { type: "text", text: TAG_INSTRUCTION },
+    ],
+  });
+}
+
+export const SUGGEST_TOOL_NAME = "suggest_outfits";
+
+/**
+ * Picks outfits from a text-only prompt with forced tool use (F-704.3). Text content only: no image part.
+ * Returns the raw tool input; validateSuggestions decides what the app accepts.
+ * @param {{ fetch: typeof globalThis.fetch, key: string, model: string, prompt: string, schema: unknown, signal?: AbortSignal, timeoutMs?: number }} p
+ */
+export function suggestWithClaude({
+  fetch,
+  key,
+  model,
+  prompt,
+  schema,
+  signal,
+  timeoutMs = 30_000,
+}) {
+  return claudeToolCall({
+    fetch,
+    key,
+    model,
+    signal,
+    timeoutMs,
+    tool: {
+      name: SUGGEST_TOOL_NAME,
+      description: "Record the suggested outfits.",
+      input_schema: schema,
+    },
+    content: [{ type: "text", text: prompt }],
+  });
 }

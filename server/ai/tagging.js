@@ -73,7 +73,7 @@ const own = (o, k) => (Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undef
  * Trimmed NFC text, or null when empty, over `max` code points, or containing control characters.
  * @param {unknown} v @param {number} max @returns {string | null}
  */
-function text(v, max) {
+export function cleanText(v, max) {
   if (typeof v !== "string") return null;
   const t = v.normalize("NFC").trim();
   // oxlint-disable-next-line no-control-regex
@@ -103,19 +103,19 @@ export function parseTagSuggestion(raw) {
   const tags = [];
   if (Array.isArray(rawTags)) {
     for (const t of rawTags) {
-      const s = text(t, TAG_LIMITS.tag);
+      const s = cleanText(t, TAG_LIMITS.tag);
       if (s !== null && !tags.includes(s)) tags.push(s);
     }
   }
   return {
     ok: true,
     value: {
-      name: text(own(o, "name"), TAG_LIMITS.name),
+      name: cleanText(own(o, "name"), TAG_LIMITS.name),
       category: typeof category === "string" && CATEGORIES.includes(category) ? category : null,
       colors: ids(own(o, "colors"), COLOR_IDS, TAG_LIMITS.colors),
       seasons: ids(own(o, "seasons"), SEASONS, TAG_LIMITS.seasons),
-      material: text(own(o, "material"), TAG_LIMITS.material),
-      brand: text(own(o, "brand"), TAG_LIMITS.brand),
+      material: cleanText(own(o, "material"), TAG_LIMITS.material),
+      brand: cleanText(own(o, "brand"), TAG_LIMITS.brand),
       tags: tags.slice(0, TAG_LIMITS.tags),
     },
   };
