@@ -77,6 +77,9 @@ const selectWithLabel = (label: string) =>
 
 const statCard = (label: RegExp) => screen.getByRole("button", { name: label });
 
+// BUG-006: full-app renders under coverage and parallel workers take 5–7 s on CI; give this file headroom.
+vi.setConfig({ testTimeout: 20_000 });
+
 describe("App (UI)", () => {
   beforeEach(useMemoryRepo);
 
