@@ -181,7 +181,7 @@ main {
   line-height: 1.2;
   margin-bottom: 9px;
 }
-.intro > div > p:last-child {
+.intro > div > p:last-of-type {
   color: var(--muted);
   font-size: 13px;
 }
@@ -1181,7 +1181,7 @@ main {
   .intro h1 {
     font-size: 26px;
   }
-  .intro > div > p:last-child {
+  .intro > div > p:last-of-type {
     font-size: 11px;
     line-height: 1.6;
   }
@@ -1555,7 +1555,7 @@ main {
   border-radius: 50%;
   transform: rotate(-1.5deg);
 }
-.intro > .hero-copy > p:last-child {
+.intro > .hero-copy > p:last-of-type {
   font-size: 12px;
   color: var(--muted);
 }
@@ -2282,7 +2282,7 @@ main {
     font-size: 36px;
     line-height: 1;
   }
-  .intro > .hero-copy > p:last-child {
+  .intro > .hero-copy > p:last-of-type {
     max-width: 210px;
     font-size: 10px;
     line-height: 1.55;
@@ -2628,7 +2628,7 @@ main {
   .photo-files li b,
   .import-content pre,
   .collage-card span,
-  .intro > .hero-copy > p:last-child {
+  .intro > .hero-copy > p:last-of-type {
     font-size: 12px;
   }
   .btn,
@@ -2922,4 +2922,94 @@ main {
   color: var(--danger);
   font-size: 12.5px;
   line-height: 1.4;
+}
+
+.hero-cta {
+  margin-top: 14px;
+}
+.outfit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 20px calc(20px + env(safe-area-inset-bottom));
+}
+.outfit-season {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.outfit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.outfit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.outfit-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.outfit-pieces {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.outfit-piece {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.outfit-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 28px;
+}
+.outfit-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.outfit-name {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outfit-piece small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.outfit-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 0;
+  text-align: center;
+}
+.outfit-empty p {
+  color: var(--muted);
+  font-size: 13px;
 }

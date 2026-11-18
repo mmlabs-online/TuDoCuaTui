@@ -7,6 +7,7 @@ import { useWardrobe } from "@/data/useWardrobe";
 import { download, downloadBackup } from "@/features/import-export/download";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { ExportModal } from "@/features/import-export/ExportModal";
+import { OutfitsModal } from "@/features/outfits/OutfitsModal";
 import { ImportModal } from "@/features/import-export/ImportModal";
 import { blankItem } from "@/features/items/blankItem";
 import { EDITOR_COPY } from "@/features/items/copy";
@@ -70,6 +71,7 @@ function App({
   const [isNew, setIsNew] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [outfitsOpen, setOutfitsOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const exportingRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -144,6 +146,7 @@ function App({
             items={items}
             onImport={() => setImportOpen(true)}
             onExport={() => setExportOpen(true)}
+            onOutfits={() => setOutfitsOpen(true)}
           />
 
           <StatsRow items={items} special={filters.special} onToggleSpecial={toggleSpecial} />
@@ -272,6 +275,17 @@ function App({
             onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
             restoreBackup={wardrobe.restoreBackup}
             onRestored={() => notify(IMPORT_EXPORT_COPY.restored)}
+          />
+        )}
+        {outfitsOpen && (
+          <OutfitsModal
+            items={items}
+            onClose={() => setOutfitsOpen(false)}
+            onOpenItem={(item) => {
+              setOutfitsOpen(false);
+              setEditor({ ...item });
+              setIsNew(false);
+            }}
           />
         )}
         {exportOpen && (

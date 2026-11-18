@@ -3,15 +3,18 @@ import { Btn } from "@/components/Btn";
 import { Icon } from "@/components/Icon";
 import { ItemPhoto } from "@/components/ItemPhoto";
 import { isStale } from "@/features/items/filters";
+import { OUTFITS_COPY } from "@/features/outfits/copy";
 
 export function Hero({
   items,
   onImport,
   onExport,
+  onOutfits,
 }: {
   items: Item[];
   onImport: () => void;
   onExport: () => void;
+  onOutfits?: () => void;
 }) {
   return (
     <section className="intro">
@@ -24,6 +27,11 @@ export function Hero({
         <p>
           Hôm nay có {items.filter((i) => isStale(i)).length} món lâu chưa mặc — thử một món nhé?
         </p>
+        {onOutfits && (
+          <Btn kind="primary" className="hero-cta" onClick={onOutfits}>
+            {OUTFITS_COPY.entry}
+          </Btn>
+        )}
       </div>
       <div className="hero-collage" aria-label="Một vài món đồ trong bộ sưu tập">
         {items
