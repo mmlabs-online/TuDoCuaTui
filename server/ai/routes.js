@@ -19,7 +19,7 @@ import {
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, bodyTimeouts?: { totalMs: number, idleMs: number }, fetch: typeof globalThis.fetch }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag" | "suggest"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, suggestSlots: { tryAcquire(userId: string): (() => void) | null }, bodyTimeouts?: { totalMs: number, idleMs: number }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {
@@ -37,7 +37,7 @@ function toView(row) {
 /**
  * Reads the saved settings and opens the key. May throw DB errors; callers keep their try/catch.
  * Provider and model are checked before decryption: no plaintext for a request that cannot go out.
- * @param {AiContext & { store: AiStore }} ai
+ * @param {{ kek: import("./crypto.js").AiKek, store: AiStore }} ai
  * @param {string} userId required: never defaults to "the" row
  * @returns {Promise<{ ok: true, provider: import("./catalog.js").AiProvider, model: string, key: string } | { ok: false, status: number, code: string }>}
  */

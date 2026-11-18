@@ -333,6 +333,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
   describe("ai_settings", () => {
     const KEY_A = "sk-ant-KEYOFA-0123456789abcdef";
     const fetched: { url: string; key: string }[] = [];
+    const suggestBodies: string[] = [];
     let aiServer: http.Server;
     let aiBase: string;
     const aiCall = (as: As, p: string, init: RequestInit = {}) =>
@@ -360,6 +361,21 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
       const kek = await importKek(randomBytes(32).toString("base64"));
       const fakeFetch = (async (url: string, init: RequestInit) => {
         fetched.push({ url, key: (init.headers as Record<string, string>)["x-api-key"] });
+        if (String(init.body).includes('"suggest_outfits"')) {
+          suggestBodies.push(String(init.body));
+          return new Response(
+            JSON.stringify({
+              stop_reason: "tool_use",
+              content: [
+                {
+                  type: "tool_use",
+                  name: "suggest_outfits",
+                  input: { outfits: [{ items: ["i1", "i2"], reason: "Hợp thời tiết" }] },
+                },
+              ],
+            }),
+          );
+        }
         return url.endsWith("/messages")
           ? new Response(
               JSON.stringify({
@@ -387,6 +403,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     beforeEach(async () => {
       await pool.query("truncate ai_settings");
       fetched.length = 0;
+      suggestBodies.length = 0;
       statements = [];
     });
 
@@ -428,6 +445,41 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
       const bg = await tag("b");
       expect([bg.status, await codeOf(bg)]).toEqual([409, "key_unreadable"]);
       expect(fetched).toEqual([]);
+    });
+
+    it("suggest-outfits: B sending A's item ids gets no outfits and no provider call; A's stored item is not sent", async () => {
+      await save("a", { ...base_, apiKey: KEY_A });
+      const mk = (name: string, category: string, status: string) => ({
+        name,
+        category,
+        status,
+        location_name: "Tủ A",
+      });
+      expect((await put("a", uuid(11), mk("Áo trắng A", "top", "active"))).status).toBe(200);
+      expect((await put("a", uuid(12), mk("Quần đen A", "bottom", "active"))).status).toBe(200);
+      expect((await put("a", uuid(13), mk("Áo cất kho A", "top", "stored"))).status).toBe(200);
+      const ask = (as: As) =>
+        aiCall(as, "/api/ai/suggest-outfits", {
+          method: "POST",
+          headers: JSON_H,
+          body: JSON.stringify({
+            candidateIds: [uuid(11), uuid(12), uuid(13)],
+            season: "winter",
+            weather: { cold: false, hot: false, rain: false },
+          }),
+        });
+      const b = await ask("b");
+      expect([b.status, await b.json()]).toEqual([200, { outfits: [] }]);
+      expect(fetched).toEqual([]);
+      const a = await ask("a");
+      expect([a.status, await a.json()]).toEqual([
+        200,
+        { outfits: [{ itemIds: [uuid(11), uuid(12)], reason: "Hợp thời tiết" }] },
+      ]);
+      expect(fetched).toHaveLength(1);
+      expect(suggestBodies[0]).toContain("Áo trắng A");
+      expect(suggestBodies[0]).not.toContain("Áo cất kho A");
+      expect(suggestBodies[0]).not.toContain(uuid(11));
     });
 
     it("every statement of the AI routes mentions user_id", async () => {

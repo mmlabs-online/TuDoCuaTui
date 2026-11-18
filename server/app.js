@@ -71,6 +71,8 @@ export function createApp({
     limiter: createLimiter({ now, ownerSub }),
     // Tag-photo calls in flight: 1 per user, 2 in total (this app instance).
     tagSlots: createInFlight({ perUser: 1, total: 2, exempt: ownerSub }),
+    // Outfit-suggestion calls in flight, separate from tagging: 1 per user, 2 in total (F-704.3).
+    suggestSlots: createInFlight({ perUser: 1, total: 2, exempt: ownerSub }),
     bodyTimeouts,
     fetch: ai.fetch ?? globalThis.fetch,
   };

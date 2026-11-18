@@ -1,6 +1,7 @@
 // @ts-check
 // /api router. Called by app.js only after the auth check, with the raw pathname (never decoded).
 import { handleAiSettings } from "./ai/routes.js";
+import { handleSuggestOutfits } from "./ai/suggestOutfits.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
 import { handleBackup } from "./backup.js";
 import { dbLogFields, mapDbError } from "./errors.js";
@@ -30,6 +31,9 @@ function match(parts) {
   }
   if (parts.length === 4 && a === "ai" && b === "tag-photo") {
     return { route: "/api/ai/tag-photo", allow: "POST" };
+  }
+  if (parts.length === 4 && a === "ai" && b === "suggest-outfits") {
+    return { route: "/api/ai/suggest-outfits", allow: "POST" };
   }
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
@@ -112,6 +116,9 @@ export async function handleApi(
   }
   if (m.route === "/api/ai/tag-photo")
     return await handleTagPhoto(req, res, { ai, userId, id, log });
+  if (m.route === "/api/ai/suggest-outfits") {
+    return await handleSuggestOutfits(req, res, { ai, pool, userId, id, log, now });
+  }
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });

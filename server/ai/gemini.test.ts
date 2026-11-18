@@ -7,10 +7,13 @@ import {
   GEMINI_THINKING,
   buildGeminiSchema,
   checkGeminiKey,
+  suggestWithGemini,
   tagPhotoWithGemini,
+  toGeminiSchema,
 } from "./gemini.js";
 import { CATEGORIES, COLOR_IDS, SEASONS } from "../validate.js";
-import { TAG_FIELDS } from "./tagging.js";
+import { TAG_FIELDS, buildTagSchema } from "./tagging.js";
+import { buildSuggestSchema } from "./outfitSuggest.js";
 
 const SENTINEL = "AIzaSENTINEL-0123456789abcdefghijkl";
 const MODEL = "gemini-2.5-flash";
@@ -376,5 +379,73 @@ describe("tagPhotoWithGemini", () => {
       throw new TypeError("unexpected redirect");
     });
     expect(await run(redirect)).toEqual(unavailable);
+  });
+});
+
+describe("toGeminiSchema", () => {
+  it("toGeminiSchema(buildTagSchema()) equals buildGeminiSchema()", () => {
+    expect(toGeminiSchema(buildTagSchema())).toEqual(buildGeminiSchema());
+  });
+});
+
+describe("suggestWithGemini", () => {
+  const aliases = { i1: "a", i2: "b" };
+  const schema = buildSuggestSchema(aliases);
+  const prompt = "Pick outfits. Áo đẹp";
+  const obj = { outfits: [] };
+  const answer = (parts: unknown[], finishReason: unknown = "STOP") =>
+    json({ candidates: [{ finishReason, content: { role: "model", parts } }] });
+  const run = (f: ReturnType<typeof fetchOf>, extra: object = {}) =>
+    suggestWithGemini({ fetch: f, key: SENTINEL, model: MODEL, prompt, schema, ...extra });
+
+  it("suggest: key only in x-goog-api-key, one text part, no image, no temperature", async () => {
+    const f = fetchOf(async () => answer([{ text: JSON.stringify(obj) }]));
+    expect(await run(f)).toEqual({ ok: true, input: obj });
+    const [url, init] = callOf(f);
+    expect(url).toBe(GEMINI_BASE + encodeURIComponent(MODEL) + ":generateContent");
+    expect(url).not.toContain(SENTINEL);
+    expect(init.headers).toEqual({
+      "x-goog-api-key": SENTINEL,
+      "content-type": "application/json",
+    });
+    expect(init.body as string).not.toContain(SENTINEL);
+    expect(init.body as string).not.toContain("inline_data");
+    const body = JSON.parse(init.body as string);
+    expect(body.contents).toEqual([{ role: "user", parts: [{ text: prompt }] }]);
+    expect(body.generationConfig).toEqual({
+      responseMimeType: "application/json",
+      responseSchema: JSON.parse(JSON.stringify(toGeminiSchema(schema))),
+      maxOutputTokens: 2048,
+      thinkingConfig: GEMINI_THINKING[MODEL],
+    });
+    expect(body.generationConfig).not.toHaveProperty("temperature");
+  });
+
+  it("suggest: finishReason other than STOP or invalid JSON -> provider_bad_response", async () => {
+    const text = JSON.stringify(obj);
+    const cases: Response[] = [
+      answer([{ text }], "MAX_TOKENS"),
+      answer([{ text }], "SAFETY"),
+      answer([{ text: "not json" }]),
+      answer([{ text: "[1]" }]),
+      answer([]),
+    ];
+    for (const res of cases) {
+      expect(await run(fetchOf(async () => res))).toEqual({
+        ok: false,
+        code: "provider_bad_response",
+      });
+    }
+  });
+
+  it("suggest: non-2xx mapped; timeout -> provider_unavailable", async () => {
+    expect(await run(fetchOf(async () => googleError(429)))).toEqual({
+      ok: false,
+      code: "provider_rate_limited",
+    });
+    expect(await run(hang(), { timeoutMs: 20 })).toEqual({
+      ok: false,
+      code: "provider_unavailable",
+    });
   });
 });

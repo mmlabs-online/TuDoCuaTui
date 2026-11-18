@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { CLAUDE_MODELS_URL, checkClaudeKey, tagPhotoWithClaude } from "./claude.js";
+import {
+  CLAUDE_MODELS_URL,
+  checkClaudeKey,
+  suggestWithClaude,
+  tagPhotoWithClaude,
+} from "./claude.js";
 import { TAG_INSTRUCTION, buildTagSchema } from "./tagging.js";
 
 const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
@@ -239,5 +244,104 @@ describe("tagPhotoWithClaude", () => {
     ctl.abort();
     expect(await p).toEqual(unavailable);
     expect(callOf(h)[1].signal!.aborted).toBe(true);
+  });
+});
+
+describe("suggestWithClaude", () => {
+  const schema = { type: "object", properties: { outfits: { type: "array" } } };
+  const prompt = "Pick outfits. Items: [] Áo đẹp";
+  const input = { outfits: [] };
+  const good = {
+    stop_reason: "tool_use",
+    content: [{ type: "tool_use", name: "suggest_outfits", input }],
+  };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  const run = (f: ReturnType<typeof fetchOf>, extra: object = {}) =>
+    suggestWithClaude({
+      fetch: f,
+      key: SENTINEL,
+      model: "claude-haiku-5-5",
+      prompt,
+      schema,
+      ...extra,
+    });
+  const callOf = (f: ReturnType<typeof fetchOf>) =>
+    (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+
+  it("suggest: text-only body, key only in x-api-key to the pinned URL", async () => {
+    const f = fetchOf(async () => json(good));
+    expect(await run(f)).toEqual({ ok: true, input });
+    const [url, init] = callOf(f);
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    expect(init.method).toBe("POST");
+    expect(init.redirect).toBe("error");
+    expect(init.headers).toEqual({
+      "x-api-key": SENTINEL,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    });
+    expect(init.body as string).not.toContain(SENTINEL);
+    const body = JSON.parse(init.body as string);
+    expect(body.max_tokens).toBe(1024);
+    expect(body.messages).toEqual([{ role: "user", content: [{ type: "text", text: prompt }] }]);
+    expect(init.body as string).not.toContain('"image"');
+    expect(body.tools).toHaveLength(1);
+    expect(body.tools[0].name).toBe("suggest_outfits");
+    expect(body.tools[0].input_schema).toEqual(schema);
+    expect(body.tool_choice).toEqual({ type: "tool", name: "suggest_outfits" });
+  });
+
+  it("suggest: non-2xx is mapped by mapClaudeError", async () => {
+    const cases: [number, string][] = [
+      [401, "invalid_key"],
+      [403, "key_forbidden"],
+      [404, "model_unavailable"],
+      [429, "provider_rate_limited"],
+      [500, "provider_unavailable"],
+    ];
+    for (const [status, code] of cases) {
+      expect(await run(fetchOf(async () => json({}, status)))).toEqual({ ok: false, code });
+    }
+  });
+
+  it("suggest: wrong tool, extra block or stop_reason -> provider_bad_response", async () => {
+    const tu = { type: "tool_use", name: "suggest_outfits", input: {} };
+    const bad: Response[] = [
+      json({ stop_reason: "tool_use", content: [{ ...tu, name: "tag_item" }] }),
+      json({ stop_reason: "tool_use", content: [tu, { type: "text", text: "x" }] }),
+      json({ ...good, stop_reason: "max_tokens" }),
+      json({ stop_reason: "tool_use", content: [{ ...tu, input: [] }] }),
+    ];
+    for (const res of bad) {
+      expect(await run(fetchOf(async () => res))).toEqual({
+        ok: false,
+        code: "provider_bad_response",
+      });
+    }
+  });
+
+  it("suggest: timeout -> provider_unavailable; body over 64 KB is cancelled", async () => {
+    const hang = fetchOf(
+      (_u, init) =>
+        new Promise((_, reject) => {
+          init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
+        }),
+    );
+    expect(await run(hang, { timeoutMs: 20 })).toEqual({
+      ok: false,
+      code: "provider_unavailable",
+    });
+    const cancel = vi.fn();
+    const stream = new ReadableStream({
+      pull(c) {
+        c.enqueue(new Uint8Array(16 * 1024));
+      },
+      cancel,
+    });
+    expect(await run(fetchOf(async () => new Response(stream)))).toEqual({
+      ok: false,
+      code: "provider_bad_response",
+    });
+    expect(cancel).toHaveBeenCalled();
   });
 });
