@@ -71,6 +71,7 @@ export const AUTH_COPY = {
     password: "Mật khẩu",
     newPassword: "Mật khẩu mới",
     confirm: "Nhập lại mật khẩu",
+    showPassword: "Hiện mật khẩu",
   },
   fieldErrors: {
     required: "Vui lòng nhập thông tin này.",
