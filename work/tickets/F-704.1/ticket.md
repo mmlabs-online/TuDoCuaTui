@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/85 |
 
 ## Goal
 Ming opens "Hôm nay mặc gì?" and sees 3 outfit ideas built from clothes she actually has and can wear now,
@@ -71,3 +71,8 @@ not required here. Stale rule: `isStale` (`src/features/items/filters.ts`, `STAL
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: pure `suggestOutfits` (season by UTC+7 month, outfit rules, stale-first ranking, seeded shuffle, "Đổi gợi ý" avoid list), Hero entry point, `OutfitsModal`; consult frontend-developer; review PASS (attempt 1). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/85.
+- In progress / next: Ming merges PR #85, tries it on the phone, confirms A1 (season months) and A2 (Khoác only in Đông). Next slices: F-704.2 (weather), F-704.3 (AI) — both plan-approval with open questions for Ming.
+- Gotchas: `ItemPhoto` renders an empty `<img>` for an empty `src`; callers guard (follow-up).
