@@ -10,6 +10,45 @@ export type WorkerRequest =
 export type WorkerDone = { id: number; ok: true; width: number; height: number; blob?: Blob };
 export type WorkerReply = { type: "ready"; ok: boolean } | WorkerDone | { id: number; ok: false };
 
+const isObject = (m: unknown): m is Record<string, unknown> => typeof m === "object" && m !== null;
+const isId = (v: unknown) => typeof v === "number" && Number.isInteger(v);
+const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+
+/** Shape check for a message the host receives; anything else is ignored. */
+export function isWorkerRequest(data: unknown): data is WorkerRequest {
+  if (!isObject(data) || !isId(data.id)) return false;
+  switch (data.op) {
+    case "load":
+      return data.blob instanceof Blob;
+    case "render":
+      return (
+        isNum(data.max) &&
+        (data.max as number) > 0 &&
+        isNum(data.quality) &&
+        (data.quality as number) > 0 &&
+        (data.quality as number) <= 1
+      );
+    case "release":
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Shape check for a message the client receives from the worker. */
+export function isWorkerReply(data: unknown): data is WorkerReply {
+  if (!isObject(data)) return false;
+  if (data.type === "ready") return typeof data.ok === "boolean";
+  if (!isId(data.id)) return false;
+  if (data.ok === false) return true;
+  return (
+    data.ok === true &&
+    isNum(data.width) &&
+    isNum(data.height) &&
+    (data.blob === undefined || data.blob instanceof Blob)
+  );
+}
+
 interface Bitmap {
   width: number;
   height: number;
@@ -68,10 +107,11 @@ export function createPhotoWorkerHost(env: WorkerEnv, post: PostFn) {
     }
   }
 
-  return (m: WorkerRequest) => {
+  return (m: unknown) => {
+    if (!isWorkerRequest(m)) return;
     if (m.op === "load") void load(m.id, m.blob);
     else if (m.op === "render") void render(m.id, m.max, m.quality);
-    else {
+    else if (m.op === "release") {
       bitmaps.get(m.id)?.close();
       bitmaps.delete(m.id);
     }

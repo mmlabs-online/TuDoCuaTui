@@ -101,6 +101,15 @@ describe("runPhotoImport", () => {
     expect(out.stopped).toBeUndefined();
   });
 
+  test("a .heic file with an empty MIME type reaches createUrl typed image/heic", async () => {
+    const { deps } = setup();
+    const heic = job(1, { file: new File(["x"], "IMG_1.HEIC", { type: "" }) });
+    await runPhotoImport([heic], deps, { defaults: DEFAULTS });
+    const given = (deps.createUrl.mock.calls as unknown as File[][])[0][0];
+    expect(given.type).toBe("image/heic");
+    expect(given.name).toBe("IMG_1.HEIC");
+  });
+
   test("runs sequentially in order and reports the current file", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));

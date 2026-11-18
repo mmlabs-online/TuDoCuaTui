@@ -1,5 +1,5 @@
 import type { DecodedImage, PhotoDeps } from "./photoPrep";
-import type { WorkerDone, WorkerReply, WorkerRequest } from "./photoWorkerHost";
+import { isWorkerReply, type WorkerDone, type WorkerRequest } from "./photoWorkerHost";
 
 export class WorkerUnavailableError extends Error {
   constructor() {
@@ -18,13 +18,18 @@ export function canUseWorker(g: Record<string, unknown> = globalThis): boolean {
 interface WorkerLike {
   postMessage(m: WorkerRequest): void;
   addEventListener(type: string, fn: (e: { data?: unknown }) => void): void;
+  terminate(): void;
 }
 type Pending = {
   resolve: (r: WorkerDone) => void;
   reject: (e: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 };
 
-export function createWorkerDeps(worker: WorkerLike, { readyTimeoutMs = 5000 } = {}) {
+export function createWorkerDeps(
+  worker: WorkerLike,
+  { readyTimeoutMs = 5000, requestTimeoutMs = 20_000 } = {},
+) {
   const pending = new Map<number, Pending>();
   let nextId = 1;
   const state = { broken: false };
@@ -32,33 +37,49 @@ export function createWorkerDeps(worker: WorkerLike, { readyTimeoutMs = 5000 } =
   const ready = new Promise<void>((resolve, reject) => (settleReady = { resolve, reject }));
   ready.catch(() => {});
 
+  /** Idempotent: a broken worker is terminated, so nothing it decodes later stays in memory. */
   const markBroken = () => {
+    if (state.broken) return;
     state.broken = true;
     clearTimeout(timer);
     const err = new WorkerUnavailableError();
     settleReady.reject(err);
-    for (const p of pending.values()) p.reject(err);
+    for (const p of pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(err);
+    }
     pending.clear();
+    try {
+      worker.terminate();
+    } catch {
+      // already gone
+    }
   };
   const timer = setTimeout(markBroken, readyTimeoutMs);
 
   worker.addEventListener("message", (e) => {
-    const m = e.data as WorkerReply;
+    const m = e.data;
+    if (state.broken || !isWorkerReply(m)) return;
     if ("type" in m) {
       clearTimeout(timer);
       if (m.ok) settleReady.resolve();
       else markBroken();
       return;
     }
-    pending.get(m.id)?.[m.ok ? "resolve" : "reject"](m as never);
+    const p = pending.get(m.id);
+    if (!p) return;
+    clearTimeout(p.timer);
     pending.delete(m.id);
+    if (m.ok) p.resolve(m);
+    else p.reject(new Error("photo worker request failed"));
   });
   worker.addEventListener("error", markBroken);
   worker.addEventListener("messageerror", markBroken);
 
   function request(msg: WorkerRequest & { id: number }) {
     return new Promise<WorkerDone>((resolve, reject) => {
-      pending.set(msg.id, { resolve, reject });
+      const timer = setTimeout(markBroken, requestTimeoutMs);
+      pending.set(msg.id, { resolve, reject, timer });
       worker.postMessage(msg);
     });
   }
@@ -83,7 +104,8 @@ export function createWorkerDeps(worker: WorkerLike, { readyTimeoutMs = 5000 } =
         max,
         quality,
       });
-      return { blob: r.blob!, width: r.width, height: r.height };
+      if (!(r.blob instanceof Blob)) throw new Error("photo worker returned no image");
+      return { blob: r.blob, width: r.width, height: r.height };
     },
   };
   return { deps, state };

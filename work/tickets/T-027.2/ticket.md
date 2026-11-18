@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -11,10 +11,10 @@
 | Gate | none |
 | Depends on | F-603.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/83 |
 
 ## Goal
 Photo preparation never hangs, leaks memory or crashes the tab on a hostile or broken image, on both the worker
@@ -53,3 +53,8 @@ Not a feature-list item: hardening of F-202.1 / F-603.2 (`preparePhoto`). Source
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: 52 MP cap before decode (header parser) and after decode, `tooManyPixels` not retried; broken worker terminated once; 20 s per-request timeout with main-thread fallback; message guards; empty-MIME `.heic` in bulk import. Review PASS (attempt 1, incl. real-browser check); security review PASS (3 🟡). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/83.
+- In progress / next: Ming merges PR #83; next BUG-006 (CI timeouts in App.test.tsx).
+- Gotchas: jsdom 27 Blob has no `arrayBuffer()`; `readBytes` falls back to FileReader, which needs real `setImmediate` (fake only setTimeout in tests).
