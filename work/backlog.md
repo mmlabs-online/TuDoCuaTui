@@ -84,7 +84,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-603 | Bulk photo import | MERGED | P0 | M | ui, data | F-601.3, F-202.1 | none | 2 | 2026-11-17 |
 | F-603.2 | Resize photos off the main thread for bulk import | MERGED | P0 | S | data, security | F-603 | none | 1 | 2026-11-17 |
 | F-703 | Tag photos with AI during bulk import | MERGED | P1 | S | ui, data | F-701, F-603, F-603.2 | none | 1 | 2026-11-18 |
-| T-027.1 | Make the bulk photo import runner stop and retry sensibly | PLANNING | P1 | S | ui, data | F-703 | none | 0 | 2026-11-18 |
+| T-027.1 | Make the bulk photo import runner stop and retry sensibly | DONE | P1 | S | ui, data | F-703 | none | 1 | 2026-11-18 |
 | T-027.2 | Harden the photo worker | BACKLOG | P2 | S | data, security | F-603.2 | none | 0 | 2026-11-18 |
 | T-027.3 | Polish the bulk photo import UI | BACKLOG | P2 | S | ui | T-027.1 | none | 0 | 2026-11-18 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
