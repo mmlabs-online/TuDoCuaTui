@@ -39,7 +39,7 @@ export default defineConfig({
         "server/**/*.js",
         "scripts/drive-connect.mjs",
       ],
-      exclude: ["src/data/photos.ts", "**/*.test.*"],
+      exclude: ["src/data/photos.ts", "src/data/photoPrep.worker.ts", "**/*.test.*"],
       reporter: ["text", "html"],
       thresholds: {
         "src/data/**": thresholds,

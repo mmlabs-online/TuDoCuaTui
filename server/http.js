@@ -6,6 +6,7 @@ export const HSTS = "max-age=31536000; includeSubDomains";
 const CSP_DIRECTIVES = [
   ["default-src", "'self'"],
   ["script-src", "'self'", "https://challenges.cloudflare.com"],
+  ["worker-src", "'self'"],
   ["style-src", "'self'", "https://fonts.googleapis.com"],
   ["font-src", "'self'", "https://fonts.gstatic.com"],
   ["img-src", "'self'", "blob:", "data:"],

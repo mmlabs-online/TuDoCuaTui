@@ -17,6 +17,14 @@ vi.mock("@/data/photos", () => ({
     width: 100,
     height: 100,
   }),
+  mainThreadDeps: {
+    load: async () => ({ width: 100, height: 100, source: {}, release() {} }),
+    render: async () => ({
+      blob: new Blob(["jpeg"], { type: "image/jpeg" }),
+      width: 100,
+      height: 100,
+    }),
+  },
   urlToBlob: async () => new Blob(["raw"], { type: "image/jpeg" }),
 }));
 

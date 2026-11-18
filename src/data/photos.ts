@@ -1,8 +1,14 @@
-import type { DecodedImage } from "./photoPrep";
+import type { DecodedImage, PhotoDeps } from "./photoPrep";
+import { scaledSize } from "./photoScale";
+
+/** A picture decoded on the main thread by an `<img>`. */
+export interface MainImage extends DecodedImage {
+  source: CanvasImageSource;
+}
 
 /** Decode a picked file with the browser's own decoder (keeps EXIF orientation behaviour). */
 export function loadImage(src: Blob) {
-  return new Promise<DecodedImage>((resolve, reject) => {
+  return new Promise<MainImage>((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(src);
     img.onload = () =>
@@ -20,12 +26,12 @@ export function loadImage(src: Blob) {
   });
 }
 
-export function renderJpeg(img: DecodedImage, max: number, quality: number) {
+export function renderJpeg(img: MainImage, max: number, quality: number) {
   return new Promise<{ blob: Blob; width: number; height: number }>((resolve, reject) => {
-    const r = Math.min(1, max / Math.max(img.width, img.height));
+    const size = scaledSize(img.width, img.height, max);
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(img.width * r);
-    canvas.height = Math.round(img.height * r);
+    canvas.width = size.width;
+    canvas.height = size.height;
     canvas.getContext("2d")!.drawImage(img.source, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(
       (b) =>
@@ -37,6 +43,9 @@ export function renderJpeg(img: DecodedImage, max: number, quality: number) {
     );
   });
 }
+
+/** Main-thread decode/encode: the default fallback of `preparePhoto`. */
+export const mainThreadDeps: PhotoDeps<MainImage> = { load: loadImage, render: renderJpeg };
 
 /** Downscale before upload — phone photos are 3–8 MB, we keep ~150–300 KB. */
 export async function resizeImage(src: Blob, max = 1200, quality = 0.82) {

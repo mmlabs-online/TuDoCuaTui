@@ -7,6 +7,7 @@ import {
   PhotoPrepError,
   photoKind,
   preparePhoto,
+  preparePhotoAuto,
   type PhotoPrepCode,
 } from "./photoPrep";
 
@@ -160,5 +161,74 @@ describe("PhotoPrepError", () => {
   // Keep in step with MAX_BYTES in server/photos.js.
   test("MAX_UPLOAD_BYTES equals the server limit (2 MiB)", () => {
     expect(MAX_UPLOAD_BYTES).toBe(2 * 1024 * 1024);
+  });
+});
+
+describe("preparePhotoAuto", () => {
+  const unavailable = () => Promise.reject(new Error("worker unavailable"));
+
+  test("auto path uses the off-thread deps when available", async () => {
+    const off = setup();
+    const main = setup();
+    await preparePhotoAuto(file(10, "image/jpeg"), { offThread: () => off.deps, main: main.deps });
+    expect(off.load).toHaveBeenCalledTimes(1);
+    expect(main.load).not.toHaveBeenCalled();
+  });
+
+  test("auto path uses main deps when off-thread deps are null", async () => {
+    const main = setup();
+    await preparePhotoAuto(file(10, "image/jpeg"), { offThread: () => null, main: main.deps });
+    expect(main.load).toHaveBeenCalledTimes(1);
+  });
+
+  test("worker infrastructure failure falls back to main deps and succeeds", async () => {
+    const off = setup();
+    off.load.mockImplementation(unavailable);
+    const main = setup();
+    const out = await preparePhotoAuto(file(10, "image/jpeg"), {
+      offThread: () => off.deps,
+      main: main.deps,
+    });
+    expect(out.width).toBe(1200);
+    expect(main.render).toHaveBeenCalled();
+  });
+
+  test("worker decode failure retries on main deps (Safari HEIC)", async () => {
+    const off = setup();
+    off.load.mockImplementation(unavailable);
+    const main = setup();
+    await preparePhotoAuto(file(10, "image/heic"), { offThread: () => off.deps, main: main.deps });
+    expect(main.load).toHaveBeenCalledTimes(1);
+    expect(main.render).toHaveBeenCalledTimes(1);
+  });
+
+  test("decode failure on both paths -> heicUnsupported for HEIC, unreadable otherwise", async () => {
+    const off = setup();
+    const main = setup();
+    off.load.mockImplementation(unavailable);
+    main.load.mockImplementation(unavailable);
+    const sources = { offThread: () => off.deps, main: main.deps };
+    expect(await codeOf(preparePhotoAuto(file(10, "image/heic"), sources))).toBe("heicUnsupported");
+    expect(await codeOf(preparePhotoAuto(file(10, "image/png"), sources))).toBe("unreadable");
+  });
+
+  test("deterministic errors (tooLarge, unsupportedType, tooLargeAfterResize) are not retried", async () => {
+    const off = setup();
+    const main = setup();
+    const sources = { offThread: () => off.deps, main: main.deps };
+    expect(await codeOf(preparePhotoAuto(file(MAX_INPUT_BYTES + 1, "image/jpeg"), sources))).toBe(
+      "tooLarge",
+    );
+    expect(await codeOf(preparePhotoAuto(file(10, "application/pdf"), sources))).toBe(
+      "unsupportedType",
+    );
+    expect(off.load).not.toHaveBeenCalled();
+    const big = setup([MAX_UPLOAD_BYTES + 1]);
+    expect(
+      await codeOf(
+        preparePhotoAuto(file(10, "image/png"), { offThread: () => big.deps, main: main.deps }),
+      ),
+    ).toBe("tooLargeAfterResize");
+    expect(main.load).not.toHaveBeenCalled();
   });
 });
