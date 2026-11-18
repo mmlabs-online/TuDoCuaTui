@@ -1,0 +1,56 @@
+# F-704.3: AI-ranked outfit suggestions
+
+| Field | Value |
+|---|---|
+| State | BACKLOG |
+| Priority | P2 |
+| Size | M |
+| Milestone | M3 |
+| Epic | E7 — AI |
+| Areas | data, security, architecture |
+| Gate | plan-approval |
+| Depends on | F-704.1 |
+| Needs Ming | — |
+| Attempts | 0 |
+| Created | 2026-11-18 |
+| Claimed by | — |
+| PR | — |
+
+## Goal
+Optionally let the user's AI provider pick and explain the 3 outfits from the rule-based candidates, so the ideas
+look more styled than "top + bottom + shoes". Third slice of F-704; uses the AI settings from T-010/T-018.
+
+## Feature reference
+`docs/feature-list.md` F-704 (epic E7 — AI). Split recorded in F-704.1. Related: F-701 (server-side AI calls,
+per-user limits, provider adapters for Claude and Gemini), D48 (no EXIF to AI).
+
+## Scope
+- A server endpoint (e.g. `POST /api/ai/suggest-outfits`) that sends a compact, text-only list of candidate items
+  (ids, category, colours, seasons, material, wear count, last worn; no photos, no names if Ming prefers) to the
+  user's configured provider and returns up to 3 outfits as item-id lists plus a short Vietnamese reason each.
+- Strict validation: only ids from the sent candidates, valid combinations by the F-704.1 rules; anything else is dropped.
+- Counts against the per-user AI limit (new kind or the existing `tag` budget — planner decides with Ming).
+- A toggle "✨ Gợi ý bằng AI" in the modal when AI is configured; errors fall back to the rule-based set.
+
+## Out of scope
+- Sending photos to the AI; saving outfits (F-801–F-803); weather (F-704.2).
+
+## Acceptance criteria
+- [ ] With AI on, the modal shows AI-picked outfits drawn only from the user's own active items (server tests reject foreign or unknown ids).
+- [ ] AI errors, `rate_limited` or not-configured fall back to the F-704.1 suggestions with a Vietnamese note.
+- [ ] No API key or secret reaches the browser (R3); no photos are sent.
+- [ ] Per-user rate limit applies (server test).
+- [ ] 390px and dark mode.
+- [ ] All checks pass.
+
+## Technical notes
+- High path: `server/**` → `Gate: plan-approval`; route to `security-ai-generated-code-auditor` at review.
+- Reuse `server/ai/` adapters (claude.js, gemini.js), `rateLimit.js`, and the client `aiSettings` / `useAiLoad`.
+- Open questions for Ming: send item names to the AI or only attributes; which rate-limit budget.
+
+## Test plan
+- Unit: candidate builder and response validation; server route with a fake provider. Manual: Ming tries it with Claude and Gemini keys.
+
+## Notes / answers from Ming
+
+## Handoff
