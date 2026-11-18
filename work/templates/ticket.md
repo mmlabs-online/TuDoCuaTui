@@ -3,11 +3,9 @@
 | Field | Value |
 |---|---|
 | State | BACKLOG |
-| Priority | P1 |
+| Priority | P2 |
 | Size | S |
-| Milestone | M1 |
-| Epic | E? — <name> |
-| Areas | <ui, data, db, security, architecture> |
+| Areas | <from loop.config.md Consult / Review triggers> |
 | Gate | none |
 | Depends on | — |
 | Needs Ming | — |
@@ -19,8 +17,8 @@
 ## Goal
 <One or two sentences: user value.>
 
-## Feature reference
-<docs/feature-list.md F-xxx; work/decisions.md entries that apply.>
+## Scope reference
+<Section of a scope source in loop.config.md; work/decisions.md entries that apply.>
 
 ## Scope
 - …
@@ -32,7 +30,7 @@
 - [ ] …
 
 ## Technical notes
-- Files: `src/...`
+- Files: …
 - Risks / open questions: …
 
 ## Test plan

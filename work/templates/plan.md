@@ -2,27 +2,27 @@ Status: READY | BLOCKED
 
 # Plan — <ID>: <title>
 
-## Feature summary
-<Quote the exact lines of docs/feature-list.md (and work/decisions.md) this ticket implements.>
+## Scope summary
+<Quote the exact lines of the scope sources (and work/decisions.md) this ticket implements.>
 
 ## Acceptance criteria → verification
 | # | Criterion | How the reviewer verifies it |
 |---|---|---|
-| 1 | | <test name / command / observable behaviour in local mode> |
+| 1 | | <test name / command / observable behaviour in a local run> |
 
 ## Ming verification after merge
-<Criteria only Ming can check: real phone, hosted Supabase, hosting dashboard. "None" otherwise.>
+<Criteria only Ming can check: real device, hosted service, production dashboard. "None" otherwise.>
 
 ## Files to create / modify
-| File | Change | Required because |
-|---|---|---|
+| File | Change | Required because | High path? |
+|---|---|---|---|
 
 ## Tests to write
 | Test (file › name) | Covers |
 |---|---|
 
 ## Approach
-<Short, ordered steps. Note which rules (R1–R10) apply and how they are met.>
+<Short, ordered steps. Note which CLAUDE.md rules apply and how they are met.>
 
 ## Specialist input used
 <consult-*.md items adopted or rejected, with one-line reason. "None" if no consults.>
