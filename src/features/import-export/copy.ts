@@ -50,6 +50,22 @@ export const IMPORT_EXPORT_COPY = {
         failed: "Lỗi",
         photoFailed: "Chưa có ảnh",
       },
+      ai: {
+        title: "Dùng AI điền loại, màu, mùa…",
+        hint: "Chỉ điền các mục còn trống, bạn có thể sửa lại sau",
+        disclosure: (provider: string) => `Ảnh sẽ được gửi tới ${provider} bằng key của bạn`,
+        tagging: (k: number, n: number, name: string) => `Đang nhờ AI xem ảnh ${k}/${n}: ${name}`,
+        state: {
+          filled: "AI đã điền",
+          nothing: "AI không có gì để điền",
+          skipped: "Không dùng được AI",
+          off: "Không dùng AI",
+        },
+        summaryFilled: (n: number) => `AI đã điền: ${n}`,
+        stoppedRateLimited:
+          "Đã hết lượt dùng AI trong 24 giờ — các ảnh còn lại vẫn được nhập nhưng không có AI.",
+        stoppedOther: (reason: string) => `${reason} — các ảnh còn lại được nhập không có AI.`,
+      },
       summaryImported: (n: number) => `Đã nhập: ${n}`,
       summaryFailed: (n: number) => `Lỗi: ${n}`,
       summaryPending: (n: number) => `Chưa xử lý: ${n}`,

@@ -10,9 +10,9 @@ import {
   photoSourceFor,
   suggestionToFields,
   undoFill,
-  type AiLoad,
   type FillRecord,
 } from "./aiFill";
+import { useAiLoad } from "./useAiLoad";
 
 export interface EditorAi {
   settings: Pick<AiSettingsClient, "get">;
@@ -43,8 +43,7 @@ export function useAiFill({
   const settings = ai?.settings;
   const rev = ai?.settingsRev;
   const tagger = ai?.tagger;
-  const [load, setLoad] = useState<AiLoad>({ state: "loading" });
-  const [attempt, setAttempt] = useState(0);
+  const { load, retry } = useAiLoad(settings, rev);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [error, setError] = useState<{ code: string; requestId?: string } | null>(null);
@@ -55,20 +54,6 @@ export function useAiFill({
   useEffect(() => {
     latest.current = { item, categoryFillable, update };
   });
-
-  useEffect(() => {
-    if (!settings) return;
-    let live = true;
-    settings.get().then(
-      (view) => live && setLoad({ state: "loaded", view }),
-      (e) =>
-        live &&
-        setLoad({ state: "error", code: e instanceof AiSettingsError ? e.code : "internal" }),
-    );
-    return () => {
-      live = false;
-    };
-  }, [settings, rev, attempt]);
 
   useEffect(() => () => ctlRef.current?.abort(), []);
 
@@ -125,10 +110,6 @@ export function useAiFill({
     for (const k of Object.keys(patch) as (keyof typeof patch)[]) now.update(k, patch[k] as never);
     setApplied(null);
     setNotice(null);
-  };
-  const retry = () => {
-    setLoad({ state: "loading" });
-    setAttempt((a) => a + 1);
   };
 
   return { availability, busy, notice, error, canUndo: record !== null, run, undo, retry };

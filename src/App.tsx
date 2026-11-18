@@ -263,6 +263,12 @@ function App({
             locations={wardrobe.locations}
             importMany={wardrobe.importMany}
             importPhotos={wardrobe.importPhotos}
+            ai={{
+              settings: aiClient,
+              tagger: aiTagger,
+              settingsRev: aiSettingsRev,
+              onOpenSettings: () => setSettingsOpen(true),
+            }}
             onImported={(n) => notify(IMPORT_EXPORT_COPY.imported(n))}
             restoreBackup={wardrobe.restoreBackup}
             onRestored={() => notify(IMPORT_EXPORT_COPY.restored)}

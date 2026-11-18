@@ -812,7 +812,7 @@ main {
 }
 .check-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   padding: 13px;
   border: 1px solid var(--border);
@@ -821,11 +821,13 @@ main {
 }
 .check-row input {
   accent-color: var(--green);
+  margin-top: 2px;
 }
 .check-row > span {
   color: var(--green-ink);
 }
 .check-row b {
+  display: block;
   font-size: 10px;
 }
 .check-row small {

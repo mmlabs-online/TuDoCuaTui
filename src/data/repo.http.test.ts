@@ -525,3 +525,45 @@ describe("identity mode (getToken)", () => {
     expect(call(fetchFn).headers.Authorization).toBeUndefined();
   });
 });
+
+describe("createHttpRepo save withPrepared (F-703)", () => {
+  const PHOTO_ID = "22222222-2222-4222-8222-222222222222";
+  const DATA_URL = "data:image/jpeg;base64,AAAA";
+  const twoCalls = () => {
+    let n = 0;
+    return setup(() => json({ item: ++n === 1 ? row : { ...row, primary_photo_id: PHOTO_ID } }));
+  };
+
+  test("withPrepared receives the prepared JPEG once and its result is the row that is PUT", async () => {
+    const { repo, fetchFn } = twoCalls();
+    const hook = vi.fn(async (_j: Blob, it: Item) => ({ ...it, name: "Từ AI", brand: "Uniqlo" }));
+    await repo.save(item({ photo: DATA_URL }), { withPrepared: hook });
+    expect(hook).toHaveBeenCalledTimes(1);
+    expect(hook.mock.calls[0][0]).toBe((await prepare.mock.results[0].value).blob);
+    const body = JSON.parse(call(fetchFn).init.body as string);
+    expect(body).toMatchObject({ name: "Từ AI", brand: "Uniqlo" });
+    expect(call(fetchFn, 1).init.body).toBe((await prepare.mock.results[0].value).blob);
+  });
+
+  test("withPrepared is not called without a new photo", async () => {
+    const { repo } = setup(() => json({ item: row }));
+    const hook = vi.fn(async (_j: Blob, it: Item) => it);
+    await repo.save(item({ photo: "" }), { withPrepared: hook });
+    await repo.save(item({ photo: "/api/photos/x" }), { withPrepared: hook });
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  test("withPrepared cannot change the id or the uploaded bytes", async () => {
+    const { repo, fetchFn } = twoCalls();
+    await repo.save(item({ photo: DATA_URL }), {
+      withPrepared: async (_j, it) => ({
+        ...it,
+        id: "other",
+        photo: "data:image/jpeg;base64,BBBB",
+      }),
+    });
+    expect(call(fetchFn).url).toBe(`/api/items/${ID}`);
+    expect(call(fetchFn, 1).url).toBe(`/api/items/${ID}/photo`);
+    expect(call(fetchFn, 1).init.body).toBe((await prepare.mock.results[0].value).blob);
+  });
+});
