@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T14:07:04Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/88 |
 
 ## Goal
 In "Hôm nay mặc gì?", Ming can turn on "✨ Gợi ý bằng AI" and get up to 3 outfits picked and explained by his own AI
@@ -63,3 +63,8 @@ sends `avoidIds` (A5); candidate cap 40, never-worn then longest-unworn (A2).
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: slice 1 — `createHttpAiOutfits`, `candidatePool`, `toAiOutfits`, `cleanReason`; consult frontend-developer; review PASS (attempt 1). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/88. The UI acceptance criteria moved to F-704.5.
+- In progress / next: Ming merges PR #88; then F-704.5 (toggle in the modal).
+- Gotchas: F-704.5 must convert the season label to the DB id (`SEASON_TO_DB`) before calling `suggest`.
