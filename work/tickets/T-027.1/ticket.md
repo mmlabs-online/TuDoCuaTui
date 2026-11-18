@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T02:08:05Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/80 |
 
 ## Goal
 A bulk photo import stops early instead of failing every remaining file the same way, and never wastes uploads,
@@ -56,3 +56,8 @@ Not a feature-list item: hardening of F-603 (bulk photo import) and F-703 (AI in
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: `photoStopFor` stops the batch on 401, network, 503 without Retry-After, 429 and 409; a 429 cooldown on "Thử lại"; de-duplicated picks; no AI calls while the photo quota is known to be hit. Review PASS (attempt 1). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/80.
+- In progress / next: Ming merges PR #80; then T-027.3 (UI polish, depends on this) or T-027.2 (worker hardening).
+- Gotchas: Editor.test.tsx may be flaky in full parallel runs (not reproduced in review); take the test name from the next red CI run.
