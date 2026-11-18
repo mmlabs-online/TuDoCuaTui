@@ -87,7 +87,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-027.1 | Make the bulk photo import runner stop and retry sensibly | MERGED | P1 | S | ui, data | F-703 | none | 1 | 2026-11-18 |
 | T-027.2 | Harden the photo worker | MERGED | P2 | S | data, security | F-603.2 | none | 1 | 2026-11-18 |
 | T-027.3 | Polish the bulk photo import UI | MERGED | P2 | S | ui | T-027.1 | none | 1 | 2026-11-18 |
-| F-704.1 | "Hôm nay mặc gì?" — rule-based outfit suggestions | BACKLOG | P2 | M | ui, data | — | none | 0 | 2026-11-18 |
+| F-704.1 | "Hôm nay mặc gì?" — rule-based outfit suggestions | PLANNING | P2 | M | ui, data | — | none | 0 | 2026-11-18 |
 | F-704.2 | Use today's weather in outfit suggestions | BACKLOG | P2 | M | data, security, architecture | F-704.1 | plan-approval | 0 | 2026-11-18 |
 | F-704.3 | AI-ranked outfit suggestions | BACKLOG | P2 | M | data, security, architecture | F-704.1 | plan-approval | 0 | 2026-11-18 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
