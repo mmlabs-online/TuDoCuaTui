@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T08:29:34Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/86 |
 
 ## Goal
 "Hôm nay mặc gì?" takes today's temperature and rain into account (optional), so suggestions fit the actual day,
@@ -67,3 +67,8 @@ Answers (2026-11-18, after the software-architect consult):
 - Done: consult software-architect; Ming's answers recorded (Open-Meteo, per-device city, cold ≤ 24 °C, one ticket); plan READY.
 - In progress / next: waiting for Ming's plan approval (server/** is a High path); then implement.
 - Gotchas: plan is ~350 code + ~450 test lines (over the ~400 guide; Ming chose one ticket).
+
+### 2026-11-18 — claude — DONE
+- Done: plan approved by Ming; `server/weather.js` (`GET /api/weather?place=<id>`, fixed 15-city list, Open-Meteo, cache, limiter), client weather + per-device city picker, `suggest()` weather rules (24 / 32 / 60). Review PASS (attempt 1); security review PASS (2 🟡). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/86.
+- In progress / next: Ming merges PR #86, allows egress to `api.open-meteo.com` from the home-server container, tries it with a real city. Follow-up: count the global weather limit only on a cache miss.
+- Gotchas: Playwright screenshots need ~500 ms after opening the modal (0.2 s fade-in).
