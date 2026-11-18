@@ -6,6 +6,9 @@ import { Modal } from "@/components/Modal";
 import type { Backup, RestoreSummary } from "@/data/backup";
 import type { ImportResult } from "@/data/useWardrobe";
 import type { Item } from "@/types/item";
+import { aiAvailability } from "@/features/items/aiFill";
+import type { EditorAi } from "@/features/items/useAiFill";
+import { useAiLoad } from "@/features/items/useAiLoad";
 import { IMPORT_EXPORT_COPY } from "@/features/import-export/copy";
 import { buildCsvPreview } from "@/features/import-export/csv/preview";
 import { type CsvPhase, ImportCsvTab } from "@/features/import-export/ImportCsvTab";
@@ -24,6 +27,7 @@ export function ImportModal({
   onImported,
   restoreBackup,
   onRestored,
+  ai,
 }: {
   onClose: () => void;
   locations: string[];
@@ -35,13 +39,21 @@ export function ImportModal({
   onImported: (count: number) => void;
   restoreBackup: (b: Backup) => Promise<RestoreSummary>;
   onRestored: (s: RestoreSummary) => void;
+  /** AI for the Photos tab (F-703); without it the checkbox is not shown. */
+  ai?: EditorAi;
 }) {
   const [tab, setTab] = useState(0);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<CsvPhase>("edit");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<ImportResult[]>([]);
-  const photos = usePhotoImport({ importPhotos, onImported });
+  const aiLoad = useAiLoad(ai?.settings, ai?.settingsRev);
+  const availability = aiAvailability(aiLoad.load, true);
+  const photos = usePhotoImport({
+    importPhotos,
+    onImported,
+    tagger: ai && availability.kind === "ready" ? ai.tagger : null,
+  });
   const json = useJsonRestore(restoreBackup, onRestored, onClose);
   const controllerRef = useRef<AbortController | null>(null);
   const preview = useMemo(() => buildCsvPreview(text, { locations }), [text, locations]);
@@ -118,7 +130,13 @@ export function ImportModal({
         ))}
       </div>
       <div className="import-content">
-        {tab === 0 && <ImportPhotosTab photos={photos} locations={locations} />}
+        {tab === 0 && (
+          <ImportPhotosTab
+            photos={photos}
+            locations={locations}
+            ai={ai && { availability, onOpenSettings: ai.onOpenSettings, retry: aiLoad.retry }}
+          />
+        )}
         {tab === 1 && (
           <ImportCsvTab
             text={text}

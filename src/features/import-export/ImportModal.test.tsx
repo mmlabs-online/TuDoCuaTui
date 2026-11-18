@@ -1,6 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { aiErrorText } from "@/features/items/aiFill";
+import { AiSettingsError } from "@/data/aiSettings";
 import { ApiError } from "@/data/apiErrors";
+import type { PhotoImportOptions, PhotoJob } from "@/data/photoImport";
+import type { AiSettingsView } from "@/shared/ai/catalog";
 import { BACKUP_CAPS, type Backup, type RestoreSummary } from "@/data/backup";
 import type { ImportResult } from "@/data/useWardrobe";
 import { fixtureBackup } from "@/test/fixtures";
@@ -130,20 +134,158 @@ describe("ImportModal", () => {
   });
 });
 
-describe("photos tab", () => {
-  it("Photos tab shows no AI checkbox", () => {
-    render(
+describe("photos AI", () => {
+  const view = (over: Partial<AiSettingsView> = {}): AiSettingsView => ({
+    provider: "claude",
+    model: "m",
+    keyHint: "…abcd",
+    hasKey: true,
+    modelSupported: true,
+    updatedAt: "2026-11-18T00:00:00Z",
+    ...over,
+  });
+  const SUGGESTION = {
+    name: null,
+    category: null,
+    colors: [],
+    seasons: [],
+    material: null,
+    brand: null,
+    tags: [],
+  };
+  const mount = (
+    get: () => Promise<AiSettingsView | null>,
+    importPhotos = vi.fn(async (jobs: PhotoJob[], _o: PhotoImportOptions) => ({ jobs })),
+    withAi = true,
+  ) => {
+    const settings = { get: vi.fn(get) };
+    const tagger = { tag: vi.fn(async () => SUGGESTION) };
+    const onOpenSettings = vi.fn();
+    const props = {
+      onClose: vi.fn(),
+      locations: [],
+      importMany: vi.fn(),
+      importPhotos,
+      onImported: vi.fn(),
+      restoreBackup: vi.fn(),
+      onRestored: vi.fn(),
+    };
+    const ui = (rev: number) => (
       <ImportModal
-        onClose={vi.fn()}
-        locations={[]}
-        importMany={vi.fn()}
-        importPhotos={vi.fn()}
-        onImported={vi.fn()}
-        restoreBackup={vi.fn()}
-        onRestored={vi.fn()}
-      />,
+        {...props}
+        ai={withAi ? { settings, tagger, settingsRev: rev, onOpenSettings } : undefined}
+      />
     );
+    const r = render(ui(0));
+    return {
+      settings,
+      tagger,
+      onOpenSettings,
+      importPhotos,
+      rerender: (rev: number) => r.rerender(ui(rev)),
+      r,
+    };
+  };
+  const box = () => screen.getByRole("checkbox") as HTMLInputElement;
+
+  it("without ai prop there is no checkbox", () => {
+    mount(async () => view(), undefined, false);
     expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("ready: checkbox enabled, unchecked, shows the provider disclosure", async () => {
+    mount(async () => view());
+    await screen.findByText("Ảnh sẽ được gửi tới Claude bằng key của bạn");
+    expect(box().disabled).toBe(false);
+    expect(box().checked).toBe(false);
+  });
+
+  it("no key: disabled + settings link calls onOpenSettings", async () => {
+    const { onOpenSettings } = mount(async () => null);
+    fireEvent.click(await screen.findByRole("button", { name: "Mở cài đặt" }));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(box().disabled).toBe(true);
+    expect(box().checked).toBe(false);
+  });
+
+  it("model unsupported: disabled + link", async () => {
+    mount(async () => view({ modelSupported: false }));
+    await screen.findByText(/Model không còn hỗ trợ/);
+    expect(screen.getByRole("button", { name: "Mở cài đặt" })).toBeTruthy();
+    expect(box().disabled).toBe(true);
+  });
+
+  it("misconfigured: disabled, no link", async () => {
+    mount(async () => {
+      throw new AiSettingsError(503, "server_misconfigured");
+    });
+    await screen.findByText(aiErrorText("server_misconfigured"));
+    expect(box().disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Mở cài đặt" })).toBeNull();
+  });
+
+  it("load error: retry reloads settings", async () => {
+    let fail = true;
+    const { settings } = mount(async () => {
+      if (fail) throw new AiSettingsError(0, "network");
+      return view();
+    });
+    const retry = await screen.findByRole("button", { name: "Thử lại" });
+    fail = false;
+    fireEvent.click(retry);
+    await screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+    expect(settings.get).toHaveBeenCalledTimes(2);
+    expect(box().disabled).toBe(false);
+  });
+
+  it("settingsRev bump reloads availability", async () => {
+    let has = false;
+    const { settings, rerender } = mount(async () => view({ hasKey: has }));
+    await screen.findByRole("button", { name: "Mở cài đặt" });
+    has = true;
+    rerender(1);
+    await screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+    expect(settings.get).toHaveBeenCalledTimes(2);
+  });
+
+  const runWith = async (check: boolean) => {
+    const m = mount(async () => view());
+    await screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+    if (check) fireEvent.click(box());
+    fireEvent.change(m.r.container.querySelector("input[type=file]")!, {
+      target: { files: [new File(["x"], "a.jpg", { type: "image/jpeg" })] },
+    });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" })));
+    return m;
+  };
+
+  it("checked: importPhotos receives a tag function that calls the tagger", async () => {
+    const m = await runWith(true);
+    const opts = m.importPhotos.mock.calls[0][1] as PhotoImportOptions;
+    expect(typeof opts.tag).toBe("function");
+    await opts.tag!(new Blob(["j"]));
+    expect(m.tagger.tag).toHaveBeenCalledTimes(1);
+  });
+
+  it("unchecked: importPhotos receives no tag", async () => {
+    const m = await runWith(false);
+    expect((m.importPhotos.mock.calls[0][1] as PhotoImportOptions).tag).toBeUndefined();
+  });
+
+  it("the checkbox is hidden while running", async () => {
+    let release!: () => void;
+    const importPhotos = vi.fn(
+      (jobs: PhotoJob[], _o: PhotoImportOptions) =>
+        new Promise<{ jobs: PhotoJob[] }>((r) => (release = () => r({ jobs }))),
+    );
+    const m = mount(async () => view(), importPhotos);
+    await screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+    fireEvent.change(m.r.container.querySelector("input[type=file]")!, {
+      target: { files: [new File(["x"], "a.jpg", { type: "image/jpeg" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    await act(async () => release());
   });
 });
 

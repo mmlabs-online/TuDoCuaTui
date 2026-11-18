@@ -12,6 +12,7 @@ import {
 import type { GetToken } from "./authFetch";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
 import { createHttpRepo } from "./repo.http";
+import type { SaveOptions } from "./repo";
 
 export type ImportResult =
   | { index: number; ok: true; item: Item }
@@ -73,9 +74,9 @@ export function useWardrobe({
   };
 
   const save = useCallback(
-    async (item: Item) => {
+    async (item: Item, opts?: SaveOptions) => {
       try {
-        const saved = await repo.save(item);
+        const saved = await (opts ? repo.save(item, opts) : repo.save(item));
         upsertLocal(saved);
         return saved;
       } catch (e) {

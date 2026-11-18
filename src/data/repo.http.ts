@@ -6,7 +6,7 @@ import { createAuthedFetch, type AuthOptions } from "./authFetch";
 import { apiPhotoUrl, isUuid, itemToRow, rowToItem } from "./mappers";
 import { preparePhoto } from "./photoPrep";
 import { urlToBlob } from "./photos";
-import type { WardrobeRepo, WearOutcome } from "./repo";
+import type { SaveOptions, WardrobeRepo, WearOutcome } from "./repo";
 
 type ApiItemRow = Parameters<typeof rowToItem>[0] & { primary_photo_id?: string | null };
 type FetchFn = typeof fetch;
@@ -78,13 +78,14 @@ export function createHttpRepo(
       const r = await call<{ locations: string[] }>("GET", "/locations");
       return r!.locations;
     },
-    async save(item: Item) {
+    async save(item: Item, opts?: SaveOptions) {
       const id = isUuid(item.id) ? item.id : crypto.randomUUID();
       // Prepared first: a bad photo fails before anything is saved.
       const upload =
         item.photo.startsWith("data:") || item.photo.startsWith("blob:")
           ? (await prepare(await urlToBlob(item.photo))).blob
           : null;
+      if (upload && opts?.withPrepared) item = await opts.withPrepared(upload, item);
       const { id: _i, location_id: _l, ...row } = itemToRow(item, null);
       const r = await call<{ item: ApiItemRow }>("PUT", `/items/${id}`, {
         ...row,

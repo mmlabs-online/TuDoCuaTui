@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/data/apiErrors";
+import { aiErrorText } from "@/features/items/aiFill";
 import type { PhotoImportOptions, PhotoJob, PhotoStop } from "@/data/photoImport";
 import { ImportModal } from "./ImportModal";
 
@@ -165,5 +166,127 @@ describe("ImportPhotosTab", () => {
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 3 ảnh" })));
     expect(onImported).toHaveBeenCalledWith(3);
     expect(screen.getByRole("button", { name: "Xong" })).toBeTruthy();
+  });
+});
+
+describe("ImportPhotosTab AI", () => {
+  const settings = {
+    get: async () => ({
+      provider: "claude" as const,
+      model: "m",
+      keyHint: null,
+      hasKey: true,
+      modelSupported: true,
+      updatedAt: "",
+    }),
+  };
+  const tagger = { tag: vi.fn() };
+  function setupAi(importPhotos: Fn) {
+    const fn = vi.fn(importPhotos);
+    const onOpenSettings = vi.fn();
+    const view = render(
+      <ImportModal
+        onClose={vi.fn()}
+        locations={[]}
+        importMany={vi.fn()}
+        importPhotos={fn}
+        onImported={vi.fn()}
+        restoreBackup={vi.fn()}
+        onRestored={vi.fn()}
+        ai={{ settings, tagger, settingsRev: 0, onOpenSettings }}
+      />,
+    );
+    const pick = (...files: File[]) =>
+      fireEvent.change(view.container.querySelector("input[type=file]")!, { target: { files } });
+    return { fn, pick, onOpenSettings };
+  }
+  const ready = () => screen.findByText(/Ảnh sẽ được gửi tới Claude/);
+
+  it("shows tagging progress while tag is pending", async () => {
+    let release!: (o: Out) => void;
+    let opts!: PhotoImportOptions;
+    const { pick } = setupAi((_j, o) => {
+      opts = o;
+      return new Promise<Out>((r) => (release = r));
+    });
+    await ready();
+    pick(photo("a.jpg"), photo("b.jpg"));
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Nhập 2 ảnh" }));
+    act(() => opts.onCurrent?.(1));
+    act(() => opts.onTagging?.(1, true));
+    expect(screen.getByText("Đang nhờ AI xem ảnh 2/2: b")).toBeTruthy();
+    act(() => opts.onTagging?.(1, false));
+    expect(screen.getByText("Đang nhập 2/2: b")).toBeTruthy();
+    await act(async () => release({ jobs: [] }));
+  });
+
+  const finished = (jobs: PhotoJob[], extra: Partial<Out & { aiStopped: string }> = {}) =>
+    ({ jobs, ...extra }) as Out;
+
+  it("row labels: filled / nothing / skipped / off", async () => {
+    const { pick } = setupAi(async (jobs) =>
+      finished(
+        jobs.map((j, i) => ({
+          ...j,
+          state: "done" as const,
+          ai: (["filled", "nothing", "skipped", "off"] as const)[i],
+          aiError: i === 2 ? "provider_unavailable" : undefined,
+        })),
+      ),
+    );
+    await ready();
+    pick(photo("a.jpg"), photo("b.jpg"), photo("c.jpg"), photo("d.jpg"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 4 ảnh" })));
+    expect(screen.getByText("Xong · AI đã điền")).toBeTruthy();
+    expect(screen.getByText("Xong · AI không có gì để điền")).toBeTruthy();
+    expect(screen.getByText("Xong · Không dùng được AI")).toBeTruthy();
+    expect(screen.getByText("Xong · Không dùng AI")).toBeTruthy();
+    expect(screen.getByText("AI đã điền: 1")).toBeTruthy();
+  });
+
+  it("skipped file lists its reason (aiErrorText)", async () => {
+    const { pick } = setupAi(async (jobs) =>
+      finished(
+        jobs.map((j) => ({
+          ...j,
+          state: "done" as const,
+          ai: "skipped" as const,
+          aiError: "provider_unavailable",
+        })),
+      ),
+    );
+    await ready();
+    pick(photo("a.jpg"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" })));
+    expect(screen.getByText(`a.jpg: ${aiErrorText("provider_unavailable")}`)).toBeTruthy();
+  });
+
+  it("shows the AI-off banner for rate_limited, and a settings link for a settings error", async () => {
+    const first = setupAi(async (jobs) =>
+      finished(
+        jobs.map((j) => ({ ...j, state: "done" as const, ai: "off" as const })),
+        { aiStopped: "rate_limited" },
+      ),
+    );
+    await ready();
+    first.pick(photo("a.jpg"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" })));
+    expect(screen.getByText(/Đã hết lượt dùng AI trong 24 giờ/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Mở cài đặt" })).toBeNull();
+    cleanup();
+
+    const second = setupAi(async (jobs) =>
+      finished(
+        jobs.map((j) => ({ ...j, state: "done" as const, ai: "off" as const })),
+        { aiStopped: "invalid_key" },
+      ),
+    );
+    await ready();
+    second.pick(photo("a.jpg"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Nhập 1 ảnh" })));
+    expect(screen.getByText(/các ảnh còn lại được nhập không có AI/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Mở cài đặt" }));
+    expect(second.onOpenSettings).toHaveBeenCalled();
   });
 });
