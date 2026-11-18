@@ -7,6 +7,7 @@ import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
 import { listItems, listLocations, removeItem, saveItem, wearItem } from "./items.js";
+import { handleWeather } from "./weather.js";
 import { isUuid, parseItemInput, parseWearInput } from "./validate.js";
 
 /** @param {string[]} parts @returns {{ route: string, allow: string } | null} */
@@ -16,6 +17,7 @@ function match(parts) {
   if (parts.length === 3 && a === "items") return { route: "/api/items", allow: "GET" };
   if (parts.length === 3 && a === "locations") return { route: "/api/locations", allow: "GET" };
   if (parts.length === 3 && a === "backup") return { route: "/api/backup", allow: "GET" };
+  if (parts.length === 3 && a === "weather") return { route: "/api/weather", allow: "GET" };
   if (parts.length === 3 && a === "restore") return { route: "/api/restore", allow: "POST" };
   if (parts.length === 3 && a === "ai-settings") {
     return { route: "/api/ai-settings", allow: "GET, PUT" };
@@ -54,6 +56,7 @@ function match(parts) {
  *   photoSlots: { tryAcquire(userId: string): (() => void) | null },
  *   photoQuota: ReturnType<typeof import("./photoQuota.js").createPhotoQuota>,
  *   backup: Parameters<typeof handleBackup>[2]["backup"],
+ *   weather: Parameters<typeof handleWeather>[2]["weather"],
  *   bodyTimeouts: { totalMs: number, idleMs: number },
  *   pathname: string, query: string, id: string,
  *   log: (entry: Record<string, unknown>) => void, now: () => number,
@@ -72,6 +75,7 @@ export async function handleApi(
     photoSlots,
     photoQuota,
     backup,
+    weather,
     bodyTimeouts,
     pathname,
     query,
@@ -102,6 +106,9 @@ export async function handleApi(
   }
   if (m.route.startsWith("/api/ai-settings")) {
     return await handleAiSettings(req, res, { route: m.route, ai, userId, id, log });
+  }
+  if (m.route === "/api/weather") {
+    return await handleWeather(req, res, { weather, userId, query, id, log });
   }
   if (m.route === "/api/ai/tag-photo")
     return await handleTagPhoto(req, res, { ai, userId, id, log });

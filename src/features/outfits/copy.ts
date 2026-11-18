@@ -8,6 +8,20 @@ export const OUTFITS_COPY = {
     neverWorn: "Chưa mặc lần nào",
     stale: "Lâu chưa mặc",
     season: (s: string) => `Hợp mùa ${s}`,
+    cold: "Trời lạnh",
+    hot: "Trời nóng",
+    rain: "Có thể mưa",
+  },
+  weather: {
+    label: "Thời tiết",
+    off: "Tắt",
+    loading: "Đang xem thời tiết…",
+    unavailable: "Chưa lấy được thời tiết, gợi ý theo mùa.",
+    summary: (name: string, minC: number, maxC: number, rain: number | null) =>
+      `${name} · ${Math.round(minC)}–${Math.round(maxC)}°C` +
+      (rain === null ? "" : ` · Mưa ${Math.round(rain)}%`),
+    credit: "Open-Meteo",
+    creditUrl: "https://open-meteo.com/",
   },
   shuffle: "Đổi gợi ý",
   close: "Đóng",

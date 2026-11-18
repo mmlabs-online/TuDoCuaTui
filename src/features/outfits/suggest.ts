@@ -37,7 +37,23 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-export type OutfitReason = "neverWorn" | "stale" | "season";
+/** Today's max at or below this is cold (add outer); at or above HOT is hot (no outer). Rain: chance in %. */
+export const WEATHER_COLD_MAX_C = 24;
+export const WEATHER_HOT_MAX_C = 32;
+export const WEATHER_RAIN_CHANCE = 60;
+
+export type WeatherInput = { minC: number; maxC: number; rainChance: number | null };
+
+export function weatherKind(w?: WeatherInput): { cold: boolean; hot: boolean; rain: boolean } {
+  if (!w) return { cold: false, hot: false, rain: false };
+  return {
+    cold: w.maxC <= WEATHER_COLD_MAX_C,
+    hot: w.maxC >= WEATHER_HOT_MAX_C,
+    rain: w.rainChance !== null && w.rainChance >= WEATHER_RAIN_CHANCE,
+  };
+}
+
+export type OutfitReason = "neverWorn" | "stale" | "season" | "cold" | "hot" | "rain";
 export type Outfit = { main: Item[]; pieces: Item[]; reasons: OutfitReason[] };
 export type Suggestion = { season: string; outfits: Outfit[] };
 export type SuggestOptions = {
@@ -45,6 +61,7 @@ export type SuggestOptions = {
   seed: number;
   avoid?: readonly string[];
   count?: number;
+  weather?: WeatherInput;
 };
 
 const ONE_PIECE = ["dress", "set", "ao_dai"];
@@ -64,6 +81,11 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
   const { now, seed, count = 3 } = opts;
   const avoid = new Set(opts.avoid ?? []);
   const season = seasonOf(now);
+  const { cold, hot, rain } = weatherKind(opts.weather);
+  // Weather widens (cold: Đông) or narrows (hot: no Đông) the seasons whose items are eligible.
+  let wanted = [season];
+  if (cold) wanted = [...wanted.filter((s) => s !== "Hạ"), "Đông"];
+  if (hot) wanted = [...wanted.filter((s) => s !== "Đông"), "Hạ"];
   const rand = mulberry32(seed);
 
   const byRole: Record<string, Item[]> = {};
@@ -74,7 +96,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     (byRole[role] ??= []).push(item);
   }
 
-  const inSeason = (i: Item) => i.seasons.length === 0 || i.seasons.includes(season);
+  const inSeason = (i: Item) => i.seasons.length === 0 || i.seasons.some((s) => wanted.includes(s));
   const rank = (role: string): Ranked[] => {
     const all = byRole[role] ?? [];
     const fit = all.filter(inSeason);
@@ -106,7 +128,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     .map((x) => x.u.map((r) => r.item));
 
   const shoes = rank("shoes");
-  const outer = COLD_SEASONS.includes(season) ? rank("outer") : [];
+  const outer = cold || (!hot && COLD_SEASONS.includes(season)) ? rank("outer") : [];
   const accessory = rank("accessory");
   const pick = (list: Ranked[], k: number) => (list.length ? [list[k % list.length].item] : []);
 
@@ -115,6 +137,9 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     if (main.some((i) => i.wearCount === 0)) reasons.push("neverWorn");
     if (main.some((i) => i.wearCount > 0 && isStale(i, now))) reasons.push("stale");
     if (main.some((i) => i.seasons.includes(season))) reasons.push("season");
+    if (cold) reasons.push("cold");
+    if (hot) reasons.push("hot");
+    if (rain) reasons.push("rain");
     return {
       main,
       pieces: [...main, ...pick(shoes, k), ...pick(outer, k), ...pick(accessory, k)],

@@ -2937,6 +2937,28 @@ main {
   color: var(--muted);
   font-size: 12.5px;
 }
+.outfit-weather {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.outfit-weather select {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+.outfit-weather a {
+  color: inherit;
+  text-decoration: underline;
+}
 .outfit-card {
   display: flex;
   flex-direction: column;
