@@ -91,4 +91,4 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-003 | Hero banner photos are cut off on mobile | MERGED | P2 | XS | ui | — | none | 2 | 2026-11-17 |
 | BUG-004 | Search box overflows and scrolls sideways on mobile | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
 | BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
-| BUG-006 | App UI tests time out intermittently on CI | PLANNING | P1 | XS | architecture | — | none | 0 | 2026-11-18 |
+| BUG-006 | App UI tests time out intermittently on CI | DONE | P1 | XS | architecture | — | none | 1 | 2026-11-18 |
