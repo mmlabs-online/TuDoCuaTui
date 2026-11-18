@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-18 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-18T08:29:34Z |
 | PR | — |
 
 ## Goal
@@ -54,7 +54,7 @@ items first." Split recorded in F-704.1.
 - Unit: suggest + weather rules; server route with a fake provider. Manual: Ming turns weather on and checks a cold/rainy day.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+Plan approved (2026-11-18) — Ming: "duyệt F-704.2".
 Answers (2026-11-18, after the software-architect consult):
 - Provider: Open-Meteo (no key; personal use), fixed list of ~15 Vietnamese cities, no free text, no GPS.
 - Place storage: **per device** (browser localStorage, off by default) — no table, no migration.
