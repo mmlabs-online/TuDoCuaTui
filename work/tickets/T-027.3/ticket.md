@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | S |
 | Milestone | M1 |
@@ -54,5 +54,6 @@ place), R9 (390px and dark mode).
 - Unit tests; one-off Playwright check at 390px light and dark (D42).
 
 ## Notes / answers from Ming
+Plan approved (2026-11-18) — Ming approved plan.md including the import swap and moved `formatWait` tests in `src/features/auth/**`.
 
 ## Handoff
