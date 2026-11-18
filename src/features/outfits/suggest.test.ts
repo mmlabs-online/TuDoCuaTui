@@ -6,7 +6,12 @@ import {
   SEASON_BY_MONTH,
   seasonOf,
   suggestOutfits,
+  WEATHER_COLD_MAX_C,
+  WEATHER_HOT_MAX_C,
+  WEATHER_RAIN_CHANCE,
+  weatherKind,
   type Outfit,
+  type WeatherInput,
 } from "@/features/outfits/suggest";
 import type { Item } from "@/types/item";
 
@@ -250,5 +255,90 @@ describe("reasons and purity", () => {
     const copy = structuredClone(items);
     run(items, 3, JULY, [items[0].id]);
     expect(items).toEqual(copy);
+  });
+});
+
+describe("weather", () => {
+  const w = (maxC: number, rainChance: number | null = 10): WeatherInput => ({
+    minC: maxC - 5,
+    maxC,
+    rainChance,
+  });
+  const withW = (items: Item[], weather?: WeatherInput, seed = 1, now = JULY) =>
+    suggestOutfits(items, { now, seed, weather });
+  const hasOuter = (o: Outfit) => o.pieces.some((i) => i.category === "Khoác");
+  const base = () => [...many("Đầm", 4), ...many("Khoác", 2)];
+
+  it("weather: no weather gives the F-704.1 result", () => {
+    const items = base();
+    expect(withW(items, undefined)).toEqual(run(items));
+    expect(withW(items, w(28, 10)).outfits.map((o) => [ids(o), o.pieces.map((i) => i.id)])).toEqual(
+      run(items).outfits.map((o) => [ids(o), o.pieces.map((i) => i.id)]),
+    );
+    expect(withW(items, w(28, 10)).outfits.map((o) => o.reasons)).toEqual(
+      run(items).outfits.map((o) => o.reasons),
+    );
+  });
+
+  it("weather: cold adds Khoác outside Đông", () => {
+    const r = withW(base(), w(22));
+    expect(r.outfits.length).toBeGreaterThan(0);
+    for (const o of r.outfits) {
+      expect(hasOuter(o)).toBe(true);
+      expect(o.reasons).toContain("cold");
+    }
+    expect(run(base()).outfits.some(hasOuter)).toBe(false);
+  });
+
+  it("weather: cold makes Đông-tagged items eligible", () => {
+    const winter = mk("Đầm", { seasons: ["Đông"] });
+    const items = [winter, mk("Đầm", { seasons: ["Hạ"] })];
+    const seen = (weather?: WeatherInput) =>
+      Array.from({ length: 20 }, (_, k) => withW(items, weather, k + 1).outfits.flatMap(ids)).some(
+        (list) => list.includes(winter.id),
+      );
+    expect(seen(undefined)).toBe(false);
+    expect(seen(w(20))).toBe(true);
+  });
+
+  it("weather: hot drops Khoác in Đông", () => {
+    const r = withW(base(), w(33), 1, JAN);
+    for (const o of r.outfits) {
+      expect(hasOuter(o)).toBe(false);
+      expect(o.reasons).toContain("hot");
+    }
+    expect(run(base(), 1, JAN).outfits.every(hasOuter)).toBe(true);
+  });
+
+  it("weather: hot skips Đông-tagged items when others exist", () => {
+    const winter = mk("Đầm", { seasons: ["Đông"] });
+    const items = [winter, mk("Đầm", { seasons: ["Hạ"] }), mk("Đầm")];
+    for (let s = 1; s <= 20; s++) {
+      expect(withW(items, w(34), s, JAN).outfits.flatMap(ids)).not.toContain(winter.id);
+    }
+    const only = [mk("Đầm", { seasons: ["Đông"] })];
+    expect(withW(only, w(34), 1, JAN).outfits).toHaveLength(1);
+  });
+
+  it("weather: rain adds the rain reason", () => {
+    const items = many("Đầm", 3);
+    for (const o of withW(items, w(28, 60)).outfits) expect(o.reasons).toContain("rain");
+    for (const o of withW(items, w(28, 59)).outfits) expect(o.reasons).not.toContain("rain");
+  });
+
+  it("weather: threshold boundaries", () => {
+    expect(weatherKind(w(24)).cold).toBe(true);
+    expect(weatherKind(w(24.1)).cold).toBe(false);
+    expect(weatherKind(w(32)).hot).toBe(true);
+    expect(weatherKind(w(31.9)).hot).toBe(false);
+    expect(weatherKind(undefined)).toEqual({ cold: false, hot: false, rain: false });
+    expect([WEATHER_COLD_MAX_C, WEATHER_HOT_MAX_C, WEATHER_RAIN_CHANCE]).toEqual([24, 32, 60]);
+  });
+
+  it("weather: null rain chance is not rain", () => {
+    expect(weatherKind(w(28, null)).rain).toBe(false);
+    for (const o of withW(many("Đầm", 3), w(28, null)).outfits) {
+      expect(o.reasons).not.toContain("rain");
+    }
   });
 });

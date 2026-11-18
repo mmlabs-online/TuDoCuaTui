@@ -341,3 +341,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 ### F-602 — JSON backup and restore
 - [x] **M-30 — Approve plan for F-602 (slice F-602.1, server, High tier):** `work/tickets/F-602/plan.md` (on branch `ticket/F-602`). Check the 8 defaults under "Needs Ming's decision"; write "Plan approved" under *Notes / answers from Ming* in the ticket or tell Annie.
+- [x] **M-31 — Approve plan for F-704.2**: work/tickets/F-704.2/plan.md (weather in outfit suggestions; touches server/**).

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | F-704.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/86 |
 
 ## Goal
 "Hôm nay mặc gì?" takes today's temperature and rain into account (optional), so suggestions fit the actual day,
@@ -54,5 +54,21 @@ items first." Split recorded in F-704.1.
 - Unit: suggest + weather rules; server route with a fake provider. Manual: Ming turns weather on and checks a cold/rainy day.
 
 ## Notes / answers from Ming
+Plan approved (2026-11-18) — Ming: "duyệt F-704.2".
+Answers (2026-11-18, after the software-architect consult):
+- Provider: Open-Meteo (no key; personal use), fixed list of ~15 Vietnamese cities, no free text, no GPS.
+- Place storage: **per device** (browser localStorage, off by default) — no table, no migration.
+- Thresholds: cold when today's max ≤ **24 °C** (add outer), hot when max ≥ 32 °C (no outer), rain when chance ≥ 60 %.
+- **One ticket** (no 2a/2b split); stop for plan approval as usual.
 
 ## Handoff
+
+### 2026-11-18 — claude — BLOCKED
+- Done: consult software-architect; Ming's answers recorded (Open-Meteo, per-device city, cold ≤ 24 °C, one ticket); plan READY.
+- In progress / next: waiting for Ming's plan approval (server/** is a High path); then implement.
+- Gotchas: plan is ~350 code + ~450 test lines (over the ~400 guide; Ming chose one ticket).
+
+### 2026-11-18 — claude — DONE
+- Done: plan approved by Ming; `server/weather.js` (`GET /api/weather?place=<id>`, fixed 15-city list, Open-Meteo, cache, limiter), client weather + per-device city picker, `suggest()` weather rules (24 / 32 / 60). Review PASS (attempt 1); security review PASS (2 🟡). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/86.
+- In progress / next: Ming merges PR #86, allows egress to `api.open-meteo.com` from the home-server container, tries it with a real city. Follow-up: count the global weather limit only on a cache miss.
+- Gotchas: Playwright screenshots need ~500 ms after opening the modal (0.2 s fade-in).

@@ -11,6 +11,7 @@ import { SECURITY_HEADERS, sendError, sendJson } from "./http.js";
 import { RESTORE_BODY_TIMEOUTS, RESTORE_GLOBAL_LIMITS, RESTORE_LIMITS } from "./backup.js";
 import { BODY_TIMEOUTS } from "./photos.js";
 import { createPhotoQuota, PHOTO_LIMITS } from "./photoQuota.js";
+import { createWeather } from "./weather.js";
 import { serveStatic } from "./static.js";
 
 /**
@@ -27,6 +28,7 @@ import { serveStatic } from "./static.js";
  *   bodyTimeouts?: { totalMs: number, idleMs: number },
  *   photoLimits?: { storedMax: number, dailyMax: number, windowMs: number },
  *   restoreBodyTimeouts?: { totalMs: number, idleMs: number },
+ *   weatherFetch?: typeof globalThis.fetch,
  * }} deps
  */
 export function createApp({
@@ -42,7 +44,10 @@ export function createApp({
   bodyTimeouts = BODY_TIMEOUTS,
   photoLimits = PHOTO_LIMITS,
   restoreBodyTimeouts = RESTORE_BODY_TIMEOUTS,
+  weatherFetch = globalThis.fetch,
 }) {
+  // Weather (F-704.2): one cache and one limiter per app instance, independent of the pool and the AI context.
+  const weather = createWeather({ fetch: weatherFetch, now, ownerSub });
   // Uploads in flight: 2 per user, 3 in total (3 x 2 MiB in memory). The owner has its own lane.
   const photoSlots = createInFlight({ perUser: 2, total: 3, exempt: ownerSub });
   // Per-user stored cap and daily upload count (T-019.14); the owner is exempt (it is Ming's Drive).
@@ -125,6 +130,7 @@ export function createApp({
           photoSlots,
           photoQuota,
           backup,
+          weather,
           bodyTimeouts,
           pathname,
           query: url.split("#")[0].split("?").slice(1).join("?"),

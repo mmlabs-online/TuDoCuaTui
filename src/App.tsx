@@ -25,6 +25,7 @@ import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
 import { createHttpAiSettings } from "@/data/aiSettings";
 import { createHttpAiTagger } from "@/data/aiTagging";
+import { createHttpWeather } from "@/data/weather";
 import type { GetToken } from "@/data/authFetch";
 import { THEME_KEY } from "@/lib/theme";
 import { APP_VERSION } from "@/lib/version";
@@ -46,6 +47,10 @@ function App({
   );
   const aiTagger = useMemo(
     () => createHttpAiTagger(undefined, undefined, { getToken, onAuthLost }),
+    [], // same injection as aiClient
+  );
+  const weatherClient = useMemo(
+    () => createHttpWeather(undefined, undefined, { getToken, onAuthLost }),
     [], // same injection as aiClient
   );
   const { items, loading } = wardrobe;
@@ -280,6 +285,7 @@ function App({
         {outfitsOpen && (
           <OutfitsModal
             items={items}
+            weather={weatherClient}
             onClose={() => setOutfitsOpen(false)}
             onOpenItem={(item) => {
               setOutfitsOpen(false);
