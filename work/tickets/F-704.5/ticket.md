@@ -51,6 +51,7 @@ Security: render the reason as plain text only (F-704.3 security review).
 - Files: `src/features/outfits/OutfitsModal.tsx` (+ test), `copy.ts` (+ test), `src/index.css`, `src/App.tsx`.
 - No App-level tests (BUG-006). `src/App.tsx` is a hotspot: keep it to wiring.
 - Follow-up from F-704.4 consult: clear the weather wait timer in the modal (it is never cleared today).
+- From the F-704.4 review: convert the season label from `seasonOf()` (e.g. "Đông") to the DB id with `SEASON_TO_DB` before calling `suggest` — the server only accepts ids like `"winter"`.
 
 ## Test plan
 - Modal tests with fake AI and weather clients. Manual (Ming): real Claude and Gemini keys; check the reasons read naturally.
