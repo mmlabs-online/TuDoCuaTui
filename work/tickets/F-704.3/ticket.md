@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T09:27:23Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -52,8 +52,14 @@ per-user limits, provider adapters for Claude and Gemini), D48 (no EXIF to AI).
 - Unit: candidate builder and response validation; server route with a fake provider. Manual: Ming tries it with Claude and Gemini keys.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier). The plan splits this ticket: F-704.3 = server slice; client slice proposed as F-704.4.
 Answers (2026-11-18):
 - Send attributes **and item names** to the AI (category, colours, seasons, material, wear count, last worn, name); never photos.
 - **Separate rate limit** for AI suggestions (a new limiter kind, e.g. `suggest`, about 30/day per user), not the 100/day `tag` budget.
 
 ## Handoff
+
+### 2026-11-18 — claude — BLOCKED
+- Done: consult software-architect; Ming's answers recorded (names + attributes, separate `suggest` limit); plan READY (server slice only, ~1,400 lines total → split; client slice proposed as F-704.4).
+- In progress / next: waiting for Ming's plan approval (server/** is High); after approval create F-704.4 and implement F-704.3.
+- Gotchas: existing tag adapter tests must pass unchanged after the adapter refactor.
