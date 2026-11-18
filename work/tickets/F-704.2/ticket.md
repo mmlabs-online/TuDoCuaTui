@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T07:10:18Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -54,6 +54,7 @@ items first." Split recorded in F-704.1.
 - Unit: suggest + weather rules; server route with a fake provider. Manual: Ming turns weather on and checks a cold/rainy day.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 Answers (2026-11-18, after the software-architect consult):
 - Provider: Open-Meteo (no key; personal use), fixed list of ~15 Vietnamese cities, no free text, no GPS.
 - Place storage: **per device** (browser localStorage, off by default) — no table, no migration.
@@ -61,3 +62,8 @@ Answers (2026-11-18, after the software-architect consult):
 - **One ticket** (no 2a/2b split); stop for plan approval as usual.
 
 ## Handoff
+
+### 2026-11-18 — claude — BLOCKED
+- Done: consult software-architect; Ming's answers recorded (Open-Meteo, per-device city, cold ≤ 24 °C, one ticket); plan READY.
+- In progress / next: waiting for Ming's plan approval (server/** is a High path); then implement.
+- Gotchas: plan is ~350 code + ~450 test lines (over the ~400 guide; Ming chose one ticket).
