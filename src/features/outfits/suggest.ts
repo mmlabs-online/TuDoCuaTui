@@ -1,4 +1,5 @@
 import { CATEGORY_TO_DB, STATUS_TO_DB } from "@/data/mappers";
+import type { AiSuggestResult } from "@/data/aiOutfits";
 import { isStale } from "@/features/items/filters";
 import type { Item } from "@/types/item";
 
@@ -77,38 +78,70 @@ function shuffle<T>(list: T[], rand: () => number): T[] {
   return a;
 }
 
-export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Suggestion {
-  const { now, seed, count = 3 } = opts;
-  const avoid = new Set(opts.avoid ?? []);
-  const season = seasonOf(now);
+type Eligibility = {
+  season: string;
+  cold: boolean;
+  hot: boolean;
+  rain: boolean;
+  outerWanted: boolean;
+  /** Per role: items fitting the wanted seasons, or all of the role when none fit (item order). */
+  pools: Record<string, Item[]>;
+};
+
+/** Active items in the rule categories, after the season/weather step shared by the rules and the AI pool. */
+function eligibility(
+  items: readonly Item[],
+  opts: { now: number; weather?: WeatherInput },
+): Eligibility {
+  const season = seasonOf(opts.now);
   const { cold, hot, rain } = weatherKind(opts.weather);
   // Weather widens (cold: Đông) or narrows (hot: no Đông) the seasons whose items are eligible.
   let wanted = [season];
   if (cold) wanted = [...wanted.filter((s) => s !== "Hạ"), "Đông"];
   if (hot) wanted = [...wanted.filter((s) => s !== "Đông"), "Hạ"];
-  const rand = mulberry32(seed);
 
   const byRole: Record<string, Item[]> = {};
   for (const item of items) {
-    if (STATUS_TO_DB[item.status] !== "active") continue;
-    const role = CATEGORY_TO_DB[item.category];
-    if (!role || role === "bikini" || role === "other") continue;
-    (byRole[role] ??= []).push(item);
+    const role = ruleRole(item);
+    if (role) (byRole[role] ??= []).push(item);
   }
-
   const inSeason = (i: Item) => i.seasons.length === 0 || i.seasons.some((s) => wanted.includes(s));
-  const rank = (role: string): Ranked[] => {
-    const all = byRole[role] ?? [];
+  const pools: Record<string, Item[]> = {};
+  for (const [role, all] of Object.entries(byRole)) {
     const fit = all.filter(inSeason);
-    const pool = fit.length ? fit : all;
-    return shuffle(pool, rand)
+    pools[role] = fit.length ? fit : all;
+  }
+  return {
+    season,
+    cold,
+    hot,
+    rain,
+    outerWanted: cold || (!hot && COLD_SEASONS.includes(season)),
+    pools,
+  };
+}
+
+/** The rule role of an active item, or null for other statuses and for bikini / other. */
+function ruleRole(item: Item): string | null {
+  if (STATUS_TO_DB[item.status] !== "active") return null;
+  const role = CATEGORY_TO_DB[item.category];
+  return !role || role === "bikini" || role === "other" ? null : role;
+}
+
+export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Suggestion {
+  const { now, seed, count = 3 } = opts;
+  const avoid = new Set(opts.avoid ?? []);
+  const { season, cold, hot, rain, outerWanted, pools } = eligibility(items, opts);
+  const rand = mulberry32(seed);
+
+  const rank = (role: string): Ranked[] =>
+    shuffle(pools[role] ?? [], rand)
       .map((item) => ({
         item,
         tier: isStale(item, now) || item.wearCount === 0 ? 0 : 1,
         avoided: avoid.has(item.id) ? 1 : 0,
       }))
       .sort((a, b) => a.avoided - b.avoided || a.tier - b.tier);
-  };
 
   const units: Ranked[][] = [];
   for (const role of ONE_PIECE) for (const r of rank(role)) units.push([r]);
@@ -128,7 +161,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     .map((x) => x.u.map((r) => r.item));
 
   const shoes = rank("shoes");
-  const outer = cold || (!hot && COLD_SEASONS.includes(season)) ? rank("outer") : [];
+  const outer = outerWanted ? rank("outer") : [];
   const accessory = rank("accessory");
   const pick = (list: Ranked[], k: number) => (list.length ? [list[k % list.length].item] : []);
 
@@ -147,4 +180,76 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     };
   });
   return { season, outfits };
+}
+
+/** Most candidates sent to the AI per call (F-704.3 A2). */
+export const AI_CANDIDATE_CAP = 40;
+const POOL_ROLES = ["top", "bottom", "dress", "set", "ao_dai", "shoes", "outer", "accessory"];
+
+const wornGroup = (i: Item) => (i.wearCount === 0 ? 0 : i.lastWorn === "" ? 1 : 2);
+const byUnworn = (a: Item, b: Item) =>
+  wornGroup(a) - wornGroup(b) ||
+  (wornGroup(a) === 2 && a.lastWorn !== b.lastWorn ? (a.lastWorn < b.lastWorn ? -1 : 1) : 0) ||
+  (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0) ||
+  (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * Items offered to the AI: the rule pool after the season/weather step, never-worn first then longest-unworn
+ * within each role, roles interleaved round-robin, at most `AI_CANDIDATE_CAP`.
+ */
+export function candidatePool(
+  items: readonly Item[],
+  opts: { now: number; weather?: WeatherInput },
+): Item[] {
+  const { outerWanted, pools } = eligibility(items, opts);
+  const lists = POOL_ROLES.filter((r) => r !== "outer" || outerWanted).map((r) =>
+    [...(pools[r] ?? [])].sort(byUnworn),
+  );
+  const out: Item[] = [];
+  for (let k = 0; out.length < AI_CANDIDATE_CAP && lists.some((l) => k < l.length); k++) {
+    for (const l of lists) {
+      if (k < l.length && out.length < AI_CANDIDATE_CAP) out.push(l[k]);
+    }
+  }
+  return out;
+}
+
+export type AiOutfit = { pieces: Item[]; reason: string };
+
+/** Plain-text reason: NFC, no control / bidi / zero-width characters, one line, at most 120 code points. */
+export function cleanReason(s: string): string {
+  return Array.from(
+    s
+      .normalize("NFC")
+      // Tab / newline (U+0009-000D) stay for the whitespace collapse below.
+      .replace(
+        /[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF]/g,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim(),
+  )
+    .slice(0, 120)
+    .join("");
+}
+
+/** Maps the AI answer back to items, dropping outfits that are no longer valid. At most 3 are returned. */
+export function toAiOutfits(result: AiSuggestResult, items: readonly Item[]): AiOutfit[] {
+  const byId = new Map(items.filter((i) => ruleRole(i)).map((i) => [i.id, i]));
+  const seen = new Set<string>();
+  const out: AiOutfit[] = [];
+  for (const o of result.outfits) {
+    if (out.length === 3) break;
+    if (o.itemIds.length < 1 || o.itemIds.length > 5) continue;
+    if (new Set(o.itemIds).size !== o.itemIds.length) continue;
+    const pieces = o.itemIds.map((id) => byId.get(id));
+    if (!pieces.every((p): p is Item => !!p)) continue;
+    const reason = cleanReason(o.reason);
+    if (!reason) continue;
+    const key = [...o.itemIds].sort().join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ pieces, reason });
+  }
+  return out;
 }
