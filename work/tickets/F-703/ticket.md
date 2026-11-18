@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T01:26:24Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/79 |
 
 ## Goal
 When Ming imports a batch of photos, the AI can fill each new item's details (category, colours, seasons, material,
@@ -65,3 +65,8 @@ upload goes through `preparePhoto`).
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: AI checkbox in the Photos tab; tag each prepared JPEG before save via `repo.save(…, { withPrepared })`; fill empty fields with F-702's rule; AI errors never block the import. Review PASS (attempt 1); security review PASS (3 🟡). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/79.
+- In progress / next: Ming merges PR #79; decide assumption A1 (AI name replaces the file name); phone check with about 10 photos.
+- Gotchas: keep the repo.http test that pins "withPrepared cannot change the id or the uploaded bytes".
