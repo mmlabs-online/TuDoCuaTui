@@ -17,8 +17,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-18 |
-| Claimed by | claude@2026-11-18T03:52:20Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/84 |
 
 ## Report
 Ming, 2026-11-18: chose "Ghi BUG-006 và sửa" after CI went red on PR #82. The `ci` job's `pnpm test:coverage`
@@ -70,3 +70,8 @@ under coverage instrumentation and parallel workers on the CI runner they take 5
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-18 — claude — DONE
+- Done: `vi.setConfig({ testTimeout: 20_000 })` at the top of `src/App.test.tsx` (consult: software-architect). Regression check `--testTimeout=1000`: 39/44 time out on origin/main, 44/44 pass after. Review PASS (attempt 1). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/84.
+- In progress / next: confirm the PR's `ci` run is green; reopen if App.test.tsx still times out on CI. Ming merges PR #84.
+- Gotchas: a single-file `--coverage` run exits 1 because of coverage thresholds; read the `Tests` line.
