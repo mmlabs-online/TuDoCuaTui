@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | DONE |
+| State | MERGED |
 | Severity | S2 |
 | Priority | P1 |
 | Size | XS |
@@ -75,3 +75,8 @@ under coverage instrumentation and parallel workers on the CI runner they take 5
 - Done: `vi.setConfig({ testTimeout: 20_000 })` at the top of `src/App.test.tsx` (consult: software-architect). Regression check `--testTimeout=1000`: 39/44 time out on origin/main, 44/44 pass after. Review PASS (attempt 1). PR https://github.com/mmlabs-online/TuDoCuaTui/pull/84.
 - In progress / next: confirm the PR's `ci` run is green; reopen if App.test.tsx still times out on CI. Ming merges PR #84.
 - Gotchas: a single-file `--coverage` run exits 1 because of coverage thresholds; read the `Tests` line.
+
+### 2026-11-18 — claude — MERGED
+- Done: PR #84 `ci` run 44235947700 green on head 18ced67 (test:coverage passed, `image` green); merged by Ming.
+- In progress / next: reopen if `src/App.test.tsx` times out on CI again.
+- Gotchas: —
