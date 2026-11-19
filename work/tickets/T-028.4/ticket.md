@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | S |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | security |
 | Gate | plan-approval |
 | Depends on | T-028.1 |
-| Needs Ming | — |
+| Needs Ming | M-36 |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T08:17:31Z |
@@ -41,3 +41,8 @@ The SPA can ask the API who the signed-in user is, as the shared mmlabs consumer
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-19 — claude — BLOCKED
+- Done: plan READY (GET /api/auth/me → {id, email, role} behind the existing auth guard; verifier also returns the email claim; new server/me.js; 405 Allow: GET; no DB access; no SPA change). No consult (area security only).
+- In progress / next: waiting for Ming's plan approval (M-36; server/** is High); then implement; security auditor at review.
+- Gotchas: assumptions A1–A5 in plan.md; identity.test.ts happy path and app.test.ts auth stubs gain email.
