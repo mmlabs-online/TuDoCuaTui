@@ -19,12 +19,22 @@ afterEach(() => {
 /** Lets 0 ms timers (the post-lock yield) and the microtasks behind them run. */
 const settle = (ms = 10) => vi.advanceTimersByTimeAsync(ms);
 
+function sharedStorage(initial: string | null) {
+  let v = initial;
+  return {
+    read: () => v,
+    write: (x: string) => void (v = x),
+    clear: vi.fn(() => void (v = null)),
+    value: () => v,
+  };
+}
+
 function world(expiresIn = 900) {
   const locks = createFakeLockManager();
   const hub = createFakeChannelHub();
   let n = 0;
-  const tab = (opts: { id?: string | null } = {}) => {
-    let stored: string | null = opts.id === undefined ? ID : opts.id;
+  const tab = (opts: { id?: string | null; storage?: ReturnType<typeof sharedStorage> } = {}) => {
+    const cell = opts.storage ?? sharedStorage(opts.id === undefined ? ID : opts.id);
     const client = {
       token: vi.fn(async (_id: string) => {
         await Promise.resolve();
@@ -33,18 +43,16 @@ function world(expiresIn = 900) {
       logout: vi.fn(async (_id: string) => {}),
     };
     const doc = createFakeDoc();
-    const clear = vi.fn(() => {
-      stored = null;
-    });
+    const clear = cell.clear;
     const store = createTokenStore({
       client: client as unknown as IdentityClient,
-      storage: { read: () => stored, write: (v) => (stored = v), clear },
+      storage: cell,
       lock: createRefreshLock({ locks }),
       channel: () => createAuthChannel({ create: () => hub.endpoint() }),
       doc,
     });
     const stop = store.start();
-    return { store, client, doc, clear, stop, stored: () => stored };
+    return { store, client, doc, clear, stop, stored: cell.value };
   };
   /** A bare endpoint: posts as "another tab" and records what the others broadcast. */
   const probe = () => {
@@ -345,5 +353,49 @@ describe("proactive renewal", () => {
     ep.postMessage(tokenMsg({ accessToken: "after-stop" }));
     await settle();
     expect(await b.store.getToken()).toBe("tok2"); // still its own token: the closed channel delivered nothing
+  });
+});
+
+describe("BUG-007: sign-out keeps another tab's account", () => {
+  it("BUG-007: A (X) signs out after B continued as Y on shared storage -> storage still holds Y", async () => {
+    const w = world();
+    const shared = sharedStorage(ID);
+    const a = w.tab({ storage: shared });
+    const b = w.tab({ storage: shared });
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    const first = a.store.getToken();
+    await settle();
+    await first;
+    void b.store.continueAs(ID2, "y@b.co");
+    await settle();
+    expect(shared.value()).toBe(ID2);
+    const out = a.store.signOut();
+    await settle();
+    await out;
+    expect(shared.value()).toBe(ID2);
+    expect(b.store.accountId()).toBe(ID2);
+    expect(remote).not.toHaveBeenCalled();
+    expect(a.store.accountId()).toBeNull();
+    expect(a.client.logout).toHaveBeenCalledWith(ID);
+  });
+
+  it("BUG-007: a third tab still on X gets the remote signedOut and keeps Y in storage", async () => {
+    const w = world();
+    const shared = sharedStorage(ID);
+    const a = w.tab({ storage: shared });
+    const c = w.tab({ storage: shared });
+    const b = w.tab({ storage: shared });
+    const remote = vi.fn();
+    c.store.onRemoteSignOut(remote);
+    void b.store.continueAs(ID2, "y@b.co");
+    await settle();
+    const out = a.store.signOut();
+    await settle();
+    await out;
+    expect(remote).toHaveBeenCalledOnce();
+    expect(c.store.accountId()).toBeNull();
+    expect(shared.value()).toBe(ID2);
+    expect(b.store.accountId()).toBe(ID2);
   });
 });
