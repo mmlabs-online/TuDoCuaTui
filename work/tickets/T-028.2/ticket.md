@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | T-028.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 2 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T03:05:00Z |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/90 |
 
 ## Goal
 Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in one tab is reused by the others, and signing out in one tab signs out all of them.
@@ -48,6 +48,7 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 
 ## Notes / answers from Ming
 - 2026-11-19 — Plan approved by Ming ("duyệt T-028.2"), including assumptions A1–A6.
+- 2026-11-19 — After attempt 1 (review PASS, security PASS), Ming chose "Sửa cả 3 trong PR này": change the A6 warning copy to "Bạn đã đăng xuất khỏi Tủ đồ của tôi trên trình duyệt này, nhưng chưa xác nhận được việc đăng xuất khỏi tài khoản mmlabs. Nếu đây là máy dùng chung, hãy kết nối mạng rồi đăng nhập và đăng xuất lại, hoặc xoá dữ liệu duyệt web (cookie) của trình duyệt này."; fix the short-token renewal loop; fix the join-screen spinner stall.
 
 ## Handoff
 
@@ -55,3 +56,8 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 - Done: consult software-architect; plan READY (refreshLock.ts Web Lock, authChannel.ts BroadcastChannel + parseAuthMessage, lock-guarded renewal with double-check and broadcast, proactive timer 60 s before exp, cross-tab signedOut, signOut returns {confirmed} + logout_unconfirmed warning, 409 email_already_verified → restore, /token 15 s timeout).
 - In progress / next: waiting for Ming's plan approval (M-34; src/features/auth/** is High); then implement.
 - Gotchas: assumptions A1–A6 in plan.md need approval; AuthGate/SignInScreen/copy hotspots shared with T-028.3.
+
+### 2026-11-19 — claude — DONE
+- Done: plan approved; refreshLock.ts (Web Lock) + authChannel.ts (BroadcastChannel, parseAuthMessage); lock-guarded renewal with double-check and broadcast; proactive renewal 60 s before exp (min 15 s); cross-tab sign-out; signOut returns {confirmed} + logout_unconfirmed warning; 409 email_already_verified → restore; /token 15 s timeout. Attempt 1 PASS + security PASS; attempt 2 (Ming: new warning copy, short-token loop, join spinner) PASS + security PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/90.
+- In progress / next: Ming merges the PR; then T-028.3 (Continue as) and T-028.4 (/api/auth/me).
+- Gotchas: real-browser lock/channel ordering is not visible in jsdom — check two real tabs after deploy.
