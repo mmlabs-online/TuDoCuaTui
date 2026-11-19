@@ -1078,6 +1078,43 @@ describe("continue as", () => {
     expect(s.client.accounts).toHaveBeenCalledTimes(1);
   });
 
+  it("continue -> App -> background not_member (no join) -> form with the error, no list, accounts called once", async () => {
+    const s = setup();
+    await continueAsMe();
+    await screen.findByText("app-ready");
+    s.client.token.mockRejectedValueOnce(err("not_member"));
+    await act(async () => {
+      await s.store.getToken("tok").catch(() => {});
+    });
+    expect(await emailField()).toBeTruthy();
+    expect(alertText()).toContain(AUTH_COPY.errors.not_member);
+    expect(screen.queryByRole("button", { name: /^Tiếp tục với / })).toBeNull();
+    expect(s.client.accounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("continue -> join screen -> join session_invalid -> form + error, accounts re-listed", async () => {
+    const s = setup({ firstTokenError: { code: "not_member", joinAvailable: true } });
+    await continueAsMe();
+    s.client.join.mockRejectedValueOnce(err("session_invalid"));
+    await click(await screen.findByRole("button", { name: AUTH_COPY.join.continue(A.email) }));
+    expect(await emailField()).toBeTruthy();
+    expect(alertText()).toContain(AUTH_COPY.errors.session_invalid);
+    expect(await listBtn(A.email)).toBeTruthy();
+    expect(s.client.accounts).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-check leading to the join screen -> other account -> a new unverified account opens without the still error", async () => {
+    const s = setup({ firstTokenError: err("email_unverified") });
+    await continueAsMe();
+    s.client.token.mockRejectedValueOnce({ code: "not_member", joinAvailable: true });
+    await click(await screen.findByRole("button", { name: AUTH_COPY.unverified.checkAgain }));
+    await click(await screen.findByRole("button", { name: AUTH_COPY.join.otherAccount }));
+    s.client.token.mockRejectedValueOnce(err("email_unverified"));
+    await signInWith();
+    expect(await screen.findByRole("heading", { name: AUTH_COPY.unverified.title })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("own sign-out -> form only, accounts not called again", async () => {
     const s = setup({ accounts: async () => [A, { accountId: ID2, email: "two@b.co" }] });
     await continueAsMe();

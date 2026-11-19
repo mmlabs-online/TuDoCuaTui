@@ -48,3 +48,21 @@ States: signIn `accounts`, `accounts_long`, `continuing`; unverified `idle` (lon
 
 ### Follow-ups (not in the diff, R7)
 As listed in plan.md (conditional `storage.clear()`, `signedOut` on forget, `Retry-After` countdown, `display_name` badges, banner removal, hide-account option). New: none.
+
+## Attempt 2 (2026-11-19, implementer, REWORK)
+
+Fixes review attempt 1, Issue 1 (blocker) plus two nits in this ticket's own code.
+
+### Files touched
+- `src/features/auth/AuthGate.tsx`: `enterReady()` calls `clearAccounts()` (a mount-time list never reappears once the app was reached, A2); the join catch's `session_invalid` goes through `failTo(err)` (re-lists, plan §3); `offerJoin()` resets `rechecking.current` (nit: a re-check that lands on the join screen no longer leaves `still` preset for a later unverified account).
+- `src/features/auth/AuthGate.test.tsx`: 3 new tests in "continue as": (a) continue -> App -> background `not_member` (no join) -> form + error, no list, accounts called once; (b) continue -> join -> join `session_invalid` -> form + error, list re-shown, accounts called twice; (c) re-check -> join screen -> other account -> new unverified account shows no alert (no `still`). All three fail without the AuthGate change (verified by stashing it).
+- `src/features/auth/SignInScreen.test.tsx`: the empty-list assertion queries role `region` (what the `<section aria-label>` renders) instead of `group`.
+
+### Checks
+- `pnpm typecheck`: pass.
+- `pnpm format:check`: pass.
+- `pnpm test`: Test Files 136 passed | 11 skipped (147); Tests 1872 passed | 222 skipped (2094).
+- `pnpm build`: pass.
+
+### Out-of-plan files / follow-ups
+None. Left alone (R7): other nits, and `offerJoin`'s "signed out meanwhile" branch (already a listed follow-up).

@@ -222,7 +222,7 @@ describe("SignInScreen continue-as list", () => {
     for (const accounts of [undefined, []]) {
       setup({ accounts, onContinueAs: vi.fn() });
       expect(screen.queryByText(AUTH_COPY.signIn.otherAccount)).toBeNull();
-      expect(screen.queryByRole("group", { name: AUTH_COPY.signIn.accountsLabel })).toBeNull();
+      expect(screen.queryByRole("region", { name: AUTH_COPY.signIn.accountsLabel })).toBeNull();
       expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
       cleanup();
     }

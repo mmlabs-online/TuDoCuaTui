@@ -89,6 +89,7 @@ export function AuthGate({
 
   const enterReady = () => {
     rechecking.current = false;
+    clearAccounts(); // the list is for a cold sign-in page only; never show a mount-time list again
     generation.current += 1;
     setView({
       kind: "ready",
@@ -148,6 +149,7 @@ export function AuthGate({
     err.code === "not_member" && err.joinAvailable === true && store.accountId() !== null;
   // not_member + join_available: look up the account's email, then offer "Continue as" (never joins by itself).
   const offerJoin = async (live: () => boolean = () => true) => {
+    rechecking.current = false;
     setView({ kind: "checking" });
     try {
       const joinEmail = await store.accountEmail();
@@ -435,7 +437,7 @@ export function AuthGate({
       const err = e as AuthError;
       joining.current = false;
       setJoinStatus("idle");
-      if (err.code === "session_invalid") setView({ kind: "signed_out", error: err });
+      if (err.code === "session_invalid") failTo(err);
       else setView((v) => (v.kind === "join" ? { ...v, error: err } : v));
     }
   };
