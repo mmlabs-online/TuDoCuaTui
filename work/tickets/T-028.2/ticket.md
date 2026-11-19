@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | security, architecture |
 | Gate | plan-approval |
 | Depends on | T-028.1 |
-| Needs Ming | — |
+| Needs Ming | M-34 |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T03:05:00Z |
@@ -49,3 +49,8 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-19 — claude — BLOCKED
+- Done: consult software-architect; plan READY (refreshLock.ts Web Lock, authChannel.ts BroadcastChannel + parseAuthMessage, lock-guarded renewal with double-check and broadcast, proactive timer 60 s before exp, cross-tab signedOut, signOut returns {confirmed} + logout_unconfirmed warning, 409 email_already_verified → restore, /token 15 s timeout).
+- In progress / next: waiting for Ming's plan approval (M-34; src/features/auth/** is High); then implement.
+- Gotchas: assumptions A1–A6 in plan.md need approval; AuthGate/SignInScreen/copy hotspots shared with T-028.3.
