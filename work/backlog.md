@@ -95,7 +95,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-028.1 | Harden the Identity token verifier (JWKS outage → 503, refuse key-carrying headers) | MERGED | P1 | S | security, architecture | — | plan-approval | 2 | 2026-11-19 |
 | T-028.2 | Share the sign-in session across tabs and renew tokens before they expire | MERGED | P1 | M | security, architecture | T-028.1 | plan-approval | 2 | 2026-11-19 |
 | T-028.3 | "Continue as {email}" on the sign-in page and a verify-email screen | MERGED | P1 | M | ui, security | T-028.2 | plan-approval | 2 | 2026-11-19 |
-| T-028.4 | GET /api/auth/me | IN_PROGRESS | P2 | S | security | T-028.1 | plan-approval | 0 | 2026-11-19 |
+| T-028.4 | GET /api/auth/me | DONE | P2 | S | security | T-028.1 | plan-approval | 1 | 2026-11-19 |
 | BUG-002 | Item grid renders every item at once instead of 12 at a time | MERGED | P1 | S | ui | — | none | 1 | 2026-11-17 |
 | BUG-003 | Hero banner photos are cut off on mobile | MERGED | P2 | XS | ui | — | none | 2 | 2026-11-17 |
 | BUG-004 | Search box overflows and scrolls sideways on mobile | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
