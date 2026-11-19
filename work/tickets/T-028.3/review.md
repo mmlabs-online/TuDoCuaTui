@@ -75,3 +75,61 @@ None (orchestrator to add `security-review.md` 🔴 findings if the security tri
 ### Follow-ups (out of scope)
 - As in plan.md: conditional `storage.clear()`, `signedOut` on forget, removing the unreachable SignInScreen `email_unverified` banner, `display_name`/badges, the "không phải tôi" hide option, and a `Retry-After` countdown.
 - `offerJoin`'s "signed out meanwhile" branch (AuthGate.tsx:157-159) sets `session_invalid` without a re-list. Consider routing it through `failTo` along with Issue 1's join fix.
+
+## Attempt 2 — 2026-11-19
+Verdict: PASS
+
+Reviewed commit e894ba9. Delta `git diff d9f2fca..e894ba9`: in `src/`, only `AuthGate.tsx` (+2/−1 code lines), `AuthGate.test.tsx` (+3 tests) and `SignInScreen.test.tsx` (1 line). The whole ticket (`git diff origin/main...HEAD`, 20 files, +1059/−54) touches the same 16 `src/features/auth/` files as attempt 1, plus the ticket's `work/` files. No new files and no new High path beyond what the plan named.
+
+### Checks (run by reviewer)
+- `pnpm typecheck` — pass (exit 0).
+- `pnpm format:check` — pass (exit 0, 334 files).
+- `pnpm test` — pass: Test Files 136 passed | 11 skipped (147); Tests 1872 passed | 222 skipped (2094). Matches impl-log attempt 2 (+3 tests compared with attempt 1).
+- `pnpm build` — pass (built in 438 ms).
+- No visual change in this delta (logic and tests only), so I did not run Playwright again. The attempt-1 390 px / dark-mode evidence still applies.
+
+### Issue 1 (attempt 1) — fixed
+- `AuthGate.tsx:92`: `enterReady()` now calls `clearAccounts()`, which bumps `listSeq` and sets the list to null. Every path that reaches the app (continue, password sign-in, join, restore, retry → restore) drops the mount-time list, and a late `/accounts` answer is ignored. I checked that this breaks nothing. The list renders only in `signed_out`/`signIn`. The mount effect (`:180-183`) runs once. Each later sign-in page either clears the list (the four A2 exits: `:204`, `:259`, `:268`, `:470`, `:495`) or re-lists it (`failTo` session_invalid, `:136-139`). So nothing depends on the list surviving `ready`.
+- `AuthGate.tsx:440`: join's `session_invalid` now goes through `failTo(err)`, so it re-lists (plan §3). The `stale()` guard still runs first (`:436`). `failTo` cannot take the `email_unverified` branch for this code.
+- The A2 exits still clear the list: own sign-out, remote sign-out (`:204`), and "Dùng tài khoản khác" on join (`:470`) and on unverified (`:495`) are unchanged. Their existing tests pass ("own sign-out -> form only, accounts not called again", "remote sign-out during a continue …", and the other-account tests).
+- **The tests fail without the fix. I checked this myself** in a scratch copy of e894ba9 (`/tmp/claude-0/-home-user/d13078d4-3bc7-5f58-a1a9-b661b3f23890/scratchpad/rv-t0283b/`, node_modules symlinked):
+  - With d9f2fca's `AuthGate.tsx`: exactly the 3 new tests fail; the other 78 pass.
+  - With each change reverted on its own, exactly one test fails:
+    - remove the `clearAccounts()` in `enterReady` → only "continue -> App -> background not_member (no join) …" fails;
+    - put back `setView({ kind: "signed_out", error: err })` in join → only "continue -> join screen -> join session_invalid … re-listed" fails;
+    - remove `rechecking.current = false` in `offerJoin` → only "re-check leading to the join screen -> other account …" fails.
+  So each change is pinned by its own test.
+
+### Acceptance criteria
+- [x] AC2b / A2: the list shows only on a cold sign-in page and after `session_invalid`. Evidence: `AuthGate.tsx:92` and `:440`, plus the two new tests above (background `not_member`: no list, accounts ×1; join `session_invalid`: list re-shown, accounts ×2).
+- [x] AC1, AC1a, AC1b, AC1c, AC2, AC2a, AC3, A6, AC4 (R6), AC5 (R9), AC6: the evidence from attempt 1 stands. Every test cited there still passes in the full run above, and the delta does not touch the code behind them except as described.
+
+### Nits from attempt 1
+- `SignInScreen.test.tsx:225` now queries role `region`. This matches `<section aria-label>` (`SignInScreen.tsx:84`) and the positive test at `:233`, so the null assertion can now fail. Fixed.
+- `rechecking` reset: `AuthGate.tsx:152` resets it in `offerJoin`, which covers re-check → join → other account. `failTo` and `enterReady` still consume it on the other paths. Fixed, and covered by its own test.
+- The `still` wording and the `Btn` arrow at 390 px were not changed. They remain cosmetic nits.
+
+### Issues
+None.
+
+### Rules (CLAUDE.md)
+- R1 and R3 are unchanged by the delta: no fetch, nothing secret.
+- R6: no new copy; the tests use `AUTH_COPY`.
+- R7: the delta does only what the attempt-1 fix instructions and the two nits asked for.
+- R8: met, with a regression test per change.
+- R9: no UI change.
+- No violations found.
+
+### Blockers from review agents
+None from me. The working tree has an uncommitted "Attempt 2" section in `security-review.md`, written by the orchestrator's security run, not by me. The orchestrator should copy in any 🔴 from it. Its summary is PASS, and it asked the main reviewer to confirm the checks; they are confirmed above.
+
+### Nits (do not block)
+- 💭 `UnverifiedScreen` `still` text repeats the body (carried over from attempt 1).
+- 💭 The `Btn` arrow icon is squeezed beside a two-line long-email label at 390 px (carried over from attempt 1).
+
+### Ming verification after merge
+- Same as attempt 1: on production, "Tiếp tục với {email}" while signed in to another mmlabs app; the unverified flow (resend, then the re-check enters the app); a brief `/accounts` loader on a cold page.
+
+### Follow-ups (out of scope)
+- From attempt 1, still open: `offerJoin`'s "signed out meanwhile" branch (`AuthGate.tsx:158-161`) sets `session_invalid` without a re-list.
+- The plan.md follow-ups from attempt 1 are unchanged.

@@ -60,3 +60,63 @@ I read these files in full: `/home/user/TuDoCuaTui/src/features/auth/{tokenStore
 - Optional: send join's `session_invalid` through `failTo` to match the contract's "re-list".
 
 ### Verdict: **PASS** (security). This assumes the checks in impl-log are green; the main reviewer should confirm them, since I could not run them.
+
+## Attempt 2 — 2026-11-19 — security-ai-generated-code-auditor
+
+### Security re-review: T-028.3, attempt 2 (REVIEW stage, read-only)
+
+**What I read:**
+- `/home/user/TuDoCuaTui/src/features/auth/AuthGate.tsx`, in full.
+- `/home/user/TuDoCuaTui/src/features/auth/tokenStore.ts` l.140-335 (`renew` catch, `adopt`, `forget`, `join`).
+- The new and changed tests: `AuthGate.test.tsx` l.598-605 and l.1081-1116, and `SignInScreen.test.tsx` l.221-233.
+- The attempt-1 `review.md` and `security-review.md`, and the Attempt 2 section of `impl-log.md`.
+
+I could not run git or the checks. The check results below come from impl-log (typecheck, format, test 1872 passed / 222 skipped, build all pass), and the main reviewer should confirm them.
+
+### Findings
+
+**No 🔴 blockers.**
+
+**No 🟡 should-fix.**
+
+**🟢 notes:**
+
+1. **A2: a stale list can no longer come back once the app was reached.**
+   - `AuthGate.tsx:92`: `enterReady()` now calls `clearAccounts()`. That bumps `listSeq` and sets `accounts` to null.
+   - Every path into `ready` goes through `enterReady`: restore at `:216`, password sign-in at `:320`, continue at `:413` and join at `:434`. So once the App renders, the mount-time list is gone for good.
+   - Bumping `listSeq` also drops a `loadAccounts` answer that is still in flight. A late `/accounts` answer therefore cannot bring a list back after the app was reached.
+   - After that, a list can only come back through `failTo`'s `session_invalid` branch (`:136-139`), which asks Identity again. Background `not_member` and `no_access`, own sign-out and remote sign-out all show the form with no list. Test `AuthGate.test.tsx:1081` covers the background `not_member` case and asserts no list and one accounts call.
+
+2. **The re-list after a join `session_invalid` cannot be used to get past Identity.**
+   - In `tokenStore.ts:323-327`, when Identity answers `session_invalid` for the current generation, `join()` clears `id`, `email` and `mm_account_id` before it rethrows. So `AuthGate.tsx:440` → `failTo` → `loadAccounts` runs with no account held. This is the same state as a cold page.
+   - The list comes only from Identity's `/auth/accounts`, behind the device cookie. Identity has just called that device session invalid, so it should not list the account again.
+   - Even if it did (a stale server or a race), clicking the account calls `continueAs` → `adopt` → `/token` for that id. Identity answers `session_invalid` again, the store clears it (`tokenStore.ts:153-158`), and `failTo` shows the form. No token, membership or App view is granted on the client side. The re-list is only a hint, and Identity stays the authority.
+   - The `stale()` guard (`:427,436`) is kept, so a late join error from an older join view cannot re-list over a newer screen.
+   - Test `AuthGate.test.tsx:1095` has its fake `/accounts` return the same account A after `session_invalid`. That is a fake that does not prune; it is not a client defect. The test only proves that the client re-asks Identity and shows whatever Identity returns, which is correct.
+
+3. **Resetting `rechecking` in `offerJoin` (`:152`) is safe and correct.** Without the reset, an earlier "I verified" click could leave the flag set, and a later, unrelated account's unverified screen would open with the "still unverified" error already showing. That was a copy issue, not access control. Verification is still decided only by Identity's `/token`. Test `:1106` covers it.
+
+4. **A residual path that is not a security issue (for the main reviewer's A2 reading).** The path continue → network → Retry → restore → `not_member` (no join) never reaches `ready`. So the cold-page list is still set and shows again with the `not_member` error. The reviewer's attempt-1 Issue 1 named this example, and attempt 2's `enterReady` fix does not cover it. Two reasons it is not a risk:
+   - The tab never left the cold sign-in page's life: the App was never rendered.
+   - Identity has not invalidated any listed account on this path, and every click still goes through `/token`.
+
+   This matches what I was asked to check ("after the app was reached"). The main reviewer can decide whether it fully meets A2's wording; if not, it is a one-line follow-up (`clearAccounts()` in `failTo`'s non-`session_invalid` branches).
+
+5. **Nothing from attempt 1 regressed.**
+   - The `accounts()` parser, the 5 s timeout and the UUID check are unchanged.
+   - `continueAs` → `adopt` still posts no `signedOut` and calls no `/logout` (`tokenStore.ts:226-242`).
+   - The epoch and `listSeq` late-answer guards are unchanged.
+   - Own, remote and `onAuthLost` sign-outs and both "Dùng tài khoản khác" handlers still call `clearAccounts()` (`AuthGate.tsx:204, 259, 268, 470, 495`).
+   - Resend still uses `store.accountId()` and no client-supplied email.
+   - No new `fetch`, storage key, `console`, `innerHTML`, `VITE_*` variable or secret (R1/R3).
+   - `SignInScreen.test.tsx:225` now queries `region`, so the empty-list assertion can actually fail.
+
+### Follow-ups (out of scope, R7)
+- Optional: call `clearAccounts()` in `failTo`'s `retry`/`signed_out` branches, which would cover the path in note 4.
+- These are carried over from attempt 1 and still open:
+  - Send `offerJoin`'s "signed out meanwhile" branch (`AuthGate.tsx:157-161`) through `failTo`.
+  - Clear `mm_account_id` only when it still holds the departing id.
+  - Cap the email length in the `accounts()` parser.
+
+### Verdict: **PASS** (security)
+This assumes the checks in impl-log are green; the main reviewer should confirm them, since I could not run them.
