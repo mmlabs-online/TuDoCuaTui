@@ -507,10 +507,47 @@ test("weather: waits for weather, then one call with its flags", async () => {
   expect(ai.outfits.suggest).not.toHaveBeenCalled();
   const w = W({ minC: 15, maxC: 20, rainChance: 80 });
   await act(async () => d.resolve(w));
+  await settle();
   expect(ai.outfits.suggest).toHaveBeenCalledTimes(1);
   const [input] = ai.outfits.suggest.mock.calls[0];
   expect(input.weather).toEqual({ cold: true, hot: false, rain: true });
   expect(input.candidateIds).toEqual(ids(items, w));
+});
+
+test("AI answer shown: picking a place whose weather fails makes no second call", async () => {
+  const items = aiItems();
+  const ai = aiProps();
+  ai.outfits.suggest.mockResolvedValue(three(items));
+  const { client: c } = client(() => Promise.reject(new Error("down")));
+  renderAi(items, ai, c);
+  await settle();
+  await turnOn();
+  expect(ai.outfits.suggest).toHaveBeenCalledTimes(1);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "da-lat" } });
+  await settle();
+  await settle();
+  expect(ai.outfits.suggest).toHaveBeenCalledTimes(1);
+  expect(hasChip()).toBe(3);
+});
+
+test("AI answer shown: switching between two places with the same flags makes no second call", async () => {
+  const items = aiItems();
+  const ai = aiProps();
+  ai.outfits.suggest.mockResolvedValue(three(items));
+  const { client: c } = client(() => Promise.resolve(W({ minC: 22, maxC: 28, rainChance: 10 })));
+  renderAi(items, ai, c);
+  await settle();
+  await turnOn();
+  expect(ai.outfits.suggest).toHaveBeenCalledTimes(1);
+  const select = screen.getByRole("combobox");
+  fireEvent.change(select, { target: { value: "da-lat" } });
+  await settle();
+  await settle();
+  fireEvent.change(select, { target: { value: "ha-noi" } });
+  await settle();
+  await settle();
+  expect(ai.outfits.suggest).toHaveBeenCalledTimes(1);
+  expect(hasChip()).toBe(3);
 });
 
 const baseTimers = () => {

@@ -44,3 +44,23 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: +635 / -54 lines (about 390 of them tests).
+
+## Attempt 2 (REWORK)
+
+### Fix
+`OutfitsModal.tsx`: the AI effect is now guarded and keyed on `aiLoading` instead of `eligible` (`if (!aiLoading || !suggester || !seasonId) return;`, deps `[aiLoading, suggester, key, …]`). `eligible` is kept as a named step (it is only read through `aiLoading`).
+
+### Tests (OutfitsModal.test.tsx)
+- New: "AI answer shown: picking a place whose weather fails makes no second call" (AI on, answer shown, weather client rejects, pick place, settle twice: `suggest` once, 3 chips still shown).
+- New: "AI answer shown: switching between two places with the same flags makes no second call" (two places, same flags: `suggest` once, 3 chips).
+- Nit applied: extra `settle()` before asserting one call in "weather: waits for weather, then one call with its flags".
+
+### Fail-before / pass-after
+- Attempt-1 code (OutfitsModal.tsx stashed): both new tests fail, "called 1 times, but got 2 times" and "got 3 times".
+- With the fix: OutfitsModal.test.tsx 48 passed.
+
+### Checks
+typecheck, format:check, build green; test: see commit message summary in the hand-off.
+
+### Deviations
+None. Out-of-plan files: none.

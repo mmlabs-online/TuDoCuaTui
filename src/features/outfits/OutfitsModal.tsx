@@ -131,7 +131,7 @@ export function OutfitsModal({
       : null;
 
   useEffect(() => {
-    if (!eligible || !suggester || !seasonId) return;
+    if (!aiLoading || !suggester || !seasonId) return;
     const ac = new AbortController();
     suggester
       .suggest(
@@ -153,7 +153,7 @@ export function OutfitsModal({
         },
       );
     return () => ac.abort();
-  }, [eligible, suggester, key, poolKey, seasonId, cold, hot, rain, aiAvoid]);
+  }, [aiLoading, suggester, key, poolKey, seasonId, cold, hot, rain, aiAvoid]);
   const placeName = WEATHER_PLACES.find((p) => p.id === place)?.name ?? "";
   const pickPlace = (id: string) => {
     const next = id || null;
