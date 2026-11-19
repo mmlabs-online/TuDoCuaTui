@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -12,10 +12,10 @@
 | Found in | main after T-028.3 (review follow-up) |
 | Introduced in | T-028.3 (multi-account "Tiếp tục với" makes it reachable); the unconditional clear predates it |
 | Depends on | — |
-| Needs Ming | M-37 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-19T10:35:36Z |
 | PR | — |
 
 ## Report
@@ -55,6 +55,7 @@ Follow-up from the T-028.3 consult, plan and security review (PR https://github.
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-19 — Plan approved by Ming ("duyệt BUG-007"), including the plan's assumptions.
 
 ## Handoff
 
