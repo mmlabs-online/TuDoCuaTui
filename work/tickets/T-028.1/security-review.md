@@ -60,3 +60,31 @@ before jose checks `exp`, `iss`, `aud`, `maxTokenAge`. Fail-closed; the SPA's no
 
 ### Follow-ups
 - If findings 1 and 2 are not fixed here: a small ticket to filter the key set to EC P-256 signing keys.
+
+## Attempt 2 (rework) — security-ai-generated-code-auditor, 2026-11-19
+
+**Overall: PASS. Both attempt-1 🟡 findings are closed; the rework introduces no new security issue.** The auditor read
+`server/jwks.js`, `server/jwks.test.ts` and impl-log "Attempt 2"; checks as reported in the impl-log.
+
+### Attempt-1 findings
+- **🟡 1 (one unexpected kty rejected the whole JWKS): closed.** `jwks.js:101` filters (`json.keys.filter(isUsableKey)`)
+  and fails only when none are left (`jwks.js:102`). Test `jwks.test.ts:256-262`: AKP, RSA and oct keys next to a real
+  EC key still verify, with no failure log.
+- **🟡 2 (kty allowlist wider than ES256): closed.** `isUsableKey` (`jwks.js:14-20`) keeps only `kty === "EC"`,
+  `crv === "P-256"`, `use` absent or `"sig"`, `alg` absent or `"ES256"`, all strict string comparisons. Tests
+  `jwks.test.ts:264-285`: only non-EC keys, only `use:"enc"`/ES384 keys (parse failures that keep the last good set),
+  `null` or string entries.
+
+### Other checks
+- **Prototype-polluted entries:** none — `JSON.parse` makes `"__proto__"` an own property; `null` rejected by `!!k`,
+  non-objects by `typeof` (`jwks.js:15-16`); an array entry fails `kty === "EC"`.
+- **`key_ops`:** left to jose, whose local JWKS lookup skips keys whose `key_ops` lacks `"verify"`.
+- **`x`/`y` left to jose:** an EC P-256 entry without `x`/`y` passes the filter and fails at lookup for that kid only;
+  needs a malformed key from the trusted issuer; not introduced by the rework.
+- **Fetched JSON not mutated:** `filter` returns a new array, a new `{ keys }` object is returned (`jwks.js:101-103`).
+- **Cache semantics unchanged:** "no usable key" comes out as `RefreshError("parse")` (`jwks.js:102-105`); `refresh()`
+  (`jwks.js:109-134`) is unchanged (last good set kept, cooldown, `{event, reason}` log, 300 s / 24 h windows,
+  single-flight). The `{kty:"nope"}` row still yields `parse` (`jwks.test.ts:208`).
+
+### Findings
+None (no 🔴, no 🟡). Follow-ups: none.
