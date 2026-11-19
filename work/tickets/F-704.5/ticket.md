@@ -14,7 +14,7 @@
 | Attempts | 2 |
 | Created | 2026-11-18 |
 | Claimed by | claude@2026-11-19T08:46:44Z |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/93 |
 
 ## Goal
 Ming turns on "✨ Gợi ý bằng AI" in "Hôm nay mặc gì?" and sees up to 3 outfits picked and explained by his own AI
@@ -61,6 +61,6 @@ Security: render the reason as plain text only (F-704.3 security review).
 ## Handoff
 
 ### 2026-11-19 — claude — DONE
-- Done: consult frontend-developer; plan READY (gate none); "✨ Gợi ý bằng AI" toggle in OutfitsModal (AI overlay on the rule set, one abortable call per tap/shuffle, avoidIds, per-code notes, season DB id, weather timer cleared), App.tsx wiring. Attempt 1 REWORK (second paid call on place change); attempt 2 PASS.
+- Done: consult frontend-developer; plan READY (gate none); "✨ Gợi ý bằng AI" toggle in OutfitsModal (AI overlay on the rule set, one abortable call per tap/shuffle, avoidIds, per-code notes, season DB id, weather timer cleared), App.tsx wiring. Attempt 1 REWORK (second paid call on place change); attempt 2 PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/93.
 - In progress / next: Ming merges the PR; check with real Claude/Gemini keys.
 - Gotchas: Editor.test.tsx "a result for a replaced photo is ignored" flaked once in the reviewer's run (not touched here; follow-up).
