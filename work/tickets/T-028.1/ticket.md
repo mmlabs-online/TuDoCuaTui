@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | REWORK |
 | Priority | P1 |
 | Size | S |
 | Milestone | M2 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T02:37:08Z |
 | PR | — |
@@ -44,6 +44,7 @@ A JWKS outage at mmlabs no longer signs everyone out of TuDoCuaTui, and tokens t
 
 ## Notes / answers from Ming
 Plan approved (2026-11-19) — Ming: "duyệt T-028.1" (assumptions accepted: Retry-After 30; unknown kid during an outage → 503; 24 h stale-key window per D50).
+Ming 2026-11-19 (after review PASS + security PASS): fix the JWKS key filter in this PR — keep only EC P-256 signing keys (`use` sig or absent, `alg` ES256 or absent), ignore other key types instead of rejecting the whole set, fail only when none are left; add a test with an EC P-256 key next to an unknown-type key (security-review 🟡 1–2, review should-fix).
 
 ## Handoff
 
