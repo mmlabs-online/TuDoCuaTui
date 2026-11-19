@@ -14,7 +14,7 @@
 | Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T08:17:31Z |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/92 |
 
 ## Goal
 The SPA can ask the API who the signed-in user is, as the shared mmlabs consumer spec expects.
@@ -49,6 +49,6 @@ The SPA can ask the API who the signed-in user is, as the shared mmlabs consumer
 - Gotchas: assumptions A1–A5 in plan.md; identity.test.ts happy path and app.test.ts auth stubs gain email.
 
 ### 2026-11-19 — claude — DONE
-- Done: plan approved; GET /api/auth/me → {id, email, role} (server/me.js), verifier returns the email claim, 405 Allow: GET, exact path match, no DB access. Review attempt 1 PASS (13 mutations all caught); security PASS.
+- Done: plan approved; GET /api/auth/me → {id, email, role} (server/me.js), verifier returns the email claim, 405 Allow: GET, exact path match, no DB access. Review attempt 1 PASS (13 mutations all caught); security PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/92.
 - In progress / next: Ming merges the PR; optional post-deploy check of /api/auth/me.
 - Gotchas: no SPA consumer yet (follow-up).
