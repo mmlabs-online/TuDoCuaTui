@@ -345,4 +345,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] **M-32 — Approve plan for F-704.3** (server slice; client slice becomes F-704.4): work/tickets/F-704.3/plan.md (touches server/**).
 - [x] **M-33 — Approve plan for T-028.1** (Identity verifier hardening): work/tickets/T-028.1/plan.md (touches server/**).
 - [x] **M-34 — Approve plan for T-028.2** (cross-tab session, proactive renewal, sign-out warning): work/tickets/T-028.2/plan.md (touches src/features/auth/**). Approve assumptions A1–A6.
-- [ ] **M-35 — Approve plan for T-028.3** ("Tiếp tục với {email}" list + verify screen): work/tickets/T-028.3/plan.md (touches src/features/auth/**). Approve assumptions A1–A7.
+- [x] **M-35 — Approve plan for T-028.3** ("Tiếp tục với {email}" list + verify screen): work/tickets/T-028.3/plan.md (touches src/features/auth/**). Approve assumptions A1–A7.
