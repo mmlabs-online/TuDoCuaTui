@@ -14,7 +14,7 @@
 | Attempts | 2 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T07:39:59Z |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/91 |
 
 ## Goal
 Someone already signed in to another mmlabs app on this browser enters TuDoCuaTui with one click; an unverified account gets a clear verify-email screen.
@@ -53,6 +53,6 @@ Someone already signed in to another mmlabs app on this browser enters TuDoCuaTu
 - Gotchas: assumptions A1–A7 (incl. privacy: emails of all accounts on this browser are listed) need approval; several AuthGate tests change (listed in plan.md).
 
 ### 2026-11-19 — claude — DONE
-- Done: plan approved; tokenStore.continueAs, accounts() 5 s timeout, "Tiếp tục với {email}" list (cap 5, loader, errors → form only), UnverifiedScreen (resend / "Tôi đã xác minh email" / other account), copy, AuthPreview states. Attempt 1 REWORK (stale list after reaching the app) + security PASS; attempt 2 PASS + security PASS.
+- Done: plan approved; tokenStore.continueAs, accounts() 5 s timeout, "Tiếp tục với {email}" list (cap 5, loader, errors → form only), UnverifiedScreen (resend / "Tôi đã xác minh email" / other account), copy, AuthPreview states. Attempt 1 REWORK (stale list after reaching the app) + security PASS; attempt 2 PASS + security PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/91.
 - In progress / next: Ming merges the PR; then T-028.4 (/api/auth/me).
 - Gotchas: continue → network → Retry → not_member still shows the cold-page list (never reached the app; follow-up); mm_account_id cleared on any sign-out (multi-account follow-up).
