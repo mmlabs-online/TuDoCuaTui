@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | security, architecture |
 | Gate | plan-approval |
 | Depends on | T-028.1 |
-| Needs Ming | M-34 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T03:05:00Z |
@@ -47,6 +47,7 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 - Files: `src/features/auth/tokenStore.ts`, `identityClient.ts`, `AuthGate.tsx`, new broadcast/lock helpers + tests.
 
 ## Notes / answers from Ming
+- 2026-11-19 — Plan approved by Ming ("duyệt T-028.2"), including assumptions A1–A6.
 
 ## Handoff
 
