@@ -88,6 +88,7 @@ R8: resolver and verifier changes have unit tests; checks green. R9: no UI layou
 
 ### Blockers from review agents
 Filled in by the orchestrator from `security-review.md` (run in parallel).
+Security review attempt 1: PASS, no 🔴 (🟡 1–2 on the JWKS key filter; fixed in attempt 2 at Ming's request). Security review attempt 2: PASS, no findings.
 
 ### Nits (do not block)
 - `server/jwks.test.ts:236` `a verified signature path works end to end with a real token`: the signed `jws` is never
@@ -100,3 +101,65 @@ Filled in by the orchestrator from `security-review.md` (run in parallel).
 ### Follow-ups (out of scope)
 - 403 (`forbidden_origin`) does not sign out in `authFetch` (plan assumption; Ming to decide if it should).
 - org-admin-api `docs/consumers.md` still names ricotdin and 15 min tokens.
+
+## Attempt 2 — 2026-11-19
+Verdict: PASS
+
+Scope of this attempt: Ming's second note (filter the JWKS to EC P-256 signing keys; security-review 🟡 1–2,
+attempt-1 Issue 1). Rework commit `2182075`; diff since attempt 1 (`git diff 3ff790a..HEAD`): `server/jwks.js`,
+`server/jwks.test.ts`, plus bookkeeping (`impl-log.md`, `ticket.md` state line). Nothing else changed.
+
+### Checks (run by reviewer)
+- `pnpm typecheck` — exit 0 (tsc app + server, no errors).
+- `pnpm format:check` — "All matched files use the correct format", 326 files.
+- `pnpm test` — Test Files 132 passed | 11 skipped (143); Tests 1769 passed | 222 skipped (1991). `server/jwks.test.ts`
+  alone: 28 passed. Matches impl-log Attempt 2.
+- `pnpm build` — built.
+
+### Acceptance criteria
+- [x] Ming's note: keep only EC P-256 signing keys — evidence: `server/jwks.js:14-20` `isUsableKey` requires non-null
+  object, `kty === "EC"`, `crv === "P-256"`, `use` absent or `"sig"`, `alg` absent or `"ES256"`.
+- [x] Ignore other keys instead of rejecting the set; fail (`parse`) only when none are left — evidence:
+  `server/jwks.js:101-103` (`filter(isUsableKey)`, empty → throw → `RefreshError("parse")`); the old per-key `kty`
+  throw is gone. The filtered `{ keys }` is what `refresh()` passes to `createLocalJWKSet` (`server/jwks.js:113-117`).
+  A failed parse still leaves the previous good set in place (unchanged `refresh()` path).
+- [x] EC key next to unknown-type keys still verifies — test `key filter > ignores non-EC keys next to a usable EC
+  P-256 key` (AKP, RSA, oct around a real EC key; real `jwtVerify`; no failure log) — pass.
+- [x] Only non-EC keys = parse failure — test `key filter > a set with only non-EC keys is a parse failure`
+  (`JwksUnavailable`, log `{event:"jwks_refresh_failed", reason:"parse"}`) — pass. The existing bad-response row
+  `{kty:"nope"}` still yields `parse` — pass.
+- [x] `use:"enc"` / `alg:"ES384"` / non-object entries ignored — test `key filter > ignores EC keys with use enc or
+  alg ES384, and non-object entries`: with the usable key present it verifies; with only the enc + ES384 keys (same
+  `kid`) the resolver throws `JwksUnavailable`, which proves they are dropped by the filter, not just skipped by jose
+  at selection time — pass.
+- [x] Renamed/strengthened tests (attempt-1 nits) — the end-to-end test now verifies the signature with
+  `jwtVerify(jws, getKey)` (`server/jwks.test.ts:236-245`); the single-flight test was renamed (see Nits).
+- [x] All checks pass — see above.
+- [x] Attempt-1 criteria (key_in_header 401, 24 h stale window, 503 `auth_unavailable`, unknown-`kid` cooldown,
+  `authFetch` keeps the session on 503) — tests unchanged and still green.
+
+### Ming verification after merge
+- After deploy: sign-in and normal use work as before, and the server log shows no `jwks_refresh_failed` /
+  `auth_unavailable` lines in normal operation (a `parse` reason would now mean Identity published no EC P-256
+  signing key).
+- A real Identity outage is not staged in production; covered by the fake-clock tests.
+
+### Issues
+None. Attempt-1 Issue 1 and security-review 🟡 1–2 are resolved by `server/jwks.js:14-20,101-103`.
+
+### Rules (CLAUDE.md)
+No violations found. R7: only the two files Ming's note targets changed (plus ticket bookkeeping). R8: the changed
+filter logic has unit tests; checks green. R1/R3/R6/R9: not affected (server-side resolver only).
+
+### Blockers from review agents
+None (security-review attempt 1 had no 🔴; its 🟡 1–2 are the items fixed here).
+
+### Nits (do not block)
+- `server/jwks.test.ts:68` single-flight test: renamed to "concurrent stale requests share one fetch and both
+  resolve a key", but it still runs on an empty cache (not a stale set) and `Promise.all([a, b])` is not asserted
+  truthy. Either drop "stale" from the name or seed a set and advance the clock past `FRESH_MS` first.
+- `isUsableKey` takes `any`; fine under `@ts-check`, mention only.
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1: 403 (`forbidden_origin`) does not sign out in `authFetch` (Ming to decide);
+  org-admin-api `docs/consumers.md` still names ricotdin and 15 min tokens.
