@@ -92,7 +92,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-704.3 | AI-ranked outfit suggestions | MERGED | P2 | M | data, security, architecture | F-704.1 | plan-approval | 1 | 2026-11-18 |
 | F-704.4 | "✨ Gợi ý bằng AI" toggle in "Hôm nay mặc gì?" | MERGED | P2 | M | ui, data | F-704.3 | none | 1 | 2026-11-18 |
 | F-704.5 | "✨ Gợi ý bằng AI" toggle in the outfits modal | BACKLOG | P2 | M | ui | F-704.4 | none | 0 | 2026-11-18 |
-| T-028.1 | Harden the Identity token verifier (JWKS outage → 503, refuse key-carrying headers) | BLOCKED | P1 | S | security, architecture | — | plan-approval | 0 | 2026-11-19 |
+| T-028.1 | Harden the Identity token verifier (JWKS outage → 503, refuse key-carrying headers) | IN_PROGRESS | P1 | S | security, architecture | — | plan-approval | 0 | 2026-11-19 |
 | T-028.2 | Share the sign-in session across tabs and renew tokens before they expire | BACKLOG | P1 | M | security, architecture | T-028.1 | plan-approval | 0 | 2026-11-19 |
 | T-028.3 | "Continue as {email}" on the sign-in page and a verify-email screen | BACKLOG | P1 | M | ui, security | T-028.2 | plan-approval | 0 | 2026-11-19 |
 | T-028.4 | GET /api/auth/me | BACKLOG | P2 | S | security | T-028.1 | plan-approval | 0 | 2026-11-19 |
