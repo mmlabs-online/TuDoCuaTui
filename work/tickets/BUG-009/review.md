@@ -49,3 +49,45 @@ None (no review trigger applies: area `architecture`, no trigger paths changed).
 
 ### Ming verification after merge
 None (plan: optional manual check of replacing the photo during "Đang phân tích ảnh").
+
+## Attempt 2 — 2026-11-19
+Verdict: PASS
+
+### Checks (run by reviewer)
+Run on `claude/magical-cori-2ssw8l` @ 8c64240 (working tree clean).
+- `pnpm typecheck` — clean, exit 0 (`tsc --noEmit && tsc -p tsconfig.server.json`).
+- `pnpm format:check` — exit 0 ("Finished in 39ms on 336 files").
+- `pnpm test` — Test Files 137 passed / 11 skipped; Tests 1929 passed / 222 skipped (attempt 1: 1928, +1 new test).
+- `pnpm build` — built in 404ms.
+- `vitest run src/features/items` — 10 files, 128 tests passed; no React warnings in the output.
+
+### Acceptance criteria
+- [x] Root cause identified and recorded — evidence: impl-log Attempt 2 "Root cause (updated)": one cause (ref refreshed in a passive effect), two readers (`run`'s stale-result guard and `undo`). Fixed at the source: `src/features/items/useAiFill.ts:54-57` now uses `useLayoutEffect`.
+- [x] 50 consecutive runs of the file — evidence: reviewer loop on a scratch copy of 8c64240 (`rv-bug009b/head`), `for i in $(seq 50); do pnpm exec vitest run src/features/items/Editor.test.tsx > run-$i.log …` → **0/50 failed**; all 50 logs show `Tests 52 passed (52)`, zero `FAIL ` lines. CPU-throttled part: implementer's `taskset -c 0,1 pnpm test` green and perturbation shim 0/10 (attempt 1 before-fix 10/10); reviewer's full `pnpm test` green.
+- [x] Product race → regression test fails before the fix — evidence: new test `Editor.test.tsx:581-601` (`"Hoàn tác" right after the fill renders restores the previous values`) run against 9d3e95b's `useAiFill.ts` (scratch `rv-bug009b/old`, only that file swapped) → fails 3/3 with `expected "vi.fn()" to be called with arguments: [ 'name', '' ]`; on HEAD passes 3/3. Attempt-1 regression tests for the photo-replace and remove paths still pass (file 52/52).
+- [x] All checks pass — see Checks.
+- [x] No existing test changed — `git diff origin/main...HEAD -- src/features/items/Editor.test.tsx` has one removed line, the RTL import replaced by the same import plus `act`; the delta adds only the new test and a comment line at `Editor.test.tsx:690` in the attempt-1 test.
+
+### Issues
+None.
+
+### Code review of the attempt-2 change
+- `useLayoutEffect` (`useAiFill.ts:54-57`): runs synchronously after every commit, before the browser regains control, so any click/microtask after a commit (including `undo` at `useAiFill.ts:119-126` and `run`'s guard at line 81) sees the committed `item`/`update`. Effect body only assigns a ref: no layout read, no setState, so no extra render or paint cost.
+- SSR / warnings: SPA rendered client-side only; no `react-dom/server`, `renderToString` or `hydrateRoot` in `src/` or `server/`, so the React SSR `useLayoutEffect` warning cannot occur. No warning in the items-folder run.
+- Behaviour elsewhere: `useAiFill` is consumed only by `Editor.tsx:19` (`ImportModal.tsx` imports just the `EditorAi` type). The ref is now updated earlier than before, never later, so no reader can observe an older value than it did on main. `src/features/items` 128/128 green.
+- `cancel()` and the `finally` guard from attempt 1 are unchanged (reviewed in Attempt 1, no issues).
+
+### Rules (CLAUDE.md)
+No violations found. R1 no data access change; R6 no new copy; R7 changed source files (`useAiFill.ts`, `Editor.tsx`, `Editor.test.tsx`) are in the plan's file list, and the layout-effect change is the review-mandated fix for the same root cause; R8 hook change covered by a regression test that fails before; R9 no UI change; D42 regression test present. No High path touched.
+
+### Blockers from review agents
+None (no review trigger applies).
+
+### Nits (do not block)
+- 💭 The new test's `MutationObserver` is disconnected only after the `waitFor` succeeds; if it ever times out, the observer stays attached until jsdom teardown. Harmless (`clicked` guard), a `try/finally` would be tidier.
+
+### Follow-ups (out of scope)
+- Cancel a pending AI run on "Nhân bản" (duplicate), `Editor.tsx:~490` (from plan).
+
+### Ming verification after merge
+None (plan: optional manual check of replacing the photo during "Đang phân tích ảnh").

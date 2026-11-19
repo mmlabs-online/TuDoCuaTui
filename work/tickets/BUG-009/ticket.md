@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REWORK |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -13,9 +13,9 @@
 | Introduced in | unknown |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-19T17:14:10Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -55,3 +55,8 @@ F-704.5 reviewer: one full `pnpm test` run failed `src/features/items/Editor.tes
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-19 — claude — DONE
+- Done: consult software-architect (product race, not test timing); plan READY (gate none); useAiFill.cancel() on photo replace/removal + finally guard; latest ref refreshed in useLayoutEffect (also fixes the undo reader). Attempt 1 REWORK (undo flake, same cause); attempt 2 PASS — 50/50 file runs green (implementer and reviewer), perturbation 0/10, throttled suite green.
+- In progress / next: Ming merges the PR.
+- Gotchas: follow-up — cancel a pending AI fill on "Nhân bản" (duplicate).
