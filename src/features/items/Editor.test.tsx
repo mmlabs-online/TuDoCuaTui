@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { PhotoPrepError, preparePhoto } from "@/data/photoPrep";
 import { categoryNames } from "@/constants/wardrobe";
@@ -643,6 +643,52 @@ describe("AI fill", () => {
     d.resolve(SUG);
     await waitFor(() => expect(aiBtn().getAttribute("aria-busy")).toBe("false"));
     expect(keysOf(spy)).toEqual(["photo"]);
+  });
+
+  test("a result arriving right after the photo is replaced is ignored", async () => {
+    const d = deferred<TagSuggestion>();
+    let signal: AbortSignal | undefined;
+    const { ai, spy } = setup({
+      ai: mkAi(undefined, (_b, s) => {
+        signal = s;
+        return d.promise;
+      }),
+    });
+    spy.mockImplementation((k: string) => {
+      if (k === "photo") d.resolve(SUG);
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalled());
+    const gallery = document.querySelector<HTMLInputElement>("input[type=file]:not([capture])")!;
+    fireEvent.change(gallery, {
+      target: { files: [new File(["y"], "b.jpg", { type: "image/jpeg" })] },
+    });
+    await waitFor(() => expect(aiBtn().getAttribute("aria-busy")).toBe("false"));
+    await act(async () => {});
+    expect(keysOf(spy)).toEqual(["photo"]);
+    expect(signal!.aborted).toBe(true);
+    expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.undo })).toBeNull();
+  });
+
+  test("removing the photo while pending cancels the request", async () => {
+    const d = deferred<TagSuggestion>();
+    let signal: AbortSignal | undefined;
+    const { ai, spy } = setup({
+      ai: mkAi(undefined, (_b, s) => {
+        signal = s;
+        return d.promise;
+      }),
+    });
+    await ready();
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(ai.tagger.tag).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ ảnh" }));
+    expect(signal!.aborted).toBe(true);
+    expect(aiBtn().getAttribute("aria-busy")).toBe("false");
+    d.resolve(SUG);
+    await act(async () => {});
+    expect(keysOf(spy)).toEqual(["photo", "removedPhotoId", "photoPath"]);
   });
 
   test("unmount aborts the request", async () => {
