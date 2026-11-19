@@ -4,21 +4,40 @@ import { SignInScreen } from "../SignInScreen";
 import { ForgotPasswordScreen } from "../ForgotPasswordScreen";
 import { JoinScreen } from "../JoinScreen";
 import { SignUpScreen } from "../SignUpScreen";
+import { UnverifiedScreen } from "../UnverifiedScreen";
 import { VerifyEmailScreen } from "../VerifyEmailScreen";
 import { AUTH_COPY, authErrorMessage } from "../copy";
-import type { AuthError, AuthErrorCode, ResetState, SubmitStatus, VerifyState } from "../types";
+import type {
+  AccountChoice,
+  AuthError,
+  AuthErrorCode,
+  ResetState,
+  SubmitStatus,
+  VerifyState,
+} from "../types";
 
-type Screen = "signIn" | "signUp" | "verify" | "join" | "forgot" | "reset";
+type Screen = "signIn" | "signUp" | "verify" | "unverified" | "join" | "forgot" | "reset";
+const ACCOUNTS: AccountChoice[] = [
+  { accountId: "00000000-0000-4000-8000-000000000001", email: "an@example.com" },
+  { accountId: "00000000-0000-4000-8000-000000000002", email: "binh@example.com" },
+  { accountId: "00000000-0000-4000-8000-000000000003", email: "chi@example.com" },
+];
+const LONG_EMAIL = "nguyen.thi.thu.trang.dangky.taikhoan.moi.2026@example-dai.com";
+const ACCOUNTS_LONG: AccountChoice[] = [
+  { accountId: "00000000-0000-4000-8000-000000000004", email: LONG_EMAIL },
+  ACCOUNTS[0],
+];
 const ERROR_CODES = Object.keys(AUTH_COPY.errors).filter(
   (k) => !k.startsWith("weak_too"),
 ) as AuthErrorCode[];
 const STATES: Record<Screen, string[]> = {
-  signIn: ["idle", "submitting", "logout_unconfirmed"],
+  signIn: ["idle", "submitting", "logout_unconfirmed", "accounts", "accounts_long", "continuing"],
   signUp: ["idle", "submitting", "sent"],
   join: ["idle", "submitting"],
   forgot: ["idle", "submitting", "sent"],
   reset: ["ready", "submitting", "done", "invalid"],
   verify: ["ready", "verifying", "verified", "invalid", "rate_limited"],
+  unverified: ["idle", "sending", "sent", "still"],
 };
 
 export function AuthPreview() {
@@ -35,7 +54,15 @@ export function AuthPreview() {
     : null;
   const say = (line: string) => setLog((l) => [line, ...l].slice(0, 20));
   const slot = <div className="border border-dashed p-4 text-center text-xs">{p.turnstile}</div>;
-  const status = (state === "submitting" ? "submitting" : "idle") as SubmitStatus;
+  const status = (
+    state === "submitting" || state === "continuing" ? "submitting" : "idle"
+  ) as SubmitStatus;
+  const listed =
+    state === "accounts_long"
+      ? ACCOUNTS_LONG
+      : state.startsWith("accounts") || state === "continuing"
+        ? ACCOUNTS
+        : [];
 
   return (
     <div>
@@ -100,6 +127,9 @@ export function AuthPreview() {
             onGoSignUp={() => say("goSignUp")}
             onGoForgot={() => say("goForgot")}
             onResend={() => say("resend")}
+            accounts={listed}
+            onContinueAs={(a) => say(`continueAs ${a.email}`)}
+            continuingId={state === "continuing" ? ACCOUNTS[0].accountId : null}
           />
         )}
         {screen === "signUp" && (
@@ -137,6 +167,18 @@ export function AuthPreview() {
             status={status}
             error={error}
             onJoin={() => say("join")}
+            onUseOtherAccount={() => say("useOtherAccount")}
+          />
+        )}
+        {screen === "unverified" && (
+          <UnverifiedScreen
+            email={state === "idle" ? LONG_EMAIL : "an@example.com"}
+            resend={{
+              status: state === "sending" ? "sending" : state === "sent" ? "sent" : "idle",
+            }}
+            still={state === "still"}
+            onResend={() => say("resend")}
+            onCheckAgain={() => say("checkAgain")}
             onUseOtherAccount={() => say("useOtherAccount")}
           />
         )}

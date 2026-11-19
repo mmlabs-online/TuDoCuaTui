@@ -30,6 +30,7 @@ export interface IdentityClient {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPIRES_MAX = 86400;
 const LOGOUT_TIMEOUT_MS = 5000;
+const ACCOUNTS_TIMEOUT_MS = 5000;
 /** A hung /token would hold the cross-tab renewal lock for every tab. */
 const TOKEN_TIMEOUT_MS = 15000;
 const unknownError = (): AuthError => ({ code: "unknown" });
@@ -78,7 +79,7 @@ export function createIdentityClient({
     return json;
   };
 
-  const get = async (path: string): Promise<unknown> => {
+  const get = async (path: string, signal?: AbortSignal): Promise<unknown> => {
     let res: Response;
     try {
       res = await fetchFn(baseUrl + path, {
@@ -86,6 +87,7 @@ export function createIdentityClient({
         credentials: "include",
         headers: { "X-MM-App": app },
         cache: "no-store",
+        signal,
       });
     } catch {
       throw networkError();
@@ -175,7 +177,9 @@ export function createIdentityClient({
       if (json.status !== "member") throw unknownError();
     },
     async accounts() {
-      const items = asObject(await get("/auth/accounts")).items;
+      const items = asObject(
+        await get("/auth/accounts", AbortSignal.timeout(ACCOUNTS_TIMEOUT_MS)),
+      ).items;
       if (!Array.isArray(items)) return [];
       return items.flatMap((raw) => {
         const it = asObject(raw);

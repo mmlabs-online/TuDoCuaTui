@@ -14,6 +14,8 @@ export interface TokenStore {
   /** `null` when signed out. `rejected`: the token a request just got 401 for. */
   getToken: (rejected?: string) => Promise<string | null>;
   signIn: (v: { email: string; password: string; turnstileToken?: string }) => Promise<void>;
+  /** Adopts an account already signed in on this device (from `accounts`): stores its id and fetches its token. */
+  continueAs: (accountId: string, email: string) => Promise<void>;
   restore: () => Promise<void>;
   /** Never rejects. `confirmed`: Identity acknowledged the logout (2xx or `session_invalid`); otherwise warn the user. */
   signOut: () => Promise<{ confirmed: boolean }>;
@@ -220,15 +222,23 @@ export function createTokenStore({
     for (const fn of remoteListeners) fn();
   };
 
+  /** Starts a new session epoch for `accountId`. Posts no `signedOut` for any earlier id. */
+  const adopt = (accountId: string, accountEmail: string): Promise<string | null> => {
+    reset();
+    id = accountId;
+    email = accountEmail;
+    storage.write(accountId);
+    return renew();
+  };
+
   return {
     getToken,
     async signIn(v) {
       const r = await client.login(v);
-      reset();
-      id = r.accountId;
-      email = r.email;
-      storage.write(id);
-      await renew();
+      await adopt(r.accountId, r.email);
+    },
+    async continueAs(accountId, accountEmail) {
+      await adopt(accountId, accountEmail);
     },
     async restore() {
       await renew();
