@@ -4,6 +4,7 @@ import { handleAiSettings } from "./ai/routes.js";
 import { handleSuggestOutfits } from "./ai/suggestOutfits.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
 import { handleBackup } from "./backup.js";
+import { meBody } from "./me.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
@@ -35,6 +36,8 @@ function match(parts) {
   if (parts.length === 4 && a === "ai" && b === "suggest-outfits") {
     return { route: "/api/ai/suggest-outfits", allow: "POST" };
   }
+  if (parts.length === 4 && a === "auth" && b === "me")
+    return { route: "/api/auth/me", allow: "GET" };
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
@@ -54,6 +57,8 @@ function match(parts) {
  * @param {{
  *   pool: import("./items.js").Pool | null,
  *   userId: import("./user.js").UserId,
+ *   email: string | null,
+ *   ownerSub: string | null,
  *   ai: import("./ai/routes.js").AiContext | null,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   folders: ReturnType<typeof import("./driveFolders.js").createFolderResolver> | null,
@@ -73,6 +78,8 @@ export async function handleApi(
   {
     pool,
     userId,
+    email,
+    ownerSub,
     ai,
     drive,
     folders,
@@ -119,6 +126,7 @@ export async function handleApi(
   if (m.route === "/api/ai/suggest-outfits") {
     return await handleSuggestOutfits(req, res, { ai, pool, userId, id, log, now });
   }
+  if (m.route === "/api/auth/me") return sendJson(res, 200, meBody({ userId, email, ownerSub }));
   const itemId = parts[3];
   if (itemId !== undefined && !isUuid(itemId)) {
     return sendError(res, 400, "invalid_input", { field: "id", reason: "idInvalid" });

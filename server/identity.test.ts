@@ -97,7 +97,23 @@ afterEach(() => {
 describe("verifier", () => {
   it("happy path returns the canonical sub", async () => {
     const { k, check } = await setup();
-    expect(await check(await sign(k.privateKey, goodClaims()))).toEqual({ ok: true, userId: SUB });
+    expect(await check(await sign(k.privateKey, goodClaims()))).toEqual({
+      ok: true,
+      userId: SUB,
+      email: "someone@example.com",
+    });
+  });
+
+  it("ok result carries email; absent, empty or non-string email -> null", async () => {
+    const { k, check } = await setup();
+    for (const email of [undefined, "", 42]) {
+      const claims = { ...goodClaims(), email };
+      expect(await check(await sign(k.privateKey, claims))).toEqual({
+        ok: true,
+        userId: SUB,
+        email: null,
+      });
+    }
   });
 
   it("alg HS256 and RS256 -> alg; an unsecured token -> malformed; key getter never called", async () => {

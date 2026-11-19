@@ -130,6 +130,8 @@ export function createApp({
         return await handleApi(req, res, {
           pool,
           userId: result.userId,
+          email: result.email,
+          ownerSub,
           ai: aiContext,
           drive,
           folders,

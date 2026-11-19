@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { exportJWK, generateKeyPair, SignJWT, createLocalJWKSet } from "jose";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { SPA_CSP } from "./http.js";
 import { createIdentityAuth, createIdentityVerifier } from "./identity.js";
@@ -34,7 +34,7 @@ async function start(opts: {
     authenticate: async () =>
       opts.allow === false
         ? { ok: false as const, code: "ERR_X" }
-        : { ok: true as const, userId: OWNER_A },
+        : { ok: true as const, userId: OWNER_A, email: null },
   };
   const server = http.createServer(
     createApp({ pool: opts.pool ?? null, distDir: dir, auth, log: (e) => logs.push(e) }),
@@ -260,7 +260,10 @@ describe("identity auth", () => {
   const ISS = "https://api.mmlabs.online";
   const SUB = "44444444-4444-4444-8444-444444444444";
 
-  async function startIdentity(pool: Parameters<typeof createApp>[0]["pool"] = null) {
+  async function startIdentity(
+    pool: Parameters<typeof createApp>[0]["pool"] = null,
+    ownerSub: string | null = null,
+  ) {
     const { publicKey, privateKey } = await generateKeyPair("ES256");
     const jwk = { ...(await exportJWK(publicKey)), kid: "k1", alg: "ES256" };
     const verifier = createIdentityVerifier({
@@ -273,6 +276,7 @@ describe("identity auth", () => {
         distDir: dir,
         auth: createIdentityAuth({ verifier }),
         authMode: "identity",
+        ownerSub,
         log: (e) => logs.push(e),
       }),
     );
@@ -391,6 +395,7 @@ describe("identity auth", () => {
       ["GET", "/api/ai-settings"],
       ["PUT", "/api/ai-settings"],
       ["POST", "/api/ai/tag-photo"],
+      ["GET", "/api/auth/me"],
     ];
     for (const [method, p] of routes) {
       for (const headers of [{} as Record<string, string>, { Authorization: "Bearer x.y.z" }]) {
@@ -429,5 +434,138 @@ describe("identity auth", () => {
     const all = JSON.stringify(logs);
     for (const secret of [t, SUB, "me@example.com", "jti-xyz-123"])
       expect(all).not.toContain(secret);
+  });
+
+  function recordingPool() {
+    const calls: string[] = [];
+    const pool = {
+      query: async () => calls.push("query"),
+      connect: async () => calls.push("connect"),
+    };
+    return { pool, calls };
+  }
+  const OTHER_OWNER = "55555555-5555-4555-8555-555555555555";
+
+  it('GET /api/auth/me -> 200 {id, email, role:"user"} from the token, no-store, no pool call', async () => {
+    const { pool, calls } = recordingPool();
+    const { base, token } = await startIdentity(pool, OTHER_OWNER);
+    const res = await fetch(base + "/api/auth/me", {
+      headers: { Authorization: `Bearer ${await token()}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ id: SUB, email: "me@example.com", role: "user" });
+    expect(calls).toEqual([]);
+  });
+
+  it('GET /api/auth/me as TUDO_OWNER_SUB -> role "owner"', async () => {
+    const { base, token } = await startIdentity(null, SUB);
+    const res = await fetch(base + "/api/auth/me", {
+      headers: { Authorization: `Bearer ${await token()}` },
+    });
+    expect(await res.json()).toEqual({ id: SUB, email: "me@example.com", role: "owner" });
+  });
+
+  it("GET /api/auth/me without an email claim -> email null", async () => {
+    const { base, token } = await startIdentity();
+    const res = await fetch(base + "/api/auth/me", {
+      headers: { Authorization: `Bearer ${await token({ email: undefined })}` },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: SUB, email: null, role: "user" });
+  });
+
+  it("GET /api/auth/me while JWKS is unavailable -> 503 auth_unavailable, Retry-After 30", async () => {
+    const { pool, calls } = recordingPool();
+    const { privateKey } = await generateKeyPair("ES256");
+    const verifier = createIdentityVerifier({
+      issuer: ISS,
+      jwks: async () => {
+        throw new Error("down");
+      },
+    });
+    const server = http.createServer(
+      createApp({
+        pool,
+        distDir: dir,
+        auth: createIdentityAuth({ verifier }),
+        authMode: "identity",
+        log: (e) => logs.push(e),
+      }),
+    );
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    servers.push(server);
+    const tok = await new SignJWT({
+      iss: ISS,
+      aud: "tudocuatui",
+      sub: SUB,
+      jti: "jti-xyz-123",
+      email_verified: true,
+      roles: ["tudocuatui:member"],
+    })
+      .setProtectedHeader({ alg: "ES256", kid: "k1", typ: "at+jwt" })
+      .setIssuedAt()
+      .setExpirationTime("10m")
+      .sign(privateKey);
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const res = await fetch(base + "/api/auth/me", { headers: { Authorization: `Bearer ${tok}` } });
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("30");
+    expect(await res.json()).toMatchObject({ error: { code: "auth_unavailable" } });
+    expect(calls).toEqual([]);
+  });
+
+  it("/api/auth/me other methods -> 405 Allow: GET", async () => {
+    const { pool, calls } = recordingPool();
+    const { base, token } = await startIdentity(pool);
+    const t = await token();
+    for (const method of ["POST", "PUT", "PATCH", "DELETE", "HEAD"]) {
+      const res = await fetch(base + "/api/auth/me", {
+        method,
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      expect(res.status, method).toBe(405);
+      expect(res.headers.get("allow"), method).toBe("GET");
+      if (method !== "HEAD") {
+        expect(await res.json()).toMatchObject({ error: { code: "method_not_allowed" } });
+      }
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("GET /api/auth/me logs only the route line; no token, sub, email or jti", async () => {
+    const spies = (["log", "error", "warn", "info", "debug"] as const).map((m) =>
+      vi.spyOn(console, m),
+    );
+    const { base, token } = await startIdentity();
+    logs.length = 0;
+    const t = await token();
+    const ok = await fetch(base + "/api/auth/me", { headers: { Authorization: `Bearer ${t}` } });
+    expect(ok.status).toBe(200);
+    const bad = await fetch(base + "/api/auth/me", {
+      headers: { Authorization: `Bearer ${await token({ aud: "other" })}` },
+    });
+    expect(bad.status).toBe(401);
+    await new Promise((r) => setTimeout(r, 20));
+    const lines = logs.filter((l) => l.route === "/api/auth/me");
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) {
+      expect(Object.keys(l).sort()).toEqual(["id", "method", "ms", "route", "status", "ts"]);
+    }
+    const all = JSON.stringify(logs);
+    for (const secret of [t, SUB, "me@example.com", "jti-xyz-123"])
+      expect(all).not.toContain(secret);
+    for (const s of spies) expect(s).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("/api/auth/me path variants -> 404", async () => {
+    const { base, token } = await startIdentity();
+    const t = await token();
+    for (const p of ["/api/auth", "/api/auth/me/", "/api/auth/ME", "/api/auth/me/x"]) {
+      const res = await fetch(base + p, { headers: { Authorization: `Bearer ${t}` } });
+      expect(res.status, p).toBe(404);
+      expect(await res.json()).toMatchObject({ error: { code: "not_found" } });
+    }
   });
 });

@@ -4,7 +4,7 @@
 import { toUserId } from "./user.js";
 import { createIdentityAuth, createIdentityVerifier, loadIdentityConfig } from "./identity.js";
 
-/** @typedef {{ ok: true, userId: import("./user.js").UserId } | { ok: false, code?: string, unavailable?: true }} AuthResult */
+/** @typedef {{ ok: true, userId: import("./user.js").UserId, email: string | null } | { ok: false, code?: string, unavailable?: true }} AuthResult */
 /** @typedef {{ authenticate(req: import("node:http").IncomingMessage): Promise<AuthResult> }} Auth */
 /** @typedef {{ mode: "identity", identity: ReturnType<typeof loadIdentityConfig> & { ownerSub: import("./user.js").UserId } }} AuthConfig */
 
