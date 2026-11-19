@@ -16,7 +16,7 @@
 | Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/94 |
 
 ## Report
 Follow-up from the T-028.3 consult, plan and security review (PR https://github.com/mmlabs-online/TuDoCuaTui/pull/91): "tab A signing out X wipes tab B's stored Y."
@@ -65,6 +65,6 @@ Waiting for Ming: plan approval (High tier)
 - Gotchas: assumptions in plan.md (a dead Y stays until its own next token request; no-id signOut/forget no longer clear storage).
 
 ### 2026-11-19 — claude — DONE
-- Done: plan approved; forgetStored(gone) replaces the five storage.clear() calls in tokenStore.ts; 6 regression tests failed before the fix (reviewer re-verified, incl. per-site reverts). Review PASS; security PASS.
+- Done: plan approved; forgetStored(gone) replaces the five storage.clear() calls in tokenStore.ts; 6 regression tests failed before the fix (reviewer re-verified, incl. per-site reverts). Review PASS; security PASS. PR https://github.com/mmlabs-online/TuDoCuaTui/pull/94.
 - In progress / next: Ming merges the PR; then BUG-008, T-029.
 - Gotchas: after X signs out in tab A, reloading tab A now restores the Y that tab B stored (security note 7: no access gained).
