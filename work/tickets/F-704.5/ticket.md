@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | REWORK |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -11,7 +11,7 @@
 | Gate | none |
 | Depends on | F-704.4 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-18 |
 | Claimed by | claude@2026-11-19T08:46:44Z |
 | PR | — |
