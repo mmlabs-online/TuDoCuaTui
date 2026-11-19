@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | S |
 | Milestone | M2 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-19T01:32:13Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -43,5 +43,11 @@ A JWKS outage at mmlabs no longer signs everyone out of TuDoCuaTui, and tokens t
 - jose's `createRemoteJWKSet` drops keys on failure; likely a small custom key resolver around `createLocalJWKSet`.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier).
 
 ## Handoff
+
+### 2026-11-19 — claude — BLOCKED
+- Done: consult software-architect; plan READY (new server/jwks.js cache, key_in_header 401, 503 auth_unavailable + Retry-After 30, authFetch regression tests, copy).
+- In progress / next: waiting for Ming's plan approval (server/** is High); then implement.
+- Gotchas: identity.test.ts:244 changes to expect key_in_header (stricter, not weaker).
