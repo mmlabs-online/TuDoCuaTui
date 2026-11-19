@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-028.1 |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T03:05:00Z |
 | PR | — |
@@ -56,3 +56,8 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 - Done: consult software-architect; plan READY (refreshLock.ts Web Lock, authChannel.ts BroadcastChannel + parseAuthMessage, lock-guarded renewal with double-check and broadcast, proactive timer 60 s before exp, cross-tab signedOut, signOut returns {confirmed} + logout_unconfirmed warning, 409 email_already_verified → restore, /token 15 s timeout).
 - In progress / next: waiting for Ming's plan approval (M-34; src/features/auth/** is High); then implement.
 - Gotchas: assumptions A1–A6 in plan.md need approval; AuthGate/SignInScreen/copy hotspots shared with T-028.3.
+
+### 2026-11-19 — claude — DONE
+- Done: plan approved; refreshLock.ts (Web Lock) + authChannel.ts (BroadcastChannel, parseAuthMessage); lock-guarded renewal with double-check and broadcast; proactive renewal 60 s before exp (min 15 s); cross-tab sign-out; signOut returns {confirmed} + logout_unconfirmed warning; 409 email_already_verified → restore; /token 15 s timeout. Attempt 1 PASS + security PASS; attempt 2 (Ming: new warning copy, short-token loop, join spinner) PASS + security PASS.
+- In progress / next: Ming merges the PR; then T-028.3 (Continue as) and T-028.4 (/api/auth/me).
+- Gotchas: real-browser lock/channel ordering is not visible in jsdom — check two real tabs after deploy.

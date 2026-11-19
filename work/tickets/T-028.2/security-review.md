@@ -87,3 +87,93 @@ Files reviewed (all in /home/user/TuDoCuaTui/src/features/auth/):
 - boundary.test.ts
 
 Server contract checked in /home/user/org-admin-api/docs/adr/0004-device-sessions-and-login.md and /home/user/org-admin-api/docs/adr/0005-access-token-signing.md.
+
+## Attempt 2 — 2026-11-19 — security-ai-generated-code-auditor
+
+Security re-review of T-028.2, attempt 2.
+
+**Verdict: PASS.** There are no blockers and no should-fix findings. S1 is resolved. The two timing fixes and the offerJoin fix are sound, and nothing from attempt 1 regressed.
+
+I read the files directly. I could not run git or the checks. The green checks come from impl-log.md (Attempt 2): 1832 tests passed, and typecheck, format and build were clean. I did not re-verify them.
+
+## Resolved from attempt 1
+
+**S1 is resolved** (`src/features/auth/copy.ts:16-17`).
+- The text matches Ming's wording in ticket.md Notes (line 51) character for character. `copy.test.ts:18` locks it in.
+- The advice is now accurate for a persistent `mm_device` cookie:
+  - **Signing in and out again:** a confirmed `/logout {account_id}` revokes the account session on the server (ADR-0004 §10).
+  - **Clearing cookies:** this removes the only client-side copy of the opaque device credential, so nobody using that browser can get a token without a password.
+- It no longer promises that closing windows ends the session.
+- Nothing else uses the old wording. The tests reference `AUTH_COPY`.
+
+**N4 is resolved.** `boundary.test.ts:31` adds `fakeTabs: []` to `ALLOWED`. Test files are excluded, so a future production import of `fakeTabs` fails the test.
+
+## The timing changes
+
+### `arm()` waits at least 15 s (`tokenStore.ts:103-105`)
+- **No token is used past expiry.**
+  - The floor only delays the background timer. It does not change how long a cached token is served.
+  - `getToken` (`:172`) and the double-check inside the lock (`:127`) still serve a cached token only while `fresh()`, that is `now() < validUntil` (expiry minus 60 s).
+  - A token of 60 s or less has `validUntil` equal to its receipt time, so it is never fresh. Every `getToken` call fetches on demand.
+  - Adoption (`:207`) still needs more than 60 s of life left, so a short token is never adopted from another tab.
+  - For an adopted token with 61 s left, the timer fires at 15 s, still 46 s before expiry. Between 1 s and 15 s, `getToken` renews on demand.
+- **The loop is gone.** The fake-timer test at `tabs.test.ts:244-259` (30 s token) shows calls at 15 s and 30 s only, with no back-to-back `/token` calls.
+- **No session outlives a sign-out.**
+  - `arm()` is guarded by `started && id && token !== null`.
+  - `signOut`, the remote sign-out handler and `forget` all call `reset()`, which bumps the epoch, nulls the token and disarms the timer, and they null the account id.
+  - `onTimer` returns when the id is null (`:193`).
+  - The retry path in `background` (`:187`) still checks the id, the token and `expiresAt`.
+  - A late `/token` answer is dropped by the epoch check (`:129`) before `arm()` or the broadcast run.
+
+### Visibility handler (`tokenStore.ts:198-202`)
+- It now renews only when `id && token !== null && now() >= validUntil`.
+- After any sign-out the token is null, so this path can never start a `/token` call for a signed-out tab.
+- The hidden-tab case still works: the token stays set, so it renews when the tab becomes visible (`tabs.test.ts:230-242`).
+- The join, unverified and retry screens (no token) no longer fire `/token` (`tabs.test.ts:261-273`).
+- This removes the trigger behind reviewer Issue 2.
+
+## The offerJoin change (`AuthGate.tsx:100-120`)
+- If the account id is null after `accountEmail()`, the gate returns before both the join view and `enterReady`.
+  - The functional `setView` moves only a still-`checking` view to sign-in with `session_invalid`.
+  - A view a remote sign-out already set (`signed_out` / `signed_out`) is left alone.
+- The gate cannot reach the app or the join screen for a cleared account:
+  - Join is set only when the id is non-null at that moment (`:112-116`).
+  - `enterReady` is reached only from restore, sign-in or join, each guarded by `store.accountId() !== null` (`:154, 253, 340`).
+  - The join click itself goes through `store.join()`, which returns `false` when the id is null (`tokenStore.ts:308`).
+- If the epoch changed during the lookup, `accountEmail()` returns null (`tokenStore.ts:303`). While the gate shows `checking`, nothing in it can set a new id (sign-in is not reachable), so the null-id branch covers this case.
+- Test: `AuthGate.test.tsx:527-539` ends on the sign-in screen, not the spinner, with storage cleared.
+
+## Regression check (attempt-1 properties)
+- **Channel payload is unchanged** (`tokenStore.ts:135-142, 244`): only `{v, type, accountId, accessToken, expiresAt, at}` and `{v, type, accountId, at}`.
+- **Account binding is unchanged** (`:205`): a case-insensitive match is required, a signed-out tab ignores every message, and adoption requires `msg.at > tokenAt` (`:207`).
+- **`authChannel.ts` validation** (`parseAuthMessage`) is not in the attempt-2 file list and was not changed.
+- **Sign-out ordering is unchanged** (`:236-265`): local state is cleared first, then the broadcast, then the bounded wait, then `/logout` under the lock with a fallback, and the call never rejects.
+- **No token in storage or the console.** The only storage write is still `mm_account_id`. `boundary.test.ts` still enforces no `console.` anywhere, `localStorage` only in `accountId.ts`, and locks and BroadcastChannel only in their wrappers.
+- **R3:** no new config, no `VITE_*` use, no secret added.
+
+## Findings
+
+### 🔴 Blockers
+None.
+
+### 🟡 Should fix
+None.
+
+### 🟢 Notes
+- **G1.** In the fall-through case, the `session_invalid` copy "Phiên đăng nhập đã hết hạn…" is correct for the only production path left (an Identity `session_invalid`). If a later ticket adds another way to clear the id during the lookup (for example the T-028.3 account list), check that this message still fits. No action now.
+- **G2.** With a token of less than 15 s (only possible if Identity is misconfigured; D46 sets 12 h), the background timer fires after expiry. That is harmless: the cached token is never served, because `fresh()` is false and `getToken` renews on demand. No action.
+- **G3.** Attempt-1 notes N1–N3 and N5 still stand as accepted, unchanged by this attempt.
+
+## Follow-ups (out of scope, R7)
+- The open attempt-1 follow-ups carry over: F1 and F2 from the plan, and a "Thử đăng xuất lại" (retry sign-out) action on the `logout_unconfirmed` notice.
+
+Files reviewed:
+- /home/user/TuDoCuaTui/src/features/auth/copy.ts
+- /home/user/TuDoCuaTui/src/features/auth/tokenStore.ts
+- /home/user/TuDoCuaTui/src/features/auth/AuthGate.tsx
+- /home/user/TuDoCuaTui/src/features/auth/boundary.test.ts
+- /home/user/TuDoCuaTui/src/features/auth/tabs.test.ts (lines 230-273)
+- /home/user/TuDoCuaTui/src/features/auth/AuthGate.test.tsx (lines 527-539)
+- /home/user/TuDoCuaTui/work/tickets/T-028.2/ticket.md
+- /home/user/TuDoCuaTui/work/tickets/T-028.2/impl-log.md
+- /home/user/TuDoCuaTui/work/tickets/T-028.2/review.md

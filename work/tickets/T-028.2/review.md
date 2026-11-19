@@ -65,3 +65,52 @@ Ticket areas include `security`: the orchestrator runs `security-ai-generated-co
 ### Follow-ups (out of scope)
 - Issues 1 and 2 above, if not fixed in T-028.3.
 - F1–F4 from plan.md (broadcast `signedOut` on `session_invalid`/`forget`, `storage`-event fallback, bfcache channel close/reopen, Playwright as a repo dependency).
+
+## Attempt 2 — 2026-11-19
+Verdict: PASS
+
+Scope: the attempt-2 delta `git diff b72f2e5..ac2aac3` (Ming's "Sửa cả 3 trong PR này": review Issues 1–2, security S1 and N4), and a re-check of the whole ticket `git diff origin/main...HEAD` (25 files).
+
+### Checks (run by reviewer)
+- `pnpm typecheck` — clean (both tsconfigs).
+- `pnpm format:check` — "All matched files use the correct format" (332 files).
+- `pnpm test` — Test Files 135 passed | 11 skipped; Tests 1832 passed | 222 skipped. Matches impl-log attempt 2.
+- `pnpm build` — built OK (AuthRoot chunk 35.01 kB).
+- Regression proof: the attempt-2 tests run against attempt-1 `AuthGate.tsx` + `tokenStore.ts` (from `b72f2e5`, in a scratch copy) — all 3 new behaviour tests fail there (`a 30 s token is not renewed in a tight loop…`, `becoming visible does not renew when the tab has no token…`, `the account id cleared while the join lookup runs…`), and pass on `ac2aac3`.
+- 390 px Playwright, `/auth-preview.html` → Đăng nhập / `logout_unconfirmed`, light and dark (preview's "Chế độ tối"): new text rendered in full, wraps in the notice box, `scrollWidth == 390` (no horizontal scroll), dark background `rgb(20,32,27)`, notice readable in both.
+
+### Acceptance criteria (attempt-2 fixes)
+- [x] **Copy = Ming's exact wording** — `src/features/auth/copy.ts:16-17`; scripted comparison with the string in ticket Notes: identical (253 chars, NFC). Pinned by `copy.test.ts › logout warning copy`.
+- [x] **Short-token loop stopped** — `tokenStore.ts:103-105`: `arm()` floors the delay at `RETRY_MS` (15 s). For `expires_in ≤ 60` (`validUntil = receipt`) the timer now fires at 15 s and renews (stale) → one `/token` per 15 s, not back-to-back. `tabs.test.ts › a 30 s token…` asserts 1 call at 14 s, 2 at 16 s, still 2 at 28 s, ≤ 6 over 88 s. Normal scheduling unchanged: for 900 s / 43 200 s tokens `validUntil − now` (840 s / ~12 h) ≫ 15 s, so `max` is a no-op; `› proactive renewal fires at exp - 60 s (900 s and 43200 s tokens)` still green.
+- [x] **Visibility only renews a stale existing token** — `tokenStore.ts:198-202`: `id && token !== null && now() >= validUntil`. Join / unverified / not_member states (`token === null`) no longer fire `/token`; `› hidden tab skips the timer and renews on visibilitychange` still green; new `› becoming visible does not renew when the tab has no token` covers the negative.
+- [x] **offerJoin can no longer stall on `checking`** — `AuthGate.tsx:104-111`: when the id is gone after `accountEmail()`, a still-`checking` view moves to `signed_out` (`session_invalid`); the functional `setView` leaves a view a remote sign-out already set (`signed_out` + `signed_out` notice) alone. `AuthGate.test.tsx › the account id cleared while the join lookup runs…` holds `accounts()` pending, clears the id, releases, and asserts the sign-in form + no stored id — it fails on attempt-1 code (spinner), so it genuinely exercises the bug.
+- [x] **boundary N4** — `boundary.test.ts:31` `fakeTabs: []`: any non-test auth file containing `fakeTabs` now fails the boundary test; `fakeTabs.ts` itself does not contain that string (only test files reference it), so the entry is consistent and the test is green. Imports from outside the auth folder are already caught by the "only src/main.tsx mentions features/auth" test.
+- [x] Attempt-1 acceptance criteria — unchanged code paths, all their tests still green (full suite above); review attempt 1 evidence stands.
+
+### Judgement on the deviations
+- **Floor also applies to adopted-token re-arm** (`onMessage` → `arm()`, `tokenStore.ts:212`) and to the `onTimer` early-fire re-arm (`:194`). Acceptable: an adopted token is only taken when `validUntil > now`; if that is < 15 s away, the proactive renewal is at most 15 s late, still inside the 60 s margin before `expiresAt`, and `getToken` renews on demand once stale. No loss of correctness, only of proactivity in an edge that the floor exists to bound.
+- **Tokens < 15 s renew on demand**, not proactively. Acceptable: D46 fixes 12 h tokens; a < 15 s token only happens on misconfiguration, and the lazy `getToken` path (unchanged) still covers it. Documented in the comment at `:101-102`.
+- **Visibility no longer retries a tab that never got a token** (plan step said `token === null || stale`). This is the fix Ming chose (review attempt 1 Issue 2, option 1); the retry / join / unverified screens have their own buttons, and a transient renewal failure keeps the old token non-null, so stale-token renewal on wake still works.
+- **Test uses `store.forget()`** to clear the id mid-lookup (impl-log deviation). Fine: it models the `session_invalid` clear that the production path can still produce (e.g. via a lazy `getToken` from elsewhere) without depending on visibility.
+
+### Scope
+Attempt-2 files: `copy.ts`, `tokenStore.ts`, `AuthGate.tsx`, three test files, `boundary.test.ts`, ticket/impl-log/review/security-review. All are either in the plan's file list or the ticket folder; no new High path beyond the approved `src/features/auth/**`. No unjustified out-of-plan change.
+
+### Issues
+None.
+
+### Rules (CLAUDE.md)
+No violations found. R6: copy only in `copy.ts`. R8: every changed behaviour has a test that fails before the fix. R9: 390 px light/dark checked. R7: diff limited to the three findings + N4.
+
+### Blockers from review agents
+None (security-review attempt 1 PASS; S1 and N4 addressed by this attempt).
+
+### Nits (do not block)
+- `AuthGate.tsx:107-109`: the stall fallback reuses `session_invalid` copy even when the id was cleared by a local `forget()`; today only `session_invalid` reaches that branch, so the copy is right.
+- Working tree has an uncommitted edit to `work/tickets/T-028.2/security-review.md` that is not part of `ac2aac3` (not made by this reviewer); the orchestrator should commit or discard it.
+
+### Follow-ups (out of scope)
+- Unchanged from attempt 1: F1–F4 from plan.md; attempt-1 nits; security N1–N3 and the "Thử đăng xuất lại" action.
+
+### Ming verification after merge
+- As in plan.md (two real tabs: one renewal, cross-tab sign-out; logout warning on a shared machine reads correctly).
