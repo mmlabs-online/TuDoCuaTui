@@ -578,6 +578,28 @@ describe("AI fill", () => {
     expect(screen.queryByRole("button", { name: EDITOR_COPY.ai.undo })).toBeNull();
   });
 
+  test('"Hoàn tác" right after the fill renders restores the previous values', async () => {
+    const { spy } = setup();
+    await ready();
+    // Click the moment the button is inserted: a microtask after the commit, before passive effects flush.
+    let clicked = false;
+    const mo = new MutationObserver(() => {
+      const btn = screen.queryByRole("button", { name: EDITOR_COPY.ai.undo });
+      if (btn && !clicked) {
+        clicked = true;
+        fireEvent.click(btn);
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    fireEvent.click(aiBtn());
+    await waitFor(() => expect(clicked).toBe(true));
+    mo.disconnect();
+    expect(spy).toHaveBeenCalledWith("name", "");
+    expect(spy).toHaveBeenCalledWith("category", "Áo");
+    expect(spy).toHaveBeenCalledWith("colors", []);
+    expect(spy).toHaveBeenCalledWith("tags", []);
+  });
+
   test("a second tap while pending sends nothing", async () => {
     const { ai } = setup({ ai: mkAi(undefined, () => new Promise(() => {})) });
     await ready();
@@ -665,6 +687,7 @@ describe("AI fill", () => {
       target: { files: [new File(["y"], "b.jpg", { type: "image/jpeg" })] },
     });
     await waitFor(() => expect(aiBtn().getAttribute("aria-busy")).toBe("false"));
+    // Flush the microtasks a late result would run in before asserting it changed nothing.
     await act(async () => {});
     expect(keysOf(spy)).toEqual(["photo"]);
     expect(signal!.aborted).toBe(true);

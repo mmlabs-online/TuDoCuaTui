@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { AiSettingsError, type AiSettingsClient } from "@/data/aiSettings";
 import type { AiTagger } from "@/data/aiTagging";
@@ -51,7 +51,8 @@ export function useAiFill({
   const busyRef = useRef(false);
   const ctlRef = useRef<AbortController | null>(null);
   const latest = useRef({ item, categoryFillable, update });
-  useEffect(() => {
+  // Layout effect: callbacks that run right after a commit must not read an older item.
+  useLayoutEffect(() => {
     latest.current = { item, categoryFillable, update };
   });
 
