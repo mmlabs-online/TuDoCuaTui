@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | REWORK |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-028.2 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T07:39:59Z |
 | PR | — |
