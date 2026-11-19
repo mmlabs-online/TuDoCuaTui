@@ -120,6 +120,10 @@ export function createApp({
         route = "/api";
         const result = await auth.authenticate(req);
         if (!result.ok) {
+          if (result.unavailable) {
+            log({ event: "auth_unavailable", code: result.code });
+            return sendError(res, 503, "auth_unavailable", {}, { "Retry-After": "30" });
+          }
           log({ event: "auth_denied", code: result.code });
           return sendError(res, 401, "unauthorized");
         }

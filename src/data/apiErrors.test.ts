@@ -25,6 +25,7 @@ const SERVER_CODES = [
   "internal",
   "db_unavailable",
   "unauthorized",
+  "auth_unavailable",
   "invalid_photo",
   "photos_unavailable",
   "photo_upload_failed",
@@ -39,6 +40,12 @@ describe("apiErrorMessage", () => {
       expect(apiErrorMessage(c, undefined, "r1").length).toBeGreaterThan(0);
     expect(apiErrorMessage("method_not_allowed")).toBe(API_ERROR_COPY.generic);
     expect(apiErrorMessage("zzz")).toBe(API_ERROR_COPY.generic);
+  });
+
+  test("auth_unavailable has its own Vietnamese copy", () => {
+    expect(apiErrorMessage("auth_unavailable")).toBe(API_ERROR_COPY.auth_unavailable);
+    expect(apiErrorMessage("auth_unavailable")).not.toBe(API_ERROR_COPY.generic);
+    expect(apiErrorMessage("auth_unavailable")).not.toBe(API_ERROR_COPY.unauthorized);
   });
 
   test("photo_quota_exceeded and rate_limited have their own Vietnamese copy", () => {

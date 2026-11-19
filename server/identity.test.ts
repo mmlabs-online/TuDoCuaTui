@@ -23,6 +23,7 @@ const ENUM = new Set([
   "expired",
   "unknown_kid",
   "jwks_unavailable",
+  "key_in_header",
   "email_unverified",
   "sub_invalid",
   "no_role",
@@ -241,14 +242,33 @@ describe("verifier", () => {
     });
   });
 
-  it("embedded jwk/jku with an unknown kid -> unknown_kid, the embedded key is not used", async () => {
-    const { other, check } = await setup();
+  it("embedded jwk/jku with an unknown kid -> key_in_header, the embedded key is not used", async () => {
+    const { other, check, calls } = await setup();
     const tok = await sign(other.privateKey, goodClaims(), {
       kid: "evil",
       jwk: other.jwk,
       jku: "https://evil.example/jwks.json",
     });
-    expect(await check(tok)).toEqual({ ok: false, code: "unknown_kid" });
+    expect(await check(tok)).toEqual({ ok: false, code: "key_in_header" });
+    expect(calls()).toBe(0);
+  });
+
+  it("key-carrying headers -> key_in_header, also with the real key and kid; getter not consulted", async () => {
+    const { k, check, calls } = await setup();
+    const extras: Array<Record<string, unknown>> = [
+      { jku: "https://evil.example/jwks.json" },
+      { x5u: "https://evil.example/cert.pem" },
+      { jwk: k.jwk },
+      { x5c: ["MIIB"] },
+      { jku: "" },
+    ];
+    for (const extra of extras) {
+      expect(await check(await sign(k.privateKey, goodClaims(), extra))).toEqual({
+        ok: false,
+        code: "key_in_header",
+      });
+    }
+    expect(calls()).toBe(0);
   });
 
   it("Authorization header shapes", async () => {
@@ -292,6 +312,15 @@ describe("verifier", () => {
       expect(Object.keys(r).sort()).toEqual(["code", "ok"]);
       expect(ENUM.has((r as { code: string }).code)).toBe(true);
     }
+    const down = createIdentityVerifier({
+      issuer: ISS,
+      jwks: (async () => {
+        throw new Error("down");
+      }) as never,
+    });
+    const unavailable = await down.verify(req(`Bearer ${await sign(k.privateKey, goodClaims())}`));
+    expect(Object.keys(unavailable).sort()).toEqual(["code", "ok", "unavailable"]);
+    expect(ENUM.has((unavailable as { code: string }).code)).toBe(true);
     for (const l of logs) expect(l).not.toHaveBeenCalled();
     expect(JSON.stringify(results)).not.toContain("leak@example.com");
   });
@@ -337,7 +366,7 @@ describe("remote JWKS", () => {
     expect(state.fetches).toHaveLength(3);
   });
 
-  it("JWKS failures fail closed with jwks_unavailable", async () => {
+  it("JWKS failures fail closed with jwks_unavailable and unavailable: true", async () => {
     const k1 = await keyPair("k1");
     const tok = await sign(k1.privateKey, goodClaims());
     const responses: Array<() => Promise<Response>> = [
@@ -361,8 +390,30 @@ describe("remote JWKS", () => {
             ])
           : r()) as typeof fetch;
       const v = createIdentityVerifier({ issuer: ISS, fetch: fetchFn, timeoutMs: 50 });
-      expect(await v.verify(req(`Bearer ${tok}`))).toEqual({ ok: false, code: "jwks_unavailable" });
+      expect(await v.verify(req(`Bearer ${tok}`))).toEqual({
+        ok: false,
+        code: "jwks_unavailable",
+        unavailable: true,
+      });
     }
+  });
+
+  it("JWKS outage: cached keys verify for 24 h, then unavailable", async () => {
+    const k1 = await keyPair("k1");
+    let down = false;
+    const fetchFn = (async () => {
+      if (down) throw new TypeError("fetch failed");
+      return new Response(JSON.stringify({ keys: [k1.jwk] }), { status: 200 });
+    }) as typeof fetch;
+    let t = Date.now();
+    const v = createIdentityVerifier({ issuer: ISS, fetch: fetchFn, now: () => t });
+    const verify = async () => v.verify(req(`Bearer ${await sign(k1.privateKey, goodClaims())}`));
+    expect((await verify()).ok).toBe(true);
+    down = true;
+    t += 23 * 3_600_000;
+    expect((await verify()).ok).toBe(true);
+    t += 3_600_000 + 1000;
+    expect(await verify()).toEqual({ ok: false, code: "jwks_unavailable", unavailable: true });
   });
 });
 

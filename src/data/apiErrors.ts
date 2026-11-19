@@ -8,6 +8,7 @@ const invalidInput = "Dữ liệu không hợp lệ";
 export const API_ERROR_COPY = {
   network: "Không kết nối được máy chủ, thử lại nhé",
   unauthorized: "Phiên truy cập đã hết hạn — tải lại trang để đăng nhập lại",
+  auth_unavailable: "Chưa kiểm tra được đăng nhập lúc này, thử lại sau ít phút nhé",
   forbidden_origin: "Không có quyền thao tác",
   not_found: "Món đồ không còn tồn tại, tải lại trang nhé",
   conflict: "Dữ liệu vừa thay đổi hoặc bị trùng, thử lại nhé",

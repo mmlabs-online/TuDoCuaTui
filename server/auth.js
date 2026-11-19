@@ -4,7 +4,7 @@
 import { toUserId } from "./user.js";
 import { createIdentityAuth, createIdentityVerifier, loadIdentityConfig } from "./identity.js";
 
-/** @typedef {{ ok: true, userId: import("./user.js").UserId } | { ok: false, code?: string }} AuthResult */
+/** @typedef {{ ok: true, userId: import("./user.js").UserId } | { ok: false, code?: string, unavailable?: true }} AuthResult */
 /** @typedef {{ authenticate(req: import("node:http").IncomingMessage): Promise<AuthResult> }} Auth */
 /** @typedef {{ mode: "identity", identity: ReturnType<typeof loadIdentityConfig> & { ownerSub: import("./user.js").UserId } }} AuthConfig */
 
@@ -31,9 +31,9 @@ export function ownerSubOf(cfg) {
   return cfg.identity.ownerSub;
 }
 
-/** @param {AuthConfig} cfg @returns {Auth} */
-export function createAuth(cfg) {
-  return createIdentityAuth({ verifier: createIdentityVerifier(cfg.identity) });
+/** @param {AuthConfig} cfg @param {{ log?: (entry: Record<string, unknown>) => void }} [opts] @returns {Auth} */
+export function createAuth(cfg, { log } = {}) {
+  return createIdentityAuth({ verifier: createIdentityVerifier({ ...cfg.identity, log }) });
 }
 
 /** @param {AuthConfig} cfg */
