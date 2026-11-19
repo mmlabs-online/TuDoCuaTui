@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | S |
 | Milestone | M2 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-19T02:37:08Z |
 | PR | — |
 
 ## Goal
@@ -43,7 +43,7 @@ A JWKS outage at mmlabs no longer signs everyone out of TuDoCuaTui, and tokens t
 - jose's `createRemoteJWKSet` drops keys on failure; likely a small custom key resolver around `createLocalJWKSet`.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier).
+Plan approved (2026-11-19) — Ming: "duyệt T-028.1" (assumptions accepted: Retry-After 30; unknown kid during an outage → 503; 24 h stale-key window per D50).
 
 ## Handoff
 

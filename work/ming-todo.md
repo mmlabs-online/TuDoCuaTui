@@ -343,4 +343,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] **M-30 — Approve plan for F-602 (slice F-602.1, server, High tier):** `work/tickets/F-602/plan.md` (on branch `ticket/F-602`). Check the 8 defaults under "Needs Ming's decision"; write "Plan approved" under *Notes / answers from Ming* in the ticket or tell Annie.
 - [x] **M-31 — Approve plan for F-704.2**: work/tickets/F-704.2/plan.md (weather in outfit suggestions; touches server/**).
 - [x] **M-32 — Approve plan for F-704.3** (server slice; client slice becomes F-704.4): work/tickets/F-704.3/plan.md (touches server/**).
-- [ ] **M-33 — Approve plan for T-028.1** (Identity verifier hardening): work/tickets/T-028.1/plan.md (touches server/**).
+- [x] **M-33 — Approve plan for T-028.1** (Identity verifier hardening): work/tickets/T-028.1/plan.md (touches server/**).
