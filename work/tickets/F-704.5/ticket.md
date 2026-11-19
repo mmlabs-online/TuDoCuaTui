@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REWORK |
+| State | DONE |
 | Priority | P2 |
 | Size | M |
 | Milestone | M3 |
@@ -11,7 +11,7 @@
 | Gate | none |
 | Depends on | F-704.4 |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-18 |
 | Claimed by | claude@2026-11-19T08:46:44Z |
 | PR | — |
@@ -59,3 +59,8 @@ Security: render the reason as plain text only (F-704.3 security review).
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-19 — claude — DONE
+- Done: consult frontend-developer; plan READY (gate none); "✨ Gợi ý bằng AI" toggle in OutfitsModal (AI overlay on the rule set, one abortable call per tap/shuffle, avoidIds, per-code notes, season DB id, weather timer cleared), App.tsx wiring. Attempt 1 REWORK (second paid call on place change); attempt 2 PASS.
+- In progress / next: Ming merges the PR; check with real Claude/Gemini keys.
+- Gotchas: Editor.test.tsx "a result for a replaced photo is ignored" flaked once in the reviewer's run (not touched here; follow-up).
