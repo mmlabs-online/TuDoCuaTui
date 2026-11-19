@@ -304,6 +304,73 @@ describe("identity auth", () => {
     });
   });
 
+  it("JWKS unavailable -> 503 auth_unavailable with Retry-After 30, no pool call", async () => {
+    logs.length = 0;
+    const calls: string[] = [];
+    const pool = {
+      query: async () => calls.push("query"),
+      connect: async () => calls.push("connect"),
+    };
+    const { privateKey } = await generateKeyPair("ES256");
+    const verifier = createIdentityVerifier({
+      issuer: ISS,
+      jwks: async () => {
+        throw new Error("down");
+      },
+    });
+    const server = http.createServer(
+      createApp({
+        pool,
+        distDir: dir,
+        auth: createIdentityAuth({ verifier }),
+        authMode: "identity",
+        log: (e) => logs.push(e),
+      }),
+    );
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    servers.push(server);
+    const tok = await new SignJWT({
+      iss: ISS,
+      aud: "tudocuatui",
+      sub: SUB,
+      jti: "jti-xyz-123",
+      email_verified: true,
+      roles: ["tudocuatui:member"],
+    })
+      .setProtectedHeader({ alg: "ES256", kid: "k1", typ: "at+jwt" })
+      .setIssuedAt()
+      .setExpirationTime("10m")
+      .sign(privateKey);
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const res = await fetch(base + "/api/items", { headers: { Authorization: `Bearer ${tok}` } });
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("30");
+    expect(await res.json()).toMatchObject({ error: { code: "auth_unavailable" } });
+    expect(calls).toEqual([]);
+    expect(logs).toContainEqual({ event: "auth_unavailable", code: "jwks_unavailable" });
+    expect(logs.some((e) => (e as { event?: string }).event === "auth_denied")).toBe(false);
+  });
+
+  it("a token with jku -> 401 unauthorized, logged auth_denied key_in_header", async () => {
+    logs.length = 0;
+    const { base } = await startIdentity();
+    const { privateKey } = await generateKeyPair("ES256");
+    const tok = await new SignJWT({ iss: ISS, aud: "tudocuatui", sub: SUB })
+      .setProtectedHeader({
+        alg: "ES256",
+        kid: "k1",
+        typ: "at+jwt",
+        jku: "https://evil.example/jwks.json",
+      })
+      .setIssuedAt()
+      .setExpirationTime("10m")
+      .sign(privateKey);
+    const res = await fetch(base + "/api/items", { headers: { Authorization: `Bearer ${tok}` } });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ error: { code: "unauthorized" } });
+    expect(logs).toContainEqual({ event: "auth_denied", code: "key_in_header" });
+  });
+
   it("every /api route without a bearer, or with a bogus one -> 401, no pool call", async () => {
     const calls: string[] = [];
     const pool = {

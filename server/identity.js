@@ -2,7 +2,8 @@
 // mmlabs Identity access-token verification (T-019.5; org-admin-api docs/consumers.md, "Verifying (backend)").
 // Header only; fail closed; the result carries a fixed `code` and nothing else. Never logs, never reads
 // err.message or the payload, never touches the database.
-import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
+import { jwtVerify } from "jose";
+import { createJwksResolver, JwksUnavailable } from "./jwks.js";
 import { toUserId } from "./user.js";
 
 export const AUDIENCE = "tudocuatui";
@@ -45,11 +46,12 @@ export function loadIdentityConfig(env) {
   return { issuer: raw, jwksUrl: `${raw}/.well-known/jwks.json` };
 }
 
-class JwksUnavailable extends Error {}
+class KeyInHeader extends Error {}
 
 /** @param {unknown} err @returns {string} */
 function codeOf(err) {
   if (err instanceof JwksUnavailable) return "jwks_unavailable";
+  if (err instanceof KeyInHeader) return "key_in_header";
   const e = /** @type {{ code?: unknown, claim?: unknown }} */ (err);
   switch (e?.code) {
     case "ERR_JWS_INVALID":
@@ -71,27 +73,33 @@ function codeOf(err) {
 }
 
 /**
- * @param {{ issuer: string, jwksUrl?: string, jwks?: import("jose").JWTVerifyGetKey, fetch?: typeof globalThis.fetch, timeoutMs?: number }} opts
- * @returns {{ verify(req: import("node:http").IncomingMessage): Promise<{ ok: true, userId: import("./user.js").UserId } | { ok: false, code: string }> }}
+ * @param {{ issuer: string, jwksUrl?: string, jwks?: import("jose").JWTVerifyGetKey, fetch?: typeof globalThis.fetch, timeoutMs?: number, now?: () => number, log?: (entry: Record<string, unknown>) => void }} opts
+ * @returns {{ verify(req: import("node:http").IncomingMessage): Promise<{ ok: true, userId: import("./user.js").UserId } | { ok: false, code: string, unavailable?: true }> }}
  */
-export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs }) {
+export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs, now, log }) {
   /** @type {import("jose").JWTVerifyGetKey | undefined} */
   let remote = jwks;
   /** @type {import("jose").JWTVerifyGetKey} */
   const getKey = async (header, token) => {
+    // A token must never carry its own key or a key location (D50); checked before any key lookup.
+    for (const f of ["jku", "x5u", "jwk", "x5c"]) if (f in header) throw new KeyInHeader();
     // Lazy: no fetch at startup (image start checks run without a network).
-    remote ??= createRemoteJWKSet(new URL(jwksUrl ?? `${issuer}/.well-known/jwks.json`), {
-      cacheMaxAge: 300_000,
-      cooldownDuration: 60_000,
-      timeoutDuration: timeoutMs ?? 5_000,
-      headers: { "User-Agent": "tudocuatui-server" },
-      ...(fetch ? { [customFetch]: fetch } : {}),
+    remote ??= createJwksResolver({
+      url: jwksUrl ?? `${issuer}/.well-known/jwks.json`,
+      fetch,
+      timeoutMs,
+      now,
+      log,
     });
     try {
       return await remote(header, token);
     } catch (err) {
       const code = /** @type {{ code?: unknown }} */ (err)?.code;
-      if (code === "ERR_JWKS_NO_MATCHING_KEY" || code === "ERR_JWKS_MULTIPLE_MATCHING_KEYS")
+      if (
+        err instanceof JwksUnavailable ||
+        code === "ERR_JWKS_NO_MATCHING_KEY" ||
+        code === "ERR_JWKS_MULTIPLE_MATCHING_KEYS"
+      )
         throw err;
       throw new JwksUnavailable();
     }
@@ -131,7 +139,10 @@ export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs
         if (!hasRole) return { ok: false, code: "no_role" };
         return { ok: true, userId };
       } catch (err) {
-        return { ok: false, code: codeOf(err) };
+        const code = codeOf(err);
+        return code === "jwks_unavailable"
+          ? { ok: false, code, unavailable: true }
+          : { ok: false, code };
       }
     },
   };

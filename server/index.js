@@ -33,7 +33,7 @@ try {
   console.error(known ? `config error: ${err.message}` : "config error");
   process.exit(2);
 }
-const auth = createAuth(authConfig);
+const auth = createAuth(authConfig, { log });
 console.log(`auth: ${authConfig.mode}`);
 
 // Drive is not part of /readyz: a Drive outage must not take the whole app out of rotation.
