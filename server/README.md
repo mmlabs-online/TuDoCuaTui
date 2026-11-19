@@ -45,6 +45,7 @@ JSON only. Without `DATABASE_URL` every endpoint validates its input, then answe
 | Endpoint | Success |
 |---|---|
 | `GET /api/items` | 200 `{ items: ItemRow[] }`, newest first |
+| `GET /api/auth/me` | 200 `{ id, email, role }` from the verified token only (no DB access, `Cache-Control: no-store`): `id` is the token `sub`, `email` the token's email claim (`null` if absent), `role` is `"owner"` for `TUDO_OWNER_SUB`, else `"user"`. Other methods 405 `Allow: GET` (T-028.4) |
 | `GET /api/locations` | 200 `{ locations: string[] }`, by `sort_order, name` |
 | `PUT /api/items/:id` | 200 `{ item: ItemRow }`; idempotent upsert, full replacement (omitted optional fields reset to defaults); body is `itemToRow` minus `id`/`location_id`, plus `location_name` (NFC, get-or-create); unknown keys ignored |
 | `DELETE /api/items/:id` | 204, also when the item is already gone |

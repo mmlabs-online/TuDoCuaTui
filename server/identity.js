@@ -74,7 +74,7 @@ function codeOf(err) {
 
 /**
  * @param {{ issuer: string, jwksUrl?: string, jwks?: import("jose").JWTVerifyGetKey, fetch?: typeof globalThis.fetch, timeoutMs?: number, now?: () => number, log?: (entry: Record<string, unknown>) => void }} opts
- * @returns {{ verify(req: import("node:http").IncomingMessage): Promise<{ ok: true, userId: import("./user.js").UserId } | { ok: false, code: string, unavailable?: true }> }}
+ * @returns {{ verify(req: import("node:http").IncomingMessage): Promise<{ ok: true, userId: import("./user.js").UserId, email: string | null } | { ok: false, code: string, unavailable?: true }> }}
  */
 export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs, now, log }) {
   /** @type {import("jose").JWTVerifyGetKey | undefined} */
@@ -137,7 +137,9 @@ export function createIdentityVerifier({ issuer, jwksUrl, jwks, fetch, timeoutMs
               typeof r === "string" && r.startsWith(ROLE_PREFIX) && r.length > ROLE_PREFIX.length,
           );
         if (!hasRole) return { ok: false, code: "no_role" };
-        return { ok: true, userId };
+        const email =
+          typeof payload.email === "string" && payload.email !== "" ? payload.email : null;
+        return { ok: true, userId, email };
       } catch (err) {
         const code = codeOf(err);
         return code === "jwks_unavailable"
