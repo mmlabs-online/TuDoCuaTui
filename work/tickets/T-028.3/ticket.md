@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | ui, security |
 | Gate | plan-approval |
 | Depends on | T-028.2 |
-| Needs Ming | M-35 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T07:39:59Z |
@@ -43,6 +43,7 @@ Someone already signed in to another mmlabs app on this browser enters TuDoCuaTu
 - Files: `AuthGate.tsx`, sign-in screen component(s), `identityClient.ts` (`accounts()` exists), `copy.ts`, tests.
 
 ## Notes / answers from Ming
+- 2026-11-19 — Plan approved by Ming ("duyệt T-028.3"), including assumptions A1–A7.
 
 ## Handoff
 
