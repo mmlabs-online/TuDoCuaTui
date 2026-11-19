@@ -3035,3 +3035,53 @@ main {
   color: var(--muted);
   font-size: 13px;
 }
+.outfit-ai-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.outfit-ai-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--green);
+}
+.outfit-ai-toggle input:focus-visible {
+  outline: 2px solid var(--green-ink);
+  outline-offset: 2px;
+}
+.outfit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity 0.15s;
+}
+.outfit-list--loading {
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .outfit-list {
+    transition: none;
+  }
+}
+.outfit-chip--ai {
+  color: var(--green-ink);
+  border-color: var(--green-ink);
+  font-weight: 600;
+}
+.outfit-reason {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.outfit-ai-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
