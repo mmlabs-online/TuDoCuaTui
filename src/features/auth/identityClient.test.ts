@@ -61,6 +61,12 @@ describe("request shapes", () => {
     expect(req().body).toEqual({ email: "a@b.co", password: "pw", turnstile_token: "ts" });
   });
 
+  it("token carries an AbortSignal (15 s timeout)", async () => {
+    const { client, req } = setup(() => json(tokenBody));
+    await client.token(ID);
+    expect(req().init.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("token", async () => {
     const { client, req } = setup(() => json(tokenBody));
     expect(await client.token(ID)).toEqual({ accessToken: "tok-secret", expiresIn: 900 });

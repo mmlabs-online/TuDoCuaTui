@@ -52,7 +52,9 @@ export function SignInScreen(props: SignInScreenProps) {
             ? copy.signIn.verified
             : notice === "password_reset"
               ? copy.signIn.passwordReset
-              : copy.signIn.signedOut}
+              : notice === "logout_unconfirmed"
+                ? copy.signIn.logoutUnconfirmed
+                : copy.signIn.signedOut}
         </AuthNotice>
       )}
       {error && (

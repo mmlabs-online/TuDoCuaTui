@@ -26,6 +26,8 @@ const ALLOWED: Record<string, string[]> = {
   'createElement("script")': ["turnstile.ts"],
   "challenges.cloudflare.com": ["turnstile.ts"],
   "history.": ["AuthRoot.tsx"],
+  "navigator.locks": ["refreshLock.ts"],
+  BroadcastChannel: ["authChannel.ts"],
 };
 const NOWHERE = [
   "console.",

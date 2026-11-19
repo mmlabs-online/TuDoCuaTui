@@ -41,7 +41,7 @@ export type SignInScreenProps = {
   status: SubmitStatus;
   error?: AuthError | null;
   /** Info banner, for example after /verify-email. */
-  notice?: "verified" | "signed_out" | "password_reset" | null;
+  notice?: "verified" | "signed_out" | "password_reset" | "logout_unconfirmed" | null;
   initialEmail?: string;
   onSignIn: (values: Credentials) => void;
   onGoSignUp: () => void;

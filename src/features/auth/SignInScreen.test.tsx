@@ -190,6 +190,11 @@ describe("SignInScreen forgot password", () => {
     expect(onGoForgot).toHaveBeenCalledOnce();
   });
 
+  it("notice=logout_unconfirmed shows its copy in role=status", () => {
+    setup({ notice: "logout_unconfirmed" });
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.logoutUnconfirmed);
+  });
+
   it("notice=password_reset shows its copy in role=status", () => {
     setup({ notice: "password_reset" });
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);

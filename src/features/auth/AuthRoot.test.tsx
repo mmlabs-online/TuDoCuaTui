@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AuthRoot from "./AuthRoot";
 import { AUTH_COPY } from "./copy";
 
@@ -8,6 +8,9 @@ const ID = "11111111-1111-4111-8111-111111111111";
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
 
+beforeEach(() => {
+  vi.stubGlobal("BroadcastChannel", undefined); // AuthGate starts the store; no live channel handle in tests
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

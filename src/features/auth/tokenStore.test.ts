@@ -203,11 +203,26 @@ describe("signIn / restore", () => {
       join: async () => {},
       accounts: async () => [],
     } as unknown as IdentityClient;
-    const store = createTokenStore({ client });
+    const posts: Record<string, unknown>[] = [];
+    const store = createTokenStore({
+      client,
+      channel: () => ({
+        post: (m) => void posts.push(m as unknown as Record<string, unknown>),
+        subscribe: () => () => {},
+        close: () => {},
+      }),
+    });
+    const stop = store.start();
     await store.signIn({ email: "a@b.co", password: "pw" });
     await store.getToken();
     await store.join();
     await store.signOut();
+    stop();
+    expect(posts.map((m) => m.type)).toEqual(["token", "signedOut"]);
+    expect(Object.keys(posts[0]).sort()).toEqual(
+      ["accessToken", "accountId", "at", "expiresAt", "type", "v"].sort(),
+    );
+    expect(JSON.stringify(posts[1])).not.toContain("SECRET-TOKEN");
     expect(setItem.mock.calls).toEqual([["mm_account_id", ID]]);
     expect(localStorage.getItem("mm_account_id")).toBeNull();
     expect(sessionStorage.length).toBe(0);
@@ -218,6 +233,89 @@ describe("signIn / restore", () => {
 });
 
 describe("signOut / forget", () => {
+  it("signOut waits for a running renewal before /logout", async () => {
+    const s = setup();
+    let release!: () => void;
+    s.client.token.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          release = () => {
+            s.calls.push("token");
+            r({ accessToken: "late", expiresIn: 900 });
+          };
+        }),
+    );
+    const pending = s.store.getToken();
+    const out = s.store.signOut();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(s.client.logout).not.toHaveBeenCalled();
+    release();
+    await out;
+    await pending;
+    expect(s.calls).toEqual(["clear", "token", "logout"]);
+  });
+
+  it.each<[string, AuthError["code"] | null, boolean]>([
+    ["204", null, true],
+    ["session_invalid", "session_invalid", true],
+    ["network", "network", false],
+    ["rate_limited", "rate_limited", false],
+    ["unknown", "unknown", false],
+  ])(
+    "signOut resolves {confirmed} for a %s logout and never rejects",
+    async (_n, code, confirmed) => {
+      const s = setup();
+      if (code) s.client.logout.mockRejectedValueOnce(fail(code));
+      await expect(s.store.signOut()).resolves.toEqual({ confirmed });
+    },
+  );
+
+  it("signOut broadcasts signedOut before /logout; nothing when already signed out", async () => {
+    const order: string[] = [];
+    const posts: unknown[] = [];
+    const s = setup();
+    const ch = {
+      post: (m: unknown) => {
+        posts.push(m);
+        order.push("post");
+      },
+      subscribe: () => () => {},
+      close: () => {},
+    };
+    s.client.logout.mockImplementation(async () => void order.push("logout"));
+    const store = createTokenStore({
+      client: s.client as unknown as IdentityClient,
+      storage: s.storage,
+      now: () => 1_000_000,
+      channel: () => ch,
+    });
+    store.start();
+    expect(await store.signOut()).toEqual({ confirmed: true });
+    expect(order).toEqual(["post", "logout"]);
+    expect(posts).toEqual([{ v: 1, type: "signedOut", accountId: ID, at: 1_000_000 }]);
+    expect(await store.signOut()).toEqual({ confirmed: true });
+    expect(order).toEqual(["post", "logout"]);
+  });
+
+  it("works when localStorage throws", async () => {
+    const boom = () => {
+      throw new Error("blocked");
+    };
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(boom);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(boom);
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(boom);
+    const client = {
+      login: async () => ({ accountId: ID, email: "a@b.co" }),
+      token: async () => ({ accessToken: "tok", expiresIn: 900 }),
+      logout: async () => {},
+    } as unknown as IdentityClient;
+    const store = createTokenStore({ client });
+    expect(store.accountId()).toBeNull();
+    await store.signIn({ email: "a@b.co", password: "pw" });
+    expect(await store.getToken()).toBe("tok");
+    await expect(store.signOut()).resolves.toEqual({ confirmed: true });
+  });
+
   it("clears the id, then calls logout with it; getToken is null at once", async () => {
     const s = setup();
     await s.store.getToken();
@@ -231,7 +329,7 @@ describe("signOut / forget", () => {
   it("removes the id even when logout rejects", async () => {
     const s = setup();
     s.client.logout.mockRejectedValueOnce(fail("network"));
-    await expect(s.store.signOut()).resolves.toBeUndefined();
+    await expect(s.store.signOut()).resolves.toEqual({ confirmed: false });
     expect(s.stored()).toBeNull();
   });
 
@@ -245,8 +343,9 @@ describe("signOut / forget", () => {
         }),
     );
     const pending = s.store.getToken();
-    await s.store.signOut();
+    const out = s.store.signOut(); // waits for the running renewal before /logout
     release();
+    await out;
     expect(await pending).toBeNull();
     expect(await s.store.getToken()).toBeNull();
   });
