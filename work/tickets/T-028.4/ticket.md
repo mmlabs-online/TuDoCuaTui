@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | S |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | security |
 | Gate | plan-approval |
 | Depends on | T-028.1 |
-| Needs Ming | M-36 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T08:17:31Z |
@@ -39,6 +39,7 @@ The SPA can ask the API who the signed-in user is, as the shared mmlabs consumer
 - High path (`server/**`): plan approval; security auditor at review.
 
 ## Notes / answers from Ming
+- 2026-11-19 — Plan approved by Ming ("duyệt T-028.4"), including assumptions A1–A5.
 
 ## Handoff
 
