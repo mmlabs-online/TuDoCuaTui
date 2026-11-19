@@ -114,6 +114,12 @@ export function createTokenStore({
     disarm();
   };
 
+  /** Clears the stored account id only while it still names `gone`: another tab may have stored its own account since (BUG-007). */
+  const forgetStored = (gone: string | null) => {
+    const stored = storage.read();
+    if (gone && stored && stored.toLowerCase() === gone.toLowerCase()) storage.clear();
+  };
+
   const renew = (rejected?: string): Promise<string | null> => {
     if (inflight) return inflight;
     if (!id) return Promise.resolve(null);
@@ -154,7 +160,7 @@ export function createTokenStore({
             token = null;
             id = null;
             email = null;
-            storage.clear();
+            forgetStored(accountId);
             disarm();
           } else if (err.code === "not_member" || err.code === "email_unverified") {
             token = null;
@@ -215,10 +221,11 @@ export function createTokenStore({
       }
       return;
     }
+    const gone = id;
     reset();
     id = null;
     email = null;
-    storage.clear();
+    forgetStored(gone);
     for (const fn of remoteListeners) fn();
   };
 
@@ -249,7 +256,7 @@ export function createTokenStore({
       reset();
       id = null;
       email = null;
-      storage.clear(); // the local session ends first; /logout is best effort and may hang
+      forgetStored(gone); // the local session ends first; /logout is best effort and may hang
       if (!gone) return { confirmed: true };
       channel?.post({ v: 1, type: "signedOut", accountId: gone, at: now() });
       if (running) {
@@ -274,10 +281,11 @@ export function createTokenStore({
       }
     },
     forget() {
+      const gone = id;
       reset();
       id = null;
       email = null;
-      storage.clear();
+      forgetStored(gone);
     },
     subscribe(fn) {
       listeners.add(fn);
@@ -321,9 +329,9 @@ export function createTokenStore({
         await client.join(id);
       } catch (err) {
         if (gen === generation && isAuthError(err) && err.code === "session_invalid") {
+          forgetStored(id);
           id = null;
           email = null;
-          storage.clear();
         }
         throw err;
       }

@@ -55,6 +55,7 @@ function setup(opts: { id?: string | null; expiresIn?: number } = {}) {
     calls,
     advance: (ms: number) => (time += ms),
     stored: () => stored,
+    setStored: (v: string | null) => void (stored = v),
   };
 }
 const fail = (code: AuthError["code"]) => Object.assign({}, { code }) as AuthError;
@@ -491,5 +492,40 @@ describe("join / accountEmail", () => {
     const c = setup();
     c.client.accounts.mockResolvedValueOnce([{ accountId: ID2, email: "other@b.co" }]);
     expect(await c.store.accountEmail()).toBeNull();
+  });
+});
+
+describe("BUG-007: clear only the departing account", () => {
+  it.each([
+    ["signOut", async (s: ReturnType<typeof setup>) => void (await s.store.signOut())],
+    ["forget", async (s: ReturnType<typeof setup>) => s.store.forget()],
+    [
+      "getToken session_invalid",
+      async (s: ReturnType<typeof setup>) => {
+        s.client.token.mockRejectedValueOnce(fail("session_invalid"));
+        await expect(s.store.getToken()).rejects.toMatchObject({ code: "session_invalid" });
+      },
+    ],
+    [
+      "join session_invalid",
+      async (s: ReturnType<typeof setup>) => {
+        s.client.join.mockRejectedValueOnce(fail("session_invalid"));
+        await expect(s.store.join()).rejects.toMatchObject({ code: "session_invalid" });
+      },
+    ],
+  ])("BUG-007: %s keeps another account's stored id", async (_name, act) => {
+    const s = setup();
+    s.setStored(ID2); // another tab adopted Y
+    await act(s);
+    expect(s.stored()).toBe(ID2);
+    expect(s.storage.clear).not.toHaveBeenCalled();
+    expect(s.store.accountId()).toBeNull();
+  });
+
+  it("BUG-007: a stored id differing only in case is still cleared", async () => {
+    const s = setup();
+    s.setStored(ID.toUpperCase());
+    await s.store.signOut();
+    expect(s.stored()).toBeNull();
   });
 });
