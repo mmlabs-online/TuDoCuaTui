@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | IN_PROGRESS |
+| State | REWORK |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -13,7 +13,7 @@
 | Introduced in | unknown |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T17:14:10Z |
 | PR | — |
