@@ -13,6 +13,14 @@ describe("password length copy", () => {
   });
 });
 
+describe("logout warning copy", () => {
+  it("tells a shared-computer user to sign in and out again or clear cookies", () => {
+    expect(AUTH_COPY.signIn.logoutUnconfirmed).toBe(
+      "Bạn đã đăng xuất khỏi Tủ đồ của tôi trên trình duyệt này, nhưng chưa xác nhận được việc đăng xuất khỏi tài khoản mmlabs. Nếu đây là máy dùng chung, hãy kết nối mạng rồi đăng nhập và đăng xuất lại, hoặc xoá dữ liệu duyệt web (cookie) của trình duyệt này.",
+    );
+  });
+});
+
 describe("authErrorMessage", () => {
   const codes = Object.keys(AUTH_COPY.errors)
     .filter((k) => !k.startsWith("weak_too"))

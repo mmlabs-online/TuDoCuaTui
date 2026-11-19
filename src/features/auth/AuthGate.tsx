@@ -26,7 +26,7 @@ type View =
   | {
       kind: "signed_out";
       error?: AuthError | null;
-      notice?: "verified" | "signed_out" | "password_reset" | null;
+      notice?: "verified" | "signed_out" | "password_reset" | "logout_unconfirmed" | null;
     }
   | { kind: "join"; email: string; error?: AuthError | null }
   | { kind: "retry"; error: AuthError };
@@ -67,6 +67,7 @@ export function AuthGate({
   const [joinStatus, setJoinStatus] = useState<SubmitStatus>("idle");
   const joining = useRef(false);
   const joinSeq = useRef(0); // bumped when the join view is left; a late join result of an older seq is ignored
+  const signOutSeq = useRef(0); // bumped when the sign-in page moves on; a late "logout not confirmed" of an older seq is ignored
   const generation = useRef(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -101,6 +102,13 @@ export function AuthGate({
     try {
       const joinEmail = await store.accountEmail();
       if (!live()) return;
+      if (store.accountId() === null) {
+        // signed out meanwhile: a remote sign-out already moved the view; otherwise (id cleared by session_invalid) go to sign-in
+        setView((v) =>
+          v.kind === "checking" ? { kind: "signed_out", error: { code: "session_invalid" } } : v,
+        );
+        return;
+      }
       setView(
         joinEmail
           ? { kind: "join", email: joinEmail }
@@ -113,12 +121,37 @@ export function AuthGate({
   const onTokenError = (err: AuthError, live?: () => boolean) =>
     canJoin(err) ? void offerJoin(live) : failTo(err);
 
+  // Cross-tab channel, proactive renewal timer and visibility listener live as long as the gate.
+  useEffect(() => store.start(), [store]);
+
+  // Another tab signed out: leave whatever screen this tab is on.
+  useEffect(
+    () =>
+      store.onRemoteSignOut(() => {
+        signOutSeq.current += 1;
+        joinSeq.current += 1;
+        joining.current = false;
+        if (viewRef.current.kind === "ready") {
+          retireApp();
+          flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
+        }
+        tsToken.current = null;
+        setStatus("idle");
+        setJoinStatus("idle");
+        setNeedTurnstile(false);
+        setEmail("");
+        setScreen("signIn");
+        setView({ kind: "signed_out", notice: "signed_out" });
+      }),
+    [store],
+  );
+
   // Silent restore from the stored account id (the only thing kept on the device).
   useEffect(() => {
     if (view.kind !== "checking") return;
     let live = true;
     store.restore().then(
-      () => live && enterReady(),
+      () => live && store.accountId() !== null && enterReady(),
       (err: AuthError) => live && onTokenError(err, () => live),
     );
     return () => {
@@ -148,7 +181,16 @@ export function AuthGate({
         if (!current() || viewRef.current.kind !== "ready") return;
         retireApp();
         flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
-        void store.signOut(); // clears the id at once; /logout is best effort and never awaited here
+        const seq = ++signOutSeq.current;
+        // clears the id at once; /logout is best effort and never awaited here
+        void store.signOut().then(({ confirmed }) => {
+          if (confirmed || seq !== signOutSeq.current) return;
+          setView((v) =>
+            v.kind === "signed_out" && v.notice === "signed_out"
+              ? { ...v, notice: "logout_unconfirmed" }
+              : v,
+          );
+        });
         setNeedTurnstile(false);
         setEmail("");
         setView({ kind: "signed_out", notice: "signed_out" });
@@ -183,6 +225,7 @@ export function AuthGate({
     />
   );
   const goto = (s: "signIn" | "signUp" | "forgot") => {
+    signOutSeq.current += 1;
     tsToken.current = null;
     setTsFailed(false);
     setResend({ status: "idle" });
@@ -198,6 +241,7 @@ export function AuthGate({
       setView({ kind: "signed_out", error: { code: "turnstile_required" } });
       return;
     }
+    signOutSeq.current += 1;
     setEmail(v.email);
     setStatus("submitting");
     setResend({ status: "idle" });
@@ -206,7 +250,7 @@ export function AuthGate({
       await store.signIn({ ...v, turnstileToken });
       setStatus("idle");
       setNeedTurnstile(false);
-      enterReady();
+      if (store.accountId() !== null) enterReady();
     } catch (e) {
       const err = e as AuthError;
       setStatus("idle");
@@ -271,6 +315,13 @@ export function AuthGate({
       await client.resendVerification(id);
       setResend({ status: "sent" });
     } catch (e) {
+      if ((e as AuthError).code === "email_already_verified") {
+        // already verified (for example in another tab): get a token through the restore effect
+        setResend({ status: "idle" });
+        setView({ kind: "checking" });
+        setAttempt((n) => n + 1);
+        return;
+      }
       setResend({ status: "idle", error: e as AuthError });
     }
   };

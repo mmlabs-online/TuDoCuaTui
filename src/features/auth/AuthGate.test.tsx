@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Header } from "@/features/layout/Header";
 import { LAYOUT_COPY } from "@/features/layout/copy";
 import { AuthGate, type AppAuthProps } from "./AuthGate";
+import { createAuthChannel } from "./authChannel";
 import { AUTH_COPY } from "./copy";
+import { createFakeChannelHub } from "./fakeTabs";
 import type { IdentityClient } from "./identityClient";
 import { createTokenStore, type AccountIdStorage } from "./tokenStore";
 import type { AuthError } from "./types";
@@ -46,6 +48,7 @@ function setup(
     notice?: "verified" | "password_reset" | null;
     initialScreen?: "signIn" | "forgot";
     firstTokenError?: AuthError;
+    firstToken?: () => Promise<{ accessToken: string; expiresIn: number }>;
   } = {},
 ) {
   let stored = opts.id === undefined ? null : opts.id;
@@ -76,7 +79,14 @@ function setup(
     accounts: vi.fn(async () => [{ accountId: ID, email: "me@b.co" }]),
   };
   if (opts.firstTokenError) client.token.mockRejectedValueOnce(opts.firstTokenError);
-  const store = createTokenStore({ client: client as unknown as IdentityClient, storage });
+  if (opts.firstToken) client.token.mockImplementationOnce(opts.firstToken);
+  const hub = createFakeChannelHub();
+  const store = createTokenStore({
+    client: client as unknown as IdentityClient,
+    storage,
+    channel: () => createAuthChannel({ create: () => hub.endpoint() }),
+  });
+  const other = hub.endpoint(); // "another tab"
   const view = render(
     <AuthGate
       store={store}
@@ -86,7 +96,7 @@ function setup(
       initialScreen={opts.initialScreen}
     />,
   );
-  return { client, store, stored: () => stored, view };
+  return { client, store, stored: () => stored, view, other };
 }
 
 const type = (label: string, value: string) =>
@@ -430,7 +440,7 @@ describe("sign-out and auth loss", () => {
     await act(async () => {
       fireEvent.click(screen.getByText("out"));
     });
-    expect(screen.getByText(AUTH_COPY.signIn.signedOut)).toBeTruthy();
+    expect(screen.getByText(AUTH_COPY.signIn.logoutUnconfirmed)).toBeTruthy();
     expect(stored()).toBeNull();
   });
 
@@ -512,6 +522,20 @@ describe("join flow", () => {
     expect(await continueBtn("me@b.co")).toBeTruthy();
     expect(s.client.accounts).toHaveBeenCalledTimes(1);
     expect(s.client.join).not.toHaveBeenCalled();
+  });
+
+  it("the account id cleared while the join lookup runs -> sign-in screen, never a stuck spinner", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    let release: (v: { accountId: string; email: string }[]) => void = () => {};
+    s.client.accounts.mockReturnValueOnce(new Promise((r) => (release = r)));
+    await waitFor(() => expect(s.client.accounts).toHaveBeenCalled());
+    await act(async () => {
+      s.store.forget();
+      release([{ accountId: ID, email: "me@b.co" }]);
+    });
+    expect(await screen.findByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(screen.getByRole("button", { name: AUTH_COPY.signIn.submit })).toBeTruthy();
+    expect(s.stored()).toBeNull();
   });
 
   it("restore: accounts has no match -> sign-in with not_member copy", async () => {
@@ -738,5 +762,115 @@ describe("forgot password", () => {
     cleanup();
     setup({ notice: "password_reset" });
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
+  });
+});
+
+describe("cross-tab and sign-out warning", () => {
+  const remoteSignOut = (other: { postMessage: (d: unknown) => void }) =>
+    act(async () => {
+      other.postMessage({ v: 1, type: "signedOut", accountId: ID, at: Date.now() });
+      await Promise.resolve();
+    });
+  const click = async (el: HTMLElement) => {
+    await act(async () => {
+      fireEvent.click(el);
+    });
+  };
+
+  it("remote sign-out while ready -> App unmounted -> sign-in with the signed-out notice", async () => {
+    const { stored, client, other } = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    await remoteSignOut(other);
+    expect(screen.queryByText("app-ready")).toBeNull();
+    expect(events).toContain("app-unmounted");
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(stored()).toBeNull();
+    expect(client.logout).not.toHaveBeenCalled();
+  });
+
+  it("remote sign-out during restore -> App never rendered", async () => {
+    let release!: () => void;
+    const s = setup({
+      id: ID,
+      firstToken: () =>
+        new Promise((r) => {
+          release = () => r({ accessToken: "late", expiresIn: 900 });
+        }),
+    });
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    await remoteSignOut(s.other);
+    await act(async () => {
+      release();
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    expect(screen.queryByText("app-ready")).toBeNull();
+    expect(mounts).toBe(0);
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(s.stored()).toBeNull();
+  });
+
+  it("remote sign-out on the join screen -> sign-in", async () => {
+    const s = setup({ id: ID, firstTokenError: { code: "not_member", joinAvailable: true } });
+    await screen.findByRole("button", { name: AUTH_COPY.join.continue("me@b.co") });
+    await remoteSignOut(s.other);
+    expect(screen.getByRole("button", { name: AUTH_COPY.signIn.submit })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(s.stored()).toBeNull();
+  });
+
+  it("logout not confirmed -> sign-in shows the shared-computer warning", async () => {
+    const { client } = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    client.logout.mockRejectedValueOnce(err("network"));
+    await click(screen.getByText("out"));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.logoutUnconfirmed),
+    );
+    expect(screen.queryByText(AUTH_COPY.signIn.signedOut)).toBeNull();
+  });
+
+  it("a confirmed logout keeps the plain signed-out notice", async () => {
+    setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    await click(screen.getByText("out"));
+    await waitFor(() => expect(events).toContain("logout"));
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(screen.queryByText(AUTH_COPY.signIn.logoutUnconfirmed)).toBeNull();
+  });
+
+  it("a late unconfirmed logout does not overwrite a newer screen", async () => {
+    const { client } = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    let fail!: () => void;
+    client.logout.mockImplementationOnce(
+      () =>
+        new Promise((_r, rej) => {
+          fail = () => rej(err("network"));
+        }),
+    );
+    await click(screen.getByText("out"));
+    await waitFor(() => expect(fail).toBeTypeOf("function"));
+    await click(screen.getByText(AUTH_COPY.signIn.toSignUp));
+    await act(async () => {
+      fail();
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    expect(screen.getByRole("button", { name: AUTH_COPY.signUp.submit })).toBeTruthy();
+    expect(screen.queryByText(AUTH_COPY.signIn.logoutUnconfirmed)).toBeNull();
+  });
+
+  it("resend 409 email_already_verified -> /token -> App rendered", async () => {
+    const { client } = setup();
+    client.token.mockRejectedValueOnce(err("email_unverified"));
+    await signInWith();
+    expect(alertText()).toContain(AUTH_COPY.errors.email_unverified);
+    client.resendVerification.mockRejectedValueOnce(err("email_already_verified"));
+    await click(screen.getByRole("button", { name: AUTH_COPY.actions.resend }));
+    expect(await screen.findByText("app-ready")).toBeTruthy();
+    expect(client.token).toHaveBeenCalledTimes(2);
   });
 });

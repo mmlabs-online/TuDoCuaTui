@@ -30,6 +30,8 @@ export interface IdentityClient {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPIRES_MAX = 86400;
 const LOGOUT_TIMEOUT_MS = 5000;
+/** A hung /token would hold the cross-tab renewal lock for every tab. */
+const TOKEN_TIMEOUT_MS = 15000;
 const unknownError = (): AuthError => ({ code: "unknown" });
 const asObject = (v: unknown): Record<string, unknown> =>
   typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
@@ -118,7 +120,12 @@ export function createIdentityClient({
     },
     async token(accountId) {
       const json = asObject(
-        await post("/auth/token", { audience: app, account_id: accountId }, true),
+        await post(
+          "/auth/token",
+          { audience: app, account_id: accountId },
+          true,
+          AbortSignal.timeout(TOKEN_TIMEOUT_MS),
+        ),
       );
       const { access_token: t, token_type, expires_in: exp, audience } = json;
       if (
