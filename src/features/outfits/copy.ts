@@ -1,3 +1,5 @@
+import { needsSettings } from "@/features/items/aiFill";
+
 export const OUTFITS_COPY = {
   entry: "Hôm nay mặc gì?",
   eyebrow: "GỢI Ý HÔM NAY",
@@ -22,6 +24,23 @@ export const OUTFITS_COPY = {
       (rain === null ? "" : ` · Mưa ${Math.round(rain)}%`),
     credit: "Open-Meteo",
     creditUrl: "https://open-meteo.com/",
+  },
+  ai: {
+    icon: "✨",
+    toggle: "Gợi ý bằng AI",
+    chip: "AI",
+    loading: "Đang nhờ AI gợi ý…",
+    note: (code: string): string => {
+      if (code === "rate_limited") return "Hôm nay đã dùng hết lượt AI, đang dùng gợi ý thường.";
+      if (code === "provider_rate_limited")
+        return "Nhà cung cấp AI đang giới hạn lượt gọi, thử lại sau ít phút.";
+      if (code === "ai_busy") return "AI đang bận, thử lại sau vài giây.";
+      if (needsSettings(code)) return "Kiểm tra lại AI trong Cài đặt.";
+      if (code === "request_timeout" || code === "provider_unavailable" || code === "network")
+        return "Chưa gọi được AI, thử lại sau.";
+      if (code === "provider_bad_response") return "AI chưa đưa ra được bộ đồ hợp lệ.";
+      return "AI không khả dụng, đang dùng gợi ý thường.";
+    },
   },
   shuffle: "Đổi gợi ý",
   close: "Đóng",

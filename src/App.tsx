@@ -23,6 +23,7 @@ import { Hero } from "@/features/layout/Hero";
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
 import { Toast, useToast } from "@/components/Toast";
+import { createHttpAiOutfits } from "@/data/aiOutfits";
 import { createHttpAiSettings } from "@/data/aiSettings";
 import { createHttpAiTagger } from "@/data/aiTagging";
 import { createHttpWeather } from "@/data/weather";
@@ -47,6 +48,10 @@ function App({
   );
   const aiTagger = useMemo(
     () => createHttpAiTagger(undefined, undefined, { getToken, onAuthLost }),
+    [], // same injection as aiClient
+  );
+  const aiOutfits = useMemo(
+    () => createHttpAiOutfits(undefined, undefined, { getToken, onAuthLost }),
     [], // same injection as aiClient
   );
   const weatherClient = useMemo(
@@ -286,6 +291,7 @@ function App({
           <OutfitsModal
             items={items}
             weather={weatherClient}
+            ai={{ settings: aiClient, settingsRev: aiSettingsRev, outfits: aiOutfits }}
             onClose={() => setOutfitsOpen(false)}
             onOpenItem={(item) => {
               setOutfitsOpen(false);

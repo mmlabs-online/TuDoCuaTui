@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { OUTFITS_COPY } from "@/features/outfits/copy";
+import { AI_CLIENT_ERROR_CODES, AI_ERROR_STATUS } from "@/shared/ai/errors";
 
 describe("OUTFITS_COPY", () => {
   it("outfit copy", () => {
@@ -18,5 +19,31 @@ describe("OUTFITS_COPY", () => {
     expect(OUTFITS_COPY.reasons.cold).toBe("Trời lạnh");
     expect(OUTFITS_COPY.reasons.hot).toBe("Trời nóng");
     expect(OUTFITS_COPY.reasons.rain).toBe("Có thể mưa");
+  });
+});
+
+describe("OUTFITS_COPY.ai", () => {
+  it("ai.note covers every AI error code", () => {
+    for (const code of [...Object.keys(AI_ERROR_STATUS), ...AI_CLIENT_ERROR_CODES]) {
+      expect(OUTFITS_COPY.ai.note(code).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("ai copy texts", () => {
+    const ai = OUTFITS_COPY.ai;
+    expect(ai.toggle).toBe("Gợi ý bằng AI");
+    expect(ai.chip).toBe("AI");
+    expect(ai.loading).toBe("Đang nhờ AI gợi ý…");
+    expect(ai.note("rate_limited")).toBe("Hôm nay đã dùng hết lượt AI, đang dùng gợi ý thường.");
+    expect(ai.note("provider_rate_limited")).toBe(
+      "Nhà cung cấp AI đang giới hạn lượt gọi, thử lại sau ít phút.",
+    );
+    expect(ai.note("ai_busy")).toBe("AI đang bận, thử lại sau vài giây.");
+    expect(ai.note("not_configured")).toBe("Kiểm tra lại AI trong Cài đặt.");
+    expect(ai.note("invalid_key")).toBe("Kiểm tra lại AI trong Cài đặt.");
+    expect(ai.note("request_timeout")).toBe("Chưa gọi được AI, thử lại sau.");
+    expect(ai.note("network")).toBe("Chưa gọi được AI, thử lại sau.");
+    expect(ai.note("provider_bad_response")).toBe("AI chưa đưa ra được bộ đồ hợp lệ.");
+    expect(ai.note("internal")).toBe("AI không khả dụng, đang dùng gợi ý thường.");
   });
 });
