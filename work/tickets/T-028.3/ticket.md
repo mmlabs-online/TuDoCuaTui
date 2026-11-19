@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M2 |
@@ -10,7 +10,7 @@
 | Areas | ui, security |
 | Gate | plan-approval |
 | Depends on | T-028.2 |
-| Needs Ming | — |
+| Needs Ming | M-35 |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T07:39:59Z |
@@ -45,3 +45,8 @@ Someone already signed in to another mmlabs app on this browser enters TuDoCuaTu
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-19 — claude — BLOCKED
+- Done: consult frontend-developer; plan READY (tokenStore.continueAs, accounts() 5 s timeout, "Tiếp tục với {email}" list on the sign-in page with loading/dedupe/cap 5, UnverifiedScreen with resend / re-check / other account, copy, AuthPreview states).
+- In progress / next: waiting for Ming's plan approval (M-35; src/features/auth/** is High); then implement.
+- Gotchas: assumptions A1–A7 (incl. privacy: emails of all accounts on this browser are listed) need approval; several AuthGate tests change (listed in plan.md).
