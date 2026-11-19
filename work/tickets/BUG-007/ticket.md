@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | PLANNING |
+| State | BLOCKED |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -12,10 +12,10 @@
 | Found in | main after T-028.3 (review follow-up) |
 | Introduced in | T-028.3 (multi-account "Tiếp tục với" makes it reachable); the unconditional clear predates it |
 | Depends on | — |
-| Needs Ming | — |
+| Needs Ming | M-37 |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-19T10:32:52Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -54,5 +54,11 @@ Follow-up from the T-028.3 consult, plan and security review (PR https://github.
 - High path (`src/features/auth/**`): plan approval.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-19 — claude — BLOCKED
+- Done: plan READY (helper forgetStored(gone) replaces all five storage.clear() calls; regression tests in tabs.test.ts and tokenStore.test.ts). No consult (area security).
+- In progress / next: waiting for Ming's plan approval (M-37); then implement.
+- Gotchas: assumptions in plan.md (a dead Y stays until its own next token request; no-id signOut/forget no longer clear storage).
