@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
+import { exportJWK, generateKeyPair, jwtVerify, SignJWT, type JWK } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { createJwksResolver, JwksUnavailable } from "./jwks.js";
 
@@ -65,7 +65,7 @@ describe("createJwksResolver", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it("concurrent stale requests share one fetch (single-flight)", async () => {
+  it("concurrent stale requests share one fetch and both resolve a key (single-flight)", async () => {
     const k = await keyPair("k1");
     const { fetchFn, getKey } = setup();
     let release!: (r: Response) => void;
@@ -233,16 +233,55 @@ describe("createJwksResolver", () => {
     expect(JSON.stringify(logs)).not.toMatch(/secret|body|https/);
   });
 
-  it("a verified signature path works end to end with a real token", async () => {
+  it("a real signed token verifies through the resolver", async () => {
     const k = await keyPair("k1");
     const { fetchFn, getKey } = setup();
     fetchFn.mockResolvedValue(ok([k.jwk]));
     const jws = await new SignJWT({})
       .setProtectedHeader({ alg: "ES256", kid: "k1" })
       .sign(k.privateKey);
-    await expect(
-      getKey(headerOf("k1"), { payload: "", signature: "", protected: "" } as never),
-    ).resolves.toBeTruthy();
-    expect(jws.split(".")).toHaveLength(3);
+    const { payload } = await jwtVerify(jws, getKey);
+    expect(payload).toEqual({});
+  });
+
+  describe("key filter", () => {
+    const sign = async (k: Awaited<ReturnType<typeof keyPair>>) =>
+      new SignJWT({}).setProtectedHeader({ alg: "ES256", kid: "k1" }).sign(k.privateKey);
+    const junk: JWK[] = [
+      { kty: "AKP" } as unknown as JWK,
+      { kty: "RSA", n: "AQAB", e: "AQAB", kid: "r1" },
+      { kty: "oct", k: "AAAA", kid: "o1" },
+    ];
+
+    it("ignores non-EC keys next to a usable EC P-256 key", async () => {
+      const k = await keyPair("k1");
+      const { fetchFn, logs, getKey } = setup();
+      fetchFn.mockResolvedValue(ok([junk[0], junk[1], k.jwk, junk[2]]));
+      await expect(jwtVerify(await sign(k), getKey)).resolves.toBeTruthy();
+      expect(logs).toEqual([]);
+    });
+
+    it("a set with only non-EC keys is a parse failure", async () => {
+      const { fetchFn, logs, getKey } = setup();
+      fetchFn.mockResolvedValue(ok(junk));
+      await expect(getKey(headerOf("k1"), tok as never)).rejects.toBeInstanceOf(JwksUnavailable);
+      expect(logs).toEqual([{ event: "jwks_refresh_failed", reason: "parse" }]);
+    });
+
+    it("ignores EC keys with use enc or alg ES384, and non-object entries", async () => {
+      const k = await keyPair("k1");
+      const enc = { ...(await keyPair("k1")).jwk, use: "enc" };
+      const es384 = { ...(await keyPair("k1")).jwk, alg: "ES384" };
+      const { fetchFn, getKey } = setup();
+      fetchFn.mockResolvedValue(
+        ok([enc, es384, null as unknown as JWK, "x" as unknown as JWK, k.jwk]),
+      );
+      await expect(jwtVerify(await sign(k), getKey)).resolves.toBeTruthy();
+      const other = setup();
+      other.fetchFn.mockResolvedValue(ok([enc, es384]));
+      await expect(other.getKey(headerOf("k1"), tok as never)).rejects.toBeInstanceOf(
+        JwksUnavailable,
+      );
+    });
   });
 });

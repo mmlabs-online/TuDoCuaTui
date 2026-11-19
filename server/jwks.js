@@ -10,7 +10,14 @@ export const MAX_STALE_MS = 86_400_000;
 export const COOLDOWN_MS = 60_000;
 export const MAX_BYTES = 65_536;
 
-const KTYS = new Set(["EC", "RSA", "OKP", "oct"]);
+/** Only EC P-256 signing keys are usable (ES256); everything else in the set is ignored. */
+const isUsableKey = (/** @type {any} */ k) =>
+  !!k &&
+  typeof k === "object" &&
+  k.kty === "EC" &&
+  k.crv === "P-256" &&
+  (k.use === undefined || k.use === "sig") &&
+  (k.alg === undefined || k.alg === "ES256");
 
 export class JwksUnavailable extends Error {}
 
@@ -91,8 +98,9 @@ export function createJwksResolver({
       }
       const json = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
       if (!json || !Array.isArray(json.keys) || json.keys.length === 0) throw new Error("keys");
-      for (const key of json.keys) if (!KTYS.has(key?.kty)) throw new Error("kty");
-      return json;
+      const keys = json.keys.filter(isUsableKey);
+      if (keys.length === 0) throw new Error("no usable key");
+      return { keys };
     } catch {
       throw new RefreshError("parse");
     }

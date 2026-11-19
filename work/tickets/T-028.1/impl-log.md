@@ -37,3 +37,20 @@ None. (jwks.js additionally rejects a set containing a key whose `kty` is not EC
 ### Scope self-check
 - Could the diff be smaller? No.
 - Diff size: about +187 / -25 on tracked files, plus 397 lines in two new files.
+
+## Attempt 2 (REWORK, 2026-11-19)
+
+Fix per Ming's second note: keep only EC P-256 signing keys, ignore the rest, fail only when none are left.
+
+### Files touched
+- `server/jwks.js` — `KTYS` allowlist (rejected the whole set) replaced by `isUsableKey` filter (EC, P-256, `use` absent/"sig", `alg` absent/"ES256", non-null object); the filtered set goes to `createLocalJWKSet`; empty after filter = parse failure.
+- `server/jwks.test.ts` — new "key filter" tests (EC + AKP/RSA/oct still verifies; only non-EC = parse failure; `use:"enc"`, `alg:"ES384"`, non-object entries ignored); renamed the single-flight test; the end-to-end test now really verifies the signature via `jwtVerify`.
+
+### Tests
+- The "invalid key" bad-response row (`{kty:"nope"}`) is unchanged: it still yields reason `parse` (no usable key left).
+
+### Out-of-plan files
+None. Follow-ups: none.
+
+### Checks (Attempt 2)
+- typecheck: no errors. format:check: 326 files, clean. test: Test Files 132 passed | 11 skipped; Tests 1769 passed | 222 skipped. build: built.
