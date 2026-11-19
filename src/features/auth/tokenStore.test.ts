@@ -360,6 +360,72 @@ describe("signOut / forget", () => {
   });
 });
 
+describe("continueAs", () => {
+  it("writes the id, calls token(id) and never login; accountEmail() returns the given email with no accounts call", async () => {
+    const s = setup({ id: null });
+    await s.store.continueAs(ID2, "x@y.co");
+    expect(s.storage.write).toHaveBeenCalledWith(ID2);
+    expect(s.stored()).toBe(ID2);
+    expect(s.client.token).toHaveBeenCalledWith(ID2);
+    expect(s.client.login).not.toHaveBeenCalled();
+    expect(await s.store.getToken()).toBe("tok1");
+    expect(await s.store.accountEmail()).toBe("x@y.co");
+    expect(s.client.accounts).not.toHaveBeenCalled();
+  });
+
+  it("drops a late /token answer of the previous epoch (restore in flight, then continueAs)", async () => {
+    const s = setup();
+    let release!: () => void;
+    s.client.token.mockImplementationOnce(
+      () => new Promise((r) => (release = () => r({ accessToken: "late", expiresIn: 900 }))),
+    );
+    const restoring = s.store.restore();
+    await Promise.resolve();
+    const continuing = s.store.continueAs(ID2, "x@y.co");
+    await new Promise((r) => setTimeout(r, 5));
+    release();
+    await Promise.allSettled([restoring, continuing]);
+    expect(s.store.accountId()).toBe(ID2);
+    expect(await s.store.getToken()).not.toBe("late");
+  });
+
+  it("posts no signedOut; the token broadcast carries the new accountId", async () => {
+    const s = setup();
+    const posts: Record<string, unknown>[] = [];
+    const store = createTokenStore({
+      client: s.client as unknown as IdentityClient,
+      storage: s.storage,
+      now: () => 1_000_000,
+      channel: () => ({
+        post: (m: unknown) => void posts.push(m as Record<string, unknown>),
+        subscribe: () => () => {},
+        close: () => {},
+      }),
+    });
+    store.start();
+    await store.continueAs(ID2, "x@y.co");
+    expect(posts.map((p) => p.type)).toEqual(["token"]);
+    expect(posts[0]).toMatchObject({ accountId: ID2, accessToken: "tok1" });
+    expect(s.client.logout).not.toHaveBeenCalled();
+  });
+
+  it("email_unverified keeps the id; session_invalid clears it", async () => {
+    const s = setup({ id: null });
+    s.client.token.mockRejectedValueOnce(fail("email_unverified"));
+    await expect(s.store.continueAs(ID2, "x@y.co")).rejects.toMatchObject({
+      code: "email_unverified",
+    });
+    expect(s.store.accountId()).toBe(ID2);
+    expect(s.stored()).toBe(ID2);
+    s.client.token.mockRejectedValueOnce(fail("session_invalid"));
+    await expect(s.store.continueAs(ID, "me@b.co")).rejects.toMatchObject({
+      code: "session_invalid",
+    });
+    expect(s.store.accountId()).toBeNull();
+    expect(s.stored()).toBeNull();
+  });
+});
+
 describe("join / accountEmail", () => {
   it("join calls client.join(id) then /token; no token before join resolves; getToken returns the new token", async () => {
     const s = setup();

@@ -88,3 +88,19 @@ describe("authErrorMessage", () => {
     expect(authErrorMessage(err)).toBe(AUTH_COPY.errors.weak_password);
   });
 });
+
+describe("continue-as and unverified copy", () => {
+  it("has the exact Vietnamese strings", () => {
+    expect(AUTH_COPY.signIn.continueAs("a@b.co")).toBe("Tiếp tục với a@b.co");
+    expect(AUTH_COPY.signIn.continuing).toBe("Đang đăng nhập…");
+    expect(AUTH_COPY.signIn.otherAccount).toBe("hoặc đăng nhập bằng tài khoản khác");
+    expect(AUTH_COPY.unverified.checkAgain).toBe("Tôi đã xác minh email");
+    expect(AUTH_COPY.unverified.otherAccount).toBe("Dùng tài khoản khác");
+    expect(AUTH_COPY.unverified.body("a@b.co")).toBe(
+      "Email a@b.co chưa được xác minh. Mở link trong email chúng tôi đã gửi, rồi quay lại đây.",
+    );
+    expect(AUTH_COPY.unverified.body(null)).toBe(
+      "Email của bạn chưa được xác minh. Mở link trong email chúng tôi đã gửi, rồi quay lại đây.",
+    );
+  });
+});

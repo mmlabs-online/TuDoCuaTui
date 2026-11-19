@@ -222,6 +222,14 @@ describe("join and accounts", () => {
     expect(init.cache).toBe("no-store");
   });
 
+  it("accounts carries an AbortSignal (5 s timeout); a rejected fetch -> network", async () => {
+    const { client, fetchFn } = setup(() => json({ items: [] }));
+    await client.accounts();
+    expect((fetchFn.mock.calls[0] as [string, RequestInit])[1].signal).toBeInstanceOf(AbortSignal);
+    const down = setup(() => Promise.reject(new DOMException("timeout", "TimeoutError")));
+    expect(await reject(down.client.accounts())).toEqual({ code: "network" });
+  });
+
   it("accounts: drops items with a non-UUID account_id or a non-string/empty email; non-array items -> []; Vietnamese/IDN email kept as-is", async () => {
     const items = [
       { account_id: ID, email: "nguyễn.thị@bücher.example" },

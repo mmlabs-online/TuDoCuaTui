@@ -38,10 +38,10 @@ describe("AuthRoot", () => {
     render(<AuthRoot renderApp={renderApp} verifyHash={HASH} />);
     await verifyThenContinue();
     expect(replace).toHaveBeenCalledWith(null, "", "/");
+    expect(await screen.findByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.verified);
-    expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
     expect(renderApp).not.toHaveBeenCalled();
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2); // verify-email, then the sign-in page's accounts list
     expect(fetchFn.mock.calls[0][0]).toBe("https://api.mmlabs.online/api/v1/auth/verify-email");
   });
 
@@ -65,12 +65,13 @@ describe("AuthRoot", () => {
     expect(await screen.findByText("app-with-auth")).toBeTruthy();
   });
 
-  it("no hash + identity -> the gate (sign-in, no network)", () => {
-    const fetchFn = vi.fn();
+  it("no hash + identity -> the gate (sign-in after one accounts call)", async () => {
+    const fetchFn = vi.fn(async (_u: string, _i?: RequestInit) => json({ items: [] }));
     vi.stubGlobal("fetch", fetchFn);
     render(<AuthRoot renderApp={renderApp} verifyHash={null} />);
-    expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
-    expect(fetchFn).not.toHaveBeenCalled();
+    expect(await screen.findByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn.mock.calls[0][0]).toBe("https://api.mmlabs.online/api/v1/auth/accounts");
   });
 
   describe("reset", () => {
@@ -100,10 +101,10 @@ describe("AuthRoot", () => {
         fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.reset.continue }));
       });
       expect(replace).toHaveBeenCalledWith(null, "", "/");
+      expect(await screen.findByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
       expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
-      expect(screen.getByLabelText(AUTH_COPY.fields.password)).toBeTruthy();
       expect(renderApp).not.toHaveBeenCalled();
-      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledTimes(2); // password/reset, then the sign-in page's accounts list
       expect(fetchFn.mock.calls[0][0]).toBe("https://api.mmlabs.online/api/v1/auth/password/reset");
       expect(fetchFn.mock.calls[0][1]?.credentials).toBe("omit");
     });

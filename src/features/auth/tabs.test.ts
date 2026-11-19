@@ -122,6 +122,26 @@ describe("two tabs", () => {
     expect(await b.store.getToken()).toBe("newer");
   });
 
+  it("tab A signed in as X, tab B continueAs Y: A keeps X's token and is not signed out, ignores Y's broadcast; storage holds Y", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab();
+    const first = a.store.getToken();
+    await settle();
+    expect(await first).toBe("tok1");
+    const remote = vi.fn();
+    a.store.onRemoteSignOut(remote);
+    const pb = b.store.continueAs(ID2, "y@b.co");
+    await settle();
+    await pb;
+    expect(b.store.accountId()).toBe(ID2);
+    expect(b.stored()).toBe(ID2);
+    expect(a.store.accountId()).toBe(ID);
+    expect(await a.store.getToken()).toBe("tok1");
+    expect(remote).not.toHaveBeenCalled();
+    expect(a.clear).not.toHaveBeenCalled();
+  });
+
   it("a message for another account is ignored (token and signedOut)", async () => {
     const w = world();
     const b = w.tab();

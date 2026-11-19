@@ -37,6 +37,9 @@ export type Credentials = { email: string; password: string };
 export type SubmitStatus = "idle" | "submitting";
 export type ResendState = { status: "idle" | "sending" | "sent"; error?: AuthError | null };
 
+/** An account already signed in on this browser (`GET /accounts`). */
+export type AccountChoice = { accountId: string; email: string };
+
 export type SignInScreenProps = {
   status: SubmitStatus;
   error?: AuthError | null;
@@ -54,6 +57,11 @@ export type SignInScreenProps = {
   turnstileSlot?: ReactNode;
   /** Keeps the slot visible next to other errors once the server has asked for Turnstile. */
   turnstileRequired?: boolean;
+  /** One "Continue as" button per account, above the form; nothing when empty or absent. */
+  accounts?: AccountChoice[];
+  onContinueAs?: (account: AccountChoice) => void;
+  /** The account being continued: its button shows the busy label. */
+  continuingId?: string | null;
 };
 
 export type SignUpScreenProps = {
@@ -112,6 +120,17 @@ export type VerifyEmailScreenProps = {
   /** "invalid": shown only when provided, else a sign-in button. */
   onResend?: () => void;
   resend?: ResendState;
+};
+
+export type UnverifiedScreenProps = {
+  /** The unverified account's email, when known. */
+  email: string | null;
+  resend: ResendState;
+  /** The last re-check still found the email unverified. */
+  still?: boolean;
+  onResend: () => void;
+  onCheckAgain: () => void;
+  onUseOtherAccount: () => void;
 };
 
 export type JoinScreenProps = {

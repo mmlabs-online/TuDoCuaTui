@@ -17,6 +17,19 @@ export const AUTH_COPY = {
       "Bạn đã đăng xuất khỏi Tủ đồ của tôi trên trình duyệt này, nhưng chưa xác nhận được việc đăng xuất khỏi tài khoản mmlabs. Nếu đây là máy dùng chung, hãy kết nối mạng rồi đăng nhập và đăng xuất lại, hoặc xoá dữ liệu duyệt web (cookie) của trình duyệt này.",
     forgot: "Quên mật khẩu?",
     passwordReset: "Mật khẩu đã được đổi. Hãy đăng nhập bằng mật khẩu mới.",
+    accountsLabel: "Tài khoản đã đăng nhập trên trình duyệt này",
+    continueAs: (email: string) => `Tiếp tục với ${email}`,
+    continuing: "Đang đăng nhập…",
+    otherAccount: "hoặc đăng nhập bằng tài khoản khác",
+  },
+  unverified: {
+    title: "Xác minh email",
+    body: (email: string | null) =>
+      email
+        ? `Email ${email} chưa được xác minh. Mở link trong email chúng tôi đã gửi, rồi quay lại đây.`
+        : "Email của bạn chưa được xác minh. Mở link trong email chúng tôi đã gửi, rồi quay lại đây.",
+    checkAgain: "Tôi đã xác minh email",
+    otherAccount: "Dùng tài khoản khác",
   },
   forgot: {
     title: "Quên mật khẩu",
@@ -125,6 +138,7 @@ export const AUTH_COPY = {
     signIn: "Đăng nhập",
     signUp: "Đăng ký",
     verify: "Xác minh email",
+    unverified: "Chưa xác minh",
     join: "Tham gia",
     forgot: "Quên mật khẩu",
     reset: "Đặt lại mật khẩu",

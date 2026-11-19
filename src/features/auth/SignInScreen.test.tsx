@@ -200,3 +200,69 @@ describe("SignInScreen forgot password", () => {
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);
   });
 });
+
+describe("SignInScreen continue-as list", () => {
+  const A = { accountId: "00000000-0000-4000-8000-000000000001", email: "an@example.com" };
+  const B = { accountId: "00000000-0000-4000-8000-000000000002", email: "binh@example.com" };
+  const label = (a: { email: string }) => AUTH_COPY.signIn.continueAs(a.email);
+
+  it("one button per account labelled Tiếp tục với {email}; a click calls onContinueAs with that account; the first is primary", () => {
+    const onContinueAs = vi.fn();
+    setup({ accounts: [A, B], onContinueAs });
+    const first = screen.getByRole("button", { name: label(A) });
+    const second = screen.getByRole("button", { name: label(B) });
+    expect(first.className).toContain("btn-primary");
+    expect(second.className).not.toContain("btn-primary");
+    fireEvent.click(second);
+    expect(onContinueAs).toHaveBeenCalledOnce();
+    expect(onContinueAs).toHaveBeenCalledWith(B);
+  });
+
+  it("no list and no divider when accounts is empty or undefined; the form is still there", () => {
+    for (const accounts of [undefined, []]) {
+      setup({ accounts, onContinueAs: vi.fn() });
+      expect(screen.queryByText(AUTH_COPY.signIn.otherAccount)).toBeNull();
+      expect(screen.queryByRole("group", { name: AUTH_COPY.signIn.accountsLabel })).toBeNull();
+      expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("the divider sits between the list and the form; the list has the accessible name accountsLabel", () => {
+    setup({ accounts: [A], onContinueAs: vi.fn() });
+    const list = screen.getByRole("region", { name: AUTH_COPY.signIn.accountsLabel });
+    const divider = screen.getByText(AUTH_COPY.signIn.otherAccount);
+    const form = document.querySelector("form") as HTMLElement;
+    expect(list.contains(screen.getByRole("button", { name: label(A) }))).toBe(true);
+    expect(list.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(divider.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+  });
+
+  it("submitting disables the list buttons and the form submit; the chosen button shows continuing", () => {
+    setup({
+      accounts: [A, B],
+      onContinueAs: vi.fn(),
+      status: "submitting",
+      continuingId: A.accountId,
+    });
+    // the chosen list button and the form submit both read "Đang đăng nhập…"
+    const busy = screen.getAllByRole("button", { name: AUTH_COPY.signIn.continuing });
+    expect(busy).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: label(A) })).toBeNull();
+    for (const b of [...busy, screen.getByRole("button", { name: label(B) })]) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it("a long email label carries break-all", () => {
+    const long = {
+      accountId: A.accountId,
+      email: "nguyen.thi.thu.trang.dangky.taikhoan.moi.2026@example.com",
+    };
+    setup({ accounts: [long], onContinueAs: vi.fn() });
+    const text = screen.getByText(label(long));
+    expect(text.className).toContain("whitespace-normal");
+    expect(text.className).toContain("break-all");
+  });
+});

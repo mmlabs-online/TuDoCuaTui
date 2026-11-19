@@ -18,6 +18,9 @@ export function SignInScreen(props: SignInScreenProps) {
     onResend,
     resend,
     turnstileSlot,
+    accounts,
+    onContinueAs,
+    continuingId,
   } = props;
   const [email, setEmail] = useState(props.initialEmail ?? "");
   const [password, setPassword] = useState("");
@@ -76,6 +79,31 @@ export function SignInScreen(props: SignInScreenProps) {
       )}
       {resend?.status === "sent" && <AuthNotice kind="info">{copy.actions.resendSent}</AuthNotice>}
       {resend?.error && <AuthNotice kind="error">{authErrorMessage(resend.error)}</AuthNotice>}
+      {accounts && accounts.length > 0 && onContinueAs && (
+        <>
+          <section aria-label={copy.signIn.accountsLabel} className="flex flex-col gap-2">
+            {accounts.map((a, i) => (
+              <Btn
+                key={a.accountId}
+                type="button"
+                kind={i === 0 ? "primary" : undefined}
+                className="min-h-[44px]"
+                disabled={submitting}
+                onClick={() => onContinueAs(a)}
+              >
+                <span className="whitespace-normal break-all">
+                  {continuingId === a.accountId
+                    ? copy.signIn.continuing
+                    : copy.signIn.continueAs(a.email)}
+                </span>
+              </Btn>
+            ))}
+          </section>
+          <p className="text-center text-sm" style={{ color: "var(--muted)" }}>
+            {copy.signIn.otherAccount}
+          </p>
+        </>
+      )}
       <form method="post" noValidate onSubmit={submit} className="flex flex-col gap-3">
         <AuthField
           id="signin-email"

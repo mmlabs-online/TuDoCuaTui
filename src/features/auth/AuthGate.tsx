@@ -8,11 +8,12 @@ import { SignInScreen } from "./SignInScreen";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 import { JoinScreen } from "./JoinScreen";
 import { SignUpScreen } from "./SignUpScreen";
+import { UnverifiedScreen } from "./UnverifiedScreen";
 import { TurnstileWidget, type TurnstileHandle } from "./TurnstileWidget";
 import { AUTH_COPY, authErrorMessage } from "./copy";
 import type { IdentityClient } from "./identityClient";
 import type { TokenStore } from "./tokenStore";
-import type { AuthError, Credentials, ResendState, SubmitStatus } from "./types";
+import type { AccountChoice, AuthError, Credentials, ResendState, SubmitStatus } from "./types";
 
 export type AppAuthProps = {
   getToken: GetToken;
@@ -29,7 +30,10 @@ type View =
       notice?: "verified" | "signed_out" | "password_reset" | "logout_unconfirmed" | null;
     }
   | { kind: "join"; email: string; error?: AuthError | null }
+  | { kind: "unverified"; email: string | null; still?: boolean }
   | { kind: "retry"; error: AuthError };
+
+const MAX_LISTED_ACCOUNTS = 5;
 
 const isTurnstileCode = (e?: AuthError | null) =>
   e?.code === "turnstile_required" || e?.code === "turnstile_failed";
@@ -65,6 +69,15 @@ export function AuthGate({
   const [email, setEmail] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [joinStatus, setJoinStatus] = useState<SubmitStatus>("idle");
+  // "Continue as" list: "loading" only on a cold sign-in page (no stored account); null = form only
+  const [accounts, setAccounts] = useState<AccountChoice[] | "loading" | null>(() =>
+    !store.accountId() && initialScreen === "signIn" ? "loading" : null,
+  );
+  const [continuingId, setContinuingId] = useState<string | null>(null);
+  const continuing = useRef(false);
+  const listSeq = useRef(0); // bumped when the list is (re)loaded or dropped; a late answer of an older seq is ignored
+  const lastEmail = useRef<string | null>(null); // email shown on the unverified screen: typed or listed, never fetched
+  const rechecking = useRef(false); // set by "I verified my email"; a repeated email_unverified then shows `still`
   const joining = useRef(false);
   const joinSeq = useRef(0); // bumped when the join view is left; a late join result of an older seq is ignored
   const signOutSeq = useRef(0); // bumped when the sign-in page moves on; a late "logout not confirmed" of an older seq is ignored
@@ -75,6 +88,7 @@ export function AuthGate({
   const widget = useRef<TurnstileHandle>(null);
 
   const enterReady = () => {
+    rechecking.current = false;
     generation.current += 1;
     setView({
       kind: "ready",
@@ -86,7 +100,43 @@ export function AuthGate({
   const retireApp = () => {
     generation.current += 1;
   };
+  const loadAccounts = async () => {
+    const seq = ++listSeq.current;
+    setAccounts("loading");
+    let list: AccountChoice[] = [];
+    try {
+      list = await client.accounts();
+    } catch {
+      // any failure: the form alone, no banner
+    }
+    if (seq !== listSeq.current) return;
+    const seen = new Set<string>();
+    const unique = list.filter((a) => {
+      const key = a.accountId.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setAccounts(unique.length ? unique.slice(0, MAX_LISTED_ACCOUNTS) : null);
+  };
+  // No list right after a sign-out or "other account": /logout may still be running, and the account just left must not be offered.
+  const clearAccounts = () => {
+    listSeq.current += 1;
+    setAccounts(null);
+  };
   const failTo = (err: AuthError) => {
+    const recheck = rechecking.current;
+    rechecking.current = false;
+    if (err.code === "email_unverified" && store.accountId() !== null) {
+      setResend({ status: "idle" });
+      setView({ kind: "unverified", email: lastEmail.current, still: recheck });
+      return;
+    }
+    if (err.code === "session_invalid") {
+      setView({ kind: "signed_out", error: err });
+      void loadAccounts(); // contract: re-list the accounts
+      return;
+    }
     if (err.code === "network" || err.code === "rate_limited" || err.code === "unknown") {
       setView({ kind: "retry", error: err });
     } else {
@@ -124,6 +174,12 @@ export function AuthGate({
   // Cross-tab channel, proactive renewal timer and visibility listener live as long as the gate.
   useEffect(() => store.start(), [store]);
 
+  // Cold sign-in page: list the accounts already signed in on this browser.
+  useEffect(() => {
+    if (accounts === "loading") void loadAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Another tab signed out: leave whatever screen this tab is on.
   useEffect(
     () =>
@@ -136,10 +192,14 @@ export function AuthGate({
           flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
         }
         tsToken.current = null;
+        continuing.current = false;
+        setContinuingId(null);
         setStatus("idle");
         setJoinStatus("idle");
         setNeedTurnstile(false);
         setEmail("");
+        lastEmail.current = null;
+        clearAccounts();
         setScreen("signIn");
         setView({ kind: "signed_out", notice: "signed_out" });
       }),
@@ -167,7 +227,7 @@ export function AuthGate({
         if (viewRef.current.kind !== "ready") return;
         retireApp();
         if (canJoin(err)) void offerJoin();
-        else setView({ kind: "signed_out", error: err });
+        else failTo(err);
       }),
     [store],
   );
@@ -193,6 +253,8 @@ export function AuthGate({
         });
         setNeedTurnstile(false);
         setEmail("");
+        lastEmail.current = null;
+        clearAccounts();
         setView({ kind: "signed_out", notice: "signed_out" });
       },
       onAuthLost: () => {
@@ -200,6 +262,8 @@ export function AuthGate({
         retireApp();
         store.forget();
         setEmail("");
+        lastEmail.current = null;
+        clearAccounts();
         setView({ kind: "signed_out", error: { code: "no_access" } });
       },
     };
@@ -243,6 +307,7 @@ export function AuthGate({
     }
     signOutSeq.current += 1;
     setEmail(v.email);
+    lastEmail.current = v.email;
     setStatus("submitting");
     setResend({ status: "idle" });
     const turnstileToken = needTurnstile ? (tsToken.current ?? undefined) : undefined;
@@ -261,7 +326,8 @@ export function AuthGate({
         return;
       }
       if (err.code === "turnstile_required") setNeedTurnstile(true);
-      setView({ kind: "signed_out", error: err });
+      if (err.code === "email_unverified") failTo(err);
+      else setView({ kind: "signed_out", error: err });
       if (needTurnstile || err.code === "turnstile_required") spendTurnstile();
     }
   };
@@ -322,7 +388,33 @@ export function AuthGate({
         setAttempt((n) => n + 1);
         return;
       }
+      if ((e as AuthError).code === "session_invalid") {
+        // the account is gone: sign in again
+        store.forget();
+        setResend({ status: "idle" });
+        failTo(e as AuthError);
+        return;
+      }
       setResend({ status: "idle", error: e as AuthError });
+    }
+  };
+
+  const continueAs = async (a: AccountChoice) => {
+    if (continuing.current) return;
+    continuing.current = true;
+    signOutSeq.current += 1;
+    lastEmail.current = a.email;
+    setContinuingId(a.accountId);
+    setStatus("submitting");
+    try {
+      await store.continueAs(a.accountId, a.email);
+      if (store.accountId() !== null) enterReady();
+    } catch (e) {
+      onTokenError(e as AuthError);
+    } finally {
+      continuing.current = false;
+      setContinuingId(null);
+      setStatus("idle");
     }
   };
 
@@ -372,7 +464,34 @@ export function AuthGate({
           joining.current = false;
           store.forget();
           setEmail("");
+          lastEmail.current = null;
+          clearAccounts();
           setJoinStatus("idle");
+          setScreen("signIn");
+          setView({ kind: "signed_out" });
+        }}
+      />
+    );
+  }
+  if (view.kind === "unverified") {
+    return (
+      <UnverifiedScreen
+        email={view.email}
+        resend={resend}
+        still={view.still}
+        onResend={resendVerification}
+        onCheckAgain={() => {
+          rechecking.current = true;
+          setResend({ status: "idle" });
+          setView({ kind: "checking" });
+          setAttempt((n) => n + 1);
+        }}
+        onUseOtherAccount={() => {
+          store.forget();
+          setEmail("");
+          lastEmail.current = null;
+          clearAccounts();
+          setResend({ status: "idle" });
           setScreen("signIn");
           setView({ kind: "signed_out" });
         }}
@@ -393,6 +512,16 @@ export function AuthGate({
         >
           {AUTH_COPY.actions.retry}
         </Btn>
+      </AuthLayout>
+    );
+  }
+
+  if (accounts === "loading" && screen === "signIn") {
+    return (
+      <AuthLayout title={AUTH_COPY.signIn.title}>
+        <AuthNotice kind="info" busy>
+          {AUTH_COPY.gate.checking}
+        </AuthNotice>
       </AuthLayout>
     );
   }
@@ -444,6 +573,9 @@ export function AuthGate({
       onGoForgot={() => goto("forgot")}
       onResend={canResend ? resendVerification : undefined}
       resend={resend}
+      accounts={accounts === "loading" ? undefined : (accounts ?? undefined)}
+      onContinueAs={continueAs}
+      continuingId={continuingId}
     />
   );
 }
