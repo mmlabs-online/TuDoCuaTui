@@ -241,6 +241,37 @@ describe("proactive renewal", () => {
     expect(a.client.token).toHaveBeenCalledTimes(2);
   });
 
+  it("a 30 s token is not renewed in a tight loop: at least 15 s between /token calls", async () => {
+    const w = world(30);
+    const a = w.tab();
+    const first = a.store.restore();
+    await settle();
+    await first;
+    expect(a.client.token).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(14_000);
+    expect(a.client.token).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(a.client.token).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(12_000); // 29 s in: the next renewal is due at 30 s
+    expect(a.client.token).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(a.client.token.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+
+  it("becoming visible does not renew when the tab has no token (join / unverified / retry screens)", async () => {
+    const w = world();
+    const a = w.tab();
+    a.client.token.mockRejectedValueOnce(fail("not_member"));
+    const first = a.store.restore().catch(() => {});
+    await settle();
+    await first;
+    expect(a.store.accountId()).toBe(ID);
+    a.doc.set("hidden");
+    a.doc.set("visible");
+    await settle();
+    expect(a.client.token).toHaveBeenCalledTimes(1);
+  });
+
   it("transient failure keeps the session and retries in 15 s while the token is still valid; session_invalid notifies", async () => {
     const w = world();
     const a = w.tab();

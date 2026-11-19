@@ -98,8 +98,10 @@ export function createTokenStore({
     disarm();
     timer = timers.setTimeout(onTimer, Math.min(Math.max(delay, 0), MAX_TIMER_MS));
   };
+  // At least RETRY_MS between proactive renewals: a token valid for <= 60 s has `validUntil` = receipt time and
+  // would otherwise renew at 0 ms in a loop. Such a short token may expire before the timer; `getToken` renews on demand.
   const arm = () => {
-    if (started && id && token !== null) armAt(validUntil - now());
+    if (started && id && token !== null) armAt(Math.max(validUntil - now(), RETRY_MS));
   };
   /** Ends the current session epoch: late `/token` answers are dropped. */
   const reset = () => {
@@ -195,7 +197,8 @@ export function createTokenStore({
   }
   const onVisible = () => {
     if (doc?.visibilityState === "hidden") return;
-    if (id && (token === null || now() >= validUntil)) background();
+    // only a token this tab had and that went stale; no token (join, unverified, retry screens) is not renewed here
+    if (id && token !== null && now() >= validUntil) background();
   };
 
   const onMessage = (msg: AuthMessage) => {

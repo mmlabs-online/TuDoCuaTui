@@ -101,7 +101,14 @@ export function AuthGate({
     setView({ kind: "checking" });
     try {
       const joinEmail = await store.accountEmail();
-      if (!live() || store.accountId() === null) return; // signed out meanwhile (here or in another tab)
+      if (!live()) return;
+      if (store.accountId() === null) {
+        // signed out meanwhile: a remote sign-out already moved the view; otherwise (id cleared by session_invalid) go to sign-in
+        setView((v) =>
+          v.kind === "checking" ? { kind: "signed_out", error: { code: "session_invalid" } } : v,
+        );
+        return;
+      }
       setView(
         joinEmail
           ? { kind: "join", email: joinEmail }

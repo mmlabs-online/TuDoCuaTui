@@ -45,3 +45,26 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; production code is about the planned size, the rest is tests.
 - Diff size: see commit stat.
+
+## Attempt 2 (REWORK at Ming's request: 3 yellow findings, PR stays one)
+
+### Files touched
+- `src/features/auth/copy.ts`: `logoutUnconfirmed` set to Ming's exact text (security S1).
+- `src/features/auth/tokenStore.ts`: `arm()` waits at least `RETRY_MS` (15 s) before a proactive renewal, so a token with `expires_in <= 60 s` cannot renew at 0 ms in a loop (a token shorter than 15 s may expire first; `getToken` renews on demand). `onVisible` renews only when the tab has a token that went stale, not when `token === null`.
+- `src/features/auth/AuthGate.tsx`: `offerJoin`, when the id is gone after the lookup, moves a still-`checking` view to sign-in (`session_invalid`); a remote sign-out has already moved the view and is left alone.
+- `src/features/auth/boundary.test.ts`: `fakeTabs: []` in ALLOWED (security N4, one line).
+
+### Tests added / changed
+- copy.test.ts: exact text of the logout warning.
+- tabs.test.ts: 30 s token makes no back-to-back `/token` calls (fake timers); visibility with no token does not renew.
+- AuthGate.test.tsx: id cleared during the join lookup lands on sign-in, not a spinner.
+- No test asserted the old copy literally (they use `AUTH_COPY`).
+
+### Checks
+- typecheck clean; format:check clean; test: Test Files 135 passed | 11 skipped, Tests 1832 passed | 222 skipped; build OK.
+
+### Out-of-plan files
+None. `work/tickets/T-028.2/ticket.md` (orchestrator's Notes/Attempts edit) included in the commit.
+
+### Deviations
+- The join-lookup test clears the id with `store.forget()` (no production path in the gate clears it there any more after the visibility fix).

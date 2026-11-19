@@ -524,6 +524,20 @@ describe("join flow", () => {
     expect(s.client.join).not.toHaveBeenCalled();
   });
 
+  it("the account id cleared while the join lookup runs -> sign-in screen, never a stuck spinner", async () => {
+    const s = setup({ id: ID, firstTokenError: notMember });
+    let release: (v: { accountId: string; email: string }[]) => void = () => {};
+    s.client.accounts.mockReturnValueOnce(new Promise((r) => (release = r)));
+    await waitFor(() => expect(s.client.accounts).toHaveBeenCalled());
+    await act(async () => {
+      s.store.forget();
+      release([{ accountId: ID, email: "me@b.co" }]);
+    });
+    expect(await screen.findByLabelText(AUTH_COPY.fields.email)).toBeTruthy();
+    expect(screen.getByRole("button", { name: AUTH_COPY.signIn.submit })).toBeTruthy();
+    expect(s.stored()).toBeNull();
+  });
+
   it("restore: accounts has no match -> sign-in with not_member copy", async () => {
     const s = setup({ id: ID, firstTokenError: notMember });
     s.client.accounts.mockResolvedValueOnce([]);

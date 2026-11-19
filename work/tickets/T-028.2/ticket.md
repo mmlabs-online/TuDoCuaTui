@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | T-028.1 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-19T03:05:00Z |
 | PR | — |
@@ -48,6 +48,7 @@ Several TuDoCuaTui tabs stay in step: one renewal at a time, a token renewed in 
 
 ## Notes / answers from Ming
 - 2026-11-19 — Plan approved by Ming ("duyệt T-028.2"), including assumptions A1–A6.
+- 2026-11-19 — After attempt 1 (review PASS, security PASS), Ming chose "Sửa cả 3 trong PR này": change the A6 warning copy to "Bạn đã đăng xuất khỏi Tủ đồ của tôi trên trình duyệt này, nhưng chưa xác nhận được việc đăng xuất khỏi tài khoản mmlabs. Nếu đây là máy dùng chung, hãy kết nối mạng rồi đăng nhập và đăng xuất lại, hoặc xoá dữ liệu duyệt web (cookie) của trình duyệt này."; fix the short-token renewal loop; fix the join-screen spinner stall.
 
 ## Handoff
 

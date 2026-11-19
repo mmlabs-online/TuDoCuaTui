@@ -28,6 +28,7 @@ const ALLOWED: Record<string, string[]> = {
   "history.": ["AuthRoot.tsx"],
   "navigator.locks": ["refreshLock.ts"],
   BroadcastChannel: ["authChannel.ts"],
+  fakeTabs: [],
 };
 const NOWHERE = [
   "console.",
