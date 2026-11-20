@@ -112,3 +112,4 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-011 | Never-worn items show "hơn 1 năm" and a new item counts as "≥ 90 ngày chưa mặc" | BACKLOG | P1 | S | ui, data | — | none | 0 | 2026-11-20 |
 | BUG-012 | Outfit suggestion says "Mùa Đông" in hot weather | BACKLOG | P1 | XS | ui, data | — | none | 0 | 2026-11-20 |
 | BUG-013 | Cold weather suggests an off-shoulder party dress and heels with no warning | BACKLOG | P2 | S | ui, data | BUG-012 | none | 0 | 2026-11-20 |
+| BUG-014 | "−1" wear button is enabled at 0 wears and still sends a request | BACKLOG | P2 | XS | ui | — | none | 0 | 2026-11-20 |
