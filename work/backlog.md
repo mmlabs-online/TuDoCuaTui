@@ -110,3 +110,4 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | T-031 | Auth and server tidy-ups from T-028 | BACKLOG | P3 | S | security | BUG-008 | plan-approval | 0 | 2026-11-19 |
 | T-032 | AI outfits tidy-ups from F-704 | BACKLOG | P3 | S | ui | — | none | 0 | 2026-11-19 |
 | BUG-011 | Never-worn items show "hơn 1 năm" and a new item counts as "≥ 90 ngày chưa mặc" | BACKLOG | P1 | S | ui, data | — | none | 0 | 2026-11-20 |
+| BUG-012 | Outfit suggestion says "Mùa Đông" in hot weather | BACKLOG | P1 | XS | ui, data | — | none | 0 | 2026-11-20 |
