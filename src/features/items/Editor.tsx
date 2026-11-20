@@ -117,6 +117,7 @@ export function Editor({
       const url = URL.createObjectURL(blob);
       revokeOwn();
       ownUrl.current = url;
+      fill.cancel();
       update("photo", url);
     } catch (e) {
       if (seq === pickSeq.current) {
@@ -299,6 +300,7 @@ export function Editor({
                 className="remove-photo"
                 onClick={() => {
                   resetPhoto();
+                  fill.cancel();
                   update("photo", "");
                   update("removedPhotoId", item.photoPath ?? item.removedPhotoId);
                   update("photoPath", undefined);
