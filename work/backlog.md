@@ -102,7 +102,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
 | BUG-006 | App UI tests time out intermittently on CI | MERGED | P1 | XS | architecture | — | none | 1 | 2026-11-18 |
 | BUG-007 | Signing out in one tab wipes another tab's saved account | MERGED | P2 | XS | security | — | plan-approval | 1 | 2026-11-19 |
-| BUG-008 | Stale "Tiếp tục với" list after a retry, and no re-list after a join-lookup sign-out | PLANNING | P2 | XS | ui, security | — | plan-approval | 0 | 2026-11-19 |
+| BUG-008 | Stale "Tiếp tục với" list after a retry, and no re-list after a join-lookup sign-out | BLOCKED | P2 | XS | ui, security | — | plan-approval | 0 | 2026-11-19 |
 | BUG-009 | Editor test "a result for a replaced photo is ignored" fails intermittently | MERGED | P2 | XS | architecture | — | none | 2 | 2026-11-19 |
 | T-029 | Finish cross-tab sign-out (broadcast on lost sessions, fallback, retry sign-out) | BACKLOG | P2 | M | security, architecture | BUG-007 | plan-approval | 0 | 2026-11-19 |
 | T-030 | Decide whether a 403 from the API signs the user out | BACKLOG | P2 | XS | security | — | none | 0 | 2026-11-19 |
