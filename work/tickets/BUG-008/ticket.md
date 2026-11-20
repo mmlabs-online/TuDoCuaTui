@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | PLANNING |
+| State | BLOCKED |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -12,10 +12,10 @@
 | Found in | main after T-028.3 (review/security follow-up) |
 | Introduced in | T-028.3 |
 | Depends on | — |
-| Needs Ming | — |
+| Needs Ming | M-38 |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-20T02:31:27Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -56,5 +56,11 @@ Follow-ups from the T-028.3 review and security review attempt 2 (PR https://git
 - High path (`src/features/auth/**`): plan approval.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-20 — claude — BLOCKED
+- Done: consult frontend-developer; plan READY (clearAccounts() in failTo's retry/other branches; offerJoin "signed out meanwhile" via failTo with a signOutSeq guard; regression tests T1, T2 + guard test T3).
+- In progress / next: waiting for Ming's plan approval (M-38); then implement.
+- Gotchas: assumptions B1–B3 in plan.md.
