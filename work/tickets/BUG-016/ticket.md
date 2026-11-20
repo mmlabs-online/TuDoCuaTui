@@ -64,3 +64,4 @@ and no focus management. The filter selects in the items toolbar have no label.
 ## Notes / answers from Ming
 
 ## Handoff
+- 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)

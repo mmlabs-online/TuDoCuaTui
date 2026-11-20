@@ -73,3 +73,4 @@ the spec, but the label "≥ 90 ngày chưa mặc" and the card text do not.
   **Proposed default: (b).**
 
 ## Handoff
+- 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
