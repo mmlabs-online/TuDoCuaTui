@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BACKLOG |
+| State | PLANNING |
 | Severity | S1 |
 | Priority | P0 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-20 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-21T03:42:21Z |
 | PR | — |
 
 ## Report
