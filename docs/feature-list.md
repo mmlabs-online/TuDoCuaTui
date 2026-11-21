@@ -41,7 +41,7 @@
 - **Status (trạng thái):** `active` (Đang dùng), `stored` (Cất kho), `laundry` (Đang giặt-sửa), `lent` (Cho mượn), `out` (Muốn thanh lý).
 - **Location (vị trí lưu trữ):** a closet, drawer or box. Can be nested (`parent_id`).
 - **Wear log (lần mặc):** one row per item per day worn. `wear_count` and `last_worn` are derived from these rows, never stored.
-- **Stale (lâu chưa mặc):** not worn for 90 days or more, or never worn.
+- **Stale (lâu chưa mặc):** last worn 90 or more days ago, or never worn and added 90 or more days ago (D51).
 
 ---
 
