@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | DONE |
+| State | MERGED |
 | Severity | S1 |
 | Priority | P0 |
 | Size | XS |
