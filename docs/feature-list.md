@@ -57,6 +57,7 @@
 | **M1 — Usable MVP** | I can put my real wardrobe into the app and use it daily on my phone browser | Real Supabase project live; CRUD with photos works; real CSV/photo import; deployed URL; CI green |
 | **M2 — Daily use** | Fast, pleasant daily logging from the phone | PWA installable; camera capture; back-dated wear; locations management; better search |
 | **M3 — Smart wardrobe** | The app helps decide what to wear and what to let go of | AI auto-tagging; outfits; insights and declutter flow |
+| **M4 — AI stylist** (milestone, not Ming step `M-4`) | Pick an occasion, get 3 outfits, and see one on a chibi avatar at a bounded AI cost | Sticker spike decided (F-705); shared key, credits and $20 cap live (F-706); occasion suggestions live (F-707); then either chibi viewing (F-708, F-709) or the real-photo collage (F-710) |
 
 ---
 
@@ -250,6 +251,147 @@ Set up the real Supabase project and verify PR #1.
 
 #### F-704 · Outfit suggestion · P2 · M3 · L
 - "Hôm nay mặc gì?": suggests 3 outfits from active items using season, weather (optional) and stale items first.
+- Status: F-704.1 to F-704.5 are MERGED and T-032 is an open tidy-up. F-707 extends this flow and does not re-spec it.
+
+#### AI stylist (F-705 to F-710) · overview
+
+Locked by Ming on 2026-11-21. **The D33 amendment below is pending a decision entry in `work/decisions.md`; F-706 must not start until that entry exists.** The spike has not been run.
+
+**Flow:** the user picks an occasion (fixed enum, no free text) → rules prefilter the wardrobe → a cheap text model picks 3 outfits from metadata only → the outfits are shown immediately → the user taps "Xem trên chibi" → only missing item stickers are generated → the app composites stickers on a preset avatar in layer order main → outer → shoes → accessory.
+
+**Problem and outcome:** AI suggestions today need each user's own API key, so a user without a key cannot use them, and a suggestion gives no picture of the outfit on a body. No user research or usage data backs this yet; the spike and the metrics below are the first evidence. The outcome is that any signed-in user can see a suggested outfit without an API key, while total AI spend stays bounded.
+
+**Success metrics** (no baseline yet; targets need Ming, see OQ-14):
+- Share of suggestion sessions that open a chibi view.
+- Sticker cache hit rate on chibi views.
+- Monthly provider spend against the $20 cap.
+
+**Locked decisions (Ming, 2026-11-21):**
+- Avatar: preset, choose hair, skin and body. No face photos.
+- Stickers: generated on user tap, once per item. The item photo is sent to the provider only then. Cache by photo hash + style version + model.
+- Provider: default Gemini; compare with OpenAI on the same 10 items before locking.
+- Shared key: the admin (existing `owner` role for v1, D50) manages one shared AI key; all users use it, limited by credits. **Amends D33 (BYOK); decision entry pending.** High tier; Ming approves the plan.
+- Credits: a Postgres ledger (reserve, commit on success, refund on failure). The in-memory rate limiter is not sufficient.
+- App-wide spend cap: $20/month. At the cap AI features turn off and the rest of the app works. A provider console cap is also set (Ming step).
+- Legacy BYOK: stop using immediately; keep ciphertext until the admin key works; delete only after Ming confirms (irreversible).
+- Sticker storage: Google Drive, not counted in the user's photo quota.
+
+| Action | Credits |
+|---|---|
+| Cached suggestion, or viewing an existing chibi | 0 |
+| AI photo fill | 1 |
+| New AI suggestion | 1 |
+| Draw or redraw a sticker | 10 |
+| Welcome grant | +300 |
+| Monthly grant (no rollover) | +60 |
+
+The admin can adjust the grant numbers and add credits manually.
+
+**Known limit:** the $20 cap covers about 16 new users spending all welcome credits in a month (30 stickers, $1.20 each), or about 83 existing users spending monthly credits (6 stickers, $0.24 each), at the highest sticker price of about $0.04 and excluding text cost. Prices come from search snapshots and must be rechecked against live pricing pages before F-706.2 ships.
+
+**Non-goals (v1):** face photos or personal likeness; free-text occasions; per-user API keys; paid credit purchase; prompt caching (not prioritized); Batch outside the explicit "prepare whole wardrobe" action; saving outfits (F-801 to F-803).
+
+#### F-705 · Sticker spike on 10 hard items · P1 · M4 · M
+- Run on the same 10 hard items (including patterned, ao dai and dark items) with Gemini and OpenAI. Spike code stays out of `server/` and production.
+- **AC:** each output is scored without the source photo in view; the result records score per provider, cost per image from the live pricing page, and the recommended provider.
+- **Gate:** pass if at least 8/10 are recognizable without the source photo. Pass unlocks F-708 and F-709. Fail cancels them and activates F-710.
+
+#### F-706 · Shared AI key, credit ledger and spend cap · P1 · M4 · L (split) · High · depends on the D33 amendment entry
+- **F-706.1 Ledger:** Postgres ledger with reserve, commit and refund; welcome and monthly grants applied lazily on first AI use (there is no users table, D50).
+- **F-706.2 Spend cap:** app-wide monthly spend meter with a versioned model price table.
+- **F-706.3 Shared key:** owner-only storage, replacement and test of one shared key, inactive until F-706.4.
+- **F-706.4 Cutover:** photo fill, bulk tagging and suggestions use the shared key, credits and cap. BYOK keys are no longer read.
+- **F-706.5 Admin API:** owner-only grant settings, manual credit add, and spend view.
+- **F-706.6 Admin screen:** UI for F-706.3 and F-706.5.
+- **F-706.7 User credit UI:** balance, cost display, out-of-credit and AI-off states; the BYOK form is retired. Ships in the same release as F-706.4.
+- **F-706.8 Legacy ciphertext deletion:** not runnable until Ming confirms in writing that the admin key works (irreversible).
+- **AC:**
+  - Concurrent requests cannot overspend: with a balance for one action, N parallel requests produce exactly one reservation (DB test).
+  - The same idempotency key never charges or calls the provider twice, and replays the stored result.
+  - A failed provider call refunds credits. Its estimated cost stays in the spend meter unless the provider confirms no charge, because a timed-out call may still be billed.
+  - Reservations count against the cap before the provider call, so parallel calls cannot pass $20.
+  - At the cap, AI routes answer a distinct error with no provider call, and all non-AI routes still work.
+  - Monthly credits expire without rollover at the month boundary in UTC+7 (see OQ-4).
+  - Non-owners get 403 on every key and admin route, and no response ever contains the key or its hint for them.
+  - After F-706.4 no code path decrypts a BYOK key; existing ciphertext is unchanged until F-706.8.
+  - The bulk import stops cleanly when credits run out: finished photos stay, the rest are reported as not tagged.
+- **Technical notes:** new tables follow D32 RLS. App-wide rows and admin reads across users do not fit the `owner_only` policy, so the plan must propose a narrow access path.
+
+#### F-707 · Occasion and suggestion token optimization · P1 · M4 · L (split) · can run in parallel with F-706
+- **F-707.1 Occasion rules:** fixed occasion enum and a pure prefilter in the rule pool; candidate cap lowered. Runs after BUG-012 and BUG-013, which change the same `eligibility()` logic.
+- **F-707.2 Server contract:** the suggest route accepts the occasion and enforces the new candidate cap.
+- **F-707.3 Same-day cache:** server-side cache in Postgres.
+- **F-707.4 Occasion UI:** occasion picker in the outfits modal; AI runs only on an explicit action.
+- **AC:**
+  - Occasion is validated against the enum; free text is rejected with 400.
+  - At most 20 candidates reach the provider, enforced on the server (target about 15 to 20, down from 40).
+  - The suggestion request contains no image data (test on the outgoing provider payload).
+  - A repeat request on the same UTC+7 day with the same wardrobe fingerprint, occasion and weather bucket makes no provider call and costs 0 credits.
+  - The fingerprint covers item ids and prompt metadata, not wear logs, so logging a wear does not spend a credit.
+  - The existing shuffle action is a new AI suggestion (1 credit) and replaces the cached result.
+  - Changing weather or place never triggers a paid call by itself. Today the modal calls the AI automatically on these changes; this must be removed.
+  - A client disconnect after dispatch does not waste the call: the result is stored and committed, and a retry with the same idempotency key gets it.
+
+#### F-708 · Sticker generation and storage pipeline · P1 · M4 · L (split) · High · depends on F-705 pass, F-706.4
+- **F-708.1 Storage:** sticker table and Drive storage.
+- **F-708.2 Provider adapter:** image generation for the provider chosen in F-705, with input and output downscaling.
+- **F-708.3 Generate route:** cache lookup, credits, idempotency, per-item result.
+- **F-708.4 Serving and lifecycle:** authenticated sticker read; cleanup when an item or its photo is removed.
+- **F-708.5 Batch job (P2):** explicit "prepare whole wardrobe" action on the server, using the provider Batch API.
+- **F-708.6 Batch UI (P2):** cost preview, confirmation and progress.
+- **AC:**
+  - A cache hit (photo hash + style version + model, inside the caller's own scope) makes no provider call and costs 0. Stickers are never shared across users.
+  - The source is the item's primary photo (`is_primary`). An item with no photo is skipped with no charge.
+  - The photo is sent to the provider only after a user tap; no background, import or suggestion flow sends it (Batch only through F-708.5).
+  - No automatic image retry: one provider call per attempt, verified by test. Failure refunds the 10 credits.
+  - Input and output images are downscaled to limits fixed by the spike; a test asserts the outgoing size.
+  - Redraw is explicit and costs 10. The old sticker stays until the new one succeeds.
+  - Sticker files do not count in `item_photos` quotas.
+  - **`server/photo-sweep.js` must not delete stickers.** It deletes files tagged `app=tudo` with no `item_photos` row, so stickers need their own Drive tag and a test proving the sweep leaves them alone.
+
+#### F-709 · Avatar and chibi viewing screen · P1 · M4 · L (split) · depends on F-705 pass, F-708.4
+- **F-709.1 Avatar presets:** hair, skin and body picker, and the preset art.
+- **F-709.2 Compositor:** pure layer-order logic and rendering.
+- **F-709.3 Chibi screen:** "Xem trên chibi" flow from a suggested outfit.
+- **AC:**
+  - Layer order is main → outer → shoes → accessory (unit test).
+  - Only missing stickers are requested; a fully cached outfit opens at 0 credits with no provider call.
+  - The credit cost is visible before the tap.
+  - If one sticker fails, the others still show, the failed item can be retried by tap, and only successes are charged.
+  - No face photo input exists anywhere in the flow.
+  - Works at 390px and in dark mode (R9); Vietnamese copy stays in one place (R6).
+
+#### F-710 · Real-photo outfit collage (fallback) · P2 · M4 · M · only if F-705 fails
+- Shows a suggested outfit as a collage of the user's existing item photos, in the same layer order. No provider call, 0 credits.
+- **AC:** uses the existing authenticated photo path; an item with no photo shows a placeholder; works at 390px and in dark mode.
+
+#### Open questions — AI stylist
+
+Each has a proposed default. None of these defaults is a decision until Ming confirms it. Brainstorm options, token-saving rationale and the architecture consult are in [ai-stylist-notes.md](ai-stylist-notes.md); those notes are advice, not decisions.
+
+*Before F-706 starts*
+- **OQ-1 Sign-up abuse.** Join policy is `open` (D38), and each verified account gets 300 credits ($1.20), so about 17 accounts can use the whole monthly cap and turn AI off for everyone. Default: add a daily limit on new welcome grants, adjustable by the admin. Alternative recommended in review, because a daily limit only slows the drain: existing users get 300 credits and new users get theirs after admin approval.
+- **OQ-2 Existing users.** Do accounts that already exist get the 300 welcome credits? Default: yes, once.
+- **OQ-3 Owner credits.** D38 exempts the owner from global AI ceilings. Does the owner also skip credits and the cap? Default: the owner uses credits like anyone and can top up; the $20 cap applies to everyone.
+- **OQ-4 Credit expiry and month boundary.** Does the welcome grant expire, and which credits are spent first? Default: welcome and manual credits never expire; monthly credits are spent first; months follow UTC+7. The provider's billing month may differ.
+- **OQ-5 Legacy key removal by a user.** Should a user still be able to delete their own stored key before F-706.8? Ming's rule (2026-11-21) does not say whether it covers a user removing their own key. Default: yes, keep `DELETE /api/ai-settings/key`, because it is that user's own secret.
+- **OQ-6 Provider data terms.** Under the shared key, every user's photos go to a provider account Ming owns, and a photo may show a person wearing the item. D40 removed the Drive privacy notice. Default: use a paid tier whose terms exclude training, and show a one-time notice before the first photo is sent.
+- **OQ-16 Cutover order.** F-706.4 starts charging credits, while the outfits modal still calls the AI automatically until F-707.4 lands. Default: F-707.4 ships before or in the same release as F-706.4, so no user is charged without tapping.
+
+*Before F-707 starts*
+- **OQ-7 Occasion list.** The enum values are not decided, and items have no occasion field. Default: Ming supplies 4 to 6 occasions; the rules map them from category and existing tags only, with no schema change. Proposed list: "Đi làm", "Đi chơi", "Hẹn hò", "Dự tiệc", "Du lịch".
+
+*Before F-708 and F-709 start*
+- **OQ-8 Spike judge.** Who scores "recognizable"? Default: Ming, blind, viewing stickers only.
+- **OQ-9 Fit on the avatar.** The 8/10 gate tests recognizability, not whether stickers align on a body. Default: record a composite on one preset in the spike as a non-gating note.
+- **OQ-10 Mixed providers.** If OpenAI wins for images, the app has no OpenAI text adapter and "one shared key" no longer covers both steps. Default: keep Gemini for text and allow one key per provider.
+- **OQ-11 Not enough credits for all missing stickers.** Default: generate nothing, show the shortfall, and let the user pick items.
+- **OQ-12 Style version bump.** Do existing stickers regenerate? Default: no; keep showing them, and a new draw happens only on a redraw tap.
+- **OQ-13 Avatar art and persistence.** Who supplies the preset art and its license, how many options, and where is the choice saved? Default: one commissioned or hand-made layered set, saved per device, so no migration is needed.
+
+*Before launch*
+- **OQ-14 Targets.** Set numeric targets and an owner for the success metrics. Default: review after 30 days of data.
+- **OQ-15 Bulk fill cost.** A 300-photo AI import uses the whole welcome grant, leaving nothing for stickers. Default: show the credit cost in the import modal before starting.
 
 ---
 
@@ -317,6 +459,13 @@ F-301 → F-302
 F-603 + F-701 → F-703
 F-701 → F-702, F-704
 F-801 → F-802 → F-803
+D33 amendment entry (pending) → F-706.1, F-706.2, F-706.3 → F-706.4 + F-706.7 (same release) → F-706.8 (Ming confirms)
+F-706.1 → F-706.5 → F-706.6; F-706.3 → F-706.6
+BUG-012, BUG-013 → F-707.1 → F-707.2 → F-707.3 → F-707.4 (F-707 can run in parallel with F-706)
+F-705 pass + F-706.4 → F-708.1, F-708.2 → F-708.3 → F-708.4 → F-709.3
+F-708.3 → F-708.5 → F-708.6
+F-705 pass → F-709.1, F-709.2 → F-709.3
+F-705 fail → F-710 (F-708 and F-709 cancelled)
 ```
 
 ## 6. Suggested order inside M1
