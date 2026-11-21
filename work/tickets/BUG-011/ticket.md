@@ -15,8 +15,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-21T10:06:07Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/98 |
 
 ## Report
 UAT of production v0.3.1 (2026-11-20, `work/uat/2026-11-20-uat-v0.3.1.md`, UAT-2). 70 of 71 items have never been
@@ -75,3 +75,8 @@ the spec, but the label "≥ 90 ngày chưa mặc" and the card text do not.
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-21 — claude — DONE
+- Done: never-worn cards say "chưa mặc"; `isStale` follows D51 (Ming chose option b). Attempt 1 PASS. PR #98.
+- In progress / next: Ming merges #98 and releases, then checks the card and stat counts on the real wardrobe. Follow-up: workspace debt #70 (copy for a zero stale count).
+- Gotchas: keep `ageInDays`' 999 fallback, because the "Lâu chưa mặc" sort depends on it. BUG-015 and BUG-017 also edit `ItemCard.tsx`, BUG-015 also `copy.ts`, and BUG-012/013 edit `suggest.test.ts`: expect a rebase. 390px/dark mode was not run in a browser.
