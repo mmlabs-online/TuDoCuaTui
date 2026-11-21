@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { AiSettingsError, type AiSettingsClient } from "@/data/aiSettings";
 import type { AiTagger } from "@/data/aiTagging";
@@ -51,7 +51,8 @@ export function useAiFill({
   const busyRef = useRef(false);
   const ctlRef = useRef<AbortController | null>(null);
   const latest = useRef({ item, categoryFillable, update });
-  useEffect(() => {
+  // Layout effect: callbacks that run right after a commit must not read an older item.
+  useLayoutEffect(() => {
     latest.current = { item, categoryFillable, update };
   });
 
@@ -97,9 +98,22 @@ export function useAiFill({
           : { code: "internal" },
       );
     } finally {
-      busyRef.current = false;
-      if (!ctl.signal.aborted) setBusy(false);
+      if (ctlRef.current === ctl) {
+        ctlRef.current = null;
+        busyRef.current = false;
+        if (!ctl.signal.aborted) setBusy(false);
+      }
     }
+  };
+
+  /** Drops the request in flight, if any (the photo it was started for changed or went away). */
+  const cancel = () => {
+    const c = ctlRef.current;
+    if (!c) return;
+    ctlRef.current = null;
+    c.abort();
+    busyRef.current = false;
+    setBusy(false);
   };
 
   const record = applied && applied.photo === item.photo ? applied : null;
@@ -112,5 +126,5 @@ export function useAiFill({
     setNotice(null);
   };
 
-  return { availability, busy, notice, error, canUndo: record !== null, run, undo, retry };
+  return { availability, busy, notice, error, canUndo: record !== null, run, cancel, undo, retry };
 }
