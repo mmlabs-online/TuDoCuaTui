@@ -805,6 +805,6 @@ describe("App (no sign-in)", () => {
     render(<App />);
     fireEvent.click(await screen.findByLabelText("Cài đặt"));
     expect(await screen.findByText("Cài đặt AI")).toBeTruthy();
-    await waitFor(() => expect(document.querySelector("input[type=password]")).toBeTruthy());
+    await screen.findByText("Dán API key");
   });
 });

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BACKLOG |
+| State | DONE |
 | Severity | S1 |
 | Priority | P0 |
 | Size | XS |
@@ -13,10 +13,10 @@
 | Introduced in | v0.2.6 (T-010, commit 0438350) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-20 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/97 |
 
 ## Report
 Found during the UAT of production v0.3.1 that Ming asked for (2026-11-20, report
@@ -72,3 +72,8 @@ saved login.
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-21 — claude — DONE
+- Done: no password input renders until "Dán API key" is clicked; then `new-password` + `name="ai-api-key"` + `:autofill` guard. Attempt 1 PASS; security audit no 🔴. PR #97, stacked on record PR #96.
+- In progress / next: Ming merges #96, then #97, and releases. Then M-39 (native dropdown / save prompt) and M-40 (was the password ever stored as the AI key). When #96 merges, add or update this ticket's board row on `main` (held back so #96 would not conflict again). Follow-ups: workspace debt #69; flaky test #57.
+- Gotchas: AC2 is only partly verified: implementer's and reviewer's real-browser positive controls disagreed, so the evidence is the DOM (no input on open) until M-39. The reviewer left `%LOCALAPPDATA%\Google\Chrome for Testing\User Data` behind on Ming's machine; it is outside the repo and was not deleted.
