@@ -23,6 +23,7 @@ const JULY = Date.UTC(2026, 6, 15, 5); // Hạ
 const SEPT = Date.UTC(2026, 8, 15, 5); // Thu
 const JAN = Date.UTC(2026, 0, 15, 5); // Đông
 const DEC = Date.UTC(2026, 11, 15, 5); // Đông
+const NOV = Date.UTC(2026, 10, 20, 5); // Đông
 const DAY = 86_400_000;
 
 let n = 0;
@@ -284,6 +285,13 @@ describe("weather", () => {
   const hasOuter = (o: Outfit) => o.pieces.some((i) => i.category === "Khoác");
   const base = () => [...many("Đầm", 4), ...many("Khoác", 2)];
 
+  it("hot weather in a winter month does not report Đông", () => {
+    const only = [mk("Đầm", { seasons: ["Đông"], lastWorn: iso(NOV, 2) })];
+    const r = withW(only, w(34, 84), 1, NOV);
+    expect(r.outfits[0].reasons).not.toContain("season");
+    expect(r.seasons).toEqual(["Hạ"]);
+  });
+
   it("weather: no weather gives the F-704.1 result", () => {
     const items = base();
     expect(withW(items, undefined)).toEqual(run(items));
@@ -348,6 +356,26 @@ describe("weather", () => {
     expect(weatherKind(w(31.9)).hot).toBe(false);
     expect(weatherKind(undefined)).toEqual({ cold: false, hot: false, rain: false });
     expect([WEATHER_COLD_MAX_C, WEATHER_HOT_MAX_C, WEATHER_RAIN_CHANCE]).toEqual([24, 32, 60]);
+  });
+
+  it("seasons reports the seasons actually used", () => {
+    const items = many("Đầm", 2);
+    expect(withW(items, undefined, 1, JULY).seasons).toEqual(["Hạ"]);
+    expect(withW(items, w(28), 1, NOV).seasons).toEqual(["Đông"]);
+    expect(withW(items, w(34), 1, NOV).seasons).toEqual(["Hạ"]);
+    expect(withW(items, w(34), 1, SEPT).seasons).toEqual(["Thu", "Hạ"]);
+    expect(withW(items, w(20), 1, JULY).seasons).toEqual(["Đông"]);
+    expect(withW(items, w(20), 1, Date.UTC(2026, 2, 15, 5)).seasons).toEqual(["Xuân", "Đông"]);
+    expect(withW(items, w(34), 1, JULY).seasons).toEqual(["Hạ"]);
+    expect(withW(items, w(20), 1, JAN).seasons).toEqual(["Đông"]);
+  });
+
+  it("season reason follows the seasons used", () => {
+    const summer = [mk("Đầm", { seasons: ["Hạ"] })];
+    expect(withW(summer, w(34), 1, NOV).outfits[0].reasons).toContain("season");
+    const winter = [mk("Đầm", { seasons: ["Đông"] })];
+    expect(withW(winter, w(20), 1, JULY).outfits[0].reasons).toContain("season");
+    expect(withW(summer, w(20), 1, JULY).outfits[0].reasons).not.toContain("season");
   });
 
   it("weather: null rain chance is not rain", () => {

@@ -56,7 +56,7 @@ export function weatherKind(w?: WeatherInput): { cold: boolean; hot: boolean; ra
 
 export type OutfitReason = "neverWorn" | "stale" | "season" | "cold" | "hot" | "rain";
 export type Outfit = { main: Item[]; pieces: Item[]; reasons: OutfitReason[] };
-export type Suggestion = { season: string; outfits: Outfit[] };
+export type Suggestion = { season: string; seasons: string[]; outfits: Outfit[] };
 export type SuggestOptions = {
   now: number;
   seed: number;
@@ -80,6 +80,8 @@ function shuffle<T>(list: T[], rand: () => number): T[] {
 
 type Eligibility = {
   season: string;
+  /** Seasons whose items are eligible (calendar season adjusted by weather), no duplicates. */
+  seasons: string[];
   cold: boolean;
   hot: boolean;
   rain: boolean;
@@ -113,6 +115,7 @@ function eligibility(
   }
   return {
     season,
+    seasons: [...new Set(wanted)],
     cold,
     hot,
     rain,
@@ -131,7 +134,7 @@ function ruleRole(item: Item): string | null {
 export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Suggestion {
   const { now, seed, count = 3 } = opts;
   const avoid = new Set(opts.avoid ?? []);
-  const { season, cold, hot, rain, outerWanted, pools } = eligibility(items, opts);
+  const { season, seasons, cold, hot, rain, outerWanted, pools } = eligibility(items, opts);
   const rand = mulberry32(seed);
 
   const rank = (role: string): Ranked[] =>
@@ -169,7 +172,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
     const reasons: OutfitReason[] = [];
     if (main.some((i) => i.wearCount === 0)) reasons.push("neverWorn");
     if (main.some((i) => i.wearCount > 0 && isStale(i, now))) reasons.push("stale");
-    if (main.some((i) => i.seasons.includes(season))) reasons.push("season");
+    if (main.some((i) => i.seasons.some((s) => seasons.includes(s)))) reasons.push("season");
     if (cold) reasons.push("cold");
     if (hot) reasons.push("hot");
     if (rain) reasons.push("rain");
@@ -179,7 +182,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
       reasons,
     };
   });
-  return { season, outfits };
+  return { season, seasons, outfits };
 }
 
 /** Most candidates sent to the AI per call (F-704.3 A2). */

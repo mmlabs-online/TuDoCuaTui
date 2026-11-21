@@ -232,7 +232,7 @@ export function OutfitsModal({
           </div>
         ) : (
           <>
-            <p className="outfit-season">{COPY.season(season)}</p>
+            <p className="outfit-season">{COPY.heading(season, { cold, hot })}</p>
             {aiActive && (
               <p className="outfit-ai-note" role="status">
                 {aiLoading ? COPY.ai.loading : (aiNote ?? "")}
@@ -266,7 +266,11 @@ export function OutfitsModal({
                         <b>{COPY.outfitLabel(n + 1)}</b>
                         {outfit.reasons.map((r) => (
                           <span className="outfit-chip" key={r}>
-                            {r === "season" ? COPY.reasons.season(season) : COPY.reasons[r]}
+                            {r === "season"
+                              ? cold || hot
+                                ? COPY.reasons.seasonFit
+                                : COPY.reasons.season(season)
+                              : COPY.reasons[r]}
                           </span>
                         ))}
                       </div>
