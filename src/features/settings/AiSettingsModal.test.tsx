@@ -32,13 +32,125 @@ async function open(client: AiSettingsClient) {
 }
 const keyInput = () => document.querySelector<HTMLInputElement>("input[type=password]")!;
 const btn = (name: string) => screen.getByRole("button", { name });
-const type = (v: string) => fireEvent.change(keyInput(), { target: { value: v } });
+const reveal = () => screen.queryByText(COPY.keyPlaceholder);
+const forceAutofill = (el: HTMLInputElement) => {
+  const matches = el.matches.bind(el);
+  vi.spyOn(el, "matches").mockImplementation((s: string) => s === ":autofill" || matches(s));
+};
+const type = (v: string) => {
+  const r = reveal();
+  if (r) fireEvent.click(r);
+  fireEvent.change(keyInput(), { target: { value: v } });
+};
 
 describe("AiSettingsModal", () => {
+  it("API key input is not a login password field", async () => {
+    await open(fake());
+    const r = reveal();
+    if (r) fireEvent.click(r);
+    expect(keyInput().getAttribute("autocomplete")).toBe("new-password");
+    expect(keyInput().getAttribute("name")).toBe("ai-api-key");
+  });
+
+  it("opening the modal renders no password input and no key error", async () => {
+    await open(fake({ get: vi.fn(async () => view()) }));
+    expect(document.querySelector("input[type=password]")).toBeNull();
+    expect(screen.queryByText(AI_ERRORS.invalid_key_format)).toBeNull();
+    expect(screen.getByText(COPY.keySaved("••••wxyz"))).toBeTruthy();
+  });
+
+  it("saving a model change without revealing the field sends no apiKey", async () => {
+    const client = fake({ get: vi.fn(async () => view()) });
+    await open(client);
+    const [, model] = Array.from(document.querySelectorAll("select"));
+    fireEvent.change(model, { target: { value: "claude-haiku-5-5" } });
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(client.save).toHaveBeenCalledTimes(1));
+    expect(client.save).toHaveBeenCalledWith({ provider: "claude", model: "claude-haiku-5-5" });
+  });
+
+  it("a value the browser marks as autofilled is ignored", async () => {
+    await open(fake());
+    fireEvent.click(reveal()!);
+    const input = keyInput();
+    forceAutofill(input);
+    fireEvent.change(input, { target: { value: "p".repeat(25) } });
+    expect(input.value).toBe("");
+    expect(screen.queryByText(AI_ERRORS.invalid_key_format)).toBeNull();
+    expect((btn(COPY.save) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("Save refuses a field that became autofilled and sends nothing", async () => {
+    const client = fake();
+    await open(client);
+    type(KEY);
+    forceAutofill(keyInput());
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(client.save).not.toHaveBeenCalled();
+    expect(keyInput()).toBeNull();
+    expect(screen.getByText(AI_ERRORS.invalid_key_format)).toBeTruthy();
+    expect(document.body.innerHTML).not.toContain(KEY);
+  });
+
+  it("a typed key is trimmed and sent; clearing it keeps the saved key", async () => {
+    const client = fake({ get: vi.fn(async () => view()) });
+    await open(client);
+    type(`  ${KEY}  `);
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(client.save).toHaveBeenCalledTimes(1));
+    expect(client.save).toHaveBeenLastCalledWith({
+      provider: "claude",
+      model: "claude-sonnet-5-5",
+      apiKey: KEY,
+    });
+    await waitFor(() => expect(screen.getByText(COPY.saved)).toBeTruthy());
+    type(KEY);
+    type("");
+    const [, model] = Array.from(document.querySelectorAll("select"));
+    fireEvent.change(model, { target: { value: "claude-haiku-5-5" } });
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(client.save).toHaveBeenCalledTimes(2));
+    expect(client.save).toHaveBeenLastCalledWith({
+      provider: "claude",
+      model: "claude-haiku-5-5",
+    });
+  });
+
+  it("the field collapses after a successful save and after delete", async () => {
+    await open(fake({ get: vi.fn(async () => view()) }));
+    type(KEY);
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(reveal()).toBeTruthy());
+    expect(keyInput()).toBeNull();
+    fireEvent.click(reveal()!);
+    expect(keyInput()).toBeTruthy();
+    fireEvent.click(btn(COPY.deleteKey));
+    fireEvent.click(screen.getAllByRole("button", { name: COPY.confirmDelete.confirm }).at(-1)!);
+    await waitFor(() => expect(reveal()).toBeTruthy());
+    expect(keyInput()).toBeNull();
+  });
+
+  it("a browser without :autofill support can still enter a key", async () => {
+    const client = fake();
+    await open(client);
+    fireEvent.click(reveal()!);
+    const input = keyInput();
+    const matches = input.matches.bind(input);
+    vi.spyOn(input, "matches").mockImplementation((s: string) => {
+      if (s === ":autofill") throw new SyntaxError("not a valid selector");
+      return matches(s);
+    });
+    fireEvent.change(keyInput(), { target: { value: KEY } });
+    expect(keyInput().value).toBe(KEY);
+    fireEvent.click(btn(COPY.save));
+    await waitFor(() => expect(client.save).toHaveBeenCalledTimes(1));
+  });
+
   it("shows loading, then the empty state with Claude and its default model", async () => {
     render(<AiSettingsModal client={fake()} onClose={() => {}} />);
     expect(screen.getByText(COPY.loading)).toBeTruthy();
-    await waitFor(() => expect(keyInput()).toBeTruthy());
+    await waitFor(() => expect(reveal()).toBeTruthy());
     const [provider, model] = Array.from(document.querySelectorAll("select"));
     expect(provider.value).toBe("claude");
     expect(model.value).toBe("claude-haiku-5-5");
@@ -51,14 +163,14 @@ describe("AiSettingsModal", () => {
     fireEvent.click(btn(COPY.save));
     await waitFor(() => expect(screen.getByText(COPY.saved)).toBeTruthy());
     expect(screen.getByText(COPY.keySaved("••••wxyz"))).toBeTruthy();
-    expect(keyInput().value).toBe("");
+    expect(keyInput()).toBeNull();
     expect(document.body.innerHTML).not.toContain(KEY);
   });
 
   it("a fresh mount shows only the hint", async () => {
     await open(fake({ get: vi.fn(async () => view()) }));
     expect(screen.getByText(COPY.keySaved("••••wxyz"))).toBeTruthy();
-    expect(keyInput().value).toBe("");
+    expect(keyInput()).toBeNull();
     expect(document.body.innerHTML).not.toContain("sk-ant");
   });
 
@@ -111,7 +223,7 @@ describe("AiSettingsModal", () => {
     await open(fake({ get }));
     expect(screen.getByText(AI_ERRORS.network)).toBeTruthy();
     fireEvent.click(btn(COPY.retry));
-    await waitFor(() => expect(keyInput()).toBeTruthy());
+    await waitFor(() => expect(reveal()).toBeTruthy());
     expect(get).toHaveBeenCalledTimes(2);
   });
 
@@ -145,6 +257,7 @@ describe("AiSettingsModal", () => {
     await open(fake({ get }));
     expect(screen.getByText(AI_ERRORS.server_misconfigured)).toBeTruthy();
     expect(keyInput()).toBeNull();
+    expect(reveal()).toBeNull();
   });
 
   it("notes an unsupported model", async () => {

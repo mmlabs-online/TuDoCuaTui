@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Btn } from "@/components/Btn";
 import { Confirm } from "@/components/Confirm";
@@ -24,6 +24,15 @@ type Load = "loading" | "ready" | { error: string; code: string };
 const messageOf = (e: unknown) =>
   e instanceof AiSettingsError ? aiErrorMessage(e.code, e.requestId) : aiErrorMessage("internal");
 
+// Second layer after the reveal click: a value the browser filled itself is never a key.
+const isAutofilled = (el: HTMLInputElement | null) => {
+  try {
+    return !!el?.matches(":autofill");
+  } catch {
+    return false;
+  }
+};
+
 export function AiSettingsModal({
   client,
   onClose,
@@ -37,6 +46,8 @@ export function AiSettingsModal({
   const [status, setStatus] = useState<Status>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [keyEditing, setKeyEditing] = useState(false);
+  const keyRef = useRef<HTMLInputElement>(null);
 
   const fetchSettings = useCallback(() => {
     setLoad("loading");
@@ -44,6 +55,7 @@ export function AiSettingsModal({
       (view) => {
         setSaved(view);
         setForm(initialForm(view));
+        setKeyEditing(false);
         setLoad("ready");
       },
       (e) =>
@@ -67,6 +79,12 @@ export function AiSettingsModal({
   const save = () =>
     run(async () => {
       try {
+        if (isAutofilled(keyRef.current)) {
+          setForm((f) => ({ ...f, key: "" }));
+          setKeyEditing(false);
+          setStatus({ kind: "error", text: aiErrorMessage("invalid_key_format") });
+          return;
+        }
         const key = form.key.trim();
         const view = await client.save({
           provider: form.provider,
@@ -75,6 +93,7 @@ export function AiSettingsModal({
         });
         setSaved(view);
         setForm(initialForm(view));
+        setKeyEditing(false);
         setStatus({ kind: "ok", text: COPY.saved });
       } catch (e) {
         fail(e);
@@ -95,6 +114,7 @@ export function AiSettingsModal({
         const view = await client.deleteKey();
         setSaved(view);
         setForm(initialForm(view));
+        setKeyEditing(false);
         setStatus({ kind: "ok", text: COPY.deleted });
       } catch (e) {
         fail(e);
@@ -160,14 +180,26 @@ export function AiSettingsModal({
               <p className="ai-settings-hint">{COPY.unsupportedModel}</p>
             )}
             <Field label={COPY.apiKey} error={err ? aiErrorMessage(err) : undefined}>
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={form.key}
-                placeholder={COPY.keyPlaceholder}
-                onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
-              />
+              {keyEditing ? (
+                <input
+                  ref={keyRef}
+                  type="password"
+                  name="ai-api-key"
+                  autoComplete="new-password"
+                  autoFocus
+                  spellCheck={false}
+                  value={form.key}
+                  placeholder={COPY.keyPlaceholder}
+                  onChange={(e) => {
+                    if (isAutofilled(e.target)) return;
+                    setForm((f) => ({ ...f, key: e.target.value }));
+                  }}
+                />
+              ) : (
+                <Btn type="button" onClick={() => setKeyEditing(true)}>
+                  {COPY.keyPlaceholder}
+                </Btn>
+              )}
             </Field>
             <p className="ai-settings-hint">
               {saved?.hasKey && saved.keyHint ? COPY.keySaved(saved.keyHint) : COPY.noKey}
