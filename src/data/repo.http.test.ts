@@ -156,6 +156,16 @@ describe("createHttpRepo", () => {
     expect(JSON.parse(call(fetchFn).init.body as string).location_name).toBeNull();
   });
 
+  test("a saved duplicate takes created_at from the server", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(ID);
+    const { repo, fetchFn } = setup(() =>
+      json({ item: { ...row, created_at: "2026-11-21T03:00:00Z" } }),
+    );
+    const saved = await repo.save(item({ id: "", createdAt: "2025-01-01T00:00:00Z" }));
+    expect(JSON.parse(call(fetchFn).init.body as string)).not.toHaveProperty("created_at");
+    expect(saved.createdAt).toBe("2026-11-21T03:00:00Z");
+  });
+
   const PHOTO_ID = "22222222-2222-4222-8222-222222222222";
   const DATA_URL = "data:image/jpeg;base64,AAAA";
 

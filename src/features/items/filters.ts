@@ -6,8 +6,15 @@ export const STALE_DAYS = 90;
 
 export const ageInDays = (date: string, now = Date.now()) => daysSince(date, now) ?? 999;
 
-export const isStale = (i: Pick<Item, "lastWorn">, now = Date.now()) =>
-  ageInDays(i.lastWorn, now) >= STALE_DAYS;
+export const isStale = (
+  i: Pick<Item, "lastWorn" | "wearCount" | "createdAt">,
+  now = Date.now(),
+) => {
+  if (i.wearCount > 0 || i.lastWorn !== "") return ageInDays(i.lastWorn, now) >= STALE_DAYS;
+  // D51: a never-worn item needs a known added date; an unknown age is not evidence of 90 days.
+  const added = daysSince(i.createdAt, now);
+  return added !== null && added >= STALE_DAYS;
+};
 
 export type ItemFilters = {
   status: string;
