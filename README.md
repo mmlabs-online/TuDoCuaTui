@@ -49,7 +49,7 @@ Supabase was removed in T-016 (D23); the old code is in git history.
 ## Deploy (home server, Cloudflare Tunnel)
 
 Production is `https://tudocuatui.mmlabs.online`, served from the home server (decision D20, replaces Cloudflare
-Pages). Same flow as stoktok: a `release/vX.Y.Z` push builds a Docker image on GitHub's runner, pushes it to Docker
+Pages). Same flow as stoktok: a `release/X.Y.Z` push builds a Docker image on GitHub's runner, pushes it to Docker
 Hub (`mingming21400/tudocuatui`) and opens a PR on `mmlabs-online/deployment`; merging that PR runs
 `deploy-tudocuatui` on the home server, which takes a backup, runs `node server/migrate.js`, replaces the app and
 waits for the health check (`/readyz`, database included), rolling back if it fails. The container is one Node
@@ -72,7 +72,7 @@ server verifies their bearer tokens. `DATABASE_URL` lives only in the host env f
    (HTTP, not HTTPS).
 5. If an old Cloudflare Pages project `tudocuatui` exists, delete it.
 
-**Release**: from an up-to-date `main`, `git push origin main:release/vX.Y.Z`. The `release` workflow checks that
+**Release**: from an up-to-date `main`, `git push origin main:release/X.Y.Z`. The `release` workflow checks that
 the commit is on `main`, the version is new and higher, and the secrets exist; tags it, builds and pushes the image,
 pulls the pushed digest back and smoke-tests it, then opens PR `release/tudocuatui-vX.Y.Z` on the deployment repo
 (it changes only `apps/tudocuatui/release.env`). Review and merge it; `deploy-tudocuatui` deploys and comments the
@@ -117,5 +117,5 @@ server. Container exits with code 2: the identity config is missing (`MM_IDENTIT
 | `docs/data-model.md` | ERD and design decisions |
 | `Dockerfile`, `.dockerignore` | Production image: Vite build + Node server (`server/`) on :3000, non-root |
 | `scripts/check-image.sh` | Image checks (config, layout, bundle, start exits, health, SPA fallback, no secrets, optional DB smoke) used by CI and `release.yml` |
-| `.github/workflows/release.yml` | `release/vX.Y.Z` push: tag, build, push image, open the deployment PR |
+| `.github/workflows/release.yml` | `release/X.Y.Z` push: tag, build, push image, open the deployment PR |
 | `deploy/deployment-repo/` | Drafts to copy into `mmlabs-online/deployment` (compose + deploy workflow) |
