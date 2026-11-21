@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | PLANNING |
+| State | IN_PROGRESS |
 | Severity | S2 |
 | Priority | P1 |
 | Size | XS |
@@ -13,7 +13,7 @@
 | Introduced in | v0.3.0 (F-704.1, commit 1d53aee) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-20 |
 | Claimed by | claude@2026-11-21T12:35:26Z |
 | PR | — |
