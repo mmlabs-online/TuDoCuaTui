@@ -102,9 +102,17 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-005 | AI settings button uses a sun-like icon instead of an "AI" icon | MERGED | P1 | XS | ui | — | none | 1 | 2026-11-17 |
 | BUG-006 | App UI tests time out intermittently on CI | MERGED | P1 | XS | architecture | — | none | 1 | 2026-11-18 |
 | BUG-007 | Signing out in one tab wipes another tab's saved account | MERGED | P2 | XS | security | — | plan-approval | 1 | 2026-11-19 |
+| BUG-010 | Chrome autofills the saved account password into the AI "API key" field | BACKLOG | P0 | XS | ui, security | — | none | 0 | 2026-11-20 |
 | BUG-008 | Stale "Tiếp tục với" list after a retry, and no re-list after a join-lookup sign-out | BLOCKED | P2 | XS | ui, security | — | plan-approval | 0 | 2026-11-19 |
 | BUG-009 | Editor test "a result for a replaced photo is ignored" fails intermittently | MERGED | P2 | XS | architecture | — | none | 2 | 2026-11-19 |
 | T-029 | Finish cross-tab sign-out (broadcast on lost sessions, fallback, retry sign-out) | BACKLOG | P2 | M | security, architecture | BUG-007 | plan-approval | 0 | 2026-11-19 |
 | T-030 | Decide whether a 403 from the API signs the user out | BACKLOG | P2 | XS | security | — | none | 0 | 2026-11-19 |
 | T-031 | Auth and server tidy-ups from T-028 | BACKLOG | P3 | S | security | BUG-008 | plan-approval | 0 | 2026-11-19 |
 | T-032 | AI outfits tidy-ups from F-704 | BACKLOG | P3 | S | ui | — | none | 0 | 2026-11-19 |
+| BUG-011 | Never-worn items show "hơn 1 năm" and a new item counts as "≥ 90 ngày chưa mặc" | BACKLOG | P1 | S | ui, data | — | none | 0 | 2026-11-20 |
+| BUG-012 | Outfit suggestion says "Mùa Đông" in hot weather | BACKLOG | P1 | XS | ui, data | — | none | 0 | 2026-11-20 |
+| BUG-013 | Cold weather suggests an off-shoulder party dress and heels with no warning | BACKLOG | P2 | S | ui, data | BUG-012 | none | 0 | 2026-11-20 |
+| BUG-014 | "−1" wear button is enabled at 0 wears and still sends a request | BACKLOG | P2 | XS | ui | — | none | 0 | 2026-11-20 |
+| BUG-015 | Last-worn label says "0 ngày trước" in the editor but "hôm nay" on the card | BACKLOG | P2 | XS | ui | — | none | 0 | 2026-11-20 |
+| BUG-016 | Modals have no dialog semantics or focus handling | BACKLOG | P2 | S | ui, ux | — | none | 0 | 2026-11-20 |
+| BUG-017 | Full-size photos used for small grid thumbnails; rendering slows down | BACKLOG | P2 | M | ui, data, architecture | — | none | 0 | 2026-11-20 |
