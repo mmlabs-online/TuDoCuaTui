@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | PLANNING |
+| State | IN_PROGRESS |
 | Severity | S2 |
 | Priority | P1 |
 | Size | S |
@@ -13,7 +13,7 @@
 | Introduced in | v0.1.0 (T-002, commit 45c35f2: `ageInDays` falls back to 999) |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-20 |
 | Claimed by | claude@2026-11-21T10:06:07Z |
 | PR | — |
