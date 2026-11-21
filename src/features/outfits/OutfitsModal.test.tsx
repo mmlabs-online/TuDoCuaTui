@@ -11,6 +11,7 @@ import type { Weather, WeatherClient } from "@/data/weather";
 import type { Item } from "@/types/item";
 
 const NOW = Date.UTC(2026, 6, 15, 5);
+const NOV = Date.UTC(2026, 10, 20, 5);
 let n = 0;
 const mk = (category: string, over: Partial<Item> = {}): Item => ({
   id: `m${++n}`,
@@ -156,7 +157,8 @@ test("cold weather adds Khoác in July", async () => {
   renderW([...dresses(3), mk("Khoác")], c);
   await settle();
   expect(screen.getAllByText("Khoác").length).toBeGreaterThan(0);
-  expect(screen.getAllByText(OUTFITS_COPY.reasons.cold).length).toBe(3);
+  // 3 chips plus the heading, which now also reads "Trời lạnh" (BUG-012).
+  expect(screen.getAllByText(OUTFITS_COPY.reasons.cold).length).toBe(4);
 });
 
 test("failing weather client still shows outfits and a short note", async () => {
@@ -575,4 +577,67 @@ test("weather timer cleared after the weather arrives", async () => {
   renderAi(aiItems(), undefined, c);
   await settle();
   expect(vi.getTimerCount()).toBe(base);
+});
+
+// ---- BUG-012: heading follows the weather actually used ----
+const heading = () => document.querySelector(".outfit-season")?.textContent;
+const novWeather = async (over: Partial<Weather>, items: Item[] = dresses(3)) => {
+  vi.setSystemTime(NOV);
+  localStorage.setItem(WEATHER_PLACE_KEY, "ho-chi-minh");
+  const { client: c } = client(async () => W({ place: "ho-chi-minh", ...over }));
+  renderW(items, c);
+  await settle();
+};
+
+test("hot weather in November: heading is Trời nóng, not Mùa Đông", async () => {
+  await novWeather({ minC: 25, maxC: 34, rainChance: 84 });
+  expect(heading()).toBe(OUTFITS_COPY.reasons.hot);
+});
+
+test("cold weather: heading is Trời lạnh", async () => {
+  await novWeather({ minC: 15, maxC: 20 });
+  expect(heading()).toBe(OUTFITS_COPY.reasons.cold);
+});
+
+test("weather off in November: heading stays Mùa Đông", () => {
+  vi.setSystemTime(NOV);
+  renderW(dresses(3), client(async () => W()).client);
+  expect(heading()).toBe("Mùa Đông");
+});
+
+test("weather failed in November: heading stays Mùa Đông", async () => {
+  vi.setSystemTime(NOV);
+  localStorage.setItem(WEATHER_PLACE_KEY, "ho-chi-minh");
+  const { client: c } = client(async () => {
+    throw new Error("down");
+  });
+  renderW(dresses(3), c);
+  await settle();
+  expect(heading()).toBe("Mùa Đông");
+});
+
+test("mild rainy day in November: heading stays Mùa Đông", async () => {
+  await novWeather({ minC: 25, maxC: 30, rainChance: 84 });
+  expect(heading()).toBe("Mùa Đông");
+});
+
+test("hot weather chip says Hợp mùa, never Hợp mùa Đông", async () => {
+  await novWeather({ minC: 25, maxC: 34, rainChance: 84 }, dresses(3, { seasons: ["Hạ"] }));
+  expect(screen.getAllByText(OUTFITS_COPY.reasons.seasonFit).length).toBe(3);
+  expect(screen.queryByText("Hợp mùa Đông")).toBeNull();
+});
+
+test("AI on, hot in November: still sends the calendar season with hot=true", async () => {
+  vi.setSystemTime(NOV);
+  localStorage.setItem(WEATHER_PLACE_KEY, "ho-chi-minh");
+  const { client: c } = client(async () => W({ place: "ho-chi-minh", minC: 25, maxC: 34 }));
+  const items = aiItems();
+  const ai = aiProps();
+  ai.outfits.suggest.mockResolvedValue(three(items));
+  renderAi(items, ai, c);
+  await settle();
+  await turnOn();
+  const [input] = ai.outfits.suggest.mock.calls[0];
+  expect(input.season).toBe("winter");
+  expect(input.weather.hot).toBe(true);
 });

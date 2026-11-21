@@ -22,6 +22,15 @@ describe("OUTFITS_COPY", () => {
   });
 });
 
+describe("OUTFITS_COPY.heading", () => {
+  it("heading", () => {
+    expect(OUTFITS_COPY.heading("Đông", { cold: false, hot: true })).toBe("Trời nóng");
+    expect(OUTFITS_COPY.heading("Hạ", { cold: true, hot: false })).toBe("Trời lạnh");
+    expect(OUTFITS_COPY.heading("Thu", { cold: false, hot: false })).toBe("Mùa Thu");
+    expect(OUTFITS_COPY.reasons.seasonFit).toBe("Hợp mùa");
+  });
+});
+
 describe("OUTFITS_COPY.ai", () => {
   it("ai.note covers every AI error code", () => {
     for (const code of [...Object.keys(AI_ERROR_STATUS), ...AI_CLIENT_ERROR_CODES]) {

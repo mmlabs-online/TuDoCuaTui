@@ -1,17 +1,23 @@
 import { needsSettings } from "@/features/items/aiFill";
 
+const COLD = "Trời lạnh";
+const HOT = "Trời nóng";
+
 export const OUTFITS_COPY = {
   entry: "Hôm nay mặc gì?",
   eyebrow: "GỢI Ý HÔM NAY",
   title: "Hôm nay mặc gì?",
   season: (s: string) => `Mùa ${s}`,
+  heading: (s: string, w: { cold: boolean; hot: boolean }) =>
+    w.hot ? HOT : w.cold ? COLD : `Mùa ${s}`,
   outfitLabel: (n: number) => `Bộ ${n}`,
   reasons: {
     neverWorn: "Chưa mặc lần nào",
     stale: "Lâu chưa mặc",
     season: (s: string) => `Hợp mùa ${s}`,
-    cold: "Trời lạnh",
-    hot: "Trời nóng",
+    seasonFit: "Hợp mùa",
+    cold: COLD,
+    hot: HOT,
     rain: "Có thể mưa",
   },
   weather: {
