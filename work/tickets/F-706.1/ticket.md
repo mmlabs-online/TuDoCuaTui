@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -10,10 +10,10 @@
 | Areas | db, security, architecture |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | M-43 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-22T04:19:21Z |
 | PR | — |
 
 ## Goal
@@ -58,6 +58,7 @@ Give every user an AI credit balance kept in a Postgres ledger, so paid AI calls
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-22 — Plan approved by Ming ("duyệt F-706.1"), with the plan's default assumptions A1–A12 (incl. A3 snapshot at the F-706.1 deploy, A4 amount fixed at creation for now, A5 monthly credits for new accounts immediately).
 
 ## Handoff
 
