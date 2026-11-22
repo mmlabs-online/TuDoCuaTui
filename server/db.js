@@ -127,3 +127,23 @@ export async function withSpendMeter(pool, fn, { readOnly = false } = {}) {
     fn,
   );
 }
+
+/**
+ * Transaction for shared app keys (F-706.3): policies ai_app_keys_*. Only server/ai/appKeys.js calls it.
+ * @template T
+ * @param {{ connect?(): Promise<any> }} pool
+ * @param {(client: any) => Promise<T>} fn
+ * @param {{ readOnly?: boolean }} [opts]
+ * @returns {Promise<T>}
+ */
+export async function withAppKeys(pool, fn, { readOnly = false } = {}) {
+  return inTx(
+    pool,
+    [
+      "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+      "app-keys",
+    ],
+    readOnly,
+    fn,
+  );
+}

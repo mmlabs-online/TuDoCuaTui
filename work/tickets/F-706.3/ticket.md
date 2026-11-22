@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-22 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/106 |
 
 ## Goal
 Let the owner store, replace and test one shared AI key per provider on the server, ready for the cutover but not yet used by any AI route.
@@ -32,12 +32,12 @@ Let the owner store, replace and test one shared AI key per provider on the serv
 - Deleting BYOK ciphertext (F-706.8). An OpenAI image adapter (F-708.2).
 
 ## Acceptance criteria
-- [ ] Non-owners get 403 on every key route, and no response ever contains the key or its hint for them.
-- [ ] The owner can store, replace and test a key per provider; the test reports success or a provider error code without returning the key.
-- [ ] The crypto `VERSION` is not bumped and existing v2 BYOK ciphertext still decrypts (test).
-- [ ] No AI route reads the shared key yet (test or code-path check).
-- [ ] The new table has RLS and is covered by the RLS tests.
-- [ ] All checks pass (format, typecheck, test, build).
+- [x] Non-owners get 403 on every key route, and no response ever contains the key or its hint for them.
+- [x] The owner can store, replace and test a key per provider; the test reports success or a provider error code without returning the key.
+- [x] The crypto `VERSION` is not bumped and existing v2 BYOK ciphertext still decrypts (test).
+- [x] No AI route reads the shared key yet (test or code-path check).
+- [x] The new table has RLS and is covered by the RLS tests.
+- [x] All checks pass (format, typecheck, test, build).
 
 ## Technical notes
 - High tier: touches `server/**` and/or `db/migrations/**` (loop.config.md High paths), so the loop stops after PLAN until Ming approves the plan.
@@ -51,5 +51,19 @@ Let the owner store, replace and test one shared AI key per provider on the serv
 - Manual: none (Ming tests the real key via F-706.6).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- 2026-11-22 — Plan approved by Ming ("duyệt"), with assumptions A1–A4 (providers claude/gemini/openai, model list checks, /api/admin/ai-keys path, app-v1 crypto format).
 
 ## Handoff
+
+### 2026-11-22 — claude — DONE
+- Done: F-706.3 implemented and verified. Migration `20261122160000_ai_app_keys.sql`, `withAppKeys` in `server/db.js`, `sealAppKey`/`openAppKey` in `server/ai/crypto.js`, pure OpenAI key checker in `server/ai/openai.js`, app key store in `server/ai/appKeys.js`, owner-only admin routes `/api/admin/ai-keys*` in `server/ai/adminRoutes.js`. All 8 test files (109 tests) green against Postgres 17. PR #106 opened.
+- In progress / next: Ming merges PR #106.
+
+### 2026-11-22 — claude — plan approved
+- Done: M-46 plan approved by Ming.
+- In progress / next: start implementation (migration 20261122160000_ai_app_keys, server/ai/appKeys.js, admin routes, DB tests).
+
+### 2026-11-22 — claude — BLOCKED
+- Done: consults database-optimizer + software-architect; plan READY (ai_app_keys with maintenance session RLS on tudo.maintenance='app-keys', withAppKeys helper, sealAppKey/openAppKey with app-v1 format, checkOpenAiKey, owner-only /api/admin/ai-keys routes).
+- In progress / next: waiting for Ming's plan approval (M-46, assumptions A1–A4); implementation starts after approval.
