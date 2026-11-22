@@ -62,3 +62,57 @@ Scope: a read-only review of `db/migrations/20261122120000_credit_ledger.sql`, `
 
 ### Verdict
 **PASS.** No blockers and no should-fix findings in this diff. This assumes the green checks reported in impl-log attempt 1, which the main reviewer must confirm (R8).
+
+## Attempt 2 — 2026-11-22 — security-ai-generated-code-auditor
+
+Scope: a read-only review of the attempt-2 changes only. I read:
+- `/home/user/TuDoCuaTui/server/ai/credits.db.test.ts` (the whole file)
+- `/home/user/TuDoCuaTui/db/migrations/README.md`
+- the lock helper in `/home/user/TuDoCuaTui/server/ai/credits.js:108-110`
+- impl-log Attempt 2, and review.md attempts 1 and 2
+
+I did not run git or the checks. The reviewer's attempt-2 run reports 2212 tests passing, the DB suites running, and the lock-removal mutation caught. I relied on that and did not re-run anything. No production code changed, so attempt 1 findings 1–10 still stand as written.
+
+### Findings
+
+**🔴 Blockers:** none.
+
+**🟡 Should-fix:** none.
+
+**🟢 Notes**
+
+1. **The deleted Vitest report (`.vitest/json/output.json`): no secret concern found, with one caveat.** The file is deleted, so I could not read it.
+   - A Vitest JSON reporter writes test names, file paths, pass/fail status and failure messages. It does not write environment variables.
+   - The only credential that could plausibly appear is in a failure message: the `TEST_DATABASE_URL` of the implementer's throwaway local Postgres cluster. That cluster was local only, used scram auth, and has been stopped and removed (impl-log attempt 1 and 2). Even if it appears, it is not a live secret, so nothing needs rotating.
+   - No production secret could be in that file. The app's secrets (Identity, Drive, AI key) are not used by the test suites that produced it.
+   - Caveat: the file is still in the history of commit `052b99b` on `ticket/F-706.1`, because `git rm` only removes it from later commits. If anyone wants to be certain, check the blob with `git show 052b99b:.vitest/json/output.json | grep -iE 'postgres(ql)?://|password|secret|token|key='` before merging. A squash merge keeps it out of `main`'s history altogether. This is optional.
+   - Adding `.vitest/` to `.gitignore` remains a follow-up, as both reviews already note.
+
+2. **The 8-parallel test is stronger, not weaker** (`credits.db.test.ts:154-165`).
+   - It now pre-inserts a pending welcome row. That removes the accidental serialization on the `credit_grants_welcome_once` unique index, so the test now depends on the advisory lock.
+   - It also adds two assertions on the pending welcome under concurrency: the 7 losers return `welcome_pending` (not `reserved`), and `balance().total` is 0 afterwards even though a 300-credit welcome row exists. So a pending welcome is now proven never to count while calls run in parallel, on top of the existing serial welcome tests (`:399-425`).
+
+3. **The new lock-wait test matches the production lock and proves it is per user** (`credits.db.test.ts:167-195`).
+   - The holder takes `pg_advisory_xact_lock(hashtextextended('credits:' || $1::text, 0))`, the same expression as `credits.js:110`. A real wait therefore proves the module takes that lock before it touches any data.
+   - `reserve(OWNER_B)` completes while A's lock is held, so one user's lock does not block another user.
+   - `reserve(A)` returns `reserved` after the commit, which shows the waiting call goes on to read committed state.
+   - The 300 ms window can only fail safe: a slow machine could at worst let a missing lock pass, never fail a correct implementation. Per the reviewer, the deterministic test failed in 5 of 5 lock-removed runs.
+   - Cleanup is sound: `rollback` after `commit` is a caught no-op, and the client is always released.
+   - The holder connects through the `admin` pool. That only takes a session-level advisory lock and reads no credit rows, so the test does not go around RLS.
+
+4. **RLS coverage is unchanged.**
+   - The `RLS` describe (`:488-507`) is unchanged.
+   - The `rls.db.test.ts`, `schema.db.test.ts` and `migrator.db.test.ts` credit tests are not part of this delta.
+   - The new tests run the ledger through the owner-role `pool` (NOSUPERUSER, FORCE applies). Only fixtures and the lock holder use `admin`, the same pattern as attempt 1.
+
+5. **The test rename has no security effect.** `:455` is now "two different users behave the same (no owner parameter)". Per the reviewer the body is unchanged, and it still asserts that OWNER_A and OWNER_B get identical results (no owner exemption).
+
+6. **The README change is indentation only** (`db/migrations/README.md:23-26`). The rule text is unchanged: only `credit_settings` gets a narrow policy instead of `owner_only`, and credit tables are not part of backup or restore.
+
+### Follow-ups (out of scope)
+- Add `.vitest/` to `.gitignore` (via `/solo`).
+- Optional: scan the `052b99b` blob as described in note 1, or squash-merge.
+- Carried over from attempt 1 and still open: narrow the user-side credit policies in F-706.5 (attempt 1 note 10), and the F-706.4 route handling for replay, expiry and timeouts.
+
+### Verdict
+**PASS.** No blockers and no should-fix findings. The attempt-2 test changes make the security properties more strongly tested: the concurrency and lock tests now fail without the advisory lock, and a pending welcome is shown not to count under concurrency. RLS coverage is unchanged. The deleted report raises no live-secret concern.

@@ -80,3 +80,61 @@ Ming verification after merge (not mine to verify; the PR must carry these):
 ### Follow-ups (out of scope)
 - Add `.vitest/` to `.gitignore` (via `/solo`) so reporter output cannot be committed again.
 - The plan's follow-ups stand: F-706.4 balance route and one key per attempt; F-706.5 `withAdmin`, admin policies, approval amount rule (A4), manual grant `op_key`; stale R2/R3/R4 wording in CLAUDE.md.
+
+## Attempt 2 — 2026-11-22
+Verdict: PASS
+
+### Checks (run by reviewer)
+Run on commit e11637b against a throwaway Postgres 16.15 cluster (`/tmp/pg-rv7061b`, initdb `--auth=scram-sha-256`; stopped and removed afterwards), `TEST_DATABASE_URL` set.
+- `pnpm typecheck` — clean, exit 0.
+- `pnpm format:check` — exit 0, "All matched files use the correct format" (341 files).
+- `pnpm test` — exit 0. 151 files, 2212 tests passed, 0 skipped. DB suites ran, none skipped: 12 `*.db.test.ts` files, 248 tests (credits.db 23 = attempt 1's 22 + the new lock test). With `server/db.test.ts` (12) that is 13 files / 260.
+- `pnpm build` — built OK, exit 0.
+- Tracked files: `git ls-files` lists no `.vitest/`, coverage, or report output (the only match is `vitest.config.ts`). The working tree is clean after the runs.
+
+### Mutation checks (scratch copy of HEAD via `git archive`, `credits.js:110` lock query → `Promise.resolve()`)
+| Run | Without the lock (`-t concurrency`) | With the lock restored |
+|---|---|---|
+| 1 | 3 of 4 failed (8-parallel photo_fill, lock-wait, sticker) | 4/4 passed |
+| 2 | 2 of 4 failed (lock-wait, sticker) | 4/4 passed |
+| 3 | 3 of 4 failed | 4/4 passed |
+| 4 | 3 of 4 failed | 4/4 passed |
+| 5 | 3 of 4 failed | 4/4 passed |
+
+The new deterministic test `credits.db.test.ts:167` failed in 5 of 5 mutant runs. `:154` failed in 4 of 5, and at least two concurrency tests failed in every run. A missing advisory lock is now caught. This matches impl-log attempt 2.
+
+### Acceptance criteria
+- [x] 1. Concurrent requests cannot overspend. Evidence: `credits.db.test.ts:154` (8 parallel reserves, pending welcome row added beforehand so the unique index no longer serializes the calls), `:167` (reserve(A) blocks on the per-user lock for more than 300 ms while reserve(B) completes, then A reserves once the lock is released), `:197` (sticker split). The mutation table above shows the tests detect the mechanism.
+- [x] 2. Same idempotency key never reserves or charges twice. Unchanged since attempt 1. Evidence as in attempt 1. The tests pass.
+- [x] 3. A refund returns credits and a commit makes them spent. Unchanged. Tests pass.
+- [x] 4. Monthly UTC+7 expiry, no rollover, spent first. Unchanged. Tests pass.
+- [x] 5. Welcome 300 exactly once for existing accounts, pending for new ones, owner like anyone. Unchanged. The test at `credits.db.test.ts` "two different users behave the same" was renamed only, and its body is the same.
+- [x] 6. RLS ENABLE + FORCE in the same migration, covered by RLS tests. Unchanged. Tests pass.
+- [x] 7. All checks pass. See Checks above.
+- [x] 8. Inert, and out of backup/restore. Unchanged. `credits.test.ts` passes.
+
+Ming verification after merge (the PR must carry these):
+- Check that `migrate` logs `applied 20261122120000_credit_ledger` on deploy.
+- Optional read-only SQL: `select count(*), min(amount), max(amount) from credit_grants where bucket = 'welcome' and approved_at is not null;` should give the number of accounts with saved data (incl. Ming), amount 300.
+
+### Issues
+None. Both attempt-1 blockers are resolved:
+- Issue 1: `.vitest/json/output.json` removed in e11637b; `format:check` exit 0.
+- Issue 2: `credits.db.test.ts:156` pre-inserts the pending welcome row, and the new test `:167` checks the lock directly. The mutation is caught on every run.
+
+### Scope
+Delta `052b99b..e11637b`: `.vitest/json/output.json` (deleted), `db/migrations/README.md` (attempt-1 nit, indent only), `server/ai/credits.db.test.ts` (Issue 2 fix, test title nit), plus the ticket's work files. No production code changed in the delta. Whole ticket (`origin/main...HEAD`): 13 code/doc files, all in the plan's file list (same set as attempt 1, minus the stray report). No unplanned High path.
+
+### Rules (CLAUDE.md)
+No violations found. R7: no out-of-plan file remains. R8: the AC 1 mechanism now has a test that detects its removal. All other rules are as judged in attempt 1.
+
+### Blockers from review agents
+- security-ai-generated-code-auditor (security-review.md, attempt 1): PASS. The attempt-2 delta touches only tests and docs. None.
+
+### Nits (do not block)
+- 💭 `credits.db.test.ts:167`: the 300 ms "not settled" window is timing-based. It fails safe: a slow machine could only make a missing lock pass, never fail a correct implementation. The other two concurrency tests back it up.
+- 💭 `credits.js` (reserve, end): the `row` / `ins.rows[0]` double check from attempt 1 is still there. Readability only.
+
+### Follow-ups (out of scope)
+- Add `.vitest/` to `.gitignore` (via `/solo`).
+- The plan's follow-ups stand: F-706.4 balance route and one key per attempt; F-706.5 `withAdmin`, admin policies, approval amount rule (A4), manual grant `op_key`; stale R2/R3/R4 wording in CLAUDE.md.

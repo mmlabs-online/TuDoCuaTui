@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REWORK |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -11,9 +11,9 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 1 |
+| Attempts | 2 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-22T04:19:21Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -66,3 +66,8 @@ Waiting for Ming: plan approval (High tier)
 - Done: consults database-optimizer + software-architect; plan READY (migration with credit_settings/credit_grants/credit_ops + existing-account snapshot; server/ai/credits.js + creditMath.js, inert; RLS_TABLES per-table versions; DB tests incl. 8 parallel reserves).
 - In progress / next: waiting for Ming's plan approval (M-43) incl. assumptions A1–A7; then implement.
 - Gotchas: migrator.db.test.ts withExtra version must move to 29991231235959; hotspot with F-706.2/.3, F-707.3, F-708.1 (test lists, RLS_TABLES, migration version).
+
+### 2026-11-22 — claude — DONE
+- Done: migration 20261122120000_credit_ledger (credit_settings, credit_grants, credit_ops, existing-account snapshot); server/ai/credits.js + creditMath.js (inert); RLS_TABLES per-table versions. Attempt 1 REWORK (stray .vitest report; lock not proven by tests); attempt 2 PASS. Security PASS both attempts. The deleted report's blob (052b99b) holds only test names/statuses (checked).
+- In progress / next: Ming merges the PR; then F-706.2 / F-706.3.
+- Gotchas: migration version must stay newest on main (re-stamp if another migration lands first); F-706.5 should narrow user-side credit policies (security note 10); F-706.4 replay/expiry/timeouts.
