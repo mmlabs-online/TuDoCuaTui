@@ -1,5 +1,6 @@
 // @ts-check
 // /api router. Called by app.js only after the auth check, with the raw pathname (never decoded).
+import { handleAdminAiKeys } from "./ai/adminRoutes.js";
 import { handleAiSettings } from "./ai/routes.js";
 import { handleSuggestOutfits } from "./ai/suggestOutfits.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
@@ -38,6 +39,15 @@ function match(parts) {
   }
   if (parts.length === 4 && a === "auth" && b === "me")
     return { route: "/api/auth/me", allow: "GET" };
+  if (parts.length === 4 && a === "admin" && b === "ai-keys") {
+    return { route: "/api/admin/ai-keys", allow: "GET" };
+  }
+  if (parts.length === 5 && a === "admin" && b === "ai-keys" && c) {
+    return { route: "/api/admin/ai-keys/:provider", allow: "PUT, DELETE" };
+  }
+  if (parts.length === 6 && a === "admin" && b === "ai-keys" && c && parts[5] === "test") {
+    return { route: "/api/admin/ai-keys/:provider/test", allow: "POST" };
+  }
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
@@ -120,6 +130,16 @@ export async function handleApi(
   }
   if (m.route === "/api/weather") {
     return await handleWeather(req, res, { weather, userId, query, id, log });
+  }
+  if (m.route.startsWith("/api/admin/ai-keys")) {
+    return await handleAdminAiKeys(req, res, {
+      parts,
+      userId,
+      ownerSub,
+      appKeys: ai?.appKeys ?? null,
+      id,
+      log,
+    });
   }
   if (m.route === "/api/ai/tag-photo")
     return await handleTagPhoto(req, res, { ai, userId, id, log });

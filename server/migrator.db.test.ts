@@ -252,7 +252,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(10);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(11);
         expect(
           (
             await query(
@@ -615,6 +615,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
   describe("credit ledger (F-706.1)", () => {
     const CREDIT = "20261122120000_credit_ledger.sql";
     const SPEND = "20261122140000_ai_spend_meter.sql";
+    const APP_KEYS = "20261122160000_ai_app_keys.sql";
     const CREDIT_TABLES = ["credit_grants", "credit_ops", "credit_settings"];
     const uid = (n: number) => `0190a6f2-7c3e-7b8a-9d4e-${String(n).padStart(12, "0")}`;
     const [U1, U2, U3, U4, NEW_USER] = [uid(1), uid(2), uid(3), uid(4), uid(5)];
@@ -627,6 +628,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       await cp(realDir, dir, { recursive: true });
       await unlink(path.join(dir, CREDIT));
       await unlink(path.join(dir, SPEND)).catch(() => {});
+      await unlink(path.join(dir, APP_KEYS)).catch(() => {});
       if (extra) await writeFile(path.join(dir, extra[0]), extra[1]);
       return dir;
     }
@@ -680,8 +682,12 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       expect(
         await query(db.url, "select welcome_amount, monthly_amount from credit_settings"),
       ).toEqual([{ welcome_amount: 300, monthly_amount: 60 }]);
-      expect(await forced(db.url, [...TABLES, ...CREDIT_TABLES, "ai_spend_ops"])).toEqual(
-        [...TABLES, ...CREDIT_TABLES, "ai_spend_ops"].sort().map((t) => `${t}:true:true`),
+      expect(
+        await forced(db.url, [...TABLES, ...CREDIT_TABLES, "ai_spend_ops", "ai_app_keys"]),
+      ).toEqual(
+        [...TABLES, ...CREDIT_TABLES, "ai_spend_ops", "ai_app_keys"]
+          .sort()
+          .map((t) => `${t}:true:true`),
       );
     });
 
@@ -705,6 +711,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       ]);
       await cp(path.join(realDir, CREDIT), path.join(dir, CREDIT));
       await cp(path.join(realDir, SPEND), path.join(dir, SPEND));
+      await cp(path.join(realDir, APP_KEYS), path.join(dir, APP_KEYS));
       const err = await run(dir).catch((e) => e);
       expect(err).toBeInstanceOf(MigrationError);
       expect(err.message).toMatch(/row level security not forced on credit_ops/);
@@ -726,6 +733,22 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       expect(err.message).toMatch(/row level security not forced on ai_spend_ops/);
       expect(await versions()).not.toContain("29991231235959");
       expect(await forced(db.url, ["ai_spend_ops"])).toEqual(["ai_spend_ops:true:true"]);
+    });
+
+    it("a later file that leaves ai_app_keys unforced fails the guard and rolls back", async () => {
+      await run(realDir);
+      const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+      tmpDirs.push(dir);
+      await cp(realDir, dir, { recursive: true });
+      await writeFile(
+        path.join(dir, "29991231235959_extra.sql"),
+        "alter table ai_app_keys no force row level security;",
+      );
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/row level security not forced on ai_app_keys/);
+      expect(await versions()).not.toContain("29991231235959");
+      expect(await forced(db.url, ["ai_app_keys"])).toEqual(["ai_app_keys:true:true"]);
     });
   });
 });

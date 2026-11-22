@@ -1,6 +1,7 @@
 // @ts-check
 // Request router: health, readiness, /api guard, static SPA. Injectable for tests.
 import { randomUUID } from "node:crypto";
+import { createAppKeyStore } from "./ai/appKeys.js";
 import { createAiStore } from "./ai/store.js";
 import { createLimiter } from "./ai/rateLimit.js";
 import { handleApi } from "./api.js";
@@ -18,7 +19,7 @@ import { serveStatic } from "./static.js";
  * @param {{
  *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
- *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, fetch?: typeof globalThis.fetch } | null,
+ *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, appKeys?: ReturnType<typeof import("./ai/appKeys.js").createAppKeyStore>, fetch?: typeof globalThis.fetch } | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   auth: import("./auth.js").Auth,
  *   authMode?: string,
@@ -68,6 +69,9 @@ export function createApp({
   const aiContext = ai && {
     kek: ai.kek,
     store: ai.store ?? (pool ? createAiStore(pool) : null),
+    appKeys:
+      ai.appKeys ??
+      (pool ? createAppKeyStore(pool, ai.kek, { fetch: ai.fetch ?? globalThis.fetch }) : null),
     limiter: createLimiter({ now, ownerSub }),
     // Tag-photo calls in flight: 1 per user, 2 in total (this app instance).
     tagSlots: createInFlight({ perUser: 1, total: 2, exempt: ownerSub }),

@@ -83,3 +83,61 @@ export async function openKey(kek, userId, provider, sealed) {
   );
   return new TextDecoder().decode(pt);
 }
+
+export const APP_KEY_VERSION = "app-v1";
+const APP_AAD_PREFIX = "tudocuatui-app-key|v1|";
+
+/**
+ * Seals an app-wide shared key with AES-256-GCM (F-706.3, D52). AAD binds the key to its provider.
+ * Format: "app-v1:" + base64(IV || ciphertext+tag).
+ * @param {AiKek} kek @param {string} provider @param {string} plaintext @returns {Promise<string>}
+ */
+export async function sealAppKey(kek, provider, plaintext) {
+  if (typeof provider !== "string" || !provider) throw new Error("bad_provider");
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const ct = new Uint8Array(
+    await globalThis.crypto.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: new TextEncoder().encode(`${APP_AAD_PREFIX}${provider}`),
+      },
+      kek,
+      new TextEncoder().encode(plaintext),
+    ),
+  );
+  return `${APP_KEY_VERSION}:${Buffer.concat([iv, ct]).toString("base64")}`;
+}
+
+/**
+ * Opens a stored app key; throws on any failure (wrong KEK, wrong provider, tampering, unknown version).
+ * @param {AiKek} kek @param {string} provider @param {string} sealed @returns {Promise<string>}
+ */
+export async function openAppKey(kek, provider, sealed) {
+  if (typeof provider !== "string" || !provider) throw new Error("bad_provider");
+  const prefix = `${APP_KEY_VERSION}:`;
+  if (!sealed.startsWith(prefix)) throw new Error("unreadable");
+  let bytes;
+  try {
+    bytes = fromBase64(sealed.slice(prefix.length));
+  } catch {
+    throw new Error("unreadable");
+  }
+  if (bytes.length <= IV_BYTES) throw new Error("unreadable");
+  const iv = bytes.slice(0, IV_BYTES);
+  const ct = bytes.slice(IV_BYTES);
+  try {
+    const pt = await globalThis.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: new TextEncoder().encode(`${APP_AAD_PREFIX}${provider}`),
+      },
+      kek,
+      ct,
+    );
+    return new TextDecoder().decode(pt);
+  } catch {
+    throw new Error("unreadable");
+  }
+}

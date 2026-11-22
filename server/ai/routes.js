@@ -19,7 +19,7 @@ import {
 } from "./validate.js";
 
 /** @typedef {import("./store.js").AiStore} AiStore */
-/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, limiter: { check(userId: string, kind: "save" | "test" | "tag" | "suggest"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, suggestSlots: { tryAcquire(userId: string): (() => void) | null }, bodyTimeouts?: { totalMs: number, idleMs: number }, fetch: typeof globalThis.fetch }} AiContext */
+/** @typedef {{ kek: import("./crypto.js").AiKek, store: AiStore | null, appKeys?: ReturnType<typeof import("./appKeys.js").createAppKeyStore> | null, limiter: { check(userId: string, kind: "save" | "test" | "tag" | "suggest"): boolean }, tagSlots: { tryAcquire(userId: string): (() => void) | null }, suggestSlots: { tryAcquire(userId: string): (() => void) | null }, bodyTimeouts?: { totalMs: number, idleMs: number }, fetch: typeof globalThis.fetch }} AiContext */
 
 /** @param {import("./store.js").AiSettingsRow} row @returns {import("./catalog.js").AiSettingsView} */
 function toView(row) {

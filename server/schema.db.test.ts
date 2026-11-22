@@ -249,6 +249,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     );
     expect(rls.rows).toEqual(
       [
+        "ai_app_keys",
         "ai_settings",
         "ai_spend_ops",
         "credit_grants",
@@ -289,6 +290,25 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
       "select 1 from information_schema.columns where table_name = 'ai_settings' and column_name = 'id'",
     );
     expect(id.rows).toEqual([]);
+  });
+
+  it("ai_app_keys: primary key is (provider), check constraint enforces provider allowlist", async () => {
+    const pk = await pool.query(
+      "select a.attname from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey) where i.indrelid = 'ai_app_keys'::regclass and i.indisprimary",
+    );
+    expect(pk.rows).toEqual([{ attname: "provider" }]);
+
+    for (const p of ["claude", "gemini", "openai"]) {
+      await pool.query(
+        "insert into ai_app_keys (provider, key_ciphertext, key_hint) values ($1, 'cipher', 'hint')",
+        [p],
+      );
+    }
+    await expect(
+      pool.query(
+        "insert into ai_app_keys (provider, key_ciphertext, key_hint) values ('other', 'cipher', 'hint')",
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
   });
 
   describe("contract (T-019.2)", () => {

@@ -2,7 +2,7 @@
 // Row level security (T-019.4, D32), run as the NOSUPERUSER owner role so RLS really applies.
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createPool, withMaintenance, withSpendMeter, withUser } from "./db.js";
+import { createPool, withAppKeys, withMaintenance, withSpendMeter, withUser } from "./db.js";
 import { removeItem, saveItem } from "./items.js";
 import { runMigrations } from "./migrator.js";
 import { OWNER_A, OWNER_B } from "./test/auth.js";
@@ -41,7 +41,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
   });
   beforeEach(async () => {
     await admin.query(
-      "truncate wear_logs, item_photos, items, locations, ai_settings, credit_ops, credit_grants, ai_spend_ops cascade",
+      "truncate wear_logs, item_photos, items, locations, ai_settings, credit_ops, credit_grants, ai_spend_ops, ai_app_keys cascade",
     );
     for (const [u, item, n] of [
       [OWNER_A, ITEM_A, "A"],
@@ -86,7 +86,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
   });
 
   it("no GUC: every table and the view return 0 rows", async () => {
-    for (const t of [...READABLE, "ai_spend_ops"]) expect(await count(t), t).toBe(0);
+    for (const t of [...READABLE, "ai_spend_ops", "ai_app_keys"]) expect(await count(t), t).toBe(0);
   });
 
   it("withUser(A) sees only A's rows; withUser(B) only B's", async () => {
@@ -277,7 +277,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
           and c.relname <> 'schema_migrations'`,
     );
     expect(r.rows.map((x) => x.relname).sort()).toEqual(
-      [...TABLES, ...CREDIT_USER_TABLES, "credit_settings", "ai_spend_ops"].sort(),
+      [...TABLES, ...CREDIT_USER_TABLES, "credit_settings", "ai_spend_ops", "ai_app_keys"].sort(),
     );
     for (const x of r.rows) {
       expect(x.relrowsecurity, x.relname).toBe(true);
@@ -301,6 +301,38 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       with_check: owner,
     });
     expect(r.rows).toEqual([
+      {
+        tablename: "ai_app_keys",
+        policyname: "ai_app_keys_delete",
+        cmd: "DELETE",
+        permissive: "PERMISSIVE",
+        qual: "(current_setting('tudo.maintenance'::text, true) = 'app-keys'::text)",
+        with_check: null,
+      },
+      {
+        tablename: "ai_app_keys",
+        policyname: "ai_app_keys_insert",
+        cmd: "INSERT",
+        permissive: "PERMISSIVE",
+        qual: null,
+        with_check: "(current_setting('tudo.maintenance'::text, true) = 'app-keys'::text)",
+      },
+      {
+        tablename: "ai_app_keys",
+        policyname: "ai_app_keys_select",
+        cmd: "SELECT",
+        permissive: "PERMISSIVE",
+        qual: "(current_setting('tudo.maintenance'::text, true) = 'app-keys'::text)",
+        with_check: null,
+      },
+      {
+        tablename: "ai_app_keys",
+        policyname: "ai_app_keys_update",
+        cmd: "UPDATE",
+        permissive: "PERMISSIVE",
+        qual: "(current_setting('tudo.maintenance'::text, true) = 'app-keys'::text)",
+        with_check: "(current_setting('tudo.maintenance'::text, true) = 'app-keys'::text)",
+      },
       row("ai_settings"),
       {
         tablename: "ai_spend_ops",
@@ -477,6 +509,62 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       } finally {
         c.release();
       }
+    });
+  });
+
+  describe("app keys (F-706.3)", () => {
+    it("withAppKeys can CRUD; withUser reads 0 rows and cannot write; other maintenance cannot access", async () => {
+      await withAppKeys(pool, async (c: any) => {
+        expect((await c.query("select * from ai_app_keys")).rowCount).toBe(0);
+
+        const ins = await c.query(
+          "insert into ai_app_keys (provider, key_ciphertext, key_hint) values ('claude', 'cipher1', 'hint1') returning *",
+        );
+        expect(ins.rowCount).toBe(1);
+
+        const sel = await c.query("select * from ai_app_keys where provider = 'claude'");
+        expect(sel.rowCount).toBe(1);
+        expect(sel.rows[0].key_hint).toBe("hint1");
+
+        const upd = await c.query(
+          "update ai_app_keys set key_hint = 'hint2' where provider = 'claude' returning *",
+        );
+        expect(upd.rowCount).toBe(1);
+        expect(upd.rows[0].key_hint).toBe("hint2");
+
+        const del = await c.query("delete from ai_app_keys where provider = 'claude'");
+        expect(del.rowCount).toBe(1);
+
+        // User tables read 0 rows
+        for (const t of ["items", "locations", "wear_logs", "ai_settings", ...CREDIT_USER_TABLES]) {
+          expect((await c.query(`select 1 from ${t}`)).rowCount, t).toBe(0);
+        }
+      });
+
+      // Seed a row directly with admin
+      await admin.query(
+        "insert into ai_app_keys (provider, key_ciphertext, key_hint) values ('gemini', 'cg', 'hg')",
+      );
+
+      // withUser sees 0 rows and fails on write with 42501
+      await withUser(pool, OWNER_A, async (c) => {
+        expect((await c.query("select * from ai_app_keys")).rowCount).toBe(0);
+      });
+      await expect(
+        withUser(pool, OWNER_A, (c) =>
+          c.query(
+            "insert into ai_app_keys (provider, key_ciphertext, key_hint) values ('claude', 'cx', 'hx')",
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+
+      // Other maintenance (e.g. photo-sweep or ai-spend) sees 0 rows
+      await withMaintenance(pool, "photo-sweep", async (c) => {
+        expect((await c.query("select * from ai_app_keys")).rowCount).toBe(0);
+      });
+      await withSpendMeter(pool, async (c: any) => {
+        expect((await c.query("select * from ai_app_keys")).rowCount).toBe(0);
+      });
     });
   });
 });

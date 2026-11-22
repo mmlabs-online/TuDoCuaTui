@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { OWNER_A, OWNER_B } from "../test/auth.js";
-import { importKek, openKey, openStoredKey, sealKey } from "./crypto.js";
+import { importKek, openAppKey, openKey, openStoredKey, sealAppKey, sealKey } from "./crypto.js";
 
 const b64 = (n: number) => randomBytes(n).toString("base64");
 const SECRET = "sk-ant-PLAINTEXT-0123456789abcdef";
@@ -130,5 +130,81 @@ describe("openStoredKey", () => {
     }
     for (const s of spies) expect(s).not.toHaveBeenCalled();
     vi.restoreAllMocks();
+  });
+});
+
+describe("appKeys crypto (F-706.3)", () => {
+  it("round trips for claude, gemini, and openai; two seals differ; format is app-v1:", async () => {
+    const kek = await importKek(b64(32));
+    for (const provider of ["claude", "gemini", "openai"]) {
+      const a = await sealAppKey(kek, provider, SECRET);
+      const b = await sealAppKey(kek, provider, SECRET);
+      expect(a).toMatch(/^app-v1:[A-Za-z0-9+/=]+$/);
+      expect(a).not.toBe(b);
+      expect(a).not.toContain(SECRET);
+      expect(await openAppKey(kek, provider, a)).toBe(SECRET);
+      expect(await openAppKey(kek, provider, b)).toBe(SECRET);
+    }
+  });
+
+  it("rejects wrong provider, wrong KEK, tampering, and bad base64", async () => {
+    const kek = await importKek(b64(32));
+    const sealed = await sealAppKey(kek, "claude", SECRET);
+    const bytes = Buffer.from(sealed.slice("app-v1:".length), "base64");
+    const flipped = Buffer.from(bytes);
+    flipped[flipped.length - 1] ^= 1;
+
+    // wrong provider
+    await expect(openAppKey(kek, "gemini", sealed)).rejects.toThrow("unreadable");
+    await expect(openAppKey(kek, "openai", sealed)).rejects.toThrow("unreadable");
+
+    // wrong KEK
+    const otherKek = await importKek(b64(32));
+    await expect(openAppKey(otherKek, "claude", sealed)).rejects.toThrow("unreadable");
+
+    // tampering
+    await expect(openAppKey(kek, "claude", "app-v1:" + flipped.toString("base64"))).rejects.toThrow(
+      "unreadable",
+    );
+
+    // truncation
+    await expect(
+      openAppKey(kek, "claude", "app-v1:" + bytes.subarray(0, 12).toString("base64")),
+    ).rejects.toThrow("unreadable");
+
+    // wrong version prefix
+    await expect(openAppKey(kek, "claude", "v2:" + bytes.toString("base64"))).rejects.toThrow(
+      "unreadable",
+    );
+    await expect(openAppKey(kek, "claude", "app-v2:" + bytes.toString("base64"))).rejects.toThrow(
+      "unreadable",
+    );
+  });
+
+  it("app-key ciphertext cannot be opened as a BYOK key, and v2 BYOK ciphertext cannot be opened as an app key", async () => {
+    const kek = await importKek(b64(32));
+    const byokCiphertext = await sealKey(kek, OWNER_A, "claude", SECRET);
+    const appCiphertext = await sealAppKey(kek, "claude", SECRET);
+
+    // BYOK cipher into openAppKey -> throws
+    await expect(openAppKey(kek, "claude", byokCiphertext)).rejects.toThrow("unreadable");
+
+    // App cipher into openKey or openStoredKey -> throws / key_unreadable
+    await expect(openKey(kek, OWNER_A, "claude", appCiphertext)).rejects.toThrow("unreadable");
+    expect(
+      await openStoredKey(kek, OWNER_A, { provider: "claude", ciphertext: appCiphertext }),
+    ).toEqual({
+      ok: false,
+      code: "key_unreadable",
+    });
+
+    // Existing v2 BYOK ciphertext still decrypts cleanly
+    expect(await openKey(kek, OWNER_A, "claude", byokCiphertext)).toBe(SECRET);
+    expect(
+      await openStoredKey(kek, OWNER_A, { provider: "claude", ciphertext: byokCiphertext }),
+    ).toEqual({
+      ok: true,
+      key: SECRET,
+    });
   });
 });
