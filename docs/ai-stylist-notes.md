@@ -3,7 +3,7 @@
 Working notes from the 2026-11-21 brainstorm, for whoever plans F-705 to F-710.
 
 - **Scope lives in [feature-list.md](feature-list.md)** (milestone M4, E7). If this file and the feature list disagree, the feature list wins.
-- **Nothing here is a decision.** The architecture section is advice from a read-only consult. D52 to D54 are proposed and not yet recorded in `work/decisions.md`.
+- **Nothing here is a decision.** The architecture section is advice from a read-only consult. D52 to D54 were recorded in `work/decisions.md` on 2026-11-22.
 - **Not done yet:** the sticker spike has not been run, no tickets exist, and prices are search snapshots that must be rechecked on the live pricing pages.
 - File and line references are as of commit `41ee069`.
 
