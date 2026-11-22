@@ -1,7 +1,7 @@
 // @vitest-environment node
 import pg from "pg";
 import { describe, expect, it } from "vitest";
-import { createPool, ping, withMaintenance, withUser } from "./db.js";
+import { createPool, ping, withMaintenance, withSpendMeter, withUser } from "./db.js";
 
 describe("createPool", () => {
   it("options: max 5, connectionTimeoutMillis 3000, idleTimeoutMillis 30000, statement_timeout 5000, application_name tudocuatui-api", async () => {
@@ -184,5 +184,50 @@ describe("withMaintenance", () => {
       },
     ]);
     expect(calls.at(-1)?.sql).toBe("commit");
+  });
+});
+
+describe("withSpendMeter", () => {
+  it("begins read-write, sets tudo.maintenance='ai-spend', clears app.user_id, commits; { readOnly: true } begins read only", async () => {
+    const { pool, calls } = fakeClientPool();
+    await withSpendMeter(pool, async () => {});
+    expect(calls.slice(0, 2)).toEqual([
+      { sql: "begin", params: undefined },
+      {
+        sql: "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+        params: ["ai-spend"],
+      },
+    ]);
+    expect(calls.at(-1)?.sql).toBe("commit");
+
+    const ro = fakeClientPool();
+    await withSpendMeter(ro.pool, async () => {}, { readOnly: true });
+    expect(ro.calls.slice(0, 2)).toEqual([
+      { sql: "begin read only", params: undefined },
+      {
+        sql: "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+        params: ["ai-spend"],
+      },
+    ]);
+    expect(ro.calls.at(-1)?.sql).toBe("commit");
+  });
+
+  it("nested withSpendMeter inside withUser (and vice versa) throws nested transaction without a second connect", async () => {
+    const { pool, connects } = fakeClientPool();
+    await expect(withUser(pool, UID, () => withSpendMeter(pool, async () => {}))).rejects.toThrow(
+      "nested transaction",
+    );
+    await expect(withSpendMeter(pool, () => withUser(pool, UID, async () => {}))).rejects.toThrow(
+      "nested transaction",
+    );
+    expect(connects()).toBe(2);
+  });
+
+  it("withMaintenance(pool, 'ai-spend', ...) throws unknown maintenance task", async () => {
+    const { pool, connects } = fakeClientPool();
+    await expect(withMaintenance(pool, "ai-spend", async () => {})).rejects.toThrow(
+      "unknown maintenance task",
+    );
+    expect(connects()).toBe(0);
   });
 });

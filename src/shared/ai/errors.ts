@@ -28,6 +28,7 @@ export const AI_ERROR_STATUS = {
   request_timeout: 408,
   provider_bad_response: 502,
   ai_busy: 503,
+  ai_cap_reached: 503,
 } as const;
 
 export type AiServerErrorCode = keyof typeof AI_ERROR_STATUS;

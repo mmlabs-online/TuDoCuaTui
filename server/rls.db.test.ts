@@ -2,7 +2,7 @@
 // Row level security (T-019.4, D32), run as the NOSUPERUSER owner role so RLS really applies.
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createPool, withMaintenance, withUser } from "./db.js";
+import { createPool, withMaintenance, withSpendMeter, withUser } from "./db.js";
 import { removeItem, saveItem } from "./items.js";
 import { runMigrations } from "./migrator.js";
 import { OWNER_A, OWNER_B } from "./test/auth.js";
@@ -41,7 +41,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
   });
   beforeEach(async () => {
     await admin.query(
-      "truncate wear_logs, item_photos, items, locations, ai_settings, credit_ops, credit_grants cascade",
+      "truncate wear_logs, item_photos, items, locations, ai_settings, credit_ops, credit_grants, ai_spend_ops cascade",
     );
     for (const [u, item, n] of [
       [OWNER_A, ITEM_A, "A"],
@@ -72,6 +72,10 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
         [u],
       );
     }
+    await admin.query(
+      `insert into ai_spend_ops (period, provider, model, kind, price_version, estimate_micro_usd, state)
+       values ('2026-11', 'claude', 'claude-haiku-5-5', 'suggest', '2026-11-22', 1500, 'reserved')`,
+    );
   });
 
   it("guard: the test pool's current_user is not a superuser and does not bypass RLS", async () => {
@@ -82,7 +86,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
   });
 
   it("no GUC: every table and the view return 0 rows", async () => {
-    for (const t of READABLE) expect(await count(t), t).toBe(0);
+    for (const t of [...READABLE, "ai_spend_ops"]) expect(await count(t), t).toBe(0);
   });
 
   it("withUser(A) sees only A's rows; withUser(B) only B's", async () => {
@@ -273,7 +277,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
           and c.relname <> 'schema_migrations'`,
     );
     expect(r.rows.map((x) => x.relname).sort()).toEqual(
-      [...TABLES, ...CREDIT_USER_TABLES, "credit_settings"].sort(),
+      [...TABLES, ...CREDIT_USER_TABLES, "credit_settings", "ai_spend_ops"].sort(),
     );
     for (const x of r.rows) {
       expect(x.relrowsecurity, x.relname).toBe(true);
@@ -298,6 +302,32 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     });
     expect(r.rows).toEqual([
       row("ai_settings"),
+      {
+        tablename: "ai_spend_ops",
+        policyname: "ai_spend_read",
+        cmd: "SELECT",
+        permissive: "PERMISSIVE",
+        qual: "(current_setting('tudo.maintenance'::text, true) = 'ai-spend'::text)",
+        with_check: null,
+      },
+      {
+        tablename: "ai_spend_ops",
+        policyname: "ai_spend_reserve",
+        cmd: "INSERT",
+        permissive: "PERMISSIVE",
+        qual: null,
+        with_check:
+          "((current_setting('tudo.maintenance'::text, true) = 'ai-spend'::text) AND (state = 'reserved'::text))",
+      },
+      {
+        tablename: "ai_spend_ops",
+        policyname: "ai_spend_settle",
+        cmd: "UPDATE",
+        permissive: "PERMISSIVE",
+        qual: "((current_setting('tudo.maintenance'::text, true) = 'ai-spend'::text) AND (state = 'reserved'::text))",
+        with_check:
+          "((current_setting('tudo.maintenance'::text, true) = 'ai-spend'::text) AND (state = ANY (ARRAY['charged'::text, 'released'::text])))",
+      },
       row("credit_grants"),
       row("credit_ops"),
       {
@@ -328,6 +358,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       await withMaintenance(pool, "photo-sweep", async (c) => {
         expect((await c.query("select 1 from item_photos")).rowCount).toBe(2);
         expect((await c.query("select 1 from credit_settings")).rowCount).toBe(1);
+        expect((await c.query("select 1 from ai_spend_ops")).rowCount).toBe(0);
         for (const t of ["items", "locations", "wear_logs", "ai_settings", ...CREDIT_USER_TABLES]) {
           expect((await c.query(`select 1 from ${t}`)).rowCount, t).toBe(0);
         }
@@ -364,6 +395,84 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
         await c.query("begin");
         await c.query("select set_config('tudo.maintenance', 'other', true)");
         expect((await c.query("select 1 from item_photos")).rowCount).toBe(0);
+        await c.query("rollback");
+      } finally {
+        c.release();
+      }
+    });
+  });
+
+  describe("spend meter (F-706.2)", () => {
+    it("withSpendMeter reads the seeded row, inserts reserved, cannot insert charged, settles, cannot delete", async () => {
+      await withSpendMeter(pool, async (c: any) => {
+        expect((await c.query("select * from ai_spend_ops")).rowCount).toBe(1);
+
+        const ins = await c.query(
+          `insert into ai_spend_ops (period, provider, model, kind, price_version, estimate_micro_usd, state)
+           values ('2026-11', 'gemini', 'gemini-2.5-flash', 'photo_fill', '2026-11-22', 1000, 'reserved')
+           returning id`,
+        );
+        expect(ins.rowCount).toBe(1);
+        const newId = ins.rows[0].id;
+
+        // Updates reserved -> charged
+        const upd = await c.query(
+          "update ai_spend_ops set state = 'charged', settled_at = now() where id = $1",
+          [newId],
+        );
+        expect(upd.rowCount).toBe(1);
+
+        // Updating a charged row back to reserved touches 0 rows (using clause forbids)
+        const back = await c.query(
+          "update ai_spend_ops set state = 'reserved', settled_at = null where id = $1",
+          [newId],
+        );
+        expect(back.rowCount).toBe(0);
+
+        // Delete touches 0 rows (no policy)
+        const del = await c.query("delete from ai_spend_ops where id = $1", [newId]);
+        expect(del.rowCount).toBe(0);
+
+        // User tables read 0 rows
+        for (const t of ["items", "locations", "wear_logs", "ai_settings", ...CREDIT_USER_TABLES]) {
+          expect((await c.query(`select 1 from ${t}`)).rowCount, t).toBe(0);
+        }
+      });
+
+      // Inserting a charged row -> 42501 (separate transaction so main isn't aborted)
+      await expect(
+        withSpendMeter(pool, (c: any) =>
+          c.query(
+            `insert into ai_spend_ops (period, provider, model, kind, price_version, estimate_micro_usd, state, settled_at)
+             values ('2026-11', 'gemini', 'gemini-2.5-flash', 'photo_fill', '2026-11-22', 1000, 'charged', now())`,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("any other tudo.maintenance value reads 0 ai_spend_ops rows and cannot insert", async () => {
+      const c = await pool.connect();
+      try {
+        await c.query("begin");
+        await c.query("select set_config('tudo.maintenance', 'photo-sweep', true)");
+        expect((await c.query("select 1 from ai_spend_ops")).rowCount).toBe(0);
+        await expect(
+          c.query(
+            `insert into ai_spend_ops (period, provider, model, kind, price_version, estimate_micro_usd, state)
+             values ('2026-11', 'gemini', 'gemini-2.5-flash', 'photo_fill', '2026-11-22', 1000, 'reserved')`,
+          ),
+        ).rejects.toMatchObject({ code: "42501" });
+        await c.query("rollback");
+
+        await c.query("begin");
+        await c.query("select set_config('tudo.maintenance', 'other', true)");
+        expect((await c.query("select 1 from ai_spend_ops")).rowCount).toBe(0);
+        await expect(
+          c.query(
+            `insert into ai_spend_ops (period, provider, model, kind, price_version, estimate_micro_usd, state)
+             values ('2026-11', 'gemini', 'gemini-2.5-flash', 'photo_fill', '2026-11-22', 1000, 'reserved')`,
+          ),
+        ).rejects.toMatchObject({ code: "42501" });
         await c.query("rollback");
       } finally {
         c.release();

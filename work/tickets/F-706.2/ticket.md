@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | IN_PROGRESS |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -11,10 +11,10 @@
 | Gate | plan-approval |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-22T10:21:00Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/104 |
 
 ## Goal
 Keep total AI spend under $20 a month by metering every paid call against a versioned price table, so AI turns off at the cap while the rest of the app keeps working.
@@ -33,13 +33,13 @@ Keep total AI spend under $20 a month by metering every paid call against a vers
 - Reconciliation with the provider dashboard (manual, Ming); the provider-console cap (M-42).
 
 ## Acceptance criteria
-- [ ] Reservations count against the cap before the provider call, so parallel calls cannot pass $20 (DB test with parallel reservations).
-- [ ] A failed call's estimated cost stays in the spend meter unless the provider confirms no charge.
-- [ ] At the cap the meter refuses with a distinct error and no provider call is made.
-- [ ] A model with no price entry is refused.
-- [ ] Owner exemptions from rate limits (D38) do not exempt anyone from the cap (test with the owner sub).
-- [ ] The new table has RLS and is covered by the RLS tests.
-- [ ] All checks pass (format, typecheck, test, build).
+- [x] Reservations count against the cap before the provider call, so parallel calls cannot pass $20 (DB test with parallel reservations).
+- [x] A failed call's estimated cost stays in the spend meter unless the provider confirms no charge.
+- [x] At the cap the meter refuses with a distinct error and no provider call is made.
+- [x] A model with no price entry is refused.
+- [x] Owner exemptions from rate limits (D38) do not exempt anyone from the cap (test with the owner sub).
+- [x] The new table has RLS and is covered by the RLS tests.
+- [x] All checks pass (format, typecheck, test, build).
 
 ## Technical notes
 - High tier: touches `server/**` and/or `db/migrations/**` (loop.config.md High paths), so the loop stops after PLAN until Ming approves the plan.
@@ -57,6 +57,11 @@ Waiting for Ming: plan approval (High tier)
 - 2026-11-22 — Plan approved by Ming ("duyệt"), with default assumptions A1–A12 (cap as code constant, ai_cap_reached 503, no-charge list, all six models priced, pessimistic estimates).
 
 ## Handoff
+
+### 2026-11-22 — claude — DONE
+- Done: migration 20261122140000_ai_spend_meter (ai_spend_ops, maintenance session RLS); server/ai/spendPrices.js (frozen table, $20 cap, estimateMicroUsd, isConfirmedNoCharge, spendPeriod UTC+7); server/ai/spend.js (reserve, settle, status, advisory lock); ai_cap_reached 503 error; inert; all checks & tests PASS (attempt 1).
+- In progress / next: Ming merges PR #104; next ticket in backlog is BUG-013 or F-706.3.
+- Gotchas: M-45 recheck prices before F-706.4 ships; migration version must stay newer than F-706.1.
 
 ### 2026-11-22 — claude — plan approved
 - Done: M-44 plan approved by Ming.

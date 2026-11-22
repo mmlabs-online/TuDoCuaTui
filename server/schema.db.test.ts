@@ -250,6 +250,7 @@ describe.skipIf(!dbAvailable)("schema (real Postgres)", () => {
     expect(rls.rows).toEqual(
       [
         "ai_settings",
+        "ai_spend_ops",
         "credit_grants",
         "credit_ops",
         "credit_settings",

@@ -107,3 +107,23 @@ export async function withMaintenance(pool, task, fn) {
     fn,
   );
 }
+
+/**
+ * Read-write transaction for the app-wide AI spend meter (F-706.2): policies ai_spend_*. Only server/ai/spend.js calls it.
+ * @template T
+ * @param {{ connect?(): Promise<any> }} pool
+ * @param {(client: any) => Promise<T>} fn
+ * @param {{ readOnly?: boolean }} [opts]
+ * @returns {Promise<T>}
+ */
+export async function withSpendMeter(pool, fn, { readOnly = false } = {}) {
+  return inTx(
+    pool,
+    [
+      "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+      "ai-spend",
+    ],
+    readOnly,
+    fn,
+  );
+}
