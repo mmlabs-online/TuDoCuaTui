@@ -20,7 +20,9 @@ Plain SQL applied by `node server/migrate.js` (the `migrate` one-shot service, D
   `alter table <t> no force row level security;` ... `alter table <t> force row level security;` in the same file.
   Without that the owner sees 0 rows and the update silently changes nothing. The runner fails a file that leaves a
   table unforced. A new table gets `enable` + `force row level security` and an `owner_only` policy in the same
-  migration (a catalog test enforces it). `create or replace view items_with_stats` must say
+  migration (a catalog test enforces it). An app-wide table without user data (only `credit_settings` so far, F-706.1)
+  gets `enable` + `force` and a narrow named policy instead of `owner_only`. The credit tables are not part of backup and
+  restore. `create or replace view items_with_stats` must say
   `with (security_invoker = true)`; the runner checks that too.
 - `TUDO_OWNER_SUB` (a UUID, the owner's Identity `sub`) is passed by `server/migrate.js` as the transaction-local
   setting `tudo.owner_sub`. If rows exist and it is unset the migration fails and rolls back; on an empty database

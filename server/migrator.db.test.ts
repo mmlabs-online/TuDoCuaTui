@@ -40,6 +40,16 @@ async function tempCopy(name: string) {
   return dir;
 }
 
+async function forced(url: string, tables: string[]) {
+  return (
+    await query(
+      url,
+      `select relname, relrowsecurity as rls, relforcerowsecurity as forced from pg_class
+       where relname in (${tables.map((t) => `'${t}'`).join(",")}) order by relname`,
+    )
+  ).map((r) => `${r.relname}:${r.rls}:${r.forced}`);
+}
+
 describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
   let db: TestDb;
   const tmpDirs: string[] = [];
@@ -242,7 +252,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(8);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(9);
         expect(
           (
             await query(
@@ -526,7 +536,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
       tmpDirs.push(dir);
       await cp(realDir, dir, { recursive: true });
-      await writeFile(path.join(dir, "20261114210000_extra.sql"), sql);
+      await writeFile(path.join(dir, "29991231235959_extra.sql"), sql);
       return dir;
     }
 
@@ -559,7 +569,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       const err = await run(dir).catch((e) => e);
       expect(err).toBeInstanceOf(MigrationError);
       expect(err.message).toMatch(/row level security not forced on items/);
-      expect(await versions()).not.toContain("20261114210000");
+      expect(await versions()).not.toContain("29991231235959");
       expect(await forced(db.url)).toEqual(allForced);
     });
 
@@ -569,7 +579,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       const err = await run(dir).catch((e) => e);
       expect(err).toBeInstanceOf(MigrationError);
       expect(err.message).toMatch(/row level security not forced on items/);
-      expect(await versions()).not.toContain("20261114210000");
+      expect(await versions()).not.toContain("29991231235959");
       expect(await forced(db.url)).toEqual(allForced);
     });
 
@@ -600,6 +610,103 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       const err = await run(dir).catch((e) => e);
       expect(err).toBeInstanceOf(MigrationError);
       expect(err.message).toMatch(/items_with_stats is not security_invoker/);
+    });
+  });
+  describe("credit ledger (F-706.1)", () => {
+    const CREDIT = "20261122120000_credit_ledger.sql";
+    const CREDIT_TABLES = ["credit_grants", "credit_ops", "credit_settings"];
+    const uid = (n: number) => `0190a6f2-7c3e-7b8a-9d4e-${String(n).padStart(12, "0")}`;
+    const [U1, U2, U3, U4, NEW_USER] = [uid(1), uid(2), uid(3), uid(4), uid(5)];
+    const item = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+
+    /** A copy of the real migrations without the credit ledger file (and optionally with one extra file). */
+    async function beforeCredit(extra?: [string, string]) {
+      const dir = await mkdtemp(path.join(tmpdir(), "tudo-mig-"));
+      tmpDirs.push(dir);
+      await cp(realDir, dir, { recursive: true });
+      await unlink(path.join(dir, CREDIT));
+      if (extra) await writeFile(path.join(dir, extra[0]), extra[1]);
+      return dir;
+    }
+    const grants = (url: string) =>
+      query(
+        url,
+        "select user_id, bucket, amount, approved_at is not null as approved from credit_grants order by user_id",
+      );
+
+    async function seedUsers(url: string) {
+      await query(url, `insert into locations (user_id, name) values ('${U1}', 'L')`);
+      await query(url, `insert into items (id, user_id, name) values ('${item(2)}', '${U2}', 'I')`);
+      await query(
+        url,
+        `insert into item_photos (user_id, item_id, drive_file_id) values ('${U2}', '${item(2)}', 'driveFileU20001')`,
+      );
+      await query(url, `insert into items (id, user_id, name) values ('${item(3)}', '${U3}', 'I')`);
+      await query(
+        url,
+        `insert into wear_logs (user_id, item_id, worn_on) values ('${U3}', '${item(3)}', '2026-11-10')`,
+      );
+      await query(
+        url,
+        `insert into ai_settings (user_id, provider, model) values ('${U4}', 'claude', 'm')`,
+      );
+    }
+
+    it("existing users (rows in any of the five tables, incl. one with only an ai_settings row) and TUDO_OWNER_SUB with no rows get one approved welcome grant of 300; a user with no rows gets none; run as the NOSUPERUSER owner", async () => {
+      const owned = await createTestDb({ owner: true });
+      try {
+        await runMigrations({ connectionString: owned.url, dir: await beforeCredit() });
+        await seedUsers(owned.adminUrl);
+        await runMigrations({ connectionString: owned.url, dir: realDir, ownerSub: OWNER });
+        const rows = await grants(owned.adminUrl);
+        expect(rows.map((r) => r.user_id).sort()).toEqual([OWNER, U1, U2, U3, U4].sort());
+        for (const r of rows) {
+          expect(r, r.user_id).toMatchObject({ bucket: "welcome", amount: 300, approved: true });
+        }
+        expect(rows.find((r) => r.user_id === NEW_USER)).toBeUndefined();
+        expect(await forced(owned.url, [...TABLES, ...CREDIT_TABLES])).toEqual(
+          [...TABLES, ...CREDIT_TABLES].sort().map((t) => `${t}:true:true`),
+        );
+      } finally {
+        await owned.drop();
+      }
+    });
+
+    it("empty DB, no owner sub: no grants; settings seeded; all eight tables forced", async () => {
+      await run(realDir);
+      expect(await grants(db.url)).toEqual([]);
+      expect(
+        await query(db.url, "select welcome_amount, monthly_amount from credit_settings"),
+      ).toEqual([{ welcome_amount: 300, monthly_amount: 60 }]);
+      expect(await forced(db.url, [...TABLES, ...CREDIT_TABLES])).toEqual(
+        [...TABLES, ...CREDIT_TABLES].sort().map((t) => `${t}:true:true`),
+      );
+    });
+
+    it("second run is a no-op (grant rows unchanged)", async () => {
+      await run(await beforeCredit());
+      await seedUsers(db.url);
+      await run(realDir, { ownerSub: OWNER });
+      const before = await query(db.url, "select * from credit_grants order by user_id");
+      expect(before).toHaveLength(5);
+      const lines: string[] = [];
+      await run(realDir, { ownerSub: OWNER, log: (l) => lines.push(l) });
+      expect(lines).toEqual(["up to date"]);
+      expect(await query(db.url, "select * from credit_grants order by user_id")).toEqual(before);
+    });
+
+    it("a later file that leaves credit_ops unforced fails the guard and rolls back", async () => {
+      await run(realDir);
+      const dir = await beforeCredit([
+        "29991231235959_extra.sql",
+        "alter table credit_ops no force row level security;",
+      ]);
+      await cp(path.join(realDir, CREDIT), path.join(dir, CREDIT));
+      const err = await run(dir).catch((e) => e);
+      expect(err).toBeInstanceOf(MigrationError);
+      expect(err.message).toMatch(/row level security not forced on credit_ops/);
+      expect(await versions()).not.toContain("29991231235959");
+      expect(await forced(db.url, ["credit_ops"])).toEqual(["credit_ops:true:true"]);
     });
   });
 });

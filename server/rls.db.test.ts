@@ -13,7 +13,8 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0
 const ITEM_A = uuid(1);
 const ITEM_B = uuid(2);
 const TABLES = ["locations", "items", "item_photos", "wear_logs", "ai_settings"];
-const READABLE = [...TABLES, "items_with_stats"];
+const CREDIT_USER_TABLES = ["credit_grants", "credit_ops"];
+const READABLE = [...TABLES, ...CREDIT_USER_TABLES, "items_with_stats"];
 
 describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", () => {
   let db: TestDb;
@@ -39,7 +40,9 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     await db?.drop();
   });
   beforeEach(async () => {
-    await admin.query("truncate wear_logs, item_photos, items, locations, ai_settings cascade");
+    await admin.query(
+      "truncate wear_logs, item_photos, items, locations, ai_settings, credit_ops, credit_grants cascade",
+    );
     for (const [u, item, n] of [
       [OWNER_A, ITEM_A, "A"],
       [OWNER_B, ITEM_B, "B"],
@@ -57,6 +60,15 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       ]);
       await admin.query(
         "insert into ai_settings (user_id, provider, model) values ($1, 'claude', 'm')",
+        [u],
+      );
+      await admin.query(
+        "insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'manual', 5, now())",
+        [u],
+      );
+      await admin.query(
+        `insert into credit_ops (user_id, op_key, kind, credits, monthly_part, lasting_part, period, state, expires_at)
+         values ($1, 'k1', 'photo_fill', 1, 1, 0, '2026-11', 'reserved', now() + interval '10 minutes')`,
         [u],
       );
     }
@@ -191,6 +203,68 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     });
   });
 
+  describe("credit ledger (F-706.1)", () => {
+    it("B cannot select A's credit_grants/credit_ops; insert for A -> 42501; update/delete of A's rows touch 0 rows", async () => {
+      await withUser(pool, OWNER_B, async (c) => {
+        for (const t of CREDIT_USER_TABLES) {
+          const rows = (await c.query(`select user_id from ${t}`)).rows;
+          expect(rows, t).toEqual([{ user_id: OWNER_B }]);
+          expect((await c.query(`select 1 from ${t} where user_id = $1`, [OWNER_A])).rowCount).toBe(
+            0,
+          );
+        }
+        expect(
+          (await c.query("update credit_grants set amount = 9 where user_id = $1", [OWNER_A]))
+            .rowCount,
+        ).toBe(0);
+        expect(
+          (await c.query("delete from credit_ops where user_id = $1", [OWNER_A])).rowCount,
+        ).toBe(0);
+      });
+      const insertFor = (table: string) =>
+        withUser(pool, OWNER_B, (c) =>
+          table === "credit_grants"
+            ? c.query(
+                "insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'manual', 5, now())",
+                [OWNER_A],
+              )
+            : c.query(
+                `insert into credit_ops (user_id, op_key, kind, credits, monthly_part, lasting_part, period, state, expires_at)
+                 values ($1, 'k2', 'photo_fill', 1, 1, 0, '2026-11', 'reserved', now())`,
+                [OWNER_A],
+              ),
+        );
+      expect(await sqlState(insertFor("credit_grants"))).toBe("42501");
+      expect(await sqlState(insertFor("credit_ops"))).toBe("42501");
+      expect(
+        (await admin.query("select 1 from credit_grants where user_id = $1", [OWNER_A])).rows,
+      ).toHaveLength(1);
+      expect(
+        (await admin.query("select amount from credit_grants where user_id = $1", [OWNER_A])).rows,
+      ).toEqual([{ amount: 5 }]);
+    });
+
+    it("credit_settings: readable in any withUser transaction; insert -> 42501; update/delete touch 0 rows", async () => {
+      await withUser(pool, OWNER_A, async (c) => {
+        expect((await c.query("select 1 from credit_settings")).rowCount).toBe(1);
+      });
+      expect(
+        await sqlState(
+          withUser(pool, OWNER_A, (c) =>
+            c.query("insert into credit_settings (id) values (false)"),
+          ),
+        ),
+      ).toBe("42501");
+      await withUser(pool, OWNER_A, async (c) => {
+        expect((await c.query("update credit_settings set monthly_amount = 1")).rowCount).toBe(0);
+        expect((await c.query("delete from credit_settings")).rowCount).toBe(0);
+      });
+      expect((await admin.query("select monthly_amount from credit_settings")).rows).toEqual([
+        { monthly_amount: 60 },
+      ]);
+    });
+  });
+
   it("catalog: every public base table except schema_migrations has RLS, FORCE and a policy", async () => {
     const r = await admin.query(
       `select c.relname, c.relrowsecurity, c.relforcerowsecurity,
@@ -198,7 +272,9 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
          from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
           and c.relname <> 'schema_migrations'`,
     );
-    expect(r.rows.map((x) => x.relname).sort()).toEqual([...TABLES].sort());
+    expect(r.rows.map((x) => x.relname).sort()).toEqual(
+      [...TABLES, ...CREDIT_USER_TABLES, "credit_settings"].sort(),
+    );
     for (const x of r.rows) {
       expect(x.relrowsecurity, x.relname).toBe(true);
       expect(x.relforcerowsecurity, x.relname).toBe(true);
@@ -206,7 +282,7 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     }
   });
 
-  it("pg_policies: exactly the five owner_only policies and photo_sweep_read (SELECT only)", async () => {
+  it("pg_policies: the owner_only policies, photo_sweep_read and credit_settings_read (SELECT only)", async () => {
     const r = await admin.query(
       `select tablename, policyname, cmd, permissive, qual, with_check from pg_policies
         where schemaname = 'public' order by tablename, policyname`,
@@ -222,6 +298,16 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     });
     expect(r.rows).toEqual([
       row("ai_settings"),
+      row("credit_grants"),
+      row("credit_ops"),
+      {
+        tablename: "credit_settings",
+        policyname: "credit_settings_read",
+        cmd: "SELECT",
+        permissive: "PERMISSIVE",
+        qual: "true",
+        with_check: null,
+      },
       row("item_photos"),
       {
         tablename: "item_photos",
@@ -238,10 +324,11 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
   });
 
   describe("maintenance (photo sweep)", () => {
-    it("withMaintenance sees both users' item_photos and nothing else", async () => {
+    it("withMaintenance sees both users' item_photos and the one credit_settings row, and nothing else", async () => {
       await withMaintenance(pool, "photo-sweep", async (c) => {
         expect((await c.query("select 1 from item_photos")).rowCount).toBe(2);
-        for (const t of ["items", "locations", "wear_logs", "ai_settings"]) {
+        expect((await c.query("select 1 from credit_settings")).rowCount).toBe(1);
+        for (const t of ["items", "locations", "wear_logs", "ai_settings", ...CREDIT_USER_TABLES]) {
           expect((await c.query(`select 1 from ${t}`)).rowCount, t).toBe(0);
         }
       });
