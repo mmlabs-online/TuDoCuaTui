@@ -116,3 +116,26 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-015 | Last-worn label says "0 ngày trước" in the editor but "hôm nay" on the card | BACKLOG | P2 | XS | ui | — | none | 0 | 2026-11-20 |
 | BUG-016 | Modals have no dialog semantics or focus handling | BACKLOG | P2 | S | ui, ux | — | none | 0 | 2026-11-20 |
 | BUG-017 | Full-size photos used for small grid thumbnails; rendering slows down | BACKLOG | P2 | M | ui, data, architecture | — | none | 0 | 2026-11-20 |
+| F-705 | Sticker spike on 10 hard items | BACKLOG | P1 | M | architecture, security | — | none | 0 | 2026-11-22 |
+| F-706.1 | Credit ledger with reserve, commit and refund | BACKLOG | P1 | M | db, security, architecture | — | plan-approval | 0 | 2026-11-22 |
+| F-706.2 | App-wide monthly spend meter and model price table | BACKLOG | P1 | M | db, security, architecture | — | plan-approval | 0 | 2026-11-22 |
+| F-706.3 | Owner-only shared AI key storage, replacement and test | BACKLOG | P1 | M | db, security, architecture | — | plan-approval | 0 | 2026-11-22 |
+| F-706.5 | Owner-only admin API for grants, credits, approvals and spend | BACKLOG | P1 | M | security, architecture, db | F-706.1 | plan-approval | 0 | 2026-11-22 |
+| F-706.6 | Owner admin screen for the shared key, grants and approvals | BACKLOG | P1 | M | ui, ux, security | F-706.3, F-706.5 | plan-approval | 0 | 2026-11-22 |
+| F-707.1 | Occasion enum and rule prefilter in the outfit pool | BACKLOG | P1 | S | data | BUG-012, BUG-013 | none | 0 | 2026-11-22 |
+| F-707.2 | Suggest route accepts the occasion and enforces 20 candidates | BACKLOG | P1 | S | security, data | F-707.1 | plan-approval | 0 | 2026-11-22 |
+| F-707.3 | Same-day suggestion cache in Postgres | BACKLOG | P1 | M | db, security, data | F-707.2 | plan-approval | 0 | 2026-11-22 |
+| F-707.4 | Occasion picker; AI runs only on an explicit tap | BACKLOG | P1 | M | ui, ux, data | F-707.3 | none | 0 | 2026-11-22 |
+| F-706.4 | Cut AI over to the shared key, credits and spend cap | BACKLOG | P1 | M | security, architecture, data | F-706.1, F-706.2, F-706.3, F-707.4 | plan-approval | 0 | 2026-11-22 |
+| F-706.7 | User credit UI and retire the BYOK form | BACKLOG | P1 | M | ui, ux, data | F-706.1, F-706.2, F-706.3 | none | 0 | 2026-11-22 |
+| F-708.1 | Sticker table and Drive storage | BACKLOG | P1 | M | db, security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |
+| F-708.2 | Image provider adapter with input and output downscaling | BACKLOG | P1 | M | security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |
+| F-708.3 | Sticker generate route with cache, credits and idempotency | BACKLOG | P1 | M | security, architecture, data | F-708.1, F-708.2 | plan-approval | 0 | 2026-11-22 |
+| F-708.4 | Serve stickers and clean them up with their item or photo | BACKLOG | P1 | M | security, architecture | F-708.3 | plan-approval | 0 | 2026-11-22 |
+| F-709.1 | Avatar presets: hair, skin and body picker | BACKLOG | P1 | M | ui, ux | F-705 | none | 0 | 2026-11-22 |
+| F-709.2 | Sticker compositor with fixed layer order | BACKLOG | P1 | S | ui | F-705 | none | 0 | 2026-11-22 |
+| F-709.3 | "Xem trên chibi" from a suggested outfit | BACKLOG | P1 | M | ui, ux, data | F-708.4, F-709.1, F-709.2 | none | 0 | 2026-11-22 |
+| F-706.8 | Delete legacy BYOK ciphertext | BACKLOG | P1 | S | db, security | F-706.4, F-706.7 | plan-approval | 0 | 2026-11-22 |
+| F-708.5 | Server batch job to prepare the whole wardrobe | BACKLOG | P2 | M | security, architecture, data | F-708.3 | plan-approval | 0 | 2026-11-22 |
+| F-708.6 | Batch UI: cost preview, confirmation and progress | BACKLOG | P2 | S | ui, ux, data | F-708.5 | none | 0 | 2026-11-22 |
+| F-710 | Real-photo outfit collage (fallback) | BACKLOG | P2 | M | ui, ux, data | F-705 | none | 0 | 2026-11-22 |
