@@ -110,7 +110,18 @@ const errCode = (err) =>
 
 /** The guard applies from the migration that enables RLS (never from a table flag a later file could flip). */
 const RLS_VERSION = "20261114200000";
-const RLS_TABLES = ["locations", "items", "item_photos", "wear_logs", "ai_settings"];
+const CREDIT_LEDGER_VERSION = "20261122120000";
+/** Table -> the first migration version from which the guard applies to it. */
+const RLS_TABLES = Object.freeze({
+  locations: RLS_VERSION,
+  items: RLS_VERSION,
+  item_photos: RLS_VERSION,
+  wear_logs: RLS_VERSION,
+  ai_settings: RLS_VERSION,
+  credit_settings: CREDIT_LEDGER_VERSION,
+  credit_grants: CREDIT_LEDGER_VERSION,
+  credit_ops: CREDIT_LEDGER_VERSION,
+});
 
 /**
  * Once items has RLS (T-019.4), a file must leave every TuDo table forced and the view security_invoker.
@@ -119,13 +130,16 @@ const RLS_TABLES = ["locations", "items", "item_photos", "wear_logs", "ai_settin
  */
 async function assertRlsForced(client, version) {
   if (version < RLS_VERSION) return;
+  const guarded = Object.entries(RLS_TABLES)
+    .filter(([, from]) => version >= from)
+    .map(([t]) => t);
   const { rows } = await client.query(
     `select c.relname, c.relrowsecurity as rls, c.relforcerowsecurity as forced, c.reloptions
        from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname = any($1)`,
-    [[...RLS_TABLES, "items_with_stats"]],
+    [[...guarded, "items_with_stats"]],
   );
   const by = new Map(rows.map((r) => [r.relname, r]));
-  for (const t of RLS_TABLES) {
+  for (const t of guarded) {
     const r = by.get(t);
     if (!r?.rls || !r.forced) throw new Error(`row level security not forced on ${t}`);
   }
