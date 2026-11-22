@@ -14,7 +14,7 @@
 | Attempts | 2 |
 | Created | 2026-11-22 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/102 |
 
 ## Goal
 Give every user an AI credit balance kept in a Postgres ledger, so paid AI calls can reserve credits, commit them on success and refund them on failure without ever overspending.
