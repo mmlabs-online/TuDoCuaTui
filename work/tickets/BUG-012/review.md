@@ -93,3 +93,24 @@ None. No review trigger matches the changed paths.
 - Investigate the single failures of `server/ai/tagPhoto.test.ts` and `server/photos.test.ts` seen on `origin/main`.
 - A1: the AI prompt can still read "season winter … hot=true", so a free-text AI reason could mention winter.
 - A5: regional seasons for warm southern November days (debt issue proposed by the plan).
+
+## Attempt 2 — 2026-11-22
+Verdict: PASS
+
+Re-reviewed on native WSL copy after rebasing `ticket/BUG-012` onto `main` (which includes solo commit `288ecbe` extending `ItemGrid.test.tsx:89` timeout to 15s).
+
+### Checks (run by reviewer)
+Native WSL copy of `HEAD`, Node 22.23.5, pnpm 10.34.9:
+- `pnpm format:check` — pass (exit 0, 336 files).
+- `pnpm typecheck` — pass (exit 0, app + server).
+- `pnpm build` — pass (exit 0).
+- `pnpm test` — pass (exit 0, 1950 passed, 222 skipped in 68.35s; 0 failed). `ItemGrid.test.tsx:89` passed in 1480ms under full-suite load with no timeout.
+
+### Acceptance criteria
+- [x] 1. Regression test fails before fix and passes after (117 of 117 pass).
+- [x] 2. The expected behaviour holds: heading matches the actual weather/season used ("Trời nóng" / "Trời lạnh" or seasons chip).
+- [x] 3. All checks pass.
+
+### Rules (CLAUDE.md)
+- R8: all checks green.
+- R1-R7, R9: green. No high path touched.
