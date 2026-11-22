@@ -96,7 +96,7 @@ export function OutfitsModal({
     };
   }, [weather, place]);
   const w = status === "ready" ? (data ?? undefined) : undefined;
-  const { season, outfits } = useMemo(
+  const { season, outfits, fallback } = useMemo(
     () => suggestOutfits(items, { now, seed, avoid, weather: w }),
     [items, now, seed, avoid, w],
   );
@@ -233,6 +233,9 @@ export function OutfitsModal({
         ) : (
           <>
             <p className="outfit-season">{COPY.heading(season, { cold, hot })}</p>
+            {fallback && (
+              <p className="outfit-fallback-note">{COPY.fallbackNote(season, { cold, hot })}</p>
+            )}
             {aiActive && (
               <p className="outfit-ai-note" role="status">
                 {aiLoading ? COPY.ai.loading : (aiNote ?? "")}

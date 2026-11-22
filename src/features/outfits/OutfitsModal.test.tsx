@@ -641,3 +641,16 @@ test("AI on, hot in November: still sends the calendar season with hot=true", as
   expect(input.season).toBe("winter");
   expect(input.weather.hot).toBe(true);
 });
+
+// ---- BUG-013: fallback note when no item fits the wanted seasons ----
+test("cold weather with no cold items shows fallback note", async () => {
+  await novWeather({ minC: 15, maxC: 20 }, dresses(3, { seasons: ["Hạ"] }));
+  expect(document.querySelector(".outfit-fallback-note")?.textContent).toBe(
+    OUTFITS_COPY.fallbackNote("Đông", { cold: true, hot: false }),
+  );
+});
+
+test("cold weather with cold items does not show fallback note", async () => {
+  await novWeather({ minC: 15, maxC: 20 }, dresses(3, { seasons: ["Đông"] }));
+  expect(document.querySelector(".outfit-fallback-note")).toBeNull();
+});

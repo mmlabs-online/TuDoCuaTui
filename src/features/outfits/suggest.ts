@@ -56,7 +56,12 @@ export function weatherKind(w?: WeatherInput): { cold: boolean; hot: boolean; ra
 
 export type OutfitReason = "neverWorn" | "stale" | "season" | "cold" | "hot" | "rain";
 export type Outfit = { main: Item[]; pieces: Item[]; reasons: OutfitReason[] };
-export type Suggestion = { season: string; seasons: string[]; outfits: Outfit[] };
+export type Suggestion = {
+  season: string;
+  seasons: string[];
+  outfits: Outfit[];
+  fallback: boolean;
+};
 export type SuggestOptions = {
   now: number;
   seed: number;
@@ -67,7 +72,7 @@ export type SuggestOptions = {
 
 const ONE_PIECE = ["dress", "set", "ao_dai"];
 
-type Ranked = { item: Item; tier: number; avoided: number };
+type Ranked = { item: Item; tier: number; avoided: number; summerPenalty: number };
 
 function shuffle<T>(list: T[], rand: () => number): T[] {
   const a = [...list];
@@ -88,6 +93,7 @@ type Eligibility = {
   outerWanted: boolean;
   /** Per role: items fitting the wanted seasons, or all of the role when none fit (item order). */
   pools: Record<string, Item[]>;
+  fallback: boolean;
 };
 
 /** Active items in the rule categories, after the season/weather step shared by the rules and the AI pool. */
@@ -108,6 +114,7 @@ function eligibility(
     if (role) (byRole[role] ??= []).push(item);
   }
   const inSeason = (i: Item) => i.seasons.length === 0 || i.seasons.some((s) => wanted.includes(s));
+  const hasInSeason = Object.values(byRole).some((all) => all.some(inSeason));
   const pools: Record<string, Item[]> = {};
   for (const [role, all] of Object.entries(byRole)) {
     const fit = all.filter(inSeason);
@@ -121,6 +128,7 @@ function eligibility(
     rain,
     outerWanted: cold || (!hot && COLD_SEASONS.includes(season)),
     pools,
+    fallback: items.length > 0 && !hasInSeason,
   };
 }
 
@@ -134,7 +142,10 @@ function ruleRole(item: Item): string | null {
 export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Suggestion {
   const { now, seed, count = 3 } = opts;
   const avoid = new Set(opts.avoid ?? []);
-  const { season, seasons, cold, hot, rain, outerWanted, pools } = eligibility(items, opts);
+  const { season, seasons, cold, hot, rain, outerWanted, pools, fallback } = eligibility(
+    items,
+    opts,
+  );
   const rand = mulberry32(seed);
 
   const rank = (role: string): Ranked[] =>
@@ -143,8 +154,11 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
         item,
         tier: isStale(item, now) || item.wearCount === 0 ? 0 : 1,
         avoided: avoid.has(item.id) ? 1 : 0,
+        summerPenalty: cold && item.seasons.includes("Hạ") ? 1 : 0,
       }))
-      .sort((a, b) => a.avoided - b.avoided || a.tier - b.tier);
+      .sort(
+        (a, b) => a.avoided - b.avoided || a.summerPenalty - b.summerPenalty || a.tier - b.tier,
+      );
 
   const units: Ranked[][] = [];
   for (const role of ONE_PIECE) for (const r of rank(role)) units.push([r]);
@@ -182,7 +196,7 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
       reasons,
     };
   });
-  return { season, seasons, outfits };
+  return { season, seasons, outfits, fallback };
 }
 
 /** Most candidates sent to the AI per call (F-704.3 A2). */
@@ -204,9 +218,16 @@ export function candidatePool(
   items: readonly Item[],
   opts: { now: number; weather?: WeatherInput },
 ): Item[] {
-  const { outerWanted, pools } = eligibility(items, opts);
+  const { cold, outerWanted, pools } = eligibility(items, opts);
   const lists = POOL_ROLES.filter((r) => r !== "outer" || outerWanted).map((r) =>
-    [...(pools[r] ?? [])].sort(byUnworn),
+    [...(pools[r] ?? [])].sort((a, b) => {
+      if (cold) {
+        const pA = a.seasons.includes("Hạ") ? 1 : 0;
+        const pB = b.seasons.includes("Hạ") ? 1 : 0;
+        if (pA !== pB) return pA - pB;
+      }
+      return byUnworn(a, b);
+    }),
   );
   const out: Item[] = [];
   for (let k = 0; out.length < AI_CANDIDATE_CAP && lists.some((l) => k < l.length); k++) {
