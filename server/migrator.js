@@ -111,6 +111,7 @@ const errCode = (err) =>
 /** The guard applies from the migration that enables RLS (never from a table flag a later file could flip). */
 const RLS_VERSION = "20261114200000";
 const CREDIT_LEDGER_VERSION = "20261122120000";
+const SPEND_METER_VERSION = "20261122140000";
 /** Table -> the first migration version from which the guard applies to it. */
 const RLS_TABLES = Object.freeze({
   locations: RLS_VERSION,
@@ -121,6 +122,7 @@ const RLS_TABLES = Object.freeze({
   credit_settings: CREDIT_LEDGER_VERSION,
   credit_grants: CREDIT_LEDGER_VERSION,
   credit_ops: CREDIT_LEDGER_VERSION,
+  ai_spend_ops: SPEND_METER_VERSION,
 });
 
 /**

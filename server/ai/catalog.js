@@ -51,6 +51,7 @@ export const AI_ERROR_STATUS = {
   request_timeout: 408,
   provider_bad_response: 502,
   ai_busy: 503,
+  ai_cap_reached: 503,
 };
 
 /** @param {AiProvider} provider @returns {string | null} */

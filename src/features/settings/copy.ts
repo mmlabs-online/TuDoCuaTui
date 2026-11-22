@@ -58,6 +58,7 @@ export const AI_ERRORS: Record<AiErrorCode, string> = {
   request_timeout: "Tải ảnh lên quá lâu, thử lại",
   provider_bad_response: "AI trả về kết quả không đọc được, thử lại",
   ai_busy: "AI đang bận, thử lại sau vài giây",
+  ai_cap_reached: "AI đang tạm tắt đến hết tháng này, các chức năng khác vẫn dùng bình thường",
   not_available: "Tính năng AI chỉ có khi dùng máy chủ",
   network: "Không kết nối được máy chủ — kiểm tra mạng hoặc tải lại trang để đăng nhập lại",
 };
