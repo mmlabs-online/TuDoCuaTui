@@ -16,7 +16,7 @@
 | Attempts | 2 |
 | Created | 2026-11-20 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/103 |
 
 ## Report
 UAT of production v0.3.1 (2026-11-20, `work/uat/2026-11-20-uat-v0.3.1.md`, UAT-3). In "Hôm nay mặc gì?" the weather
@@ -73,6 +73,6 @@ but `Suggestion.season` returns the calendar season, which the modal shows as `M
 - Gotchas: do not fix `ItemGrid.test.tsx` on this branch (outside the plan, R7). WSL has no git identity; commit with Windows git. Follow-up for warm southern days: spaceM debt #72.
 
 ### 2026-11-22 — claude — DONE
-- Done: M-41 resolved by solo commit 288ecbe on main. Rebased onto main; all checks passed on native WSL (format:check, typecheck, build, test: 1950 passed, 0 failed in 68s). Review attempt 2 verdict: PASS.
-- In progress / next: PR ready to be opened and merged by Ming.
+- Done: M-41 resolved by solo commit on main. Rebased onto main; all checks passed on native WSL (format:check, typecheck, build, test: 1950 passed, 0 failed in 68s). Review attempt 2 verdict: PASS. PR #103 opened.
+- In progress / next: Ming reviews and merges PR #103.
 - Gotchas: Follow-up for warm southern days: spaceM debt #72.
