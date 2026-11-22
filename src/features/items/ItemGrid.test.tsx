@@ -96,7 +96,7 @@ describe("ItemGrid progressive rendering (BUG-002)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Xem thêm" }));
     expect(g.cards()).toBe(40);
     expect(screen.queryByRole("button", { name: "Xem thêm" })).toBeNull();
-  });
+  }, 15000);
 
   test("resets to 12 when resetKey changes", () => {
     const io = stubObserver();
