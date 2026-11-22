@@ -117,7 +117,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-016 | Modals have no dialog semantics or focus handling | BACKLOG | P2 | S | ui, ux | — | none | 0 | 2026-11-20 |
 | BUG-017 | Full-size photos used for small grid thumbnails; rendering slows down | BACKLOG | P2 | M | ui, data, architecture | — | none | 0 | 2026-11-20 |
 | F-705 | Sticker spike on 10 hard items | BACKLOG | P1 | M | architecture, security | — | none | 0 | 2026-11-22 |
-| F-706.1 | Credit ledger with reserve, commit and refund | DONE | P1 | M | db, security, architecture | — | plan-approval | 2 | 2026-11-22 |
+| F-706.1 | Credit ledger with reserve, commit and refund | MERGED | P1 | M | db, security, architecture | — | plan-approval | 2 | 2026-11-22 |
 | F-706.2 | App-wide monthly spend meter and model price table | BLOCKED | P1 | M | db, security, architecture | — | plan-approval | 0 | 2026-11-22 |
 | F-706.3 | Owner-only shared AI key storage, replacement and test | BACKLOG | P1 | M | db, security, architecture | — | plan-approval | 0 | 2026-11-22 |
 | F-706.5 | Owner-only admin API for grants, credits, approvals and spend | BACKLOG | P1 | M | security, architecture, db | F-706.1 | plan-approval | 0 | 2026-11-22 |
