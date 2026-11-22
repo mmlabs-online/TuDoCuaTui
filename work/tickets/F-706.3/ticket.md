@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -51,5 +51,10 @@ Let the owner store, replace and test one shared AI key per provider on the serv
 - Manual: none (Ming tests the real key via F-706.6).
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-22 — claude — BLOCKED
+- Done: consults database-optimizer + software-architect; plan READY (ai_app_keys with maintenance session RLS on tudo.maintenance='app-keys', withAppKeys helper, sealAppKey/openAppKey with app-v1 format, checkOpenAiKey, owner-only /api/admin/ai-keys routes).
+- In progress / next: waiting for Ming's plan approval (M-46, assumptions A1–A4); implementation starts after approval.
