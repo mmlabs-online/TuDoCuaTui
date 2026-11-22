@@ -10,7 +10,7 @@
 | Areas | db, security, architecture |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | M-44 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
 | Claimed by | — |
@@ -54,8 +54,13 @@ Keep total AI spend under $20 a month by metering every paid call against a vers
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-22 — Plan approved by Ming ("duyệt"), with default assumptions A1–A12 (cap as code constant, ai_cap_reached 503, no-charge list, all six models priced, pessimistic estimates).
 
 ## Handoff
+
+### 2026-11-22 — claude — plan approved
+- Done: M-44 plan approved by Ming.
+- In progress / next: waiting for Ming to review and merge PR #102 (F-706.1). Once PR #102 is merged into main, cut branch `ticket/F-706.2` and start implementation.
 
 ### 2026-11-22 — claude — BLOCKED
 - Done: consults database-optimizer + software-architect; plan READY (ai_spend_ops with per-command RLS on tudo.maintenance='ai-spend', withSpendMeter helper, spendPrices.js + spend.js inert, ai_cap_reached 503 in both mirrors + copy). Planning committed on main because the session branch holds open PR #102 (F-706.1).
