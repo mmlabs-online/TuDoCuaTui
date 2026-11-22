@@ -292,6 +292,22 @@ describe("weather", () => {
     expect(r.seasons).toEqual(["Hạ"]);
   });
 
+  it("cold weather with no Đông items flags the fallback", () => {
+    const summerOnly = [mk("Đầm", { seasons: ["Hạ"] }), mk("Khoác", { seasons: ["Hạ"] })];
+    const r = withW(summerOnly, w(18), 1, NOV);
+    expect(r.fallback).toBe(true);
+
+    const withWinter = [...summerOnly, mk("Đầm", { seasons: ["Đông"] })];
+    expect(withW(withWinter, w(18), 1, NOV).fallback).toBe(false);
+  });
+
+  it("in cold weather fallback, items not tagged Hạ rank before summer items", () => {
+    const summerDress = mk("Đầm", { name: "Váy hè", seasons: ["Hạ"], wearCount: 0 });
+    const autumnDress = mk("Đầm", { name: "Váy thu", seasons: ["Thu"], wearCount: 5 });
+    const r = withW([summerDress, autumnDress], w(18), 1, NOV);
+    expect(r.outfits[0].main[0].name).toBe("Váy thu");
+  });
+
   it("weather: no weather gives the F-704.1 result", () => {
     const items = base();
     expect(withW(items, undefined)).toEqual(run(items));

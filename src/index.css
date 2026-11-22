@@ -3085,3 +3085,9 @@ main {
   color: var(--muted);
   font-size: 12.5px;
 }
+.outfit-fallback-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}

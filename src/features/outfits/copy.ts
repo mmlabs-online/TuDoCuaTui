@@ -10,6 +10,12 @@ export const OUTFITS_COPY = {
   season: (s: string) => `Mùa ${s}`,
   heading: (s: string, w: { cold: boolean; hot: boolean }) =>
     w.hot ? HOT : w.cold ? COLD : `Mùa ${s}`,
+  fallbackNote: (s: string, w: { cold: boolean; hot: boolean }) =>
+    w.hot
+      ? "Tủ đồ chưa có đồ cho trời nóng — gợi ý có thể chưa phù hợp."
+      : w.cold
+        ? "Tủ đồ chưa có đồ cho trời lạnh — gợi ý có thể chưa phù hợp."
+        : `Tủ đồ chưa có đồ cho mùa ${s} — gợi ý có thể chưa phù hợp.`,
   outfitLabel: (n: number) => `Bộ ${n}`,
   reasons: {
     neverWorn: "Chưa mặc lần nào",

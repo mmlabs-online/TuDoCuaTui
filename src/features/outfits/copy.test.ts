@@ -29,6 +29,18 @@ describe("OUTFITS_COPY.heading", () => {
     expect(OUTFITS_COPY.heading("Thu", { cold: false, hot: false })).toBe("Mùa Thu");
     expect(OUTFITS_COPY.reasons.seasonFit).toBe("Hợp mùa");
   });
+
+  it("fallbackNote", () => {
+    expect(OUTFITS_COPY.fallbackNote("Đông", { cold: false, hot: true })).toBe(
+      "Tủ đồ chưa có đồ cho trời nóng — gợi ý có thể chưa phù hợp.",
+    );
+    expect(OUTFITS_COPY.fallbackNote("Hạ", { cold: true, hot: false })).toBe(
+      "Tủ đồ chưa có đồ cho trời lạnh — gợi ý có thể chưa phù hợp.",
+    );
+    expect(OUTFITS_COPY.fallbackNote("Đông", { cold: false, hot: false })).toBe(
+      "Tủ đồ chưa có đồ cho mùa Đông — gợi ý có thể chưa phù hợp.",
+    );
+  });
 });
 
 describe("OUTFITS_COPY.ai", () => {

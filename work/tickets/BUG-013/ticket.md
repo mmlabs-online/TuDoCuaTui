@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | IN_PROGRESS |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | S |
@@ -13,9 +13,9 @@
 | Introduced in | v0.3.0 (F-704.1, commit 1d53aee) |
 | Depends on | BUG-012 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-22T11:53:00Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -48,10 +48,10 @@ every item of that role (`pools[role] = fit.length ? fit : all`). The rain flag 
 - Rain-specific rules (e.g. avoiding suede or heels) and AI-ranked suggestions.
 
 ## Acceptance criteria
-- [ ] A regression test reproduces the bug: it fails on `main` before the fix and passes after
+- [x] A regression test reproduces the bug: it fails on `main` before the fix and passes after
       (e.g. `suggest.test.ts` › "cold weather with no Đông items flags the fallback").
-- [ ] The expected behaviour above holds.
-- [ ] All checks pass.
+- [x] The expected behaviour above holds.
+- [x] All checks pass.
 
 ## Technical notes
 - Files: `src/features/outfits/suggest.ts`, `copy.ts`, the suggestion modal.
@@ -60,4 +60,9 @@ every item of that role (`pools[role] = fit.length ? fit : all`). The rain flag 
 ## Notes / answers from Ming
 
 ## Handoff
-- 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-22 — claude — DONE
+- Done: Suggestion.fallback added; fallback note displayed in modal when wardrobe lacks matching season/weather clothes; non-summer items prioritized over summer items in cold weather fallback; tests in suggest.test.ts, OutfitsModal.test.tsx, copy.test.ts; all checks PASS (attempt 1).
+- In progress / next: open PR, Ming merges; unblocks F-707.1.
+
+### 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
