@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -10,10 +10,10 @@
 | Areas | db, security, architecture |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | — |
+| Needs Ming | M-43 |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-22T04:00:08Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -57,5 +57,11 @@ Give every user an AI credit balance kept in a Postgres ledger, so paid AI calls
 - Manual: none.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-22 — claude — BLOCKED
+- Done: consults database-optimizer + software-architect; plan READY (migration with credit_settings/credit_grants/credit_ops + existing-account snapshot; server/ai/credits.js + creditMath.js, inert; RLS_TABLES per-table versions; DB tests incl. 8 parallel reserves).
+- In progress / next: waiting for Ming's plan approval (M-43) incl. assumptions A1–A7; then implement.
+- Gotchas: migrator.db.test.ts withExtra version must move to 29991231235959; hotspot with F-706.2/.3, F-707.3, F-708.1 (test lists, RLS_TABLES, migration version).
