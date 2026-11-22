@@ -219,6 +219,16 @@ describe("ranking and shuffle", () => {
       expect(mainIds([...recent, never, ...stale], seed).sort()).toEqual(want);
   });
 
+  it("a never-worn item added today still ranks with stale pieces", () => {
+    const recent = many("Đầm", 3, { lastWorn: iso(JULY, 2) });
+    const never = mk("Đầm", { wearCount: 0, lastWorn: "", createdAt: iso(JULY, 0) });
+    const stale = many("Đầm", 2, { lastWorn: iso(JULY, 120) });
+    const want = [never, ...stale].map((i) => i.id).sort();
+    for (let seed = 1; seed <= 20; seed++)
+      expect(mainIds([...recent, never, ...stale], seed).sort()).toEqual(want);
+    expect(run([never]).outfits[0].reasons).toEqual(["neverWorn"]);
+  });
+
   it("is deterministic for a fixed seed", () => {
     const items = many("Đầm", 6);
     expect(run(items, 7)).toEqual(run(items, 7));

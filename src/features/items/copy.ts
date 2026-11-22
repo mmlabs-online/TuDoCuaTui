@@ -44,6 +44,7 @@ export const EDITOR_COPY = {
     dateFuture: "Ngày mua không được ở tương lai",
   },
   wear: {
+    neverWorn: "chưa mặc",
     worn: "Đã ghi nhận mặc hôm nay",
     alreadyWorn: "Đã ghi nhận hôm nay rồi",
     adjusted: "Đã điều chỉnh số lần mặc",

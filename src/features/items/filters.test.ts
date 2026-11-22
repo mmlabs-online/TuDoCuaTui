@@ -54,22 +54,54 @@ describe("ageInDays", () => {
 });
 
 describe("isStale", () => {
+  const worn = (lastWorn: string) => makeItem({ wearCount: 1, lastWorn });
+  const neverWorn = (createdAt: string) => makeItem({ wearCount: 0, lastWorn: "", createdAt });
+
   test("is false at 89 days", () => {
-    expect(isStale({ lastWorn: ago(89) }, NOW)).toBe(false);
+    expect(isStale(worn(ago(89)), NOW)).toBe(false);
   });
   test("is true at exactly 90 days", () => {
-    expect(isStale({ lastWorn: ago(90) }, NOW)).toBe(true);
+    expect(isStale(worn(ago(90)), NOW)).toBe(true);
   });
   test("is true at 91 days", () => {
-    expect(isStale({ lastWorn: ago(91) }, NOW)).toBe(true);
+    expect(isStale(worn(ago(91)), NOW)).toBe(true);
   });
   test("isStale flips exactly at 90 calendar days for a YYYY-MM-DD value at 02:00 UTC+7", () => {
     const now = Date.parse("2026-11-07T02:00:00+07:00");
-    expect(isStale({ lastWorn: "2026-08-10" }, now)).toBe(false); // 89 days
-    expect(isStale({ lastWorn: "2026-08-09" }, now)).toBe(true); // 90 days
+    expect(isStale(worn("2026-08-10"), now)).toBe(false); // 89 days
+    expect(isStale(worn("2026-08-09"), now)).toBe(true); // 90 days
   });
-  test("is true for an item never worn", () => {
-    expect(isStale({ lastWorn: "" }, NOW)).toBe(true);
+  test("a never-worn item added today is not stale", () => {
+    expect(isStale(neverWorn(ago(0)), NOW)).toBe(false);
+  });
+  test("a never-worn item added 89 days ago is not stale", () => {
+    expect(isStale(neverWorn(ago(89)), NOW)).toBe(false);
+  });
+  test("a never-worn item added exactly 90 days ago is stale", () => {
+    expect(isStale(neverWorn(ago(90)), NOW)).toBe(true);
+  });
+  test("never-worn boundary uses the UTC+7 calendar day", () => {
+    const now = Date.parse("2026-11-07T02:00:00+07:00");
+    expect(isStale(neverWorn("2026-08-09T17:00:00Z"), now)).toBe(false); // local 08-10 00:00, 89 days
+    expect(isStale(neverWorn("2026-08-09T16:59:59Z"), now)).toBe(true); // local 08-09 23:59:59, 90 days
+  });
+  test("a never-worn item with an empty or invalid createdAt is not stale", () => {
+    expect(isStale(neverWorn(""), NOW)).toBe(false);
+    expect(isStale(neverWorn("garbage"), NOW)).toBe(false);
+  });
+  test("a never-worn item with a future createdAt is not stale", () => {
+    expect(isStale(neverWorn(ago(-5)), NOW)).toBe(false);
+  });
+  test("a worn item ignores createdAt", () => {
+    expect(isStale(makeItem({ wearCount: 1, lastWorn: ago(5), createdAt: ago(200) }), NOW)).toBe(
+      false,
+    );
+    expect(isStale(makeItem({ wearCount: 1, lastWorn: ago(90), createdAt: ago(0) }), NOW)).toBe(
+      true,
+    );
+  });
+  test("wearCount above 0 with an empty lastWorn stays stale", () => {
+    expect(isStale(makeItem({ wearCount: 2, lastWorn: "", createdAt: ago(0) }), NOW)).toBe(true);
   });
 });
 
@@ -138,6 +170,12 @@ describe("matchesFilters", () => {
   test('special "stale" uses the 90-day rule', () => {
     expect(match(makeItem({ lastWorn: ago(90) }), "", "Tất cả", { special: "stale" })).toBe(true);
     expect(match(makeItem({ lastWorn: ago(89) }), "", "Tất cả", { special: "stale" })).toBe(false);
+  });
+
+  test('special "stale" excludes a new never-worn item', () => {
+    const fresh = makeItem({ wearCount: 0, lastWorn: "", createdAt: ago(0) });
+    expect(match(fresh, "", "Tất cả", { special: "stale" })).toBe(false);
+    expect(match(fresh, "", "Tất cả", { special: "never" })).toBe(true);
   });
 
   test('special "never" keeps only wearCount 0', () => {

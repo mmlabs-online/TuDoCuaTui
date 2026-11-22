@@ -349,3 +349,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] **M-36 — Approve plan for T-028.4** (GET /api/auth/me): work/tickets/T-028.4/plan.md (touches server/**). Approve assumptions A1–A5.
 - [x] **M-37 — Approve plan for BUG-007** (sign-out clears only the departing account): work/tickets/BUG-007/plan.md (touches src/features/auth/**).
 - [ ] **M-38 — Approve plan for BUG-008** (stale "Tiếp tục với" list): work/tickets/BUG-008/plan.md (touches src/features/auth/**). Approve assumptions B1–B3.
+
+### BUG-010 — Password autofill into the AI key field
+- [ ] **M-39 — Browser checks after BUG-010 is released** (automation cannot see native password-manager UI). In your own Chrome and Edge, open "AI" settings and click "Dán API key": no dropdown offers the saved login. Then save a **fake** key of valid format on a non-production account or local build: no "Save password?" / "Update password?" prompt appears. If a prompt appears, **dismiss it** (accepting could overwrite the saved login) and report it.
+- [ ] **M-40 — Check whether the account password was ever saved as the AI key** (v0.2.6–v0.3.1). Do this yourself; never share either value with an agent. Compare the saved `••••XXXX` hint in AI settings with the last 4 characters of the account password. On a match, treat the password as sent to Claude/Gemini: delete the AI key, **change the mmlabs Identity password**, and enter a real key again. Any other user of the app should do the same check.

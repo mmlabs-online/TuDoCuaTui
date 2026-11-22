@@ -50,6 +50,19 @@ describe("ItemCard wear pill", () => {
   });
 });
 
+describe("ItemCard never-worn", () => {
+  test("never-worn item shows chưa mặc", () => {
+    const { container } = render(
+      <ItemCard
+        item={makeItem({ wearCount: 0, lastWorn: "" })}
+        age={ageInDays}
+        onClick={() => {}}
+      />,
+    );
+    expect(container.querySelector(".wear-pill")?.textContent).toBe("👕 0× · chưa mặc");
+  });
+});
+
 describe("ItemCard photo", () => {
   test("renders the photo lazily", () => {
     render(
