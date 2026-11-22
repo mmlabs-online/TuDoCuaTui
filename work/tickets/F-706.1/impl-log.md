@@ -38,3 +38,21 @@ None.
 ### Scope self-check
 - Could the diff be smaller? No; the production code is about 330 lines (migration 100, credits.js 240, creditMath.js 45, migrator 15), the rest are the planned tests.
 - Diff size: about +1150 / -21 lines including tests and docs.
+
+## Attempt 2 (REWORK: review attempt 1)
+
+### Changes
+- `git rm .vitest/json/output.json` (stray Vitest JSON report committed by mistake; it broke `pnpm format:check`). `.vitest/` in `.gitignore` left as a follow-up.
+- `server/ai/credits.db.test.ts`: the 8-parallel test now pre-inserts a pending welcome row (`grant(OWNER_A, "welcome", 300, { approved: false })`), so the welcome unique index no longer serializes the calls; the 7 losers return `welcome_pending`.
+- New test `concurrency › reserve waits for the per-user advisory lock; another user is not blocked`: an admin client holds `pg_advisory_xact_lock(hashtextextended('credits:'||A,0))`; reserve(B) completes meanwhile; reserve(A) has not settled after 300 ms and returns `reserved` after the admin commits.
+- Nits: README bullet indent (`db/migrations/README.md` lines 24-25); renamed the over-stated "OWNER_A as owner sub" test title.
+
+### Mutation evidence (scratch Postgres 16 cluster /tmp/pg-f7061b, scram auth, TEST_DATABASE_URL set)
+- With the lock: `-t concurrency` 4/4 passed, 3 runs in a row.
+- With the `lock()` helper body in `credits.js` replaced by `Promise.resolve()` (file restored afterwards, `git diff` on credits.js empty): 5 of 5 runs failed 3 of 4 concurrency tests (the 8-parallel photo_fill test, the new lock test, the sticker test).
+
+### Checks
+- typecheck clean; `format:check` exit 0 (verified by exit code, `.vitest/` gone); test 151 files, 2212 passed, 0 skipped (DB suites ran); build OK.
+
+### Out-of-plan files / deviations
+None. Cluster stopped and removed afterwards.

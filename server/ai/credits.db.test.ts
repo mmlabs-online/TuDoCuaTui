@@ -152,6 +152,8 @@ describe.skipIf(!dbAvailable)("credit ledger (real Postgres, owner role)", () =>
 
   describe("concurrency", () => {
     it("8 parallel reserves (pool max 5) with balance for one photo_fill -> exactly one reserved row", async () => {
+      // Steady state: a welcome row already exists, so the welcome unique index cannot serialize the calls by accident.
+      await grant(OWNER_A, "welcome", 300, { approved: false });
       await grant(OWNER_A, "monthly", 1, { period: PERIOD });
       const res = await Promise.all(
         Array.from({ length: 8 }, (_, i) => ledger().reserve(OWNER_A, `p${i}`, "photo_fill")),
@@ -160,6 +162,36 @@ describe.skipIf(!dbAvailable)("credit ledger (real Postgres, owner role)", () =>
       expect(res.filter((r) => r.status === "welcome_pending")).toHaveLength(7);
       expect(await rows("select state from credit_ops")).toEqual([{ state: "reserved" }]);
       expect((await ledger().balance(OWNER_A)).total).toBe(0);
+    });
+
+    it("reserve waits for the per-user advisory lock; another user is not blocked", async () => {
+      await grant(OWNER_A, "welcome", 300, { approved: false });
+      await grant(OWNER_A, "monthly", 5, { period: PERIOD });
+      await grant(OWNER_B, "welcome", 300, { approved: false });
+      await grant(OWNER_B, "monthly", 5, { period: PERIOD });
+      const holder = await admin.connect();
+      try {
+        await holder.query("begin");
+        await holder.query(
+          "select pg_advisory_xact_lock(hashtextextended('credits:' || $1::text, 0))",
+          [OWNER_A],
+        );
+        let settledA = false;
+        const pa = ledger()
+          .reserve(OWNER_A, "k1", "photo_fill")
+          .finally(() => {
+            settledA = true;
+          });
+        const rb = await ledger().reserve(OWNER_B, "k1", "photo_fill");
+        expect(rb.status).toBe("reserved");
+        await new Promise((r) => setTimeout(r, 300));
+        expect(settledA).toBe(false);
+        await holder.query("commit");
+        expect((await pa).status).toBe("reserved");
+      } finally {
+        await holder.query("rollback").catch(() => {});
+        holder.release();
+      }
     });
 
     it("balance for one sticker split across buckets (monthly 4 + approved welcome 6), 8 parallel sticker reserves -> exactly one, split 4 + 6", async () => {
@@ -420,7 +452,7 @@ describe.skipIf(!dbAvailable)("credit ledger (real Postgres, owner role)", () =>
       ).not.toBeNull();
     });
 
-    it("OWNER_A as owner sub behaves exactly like OWNER_B (pending without a snapshot row, spends monthly first)", async () => {
+    it("two different users behave the same (no owner parameter): OWNER_A like OWNER_B (pending without a snapshot row, spends monthly first)", async () => {
       const out = [];
       for (const u of [OWNER_A, OWNER_B]) {
         const bal = await ledger().balance(u);
