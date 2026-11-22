@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -10,10 +10,10 @@
 | Areas | db, security, architecture |
 | Gate | plan-approval |
 | Depends on | — |
-| Needs Ming | — |
+| Needs Ming | M-44 |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-22T04:54:28Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -53,5 +53,11 @@ Keep total AI spend under $20 a month by metering every paid call against a vers
 - Manual: none.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-22 — claude — BLOCKED
+- Done: consults database-optimizer + software-architect; plan READY (ai_spend_ops with per-command RLS on tudo.maintenance='ai-spend', withSpendMeter helper, spendPrices.js + spend.js inert, ai_cap_reached 503 in both mirrors + copy). Planning committed on main because the session branch holds open PR #102 (F-706.1).
+- In progress / next: waiting for Ming's plan approval (M-44, assumptions A1–A12); implementation starts after PR #102 merges (migration must be newer than 20261122120000).
+- Gotchas: hotspots with F-706.1 (RLS_TABLES, rls/migrator/schema test lists, READMEs).
