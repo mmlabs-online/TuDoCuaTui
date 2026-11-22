@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | BLOCKED |
 | Severity | S2 |
 | Priority | P1 |
 | Size | XS |
@@ -12,10 +12,10 @@
 | Found in | v0.3.1 (production) |
 | Introduced in | v0.3.0 (F-704.1, commit 1d53aee) |
 | Depends on | — |
-| Needs Ming | — |
+| Needs Ming | M-41 |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-21T12:35:26Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -61,6 +61,13 @@ but `Suggestion.season` returns the calendar season, which the modal shows as `M
 - Hotspot: T-032 (AI outfits tidy-ups) also edits `src/features/outfits/`.
 
 ## Notes / answers from Ming
+- 2026-11-21: Ming accepted the default to keep the `high-paths` plan gate from `loop.config.md`, so this P1 ticket needs no plan approval. The matching wording change in workspace `CLAUDE.md` §8 is still pending.
+- Waiting for Ming: M-41 (how to clear the red `pnpm test` baseline, spaceM debt #71).
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-21 — claude — BLOCKED
+- Done: consult, plan, implementation (attempt 1). Review verdict REWORK with no defect in the BUG-012 code: regression tests fail before the fix and pass after it; format, typecheck and build pass.
+- In progress / next: `pnpm test` is red locally because `src/features/items/ItemGrid.test.tsx:89` exceeds the 5 s timeout (6 of 6 full-suite runs, also on `origin/main`; green in GitHub CI). After M-41: re-review, then open the PR. No PR is open yet.
+- Gotchas: do not fix `ItemGrid.test.tsx` on this branch (outside the plan, R7). WSL has no git identity; commit with Windows git. Follow-up for warm southern days: spaceM debt #72.
