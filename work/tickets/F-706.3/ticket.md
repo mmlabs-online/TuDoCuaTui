@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -52,8 +52,13 @@ Let the owner store, replace and test one shared AI key per provider on the serv
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-22 — Plan approved by Ming ("duyệt"), with assumptions A1–A4 (providers claude/gemini/openai, model list checks, /api/admin/ai-keys path, app-v1 crypto format).
 
 ## Handoff
+
+### 2026-11-22 — claude — plan approved
+- Done: M-46 plan approved by Ming.
+- In progress / next: start implementation (migration 20261122160000_ai_app_keys, server/ai/appKeys.js, admin routes, DB tests).
 
 ### 2026-11-22 — claude — BLOCKED
 - Done: consults database-optimizer + software-architect; plan READY (ai_app_keys with maintenance session RLS on tudo.maintenance='app-keys', withAppKeys helper, sealAppKey/openAppKey with app-v1 format, checkOpenAiKey, owner-only /api/admin/ai-keys routes).
