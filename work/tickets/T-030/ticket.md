@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P2 |
 | Size | XS |
 | Areas | security |
@@ -11,7 +11,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-23T05:00:17Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -39,3 +39,8 @@ D50; T-028.1 follow-up (PR https://github.com/mmlabs-online/TuDoCuaTui/pull/89):
 - 2026-11-23 — Decision (Ming, in chat: "duyệt tất cả"): option (a), the recommendation — a 403 passes through as an error, test-pinned; it does not sign the user out.
 
 ## Handoff
+
+### 2026-11-23 — claude — DONE
+- Done: plan + implement (attempt 1): D55, authFetch doc comments, 3 tests; reviewer PASS, security review PASS. Branch `ticket/T-030` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/T-030` with the body in `work/tickets/T-030/pr.md`, then the PR URL goes into this ticket.
+- Gotchas: if another PR adds a decision row first, renumber D55 on rebase.
