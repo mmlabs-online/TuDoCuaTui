@@ -56,6 +56,13 @@ test("with a loader: pending block, then the blob: img", async () => {
   expect(release).toHaveBeenCalled();
 });
 
+test("asks the loader for the thumb variant", async () => {
+  const { loader, acquire } = fakeLoader(Promise.resolve("blob:x/1"));
+  renderWith(loader);
+  await screen.findByAltText("Áo");
+  expect(acquire).toHaveBeenCalledWith(API, "thumb");
+});
+
 test("with a loader: failure shows the fallback", async () => {
   const { loader } = fakeLoader(Promise.reject(new Error("x")));
   renderWith(loader);

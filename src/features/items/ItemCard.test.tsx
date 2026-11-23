@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import type { PhotoLoader } from "@/data/photoUrls";
+import { PhotoLoaderContext } from "@/data/usePhotoUrl";
 import type { Item } from "@/types/item";
 import { ItemCard } from "./ItemCard";
 import { ageInDays } from "./filters";
@@ -76,6 +78,22 @@ describe("ItemCard photo", () => {
     const img = screen.getByAltText("Áo");
     expect(img.getAttribute("src")).toBe("/api/photos/p");
     expect(img.getAttribute("loading")).toBe("lazy");
+  });
+
+  test("asks the loader for the thumb variant", async () => {
+    const acquire = vi.fn(() => ({ promise: Promise.resolve("blob:x/1"), release: vi.fn() }));
+    const loader: PhotoLoader = {
+      handles: (s) => s.startsWith("/api/photos/"),
+      acquire,
+      clear: vi.fn(),
+    };
+    render(
+      <PhotoLoaderContext.Provider value={loader}>
+        <ItemCard item={makeItem({ photo: "/api/photos/p" })} age={ageInDays} onClick={() => {}} />
+      </PhotoLoaderContext.Provider>,
+    );
+    await screen.findByAltText("Áo");
+    expect(acquire).toHaveBeenCalledWith("/api/photos/p", "thumb");
   });
 
   test('img error shows the "Chưa có ảnh" placeholder', () => {

@@ -12,7 +12,7 @@ export function ItemPhoto({
   fallback: ReactNode;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const photo = usePhotoUrl(src, { lazy: true });
+  const photo = usePhotoUrl(src, { lazy: true, variant: "thumb" });
   if (failedSrc === src || photo.failed) return <>{fallback}</>;
   if (photo.src === null) return <span className="photo-pending" aria-hidden ref={photo.ref} />;
   return (
