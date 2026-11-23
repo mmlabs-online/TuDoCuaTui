@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BLOCKED |
+| State | MERGED |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -13,10 +13,10 @@
 | Introduced in | T-028.3 |
 | Depends on | — |
 | Needs Ming | M-38 |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/107 |
 
 ## Report
 Follow-ups from the T-028.3 review and security review attempt 2 (PR https://github.com/mmlabs-online/TuDoCuaTui/pull/91).
@@ -64,3 +64,8 @@ Follow-ups from the T-028.3 review and security review attempt 2 (PR https://git
 - Done: consult frontend-developer; plan READY (clearAccounts() in failTo's retry/other branches; offerJoin "signed out meanwhile" via failTo with a signOutSeq guard; regression tests T1, T2 + guard test T3).
 - In progress / next: waiting for Ming's plan approval (M-38); then implement.
 - Gotchas: assumptions B1–B3 in plan.md.
+
+### 2026-11-23 — claude — DONE
+- Done: implemented the approved plan (attempt 1); reviewer PASS, security review no 🔴. Branch `ticket/BUG-008` pushed.
+- In progress / next: PR #107 opened by Ming (no GitHub CLI on the agent machine); Ming reviews and merges.
+- Gotchas: 7 `pnpm test` failures are Windows-only and pre-existing on main (rely on CI). Security 🟡 3 (forget() during join lookup re-lists) matters for T-029 / T-031.
