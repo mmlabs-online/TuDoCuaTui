@@ -44,7 +44,7 @@ D50 ("Sign in with mmlabs" consumer spec: cross-tab session); follow-ups F1, F2 
 - Manual: two real tabs, DevTools Offline sign-out then retry.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-23 — Plan approved (Ming, in chat: "duyệt tất cả"); assumptions A1–A6 accepted with their defaults.
 
 ## Handoff
 

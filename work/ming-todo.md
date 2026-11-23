@@ -348,7 +348,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] **M-35 — Approve plan for T-028.3** ("Tiếp tục với {email}" list + verify screen): work/tickets/T-028.3/plan.md (touches src/features/auth/**). Approve assumptions A1–A7.
 - [x] **M-36 — Approve plan for T-028.4** (GET /api/auth/me): work/tickets/T-028.4/plan.md (touches server/**). Approve assumptions A1–A5.
 - [x] **M-37 — Approve plan for BUG-007** (sign-out clears only the departing account): work/tickets/BUG-007/plan.md (touches src/features/auth/**).
-- [ ] **M-38 — Approve plan for BUG-008** (stale "Tiếp tục với" list): work/tickets/BUG-008/plan.md (touches src/features/auth/**). Approve assumptions B1–B3.
+- [x] (2026-11-23) **M-38 — Approve plan for BUG-008** (stale "Tiếp tục với" list): work/tickets/BUG-008/plan.md (touches src/features/auth/**). Approve assumptions B1–B3.
 
 ### BUG-010 — Password autofill into the AI key field
 - [ ] **M-39 — Browser checks after BUG-010 is released** (automation cannot see native password-manager UI). In your own Chrome and Edge, open "AI" settings and click "Dán API key": no dropdown offers the saved login. Then save a **fake** key of valid format on a non-production account or local build: no "Save password?" / "Update password?" prompt appears. If a prompt appears, **dismiss it** (accepting could overwrite the saved login) and report it.
@@ -359,4 +359,8 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] (2026-11-22) **M-44 — Approve plan for F-706.2** (spend meter and price table): work/tickets/F-706.2/plan.md (touches server/**, db/migrations/**). Approve assumptions A1–A12 (cap as code constant, ai_cap_reached 503, no-charge list, all six models priced, pessimistic estimates).
 - [ ] **M-45 — Recheck AI prices before the F-706.4 release:** compare the price table in `server/ai/spendPrices.js` (F-706.2) with the live Gemini and Anthropic pricing pages and bump `PRICE_VERSION` if anything changed (D53).
 - [x] (2026-11-22) **M-46 — Approve plan for F-706.3** (shared AI key storage): work/tickets/F-706.3/plan.md (touches server/**, db/migrations/**). Approve assumptions A1–A4 (providers claude/gemini/openai, model list checks, /api/admin/ai-keys path, app-v1 crypto format).
+<<<<<<< HEAD
 - [ ] **M-47 — Approve plan for T-029** (cross-tab sign-out): work/tickets/T-029/plan.md (touches src/features/auth/**). Approve assumptions A1–A6 ("Dùng tài khoản khác" broadcasts, retry signs out re-signed-in tabs, localStorage.clear() ignored, plain notice in other tabs, warning text unchanged, go ahead before BUG-008).
+=======
+- [x] (2026-11-23) **M-47 — Approve plan for T-029** (cross-tab sign-out): work/tickets/T-029/plan.md (touches src/features/auth/**). Approve assumptions A1–A6 ("Dùng tài khoản khác" broadcasts, retry signs out re-signed-in tabs, localStorage.clear() ignored, plain notice in other tabs, warning text unchanged, go ahead before BUG-008).
+>>>>>>> origin/main

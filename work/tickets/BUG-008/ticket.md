@@ -56,7 +56,7 @@ Follow-ups from the T-028.3 review and security review attempt 2 (PR https://git
 - High path (`src/features/auth/**`): plan approval.
 
 ## Notes / answers from Ming
-Waiting for Ming: plan approval (High tier)
+- 2026-11-23 — Plan approved (Ming, in chat: "duyệt tất cả"); assumptions B1–B3 accepted as written.
 
 ## Handoff
 
