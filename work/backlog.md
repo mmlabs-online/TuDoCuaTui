@@ -120,13 +120,13 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-706.1 | Credit ledger with reserve, commit and refund | MERGED | P1 | M | db, security, architecture | — | plan-approval | 2 | 2026-11-22 |
 | F-706.2 | App-wide monthly spend meter and model price table | MERGED | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-22 |
 | F-706.3 | Owner-only shared AI key storage, replacement and test | MERGED | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-23 |
-| F-706.5 | Owner-only admin API for grants, credits, approvals and spend | PLANNING | P1 | M | security, architecture, db | F-706.1 | plan-approval | 0 | 2026-11-23 |
+| F-706.5 | Owner-only admin API for grants, credits, approvals and spend | BLOCKED | P1 | M | security, architecture, db | F-706.1 | plan-approval | 0 | 2026-11-23 |
 | F-706.6 | Owner admin screen for the shared key, grants and approvals | BACKLOG | P1 | M | ui, ux, security | F-706.3, F-706.5 | plan-approval | 0 | 2026-11-22 |
 | F-707.1 | Occasion enum and rule prefilter in the outfit pool | BACKLOG | P1 | S | data | BUG-012, BUG-013 | none | 0 | 2026-11-22 |
 | F-707.2 | Suggest route accepts the occasion and enforces 20 candidates | BACKLOG | P1 | S | security, data | F-707.1 | plan-approval | 0 | 2026-11-22 |
 | F-707.3 | Same-day suggestion cache in Postgres | BACKLOG | P1 | M | db, security, data | F-707.2 | plan-approval | 0 | 2026-11-22 |
 | F-707.4 | Occasion picker; AI runs only on an explicit tap | BACKLOG | P1 | M | ui, ux, data | F-707.3 | none | 0 | 2026-11-22 |
-| F-706.4 | Cut AI over to the shared key, credits and spend cap | BACKLOG | P1 | M | security, architecture, data | F-706.1, F-706.2, F-706.3, F-707.4 | plan-approval | 0 | 2026-11-22 |
+| F-706.4 | Cut AI over to the shared key, credits and spend cap | BACKLOG | P1 | M | security, architecture, data | F-706.1, F-706.2, F-706.3 | plan-approval | 0 | 2026-11-22 |
 | F-706.7 | User credit UI and retire the BYOK form | BACKLOG | P1 | M | ui, ux, data | F-706.1, F-706.2, F-706.3 | none | 0 | 2026-11-22 |
 | F-708.1 | Sticker table and Drive storage | BACKLOG | P1 | M | db, security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |
 | F-708.2 | Image provider adapter with input and output downscaling | BACKLOG | P1 | M | security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |

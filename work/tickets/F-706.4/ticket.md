@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | security, architecture, data |
 | Gate | plan-approval |
-| Depends on | F-706.1, F-706.2, F-706.3, F-707.4 |
+| Depends on | F-706.1, F-706.2, F-706.3 |
 | Needs Ming | M-42 |
 | Attempts | 0 |
 | Created | 2026-11-22 |
@@ -43,7 +43,7 @@ Make photo fill, bulk tagging and outfit suggestions use the shared key, charged
 
 ## Technical notes
 - High tier: touches `server/**` and/or `db/migrations/**` (loop.config.md High paths), so the loop stops after PLAN until Ming approves the plan.
-- **Release rule (D52):** ships in the same release as F-706.7, and F-707.4 (AI only on an explicit action) ships before or with them, so no user is charged without tapping (OQ-16). Do not cut a release containing this ticket without F-706.7.
+- **Release rule (D52, D55):** may merge before F-707.4 (D55), but ships in the same release as F-706.7, and F-707.4 (AI only on an explicit action) ships before or with them, so no user is charged without tapping (OQ-16). Do not cut a release containing this ticket without F-706.7.
 - Needs Ming M-42 before release: paid provider tier whose terms exclude training (D54) and a provider-console cap ≤ $20/month (D53).
 - `loadSettingsKey` call sites: `server/ai/tagPhoto.js:48`, `server/ai/suggestOutfits.js:72`, `server/ai/routes.js:85` (ai-stylist-notes.md:69).
 - New error codes go in `src/shared/ai/errors.ts:4`, `server/ai/catalog.js:27` and `AI_BATCH_OFF` (`src/data/photoImport.ts:36-48`), or a bulk import keeps retrying after credits run out (ai-stylist-notes.md:72).
