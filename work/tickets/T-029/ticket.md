@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P2 |
 | Size | M |
 | Areas | security, architecture |
@@ -11,7 +11,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-23T04:45:27Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -52,3 +52,8 @@ D50 ("Sign in with mmlabs" consumer spec: cross-tab session); follow-ups F1, F2 
 - Done: consult (software-architect), plan.md (Status READY, T1–T20, assumptions A1–A6 with defaults).
 - In progress / next: Ming approves the plan (M-47); then /run T-029 resumes at IMPLEMENT.
 - Gotchas: AuthGate.tsx is shared with BUG-008 (whichever lands second rebases and re-runs BUG-008 T1–T3); SignInScreen.tsx props shared with T-031. loop.config.md High paths omit src/features/auth/** (already a BUG-008 follow-up).
+
+### 2026-11-23 — claude — DONE
+- Done: implemented the approved plan (attempt 1, merged with main incl. BUG-008); reviewer PASS, security review no 🔴. Branch `ticket/T-029` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/T-029` with the body in `work/tickets/T-029/pr.md`, then the PR URL goes into this ticket.
+- Gotchas: security 🟡 1 (retry completion after a same-tab re-sign-in) is a follow-up; T-031 must keep the retry props and T19–T20; 7 Windows-only `pnpm test` failures are pre-existing (rely on CI).
