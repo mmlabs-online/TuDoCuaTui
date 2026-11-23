@@ -8,7 +8,7 @@
 | Areas | security |
 | Gate | none |
 | Depends on | — |
-| Needs Ming | decision (see Technical notes) |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
 | Claimed by | — |
@@ -36,5 +36,6 @@ D50; T-028.1 follow-up (PR https://github.com/mmlabs-online/TuDoCuaTui/pull/89):
 - Decision for Ming: (a) keep — a 403 passes through as an error (current; `forbidden_origin` is a config problem, signing out would not help), or (b) treat 403 like a second 401 and call `onAuthLost`. Recommendation: (a), test-pinned.
 
 ## Notes / answers from Ming
+- 2026-11-23 — Decision (Ming, in chat: "duyệt tất cả"): option (a), the recommendation — a 403 passes through as an error, test-pinned; it does not sign the user out.
 
 ## Handoff
