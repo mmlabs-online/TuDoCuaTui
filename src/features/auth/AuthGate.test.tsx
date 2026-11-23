@@ -1016,6 +1016,50 @@ describe("continue as", () => {
     expect(s.client.token).toHaveBeenLastCalledWith(ID);
   });
 
+  it("continue -> network -> retry -> not_member (no join) -> form + error, no list, accounts called once", async () => {
+    const s = setup({ firstTokenError: err("network") });
+    await continueAsMe();
+    s.client.token.mockRejectedValueOnce(err("not_member"));
+    await click(await screen.findByRole("button", { name: AUTH_COPY.actions.retry }));
+    expect(await emailField()).toBeTruthy();
+    expect(alertText()).toContain(AUTH_COPY.errors.not_member);
+    expect(screen.queryByRole("button", { name: /^Tiếp tục với / })).toBeNull();
+    expect(s.client.accounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("restore: id cleared while the join lookup runs -> form + session_invalid + accounts re-listed", async () => {
+    const s = setup({ id: ID, firstTokenError: { code: "not_member", joinAvailable: true } });
+    let release!: (v: { accountId: string; email: string }[]) => void;
+    s.client.accounts.mockReturnValueOnce(new Promise((r) => (release = r)));
+    await waitFor(() => expect(s.client.accounts).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      s.store.forget();
+      release([A]);
+    });
+    expect(await emailField()).toBeTruthy();
+    expect(alertText()).toContain(AUTH_COPY.errors.session_invalid);
+    expect(await listBtn(A.email)).toBeTruthy();
+    expect(s.client.accounts).toHaveBeenCalledTimes(2);
+    expect(s.stored()).toBeNull();
+  });
+
+  it("remote sign-out while the join lookup runs -> signed-out notice, no list, no re-list", async () => {
+    const s = setup({ id: ID, firstTokenError: { code: "not_member", joinAvailable: true } });
+    let release!: (v: { accountId: string; email: string }[]) => void;
+    s.client.accounts.mockReturnValueOnce(new Promise((r) => (release = r)));
+    await waitFor(() => expect(s.client.accounts).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      s.other.postMessage({ v: 1, type: "signedOut", accountId: ID, at: Date.now() });
+      await Promise.resolve(); // the fake channel delivers on a microtask
+      release([A]);
+    });
+    expect(await emailField()).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Tiếp tục với / })).toBeNull();
+    expect(s.client.accounts).toHaveBeenCalledTimes(1);
+  });
+
   it("continue -> session_invalid -> form + session_invalid error + accounts re-listed, id cleared", async () => {
     const s = setup({ firstTokenError: err("session_invalid") });
     await continueAsMe();

@@ -139,8 +139,10 @@ export function AuthGate({
       return;
     }
     if (err.code === "network" || err.code === "rate_limited" || err.code === "unknown") {
+      clearAccounts();
       setView({ kind: "retry", error: err });
     } else {
+      clearAccounts();
       setView({ kind: "signed_out", error: err });
     }
   };
@@ -152,13 +154,12 @@ export function AuthGate({
     rechecking.current = false;
     setView({ kind: "checking" });
     try {
+      const seq = signOutSeq.current;
       const joinEmail = await store.accountEmail();
       if (!live()) return;
       if (store.accountId() === null) {
-        // signed out meanwhile: a remote sign-out already moved the view; otherwise (id cleared by session_invalid) go to sign-in
-        setView((v) =>
-          v.kind === "checking" ? { kind: "signed_out", error: { code: "session_invalid" } } : v,
-        );
+        // signed out meanwhile: a remote sign-out bumped signOutSeq and already moved the view; otherwise (id cleared by session_invalid) go to sign-in and re-list via failTo
+        if (seq === signOutSeq.current) failTo({ code: "session_invalid" });
         return;
       }
       setView(
