@@ -13,7 +13,7 @@ import { categoryNames, colorMap, colors, seasons, statuses } from "@/constants/
 import { toDateOnly } from "@/features/import-export/csv/serialize";
 import { aiErrorText, needsSettings, photoSourceFor } from "./aiFill";
 import { blankItem } from "./blankItem";
-import { EDITOR_COPY } from "./copy";
+import { EDITOR_COPY, lastWornLabel } from "./copy";
 import { isDirty } from "./dirty";
 import { ageInDays } from "./filters";
 import { useAiFill, type EditorAi } from "./useAiFill";
@@ -321,8 +321,10 @@ export function Editor({
                     <b>Đã mặc {item.wearCount} lần</b>
                     <small>
                       {item.lastWorn
-                        ? `Lần cuối ${ageInDays(item.lastWorn)} ngày trước`
-                        : "Chưa có lịch sử"}
+                        ? EDITOR_COPY.wear.lastWorn(
+                            lastWornLabel(item.lastWorn, ageInDays(item.lastWorn)),
+                          )
+                        : EDITOR_COPY.wear.noHistory}
                     </small>
                   </div>
                 </div>

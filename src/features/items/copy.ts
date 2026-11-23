@@ -45,6 +45,11 @@ export const EDITOR_COPY = {
   },
   wear: {
     neverWorn: "chưa mặc",
+    today: "hôm nay",
+    overYear: "hơn 1 năm",
+    days: (n: number) => `${n} ngày`,
+    lastWorn: (label: string) => `Lần cuối ${label}`,
+    noHistory: "Chưa có lịch sử",
     worn: "Đã ghi nhận mặc hôm nay",
     alreadyWorn: "Đã ghi nhận hôm nay rồi",
     adjusted: "Đã điều chỉnh số lần mặc",
@@ -58,3 +63,10 @@ export const EDITOR_COPY = {
 } as const;
 
 export const GRID_COPY = { loadMore: "Xem thêm" } as const;
+
+export function lastWornLabel(lastWorn: string, days: number): string {
+  if (lastWorn === "") return EDITOR_COPY.wear.neverWorn;
+  if (days > 365) return EDITOR_COPY.wear.overYear;
+  if (days === 0) return EDITOR_COPY.wear.today;
+  return EDITOR_COPY.wear.days(days);
+}

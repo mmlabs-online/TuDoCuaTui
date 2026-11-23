@@ -44,6 +44,11 @@ describe("ItemCard wear pill", () => {
     expect(screen.queryByText(/-1 ngày/)).toBeNull();
   });
 
+  test('shows "hơn 1 năm" for an item worn over 365 days ago', () => {
+    renderAt("2026-11-07T02:00:00+07:00", "2025-11-01");
+    expect(screen.getByText(/hơn 1 năm/)).toBeTruthy();
+  });
+
   test('shows "1 ngày" at 00:30 UTC+7 for an item worn yesterday', () => {
     renderAt("2026-11-07T00:30:00+07:00", "2026-11-06");
     expect(screen.getByText(/1 ngày/)).toBeTruthy();
