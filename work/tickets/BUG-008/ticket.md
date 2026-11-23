@@ -16,7 +16,7 @@
 | Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/107 |
 
 ## Report
 Follow-ups from the T-028.3 review and security review attempt 2 (PR https://github.com/mmlabs-online/TuDoCuaTui/pull/91).
@@ -67,5 +67,5 @@ Follow-ups from the T-028.3 review and security review attempt 2 (PR https://git
 
 ### 2026-11-23 — claude — DONE
 - Done: implemented the approved plan (attempt 1); reviewer PASS, security review no 🔴. Branch `ticket/BUG-008` pushed.
-- In progress / next: no GitHub CLI or MCP on this machine, so the PR is not opened yet. Ming opens it from `ticket/BUG-008` with the body in `work/tickets/BUG-008/pr.md`, then writes the PR URL into this ticket.
+- In progress / next: PR #107 opened by Ming (no GitHub CLI on the agent machine); Ming reviews and merges.
 - Gotchas: 7 `pnpm test` failures are Windows-only and pre-existing on main (rely on CI). Security 🟡 3 (forget() during join lookup re-lists) matters for T-029 / T-031.
