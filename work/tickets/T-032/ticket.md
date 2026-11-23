@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | IN_PROGRESS |
 | Priority | P3 |
 | Size | S |
 | Areas | ui |
 | Gate | none |
 | Depends on | — |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
 | Claimed by | claude@2026-11-23T05:18:24Z |
 | PR | — |
