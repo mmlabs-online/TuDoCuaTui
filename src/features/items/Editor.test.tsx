@@ -66,6 +66,37 @@ const renderEditor = (update = vi.fn(), item: Item = blankItem(), isNew = true) 
   return { inputs, camera, gallery, update };
 };
 
+describe("last worn label", () => {
+  afterEach(() => vi.useRealTimers());
+  const at = (lastWorn: string, wearCount = 1) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T02:00:00+07:00"));
+    renderEditor(vi.fn(), { ...blankItem(), name: "Áo", wearCount, lastWorn }, false);
+  };
+
+  test("worn today shows Lần cuối hôm nay", () => {
+    at("2026-11-07");
+    expect(screen.getByText("Lần cuối hôm nay")).toBeTruthy();
+    expect(screen.queryByText(/0 ngày/)).toBeNull();
+  });
+
+  test("worn 3 days ago shows Lần cuối 3 ngày", () => {
+    at("2026-11-04");
+    expect(screen.getByText("Lần cuối 3 ngày")).toBeTruthy();
+    expect(screen.queryByText(/ngày trước/)).toBeNull();
+  });
+
+  test("worn over a year ago shows Lần cuối hơn 1 năm", () => {
+    at("2025-11-01");
+    expect(screen.getByText("Lần cuối hơn 1 năm")).toBeTruthy();
+  });
+
+  test("never worn shows Chưa có lịch sử", () => {
+    at("", 0);
+    expect(screen.getByText("Chưa có lịch sử")).toBeTruthy();
+  });
+});
+
 describe("photo inputs", () => {
   test("has one camera input and one gallery input", () => {
     const { inputs, camera, gallery } = renderEditor();

@@ -2,7 +2,7 @@ import type { Item } from "@/types/item";
 import { Icon } from "@/components/Icon";
 import { ItemPhoto } from "@/components/ItemPhoto";
 import { colorMap, frameColors } from "@/constants/wardrobe";
-import { EDITOR_COPY } from "./copy";
+import { lastWornLabel } from "./copy";
 
 export function ItemCard({
   item,
@@ -36,14 +36,7 @@ export function ItemCard({
           <span className={`badge badge-${item.status.replaceAll(" ", "-")}`}>{item.status}</span>
         )}
         <span className="wear-pill">
-          👕 {item.wearCount}× ·{" "}
-          {item.lastWorn === ""
-            ? EDITOR_COPY.wear.neverWorn
-            : days > 365
-              ? "hơn 1 năm"
-              : days === 0
-                ? "hôm nay"
-                : `${days} ngày`}
+          👕 {item.wearCount}× · {lastWornLabel(item.lastWorn, days)}
         </span>
         <i className="card-sparkle">✦</i>
       </div>
