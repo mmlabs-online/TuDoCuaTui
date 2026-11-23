@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | S |
@@ -15,7 +15,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-23T06:39:27Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -65,3 +65,8 @@ and no focus management. The filter selects in the items toolbar have no label.
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-23 — claude — DONE
+- Done: consult (frontend-developer, ux-architect), plan, implement (attempt 1): Modal dialog semantics, focus in/trap/restore, FilterSelect aria-label; regression tests fail on main; reviewer PASS. Branch `ticket/BUG-016` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/BUG-016` with the body in `work/tickets/BUG-016/pr.md` and runs the browser steps listed there (Playwright could not get past sign-in), then the PR URL goes into this ticket.
+- Gotchas: existing items no longer autofocus the name field (intentional); OutfitsModal.test.tsx timer helper changed for jsdom's focus timer.
