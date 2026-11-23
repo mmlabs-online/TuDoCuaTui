@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-23T14:35:52Z |
 | PR | — |
 
 ## Goal
@@ -48,6 +48,7 @@ Give the owner server routes to change grant settings, add credits manually, app
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-23 — Plan approved by Ming ("duyệt F-706.5"), with assumptions A1–A12 as written in plan.md.
 
 ## Handoff
 
