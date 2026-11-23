@@ -5,7 +5,8 @@ export type GetToken = (rejected?: string) => Promise<string | null>;
 
 export interface AuthOptions {
   getToken?: GetToken;
-  /** A request got 401 again with a freshly fetched token. Called once per failing request. */
+  /** A request got 401 again with a freshly fetched token. Called once per failing request.
+   * A 403 (e.g. `forbidden_origin`) or any other status never calls it (D55). */
   onAuthLost?: () => void;
 }
 
@@ -14,7 +15,8 @@ const isSameOriginPath = (url: string) => url.startsWith("/") && !url.startsWith
 
 /**
  * Wraps `fetch` for the Node API in identity mode: adds `Authorization: Bearer` to same-origin paths and
- * retries once after a 401 with a refreshed token. Without `getToken` the request is passed through untouched.
+ * retries once after a 401 with a refreshed token. Every non-401 response, including 403, is returned to the caller unchanged, with no
+ * retry (D55); only a repeated 401 signs out. Without `getToken` the request is passed through untouched.
  */
 export function createAuthedFetch({
   fetchFn,

@@ -70,6 +70,28 @@ describe("createAuthedFetch", () => {
     expect(onAuthLost).not.toHaveBeenCalled();
   });
 
+  it("403 is passed through: no retry, no onAuthLost", async () => {
+    const getToken = vi.fn(async (_r?: string) => "t");
+    const onAuthLost = vi.fn();
+    const { f, fetchFn } = setup([403], getToken, { onAuthLost });
+    const res = await f("/api/x", init());
+    expect(res.status).toBe(403);
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onAuthLost).not.toHaveBeenCalled();
+  });
+
+  it("401 then 403 on the retry -> 403 returned, no onAuthLost", async () => {
+    const tokens = ["t", "t2"];
+    const getToken = vi.fn(async (_r?: string) => tokens.shift() ?? null);
+    const onAuthLost = vi.fn();
+    const { f, fetchFn } = setup([401, 403], getToken, { onAuthLost });
+    const res = await f("/api/x", init());
+    expect(res.status).toBe(403);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(onAuthLost).not.toHaveBeenCalled();
+  });
+
   it("401 -> one retry with getToken(stale) and the new token", async () => {
     const tokens = ["t", "t2"];
     const getToken = vi.fn(async (_r?: string) => tokens.shift() ?? null);

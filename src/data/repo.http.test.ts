@@ -539,6 +539,18 @@ describe("identity mode (getToken)", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  test("403 forbidden_origin → ApiError(403, forbidden_origin); no onAuthLost", async () => {
+    const onAuthLost = vi.fn();
+    const fetchFn = vi.fn(async () => json({ error: { code: "forbidden_origin" } }, 403));
+    const repo = createHttpRepo(fetchFn as unknown as typeof fetch, "/api", prepare, {
+      getToken: async () => "t",
+      onAuthLost,
+    });
+    await expect(repo.locations()).rejects.toMatchObject({ status: 403, code: "forbidden_origin" });
+    expect(onAuthLost).not.toHaveBeenCalled();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   test("no header without getToken", async () => {
     const { fetchFn, repo } = withAuth([200], {});
     await repo.locations();
