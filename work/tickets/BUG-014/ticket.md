@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-23T05:31:45Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -59,3 +59,8 @@ nothing changed. The count correctly never went below 0.
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-23 — claude — DONE
+- Done: consult (frontend-developer), plan, implement (attempt 1): `disabled={item.wearCount <= 0}` on "−1" + 3 tests; regression test failed on main before the fix; reviewer PASS. Branch `ticket/BUG-014` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/BUG-014` with the body in `work/tickets/BUG-014/pr.md`, then the PR URL goes into this ticket.
+- Gotchas: BUG-015 / BUG-016 edit the same Editor files; rebase them onto this.
