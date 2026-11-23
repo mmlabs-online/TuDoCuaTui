@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P3 |
 | Size | S |
 | Areas | security |
@@ -11,7 +11,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-23T05:07:46Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -41,5 +41,11 @@ D50; follow-ups in T-028.1, T-028.3 and T-028.4 review.md / security-review.md (
 - High paths (`server/**`, `src/features/auth/**`): plan approval.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-23 — claude — BLOCKED
+- Done: plan.md (Status READY). No consult (Areas: security only).
+- In progress / next: Ming approves the plan (M-48). Then wait for T-029's PR to merge, rebase `ticket/T-031` onto main, and /run T-031 resumes at IMPLEMENT.
+- Gotchas: overlaps T-029 in SignInScreen.tsx, types.ts, AuthGate.tsx, AuthPreview.tsx and their tests; T-031 must keep T-029's retry props and T19–T20. Planner could not read the T-029 branch; the orchestrator confirmed the overlap list against T-029's diff.
