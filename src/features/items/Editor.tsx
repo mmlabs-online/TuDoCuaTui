@@ -340,7 +340,7 @@ export function Editor({
             <div className="form-grid">
               <Field label="Tên món đồ" wide error={msg(errors.name)}>
                 <input
-                  autoFocus
+                  data-autofocus={isNew || undefined}
                   value={item.name}
                   aria-invalid={!!msg(errors.name)}
                   onChange={(e) => update("name", e.target.value)}

@@ -553,9 +553,13 @@ test("AI answer shown: switching between two places with the same flags makes no
 });
 
 const baseTimers = () => {
+  // jsdom's focus() (the Modal's mount focus) leaves a timer behind: spend it before measuring and clear after.
+  renderAi(aiItems(), undefined).unmount();
+  vi.clearAllTimers();
   const { unmount } = renderAi(aiItems(), undefined);
   const n = vi.getTimerCount();
   unmount();
+  vi.clearAllTimers();
   return n;
 };
 

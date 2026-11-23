@@ -15,7 +15,7 @@ export function FilterSelect({
 }) {
   return (
     <label className={`filter-select ${value && !sort ? "has-value" : ""}`}>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{label}</option>
         {options.map((x) => (
           <option key={x}>{x}</option>
