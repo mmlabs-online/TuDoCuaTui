@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Needs Ming | M-38 |
 | Attempts | 1 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-23T04:31:26Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -64,3 +64,8 @@ Follow-ups from the T-028.3 review and security review attempt 2 (PR https://git
 - Done: consult frontend-developer; plan READY (clearAccounts() in failTo's retry/other branches; offerJoin "signed out meanwhile" via failTo with a signOutSeq guard; regression tests T1, T2 + guard test T3).
 - In progress / next: waiting for Ming's plan approval (M-38); then implement.
 - Gotchas: assumptions B1–B3 in plan.md.
+
+### 2026-11-23 — claude — DONE
+- Done: implemented the approved plan (attempt 1); reviewer PASS, security review no 🔴. Branch `ticket/BUG-008` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine, so the PR is not opened yet. Ming opens it from `ticket/BUG-008` with the body in `work/tickets/BUG-008/pr.md`, then writes the PR URL into this ticket.
+- Gotchas: 7 `pnpm test` failures are Windows-only and pre-existing on main (rely on CI). Security 🟡 3 (forget() during join lookup re-lists) matters for T-029 / T-031.
