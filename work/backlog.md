@@ -119,7 +119,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-705 | Sticker spike on 10 hard items | BACKLOG | P1 | M | architecture, security | — | none | 0 | 2026-11-22 |
 | F-706.1 | Credit ledger with reserve, commit and refund | MERGED | P1 | M | db, security, architecture | — | plan-approval | 2 | 2026-11-22 |
 | F-706.2 | App-wide monthly spend meter and model price table | MERGED | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-22 |
-| F-706.3 | Owner-only shared AI key storage, replacement and test | DONE | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-22 |
+| F-706.3 | Owner-only shared AI key storage, replacement and test | MERGED | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-23 |
 | F-706.5 | Owner-only admin API for grants, credits, approvals and spend | BACKLOG | P1 | M | security, architecture, db | F-706.1 | plan-approval | 0 | 2026-11-22 |
 | F-706.6 | Owner admin screen for the shared key, grants and approvals | BACKLOG | P1 | M | ui, ux, security | F-706.3, F-706.5 | plan-approval | 0 | 2026-11-22 |
 | F-707.1 | Occasion enum and rule prefilter in the outfit pool | BACKLOG | P1 | S | data | BUG-012, BUG-013 | none | 0 | 2026-11-22 |
