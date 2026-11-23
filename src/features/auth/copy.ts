@@ -15,6 +15,8 @@ export const AUTH_COPY = {
     signedOut: "Bạn đã đăng xuất.",
     logoutUnconfirmed:
       "Bạn đã đăng xuất khỏi Tủ đồ của tôi trên trình duyệt này, nhưng chưa xác nhận được việc đăng xuất khỏi tài khoản mmlabs. Nếu đây là máy dùng chung, hãy kết nối mạng rồi đăng nhập và đăng xuất lại, hoặc xoá dữ liệu duyệt web (cookie) của trình duyệt này.",
+    retrySignOut: "Thử đăng xuất lại",
+    retryingSignOut: "Đang đăng xuất…",
     forgot: "Quên mật khẩu?",
     passwordReset: "Mật khẩu đã được đổi. Hãy đăng nhập bằng mật khẩu mới.",
     accountsLabel: "Tài khoản đã đăng nhập trên trình duyệt này",

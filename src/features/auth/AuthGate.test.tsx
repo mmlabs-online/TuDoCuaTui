@@ -1143,3 +1143,88 @@ describe("continue as", () => {
     expect(s.client.accounts).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("T-029: lost sessions and retry sign-out", () => {
+  const click = async (el: HTMLElement) => {
+    await act(async () => {
+      fireEvent.click(el);
+    });
+  };
+  const retryBtn = () => screen.getByRole("button", { name: AUTH_COPY.signIn.retrySignOut });
+  /** Signed in, then "Đăng xuất" with a /logout that fails once: the warning with its retry button. */
+  const unconfirmed = async () => {
+    const s = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    s.client.logout.mockRejectedValueOnce(err("network"));
+    await click(screen.getByText("out"));
+    await screen.findByText(AUTH_COPY.signIn.logoutUnconfirmed);
+    s.client.logout.mockClear();
+    return s;
+  };
+
+  it("onAuthLost broadcasts signedOut for the lost account", async () => {
+    const s = setup();
+    await signInWith();
+    await screen.findByText("app-ready");
+    const got: unknown[] = [];
+    s.other.addEventListener("message", (ev) => got.push(ev.data));
+    await click(screen.getByText("lost"));
+    await waitFor(() =>
+      expect(got).toContainEqual(expect.objectContaining({ type: "signedOut", accountId: ID })),
+    );
+  });
+
+  it("Thử đăng xuất lại calls /logout once per click and shows Bạn đã đăng xuất. on success", async () => {
+    const s = await unconfirmed();
+    let done!: () => void;
+    s.client.logout.mockImplementationOnce(
+      () =>
+        new Promise<void>((r) => {
+          done = r;
+        }),
+    );
+    await click(retryBtn());
+    await waitFor(() => expect(s.client.logout).toHaveBeenCalledTimes(1));
+    const busy = screen.getByRole("button", { name: AUTH_COPY.signIn.retryingSignOut });
+    expect((busy as HTMLButtonElement).disabled).toBe(true);
+    await click(busy); // a second click while pending
+    expect(s.client.logout).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      done();
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.signedOut);
+    expect(screen.queryByText(AUTH_COPY.signIn.logoutUnconfirmed)).toBeNull();
+    expect(screen.queryByRole("button", { name: AUTH_COPY.signIn.retrySignOut })).toBeNull();
+  });
+
+  it("a failed retry keeps the warning and the button", async () => {
+    const s = await unconfirmed();
+    s.client.logout.mockRejectedValueOnce(err("network"));
+    await click(retryBtn());
+    await waitFor(() => expect(s.client.logout).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.logoutUnconfirmed);
+    expect((retryBtn() as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("a late retry result after moving on changes nothing", async () => {
+    const s = await unconfirmed();
+    let done!: () => void;
+    s.client.logout.mockImplementationOnce(
+      () =>
+        new Promise<void>((r) => {
+          done = r;
+        }),
+    );
+    await click(retryBtn());
+    await waitFor(() => expect(done).toBeTypeOf("function"));
+    await click(screen.getByText(AUTH_COPY.signIn.toSignUp));
+    await act(async () => {
+      done();
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    expect(screen.getByRole("button", { name: AUTH_COPY.signUp.submit })).toBeTruthy();
+    expect(screen.queryByText(AUTH_COPY.signIn.signedOut)).toBeNull();
+  });
+});

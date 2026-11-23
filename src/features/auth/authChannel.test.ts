@@ -103,3 +103,35 @@ describe("createAuthChannel", () => {
     expect(() => ch.post(signedOut() as never)).not.toThrow();
   });
 });
+
+describe("createAuthChannel without an endpoint (storage fallback)", () => {
+  it("subscribers get signedOut from watchRemoved; with an endpoint watchRemoved is not used; post writes nothing", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    let emit!: (id: string) => void;
+    const stop = vi.fn();
+    const watchRemoved = vi.fn((fn: (id: string) => void) => {
+      emit = fn;
+      return stop;
+    });
+    const none = createAuthChannel({ create: () => undefined, now: () => NOW, watchRemoved });
+    const got = vi.fn();
+    const off = none.subscribe(got);
+    emit(ID);
+    expect(got).toHaveBeenCalledExactlyOnceWith(signedOut());
+    emit("not-a-uuid");
+    expect(got).toHaveBeenCalledOnce();
+    none.post(signedOut() as never);
+    none.post(token() as never);
+    expect(setItem).not.toHaveBeenCalled();
+    off();
+    expect(stop).toHaveBeenCalledOnce();
+
+    const hub = createFakeChannelHub();
+    watchRemoved.mockClear();
+    createAuthChannel({ create: () => hub.endpoint(), now: () => NOW, watchRemoved }).subscribe(
+      () => {},
+    );
+    expect(watchRemoved).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+});

@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { watchAccountIdRemoved, type StorageWindowLike } from "./accountId";
 import { createAuthChannel } from "./authChannel";
-import { createFakeChannelHub, createFakeDoc, createFakeLockManager } from "./fakeTabs";
+import {
+  createFakeChannelHub,
+  createFakeDoc,
+  createFakeLockManager,
+  createFakeStorageHub,
+} from "./fakeTabs";
 import type { IdentityClient } from "./identityClient";
 import { createRefreshLock } from "./refreshLock";
-import { createTokenStore } from "./tokenStore";
+import { createTokenStore, type AccountIdStorage } from "./tokenStore";
 import type { AuthError } from "./types";
 
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -33,14 +39,24 @@ function world(expiresIn = 900) {
   const locks = createFakeLockManager();
   const hub = createFakeChannelHub();
   let n = 0;
-  const tab = (opts: { id?: string | null; storage?: ReturnType<typeof sharedStorage> } = {}) => {
-    const cell = opts.storage ?? sharedStorage(opts.id === undefined ? ID : opts.id);
+  const tab = (
+    opts: {
+      id?: string | null;
+      storage?: ReturnType<typeof sharedStorage>;
+      /** No BroadcastChannel: sign-out reaches this tab only through the storage event of `win`. */
+      fallback?: { storage: AccountIdStorage; win: StorageWindowLike };
+    } = {},
+  ) => {
+    const cell = (opts.fallback?.storage ??
+      opts.storage ??
+      sharedStorage(opts.id === undefined ? ID : opts.id)) as ReturnType<typeof sharedStorage>;
     const client = {
       token: vi.fn(async (_id: string) => {
         await Promise.resolve();
         return { accessToken: `tok${++n}`, expiresIn };
       }),
       logout: vi.fn(async (_id: string) => {}),
+      join: vi.fn(async (_id: string) => {}),
     };
     const doc = createFakeDoc();
     const clear = cell.clear;
@@ -48,7 +64,13 @@ function world(expiresIn = 900) {
       client: client as unknown as IdentityClient,
       storage: cell,
       lock: createRefreshLock({ locks }),
-      channel: () => createAuthChannel({ create: () => hub.endpoint() }),
+      channel: () =>
+        opts.fallback
+          ? createAuthChannel({
+              create: () => undefined,
+              watchRemoved: (fn) => watchAccountIdRemoved(fn, opts.fallback?.win),
+            })
+          : createAuthChannel({ create: () => hub.endpoint() }),
       doc,
     });
     const stop = store.start();
@@ -397,5 +419,141 @@ describe("BUG-007: sign-out keeps another tab's account", () => {
     expect(c.store.accountId()).toBeNull();
     expect(shared.value()).toBe(ID2);
     expect(b.store.accountId()).toBe(ID2);
+  });
+});
+
+describe("session ends reach other tabs", () => {
+  const signedOuts = (seen: Record<string, unknown>[]) =>
+    seen.filter((m) => m.type === "signedOut");
+
+  it("session_invalid on renewal in A signs out B on the same account", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab();
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    a.client.token.mockRejectedValueOnce(fail("session_invalid"));
+    const pa = a.store.getToken().catch((e: unknown) => e);
+    await settle();
+    expect(await pa).toEqual(fail("session_invalid"));
+    expect(remote).toHaveBeenCalledOnce();
+    expect(b.store.accountId()).toBeNull();
+    expect(await b.store.getToken()).toBeNull();
+  });
+
+  it("session_invalid from join in A signs out B; one signedOut posted", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab();
+    const { seen } = w.probe();
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    a.client.join.mockRejectedValueOnce(fail("session_invalid"));
+    const pj = a.store.join().catch((e: unknown) => e);
+    await settle();
+    expect(await pj).toEqual(fail("session_invalid"));
+    expect(remote).toHaveBeenCalledOnce();
+    expect(b.store.accountId()).toBeNull();
+    expect(signedOuts(seen)).toHaveLength(1);
+  });
+
+  it("forget() in A signs out B", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab();
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    a.store.forget();
+    await settle();
+    expect(remote).toHaveBeenCalledOnce();
+    expect(b.store.accountId()).toBeNull();
+    expect(a.client.logout).not.toHaveBeenCalled();
+    expect(b.client.logout).not.toHaveBeenCalled();
+  });
+
+  it("B on another account is not affected by A's session_invalid or forget", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab({ id: ID2 });
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    a.client.token.mockRejectedValueOnce(fail("session_invalid"));
+    const pa = a.store.getToken().catch(() => {});
+    await settle();
+    await pa;
+    const c = w.tab();
+    c.store.forget();
+    await settle();
+    expect(remote).not.toHaveBeenCalled();
+    expect(b.store.accountId()).toBe(ID2);
+  });
+
+  it("a received signedOut is not re-broadcast", async () => {
+    const w = world();
+    const a = w.tab();
+    const b = w.tab();
+    const { seen } = w.probe();
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    a.store.forget();
+    await settle();
+    expect(remote).toHaveBeenCalledOnce();
+    expect(signedOuts(seen)).toHaveLength(1);
+  });
+
+  it("a signedOut older than the tab's session start is ignored", async () => {
+    const w = world();
+    const b = w.tab({ id: null });
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    const t = Date.now();
+    const pb = b.store.continueAs(ID, "x@b.co");
+    await settle();
+    await pb;
+    const { ep } = w.probe();
+    ep.postMessage({ v: 1, type: "signedOut", accountId: ID, at: t - 1 });
+    await settle();
+    expect(remote).not.toHaveBeenCalled();
+    expect(b.store.accountId()).toBe(ID);
+  });
+});
+
+describe("no BroadcastChannel", () => {
+  it("A signing out / forgetting X signs out B on X via the storage event", async () => {
+    for (const how of ["signOut", "forget"] as const) {
+      const w = world();
+      const hub = createFakeStorageHub(ID);
+      const a = w.tab({ fallback: hub.tab() });
+      const b = w.tab({ fallback: hub.tab() });
+      const remote = vi.fn();
+      b.store.onRemoteSignOut(remote);
+      if (how === "signOut") {
+        const out = a.store.signOut();
+        await settle();
+        await out;
+      } else {
+        a.store.forget();
+        await settle();
+      }
+      expect(remote).toHaveBeenCalledOnce();
+      expect(b.store.accountId()).toBeNull();
+    }
+  });
+
+  it("X -> Y does not sign out B; removing Y leaves B on X alone", async () => {
+    const w = world();
+    const hub = createFakeStorageHub(ID);
+    const a = w.tab({ fallback: hub.tab() });
+    const b = w.tab({ fallback: hub.tab() });
+    const remote = vi.fn();
+    b.store.onRemoteSignOut(remote);
+    const pa = a.store.continueAs(ID2, "y@b.co");
+    await settle();
+    await pa;
+    expect(remote).not.toHaveBeenCalled();
+    a.store.forget(); // removes Y
+    await settle();
+    expect(remote).not.toHaveBeenCalled();
+    expect(b.store.accountId()).toBe(ID);
   });
 });

@@ -10,6 +10,11 @@ export interface AccountIdStorage {
   clear: () => void;
 }
 
+/** Not confirmed: `retry` calls /logout again for the remembered (memory only) account id; single-flight. */
+export type SignOutResult =
+  | { confirmed: true }
+  | { confirmed: false; retry: () => Promise<{ confirmed: boolean }> };
+
 export interface TokenStore {
   /** `null` when signed out. `rejected`: the token a request just got 401 for. */
   getToken: (rejected?: string) => Promise<string | null>;
@@ -18,8 +23,8 @@ export interface TokenStore {
   continueAs: (accountId: string, email: string) => Promise<void>;
   restore: () => Promise<void>;
   /** Never rejects. `confirmed`: Identity acknowledged the logout (2xx or `session_invalid`); otherwise warn the user. */
-  signOut: () => Promise<{ confirmed: boolean }>;
-  /** Drops token and account id without calling /logout (other mmlabs apps stay signed in). */
+  signOut: () => Promise<SignOutResult>;
+  /** Drops token and account id without calling /logout (other mmlabs apps stay signed in); other tabs on this account sign out too. */
   forget: () => void;
   /** Failures of a background refresh (`getToken`); sign-in and restore reject to their caller. */
   subscribe: (fn: (e: AuthError) => void) => () => void;
@@ -77,6 +82,7 @@ export function createTokenStore({
   let validUntil = 0;
   let expiresAt = 0;
   let tokenAt = 0;
+  let sessionAt = 0; // when this tab adopted its current session
   let generation = 0; // epoch: bumped whenever the session changes; late answers of an older epoch are dropped
   let inflight: Promise<string | null> | null = null;
   let started = false;
@@ -120,6 +126,25 @@ export function createTokenStore({
     if (gone && stored && stored.toLowerCase() === gone.toLowerCase()) storage.clear();
   };
 
+  /** Ends this tab's session for `gone`; `broadcast` tells the other tabs on that account. */
+  const end = (gone: string | null, broadcast: boolean) => {
+    reset();
+    id = null;
+    email = null;
+    forgetStored(gone);
+    if (broadcast && gone) channel?.post({ v: 1, type: "signedOut", accountId: gone, at: now() });
+  };
+
+  /** One /logout attempt; confirmed = 2xx or `session_invalid`. The lock also waits for a renewal running in another tab, whose late answer that tab drops. */
+  const logoutOnce = async (gone: string): Promise<boolean> => {
+    try {
+      await lock.run(() => client.logout(gone), { waitMs: SIGN_OUT_WAIT_MS });
+      return true;
+    } catch (err) {
+      return isAuthError(err) && err.code === "session_invalid";
+    }
+  };
+
   const renew = (rejected?: string): Promise<string | null> => {
     if (inflight) return inflight;
     if (!id) return Promise.resolve(null);
@@ -157,11 +182,7 @@ export function createTokenStore({
         if (epoch !== generation) return null;
         if (isAuthError(err)) {
           if (err.code === "session_invalid") {
-            token = null;
-            id = null;
-            email = null;
-            forgetStored(accountId);
-            disarm();
+            end(accountId, true);
           } else if (err.code === "not_member" || err.code === "email_unverified") {
             token = null;
           }
@@ -221,17 +242,15 @@ export function createTokenStore({
       }
       return;
     }
-    const gone = id;
-    reset();
-    id = null;
-    email = null;
-    forgetStored(gone);
+    if (msg.at < sessionAt) return; // from before this tab's current session: not about it
+    end(id, false);
     for (const fn of remoteListeners) fn();
   };
 
   /** Starts a new session epoch for `accountId`. Posts no `signedOut` for any earlier id. */
   const adopt = (accountId: string, accountEmail: string): Promise<string | null> => {
     reset();
+    sessionAt = now();
     id = accountId;
     email = accountEmail;
     storage.write(accountId);
@@ -253,12 +272,8 @@ export function createTokenStore({
     async signOut() {
       const gone = id;
       const running = inflight;
-      reset();
-      id = null;
-      email = null;
-      forgetStored(gone); // the local session ends first; /logout is best effort and may hang
+      end(gone, true); // the local session ends first; /logout is best effort and may hang
       if (!gone) return { confirmed: true };
-      channel?.post({ v: 1, type: "signedOut", accountId: gone, at: now() });
       if (running) {
         let wait: unknown;
         await Promise.race([
@@ -272,20 +287,28 @@ export function createTokenStore({
         ]);
         timers.clearTimeout(wait);
       }
-      try {
-        // the lock also waits for a renewal running in another tab, whose late answer that tab drops
-        await lock.run(() => client.logout(gone), { waitMs: SIGN_OUT_WAIT_MS });
-        return { confirmed: true };
-      } catch (err) {
-        return { confirmed: isAuthError(err) && err.code === "session_invalid" };
-      }
+      if (await logoutOnce(gone)) return { confirmed: true };
+      let retrying: Promise<{ confirmed: boolean }> | null = null;
+      const retry = (): Promise<{ confirmed: boolean }> => {
+        if (retrying) return retrying;
+        if (id !== null) return Promise.resolve({ confirmed: false }); // this tab has a session again
+        const p = logoutOnce(gone).then((confirmed) => {
+          if (confirmed) {
+            forgetStored(gone);
+            channel?.post({ v: 1, type: "signedOut", accountId: gone, at: now() });
+          }
+          return { confirmed };
+        });
+        retrying = p;
+        void p.finally(() => {
+          if (retrying === p) retrying = null;
+        });
+        return p;
+      };
+      return { confirmed: false, retry };
     },
     forget() {
-      const gone = id;
-      reset();
-      id = null;
-      email = null;
-      forgetStored(gone);
+      end(id, true);
     },
     subscribe(fn) {
       listeners.add(fn);
@@ -329,9 +352,7 @@ export function createTokenStore({
         await client.join(id);
       } catch (err) {
         if (gen === generation && isAuthError(err) && err.code === "session_invalid") {
-          forgetStored(id);
-          id = null;
-          email = null;
+          end(id, true);
         }
         throw err;
       }

@@ -267,7 +267,7 @@ describe("signOut / forget", () => {
     async (_n, code, confirmed) => {
       const s = setup();
       if (code) s.client.logout.mockRejectedValueOnce(fail(code));
-      await expect(s.store.signOut()).resolves.toEqual({ confirmed });
+      await expect(s.store.signOut()).resolves.toMatchObject({ confirmed });
     },
   );
 
@@ -330,7 +330,7 @@ describe("signOut / forget", () => {
   it("removes the id even when logout rejects", async () => {
     const s = setup();
     s.client.logout.mockRejectedValueOnce(fail("network"));
-    await expect(s.store.signOut()).resolves.toEqual({ confirmed: false });
+    await expect(s.store.signOut()).resolves.toMatchObject({ confirmed: false });
     expect(s.stored()).toBeNull();
   });
 
@@ -527,5 +527,85 @@ describe("BUG-007: clear only the departing account", () => {
     s.setStored(ID.toUpperCase());
     await s.store.signOut();
     expect(s.stored()).toBeNull();
+  });
+});
+
+describe("unconfirmed signOut: retry", () => {
+  const unconfirmed = async (s: ReturnType<typeof setup>) => {
+    s.client.logout.mockRejectedValueOnce(fail("network"));
+    const r = await s.store.signOut();
+    if (r.confirmed) throw new Error("expected an unconfirmed sign-out");
+    return r.retry;
+  };
+  const withChannel = (s: ReturnType<typeof setup>) => {
+    const posts: unknown[] = [];
+    const store = createTokenStore({
+      client: s.client as unknown as IdentityClient,
+      storage: s.storage,
+      now: () => 1_000_000,
+      channel: () => ({ post: (m) => posts.push(m), subscribe: () => () => {}, close: () => {} }),
+    });
+    store.start();
+    return { store, posts };
+  };
+
+  it("retry calls logout once, posts signedOut and clears storage only while it holds the id", async () => {
+    for (const [held, cleared] of [
+      [ID, true],
+      [ID2, false],
+    ] as const) {
+      const s = setup();
+      const { store, posts } = withChannel(s);
+      s.client.logout.mockRejectedValueOnce(fail("network"));
+      const r = await store.signOut();
+      if (r.confirmed) throw new Error("expected unconfirmed");
+      posts.length = 0;
+      s.setStored(held);
+      s.client.logout.mockClear();
+      const [x, y] = await Promise.all([r.retry(), r.retry()]); // single-flight
+      expect(x).toEqual({ confirmed: true });
+      expect(y).toEqual({ confirmed: true });
+      expect(s.client.logout).toHaveBeenCalledTimes(1);
+      expect(s.client.logout).toHaveBeenCalledWith(ID);
+      expect(s.stored()).toBe(cleared ? null : ID2);
+      expect(posts).toEqual([{ v: 1, type: "signedOut", accountId: ID, at: 1_000_000 }]);
+    }
+  });
+
+  it("network failure -> confirmed false and no post; session_invalid -> confirmed true", async () => {
+    const s = setup();
+    const { store, posts } = withChannel(s);
+    s.client.logout.mockRejectedValueOnce(fail("network"));
+    const r = await store.signOut();
+    if (r.confirmed) throw new Error("expected unconfirmed");
+    posts.length = 0;
+    s.client.logout.mockRejectedValueOnce(fail("network"));
+    expect(await r.retry()).toEqual({ confirmed: false });
+    expect(posts).toHaveLength(0);
+    s.client.logout.mockRejectedValueOnce(fail("session_invalid"));
+    expect(await r.retry()).toEqual({ confirmed: true });
+    expect(posts).toHaveLength(1);
+  });
+
+  it("is a no-op once the store has a session again", async () => {
+    const s = setup();
+    const retry = await unconfirmed(s);
+    await s.store.continueAs(ID2, "a@b.co");
+    s.client.logout.mockClear();
+    expect(await retry()).toEqual({ confirmed: false });
+    expect(s.client.logout).not.toHaveBeenCalled();
+  });
+});
+
+describe("session_invalid ends the epoch", () => {
+  it("renew's session_invalid clears id and storage and leaves no token; later calls make no request", async () => {
+    const s = setup();
+    s.client.token.mockRejectedValueOnce(fail("session_invalid"));
+    await expect(s.store.getToken()).rejects.toMatchObject({ code: "session_invalid" });
+    expect(s.store.accountId()).toBeNull();
+    expect(s.stored()).toBeNull();
+    s.client.token.mockClear();
+    expect(await s.store.getToken()).toBeNull();
+    expect(s.client.token).not.toHaveBeenCalled();
   });
 });

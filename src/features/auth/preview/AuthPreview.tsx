@@ -31,7 +31,15 @@ const ERROR_CODES = Object.keys(AUTH_COPY.errors).filter(
   (k) => !k.startsWith("weak_too"),
 ) as AuthErrorCode[];
 const STATES: Record<Screen, string[]> = {
-  signIn: ["idle", "submitting", "logout_unconfirmed", "accounts", "accounts_long", "continuing"],
+  signIn: [
+    "idle",
+    "submitting",
+    "logout_unconfirmed",
+    "logout_retrying",
+    "accounts",
+    "accounts_long",
+    "continuing",
+  ],
   signUp: ["idle", "submitting", "sent"],
   join: ["idle", "submitting"],
   forgot: ["idle", "submitting", "sent"],
@@ -121,7 +129,13 @@ export function AuthPreview() {
           <SignInScreen
             status={status}
             error={error}
-            notice={state === "logout_unconfirmed" ? "logout_unconfirmed" : null}
+            notice={
+              state === "logout_unconfirmed" || state === "logout_retrying"
+                ? "logout_unconfirmed"
+                : null
+            }
+            onRetrySignOut={() => say("retrySignOut")}
+            retryingSignOut={state === "logout_retrying"}
             turnstileSlot={slot}
             onSignIn={(v) => say(`signIn ${v.email} (${[...v.password].length})`)}
             onGoSignUp={() => say("goSignUp")}

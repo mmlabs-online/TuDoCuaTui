@@ -195,6 +195,25 @@ describe("SignInScreen forgot password", () => {
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.logoutUnconfirmed);
   });
 
+  it("logout_unconfirmed with onRetrySignOut shows Thử đăng xuất lại; retrying shows Đang đăng xuất… disabled", () => {
+    const onRetrySignOut = vi.fn();
+    setup({ notice: "logout_unconfirmed", onRetrySignOut });
+    fireEvent.click(screen.getByRole("button", { name: AUTH_COPY.signIn.retrySignOut }));
+    expect(onRetrySignOut).toHaveBeenCalledOnce();
+    cleanup();
+    setup({ notice: "logout_unconfirmed", onRetrySignOut, retryingSignOut: true });
+    const busy = screen.getByRole("button", { name: AUTH_COPY.signIn.retryingSignOut });
+    expect((busy as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("no retry button without onRetrySignOut or with another notice", () => {
+    setup({ notice: "logout_unconfirmed" });
+    expect(screen.queryByRole("button", { name: AUTH_COPY.signIn.retrySignOut })).toBeNull();
+    cleanup();
+    setup({ notice: "signed_out", onRetrySignOut: vi.fn() });
+    expect(screen.queryByRole("button", { name: AUTH_COPY.signIn.retrySignOut })).toBeNull();
+  });
+
   it("notice=password_reset shows its copy in role=status", () => {
     setup({ notice: "password_reset" });
     expect(screen.getByRole("status").textContent).toContain(AUTH_COPY.signIn.passwordReset);

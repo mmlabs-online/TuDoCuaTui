@@ -1,7 +1,8 @@
 /** Test-only helpers that stand in for several browser tabs. Never imported by app code. */
+import { ACCOUNT_ID_KEY, type StorageEventLike, type StorageWindowLike } from "./accountId";
 import type { EndpointLike } from "./authChannel";
 import type { LockManagerLike } from "./refreshLock";
-import type { VisibilityDoc } from "./tokenStore";
+import type { AccountIdStorage, VisibilityDoc } from "./tokenStore";
 
 /** Exclusive FIFO lock manager shared by all "tabs"; honours `signal` while a request is queued. */
 export function createFakeLockManager(): LockManagerLike & { held: () => boolean } {
@@ -76,6 +77,34 @@ export function createFakeChannelHub() {
         close() {
           me.open = false;
           endpoints.delete(me);
+        },
+      };
+    },
+  };
+}
+
+/** One shared account-id slot; every write or clear sends a `storage` event to the other tabs' windows, never to the writer. */
+export function createFakeStorageHub(initial: string | null = null) {
+  let value = initial;
+  const tabs = new Set<{ listeners: Set<(ev: StorageEventLike) => void> }>();
+  return {
+    tab(): { storage: AccountIdStorage; win: StorageWindowLike } {
+      const me = { listeners: new Set<(ev: StorageEventLike) => void>() };
+      tabs.add(me);
+      const change = (next: string | null) => {
+        const oldValue = value;
+        value = next;
+        for (const other of tabs) {
+          if (other === me) continue;
+          for (const fn of [...other.listeners])
+            fn({ key: ACCOUNT_ID_KEY, oldValue, newValue: next });
+        }
+      };
+      return {
+        storage: { read: () => value, write: (id) => change(id), clear: () => change(null) },
+        win: {
+          addEventListener: (_t, fn) => void me.listeners.add(fn),
+          removeEventListener: (_t, fn) => void me.listeners.delete(fn),
         },
       };
     },

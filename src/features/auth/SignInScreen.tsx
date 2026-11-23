@@ -21,6 +21,8 @@ export function SignInScreen(props: SignInScreenProps) {
     accounts,
     onContinueAs,
     continuingId,
+    onRetrySignOut,
+    retryingSignOut,
   } = props;
   const [email, setEmail] = useState(props.initialEmail ?? "");
   const [password, setPassword] = useState("");
@@ -50,7 +52,18 @@ export function SignInScreen(props: SignInScreenProps) {
   return (
     <AuthLayout title={copy.signIn.title}>
       {notice && (
-        <AuthNotice kind="info">
+        <AuthNotice
+          kind="info"
+          action={
+            notice === "logout_unconfirmed" && onRetrySignOut
+              ? {
+                  label: retryingSignOut ? copy.signIn.retryingSignOut : copy.signIn.retrySignOut,
+                  onClick: onRetrySignOut,
+                  disabled: retryingSignOut,
+                }
+              : undefined
+          }
+        >
           {notice === "verified"
             ? copy.signIn.verified
             : notice === "password_reset"

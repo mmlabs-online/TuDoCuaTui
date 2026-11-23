@@ -81,6 +81,12 @@ export function AuthGate({
   const joining = useRef(false);
   const joinSeq = useRef(0); // bumped when the join view is left; a late join result of an older seq is ignored
   const signOutSeq = useRef(0); // bumped when the sign-in page moves on; a late "logout not confirmed" of an older seq is ignored
+  // "Thử đăng xuất lại": the unconfirmed sign-out's retry; stale once `signOutSeq` moved on
+  const retrySignOut = useRef<{ seq: number; run: () => Promise<{ confirmed: boolean }> } | null>(
+    null,
+  );
+  const retrying = useRef(false);
+  const [retryingSignOut, setRetryingSignOut] = useState(false);
   const generation = useRef(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -245,8 +251,9 @@ export function AuthGate({
         flushSync(() => setView({ kind: "checking" })); // the app (and its photo URLs) unmounts first
         const seq = ++signOutSeq.current;
         // clears the id at once; /logout is best effort and never awaited here
-        void store.signOut().then(({ confirmed }) => {
-          if (confirmed || seq !== signOutSeq.current) return;
+        void store.signOut().then((r) => {
+          if (r.confirmed || seq !== signOutSeq.current) return;
+          retrySignOut.current = { seq, run: r.retry };
           setView((v) =>
             v.kind === "signed_out" && v.notice === "signed_out"
               ? { ...v, notice: "logout_unconfirmed" }
@@ -372,6 +379,27 @@ export function AuthGate({
       spendTurnstile();
       setStatus("idle");
       setView({ kind: "signed_out", error: e as AuthError });
+    }
+  };
+
+  const onRetrySignOut = async () => {
+    const pending = retrySignOut.current;
+    if (!pending || retrying.current || pending.seq !== signOutSeq.current) return;
+    retrying.current = true;
+    setRetryingSignOut(true);
+    try {
+      const r = await pending.run();
+      if (r.confirmed && pending.seq === signOutSeq.current) {
+        retrySignOut.current = null;
+        setView((v) =>
+          v.kind === "signed_out" && v.notice === "logout_unconfirmed"
+            ? { ...v, notice: "signed_out" }
+            : v,
+        );
+      }
+    } finally {
+      retrying.current = false;
+      setRetryingSignOut(false);
     }
   };
 
@@ -578,6 +606,8 @@ export function AuthGate({
       accounts={accounts === "loading" ? undefined : (accounts ?? undefined)}
       onContinueAs={continueAs}
       continuingId={continuingId}
+      onRetrySignOut={view.notice === "logout_unconfirmed" ? onRetrySignOut : undefined}
+      retryingSignOut={retryingSignOut}
     />
   );
 }

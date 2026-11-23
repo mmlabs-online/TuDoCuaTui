@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearAccountId, readAccountId, writeAccountId } from "./accountId";
+import {
+  clearAccountId,
+  readAccountId,
+  watchAccountIdRemoved,
+  writeAccountId,
+  type StorageEventLike,
+} from "./accountId";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 afterEach(() => {
@@ -37,5 +43,62 @@ describe("accountId", () => {
     expect(readAccountId()).toBeNull();
     expect(() => writeAccountId(ID)).not.toThrow();
     expect(() => clearAccountId()).not.toThrow();
+  });
+});
+
+function fakeWindow() {
+  const ls = new Set<(ev: StorageEventLike) => void>();
+  return {
+    ls,
+    win: {
+      addEventListener: (_t: "storage", fn: (ev: StorageEventLike) => void) => void ls.add(fn),
+      removeEventListener: (_t: "storage", fn: (ev: StorageEventLike) => void) =>
+        void ls.delete(fn),
+    },
+    emit: (ev: Partial<StorageEventLike>) =>
+      ls.forEach((fn) =>
+        fn({
+          key: "mm_account_id",
+          oldValue: ID,
+          newValue: null,
+          storageArea: localStorage,
+          ...ev,
+        }),
+      ),
+  };
+}
+
+describe("watchAccountIdRemoved", () => {
+  it("reports a removed UUID only", () => {
+    const w = fakeWindow();
+    const got = vi.fn();
+    watchAccountIdRemoved(got, w.win);
+    w.emit({});
+    expect(got).toHaveBeenCalledExactlyOnceWith(ID);
+    got.mockClear();
+    w.emit({ newValue: "22222222-2222-4222-8222-222222222222" }); // X -> Y
+    w.emit({ key: null }); // localStorage.clear()
+    w.emit({ key: "other" });
+    w.emit({ oldValue: "garbage" });
+    w.emit({ oldValue: null });
+    w.emit({ storageArea: sessionStorage });
+    expect(got).not.toHaveBeenCalled();
+  });
+
+  it("cleanup removes the listener; no window is a no-op", () => {
+    const w = fakeWindow();
+    const got = vi.fn();
+    const stop = watchAccountIdRemoved(got, w.win);
+    expect(w.ls.size).toBe(1);
+    stop();
+    expect(w.ls.size).toBe(0);
+    w.emit({});
+    expect(got).not.toHaveBeenCalled();
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(() => watchAccountIdRemoved(got)()).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

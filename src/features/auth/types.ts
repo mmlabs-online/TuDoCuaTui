@@ -62,6 +62,9 @@ export type SignInScreenProps = {
   onContinueAs?: (account: AccountChoice) => void;
   /** The account being continued: its button shows the busy label. */
   continuingId?: string | null;
+  /** "Thử đăng xuất lại" on the `logout_unconfirmed` notice; shown only when provided. */
+  onRetrySignOut?: () => void;
+  retryingSignOut?: boolean;
 };
 
 export type SignUpScreenProps = {

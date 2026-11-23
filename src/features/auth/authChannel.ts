@@ -1,3 +1,4 @@
+import { watchAccountIdRemoved } from "./accountId";
 import { AUTH_CHANNEL_NAME } from "./config";
 
 /** Messages between tabs of this app. Only the access token, its expiry and the (non-secret) account id travel. */
@@ -59,15 +60,20 @@ const defaultCreate = (name: string): EndpointLike | undefined =>
     ? (new BroadcastChannel(name) as unknown as EndpointLike)
     : undefined;
 
-/** Every failure (missing API, throwing constructor or postMessage) degrades to a no-op: each tab then works alone. */
+/**
+ * Every failure (missing API, throwing constructor or postMessage) degrades to storage-event sign-out only:
+ * without an endpoint, another tab removing the account id reaches the subscribers as a `signedOut`. Nothing is posted.
+ */
 export function createAuthChannel({
   create = defaultCreate,
   name = AUTH_CHANNEL_NAME,
   now = () => Date.now(),
+  watchRemoved = watchAccountIdRemoved,
 }: {
   create?: (name: string) => EndpointLike | undefined;
   name?: string;
   now?: () => number;
+  watchRemoved?: (fn: (id: string) => void) => () => void;
 } = {}): AuthChannel {
   let endpoint: EndpointLike | undefined;
   try {
@@ -84,7 +90,12 @@ export function createAuthChannel({
       }
     },
     subscribe(fn) {
-      if (!endpoint) return () => {};
+      if (!endpoint) {
+        return watchRemoved((accountId) => {
+          const msg = parseAuthMessage({ v: 1, type: "signedOut", accountId, at: now() }, now());
+          if (msg) fn(msg);
+        });
+      }
       const ep = endpoint;
       const handler = (ev: { data: unknown }) => {
         const msg = parseAuthMessage(ev.data, now());
