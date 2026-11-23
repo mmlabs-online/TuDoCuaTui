@@ -29,7 +29,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       3. Setup PR on `mmlabs-online/deployment` (not a `release/*` branch): copy the two files from
          `deploy/deployment-repo/` and add the CODEOWNERS line (see its README). Merge it.
       4. Cloudflare: the published application `tudocuatui.mmlabs.online` points to `http://tudocuatui:3000`.
-      5. `git push origin main:release/v0.1.0`, then review and merge the PR it opens on the deployment repo.
+      5. `git push origin main:release/0.1.0`, then review and merge the PR it opens on the deployment repo.
       6. Open `https://tudocuatui.mmlabs.online` on a phone: local mode (demo items, no login); a deep URL also loads.
       7. After M-1: add repo secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon/publishable key only),
          release `v0.1.1`, merge its deployment PR, log in on the phone with your stoktok email + password (D19).
@@ -125,7 +125,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 
 - [x] (2026-11-11, v0.2.0 live via mmlabs-online/deployment#40; deploy run 42981344358 green: backup → migrate → deploy) **M-14 — First Node release** (D26, after T-015 is merged and M-11, M-12, M-13 are done; with A1 option A the
       Supabase repo secrets stay as they are):
-      1. From an up-to-date `main`: `git push origin main:release/vX.Y.Z` (next minor, for example `v0.2.0`). Wait for
+      1. From an up-to-date `main`: `git push origin main:release/X.Y.Z` (next minor, for example `v0.2.0`). Wait for
          `release` to go green. It opens `release/tudocuatui-vX.Y.Z` on the deployment repo. Do not merge it yet.
       2. In a clone of `mmlabs-online/deployment`: `git fetch origin && git switch release/tudocuatui-vX.Y.Z`. Copy
          `deploy/deployment-repo/apps/tudocuatui/compose.yml` from TuDo `main` over `apps/tudocuatui/compose.yml`,
@@ -176,7 +176,7 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
       6. Delete `drive-secrets.env` (the path from step 4) and the downloaded `client_secret_….json`
          (Windows: also empty the Recycle Bin).
       7. Deploy. Check `https://tudocuatui.mmlabs.online/version.txt`. If that release is older than the first release
-         that contains T-005.1, cut one: `git push origin main:release/vX.Y.Z`, then merge its deployment PR. Otherwise:
+         that contains T-005.1, cut one: `git push origin main:release/X.Y.Z`, then merge its deployment PR. Otherwise:
          Actions → `deploy-tudocuatui` → Run workflow from `main`. Expect `deployed`. On the Mac:
          `docker compose -p tudocuatui logs --tail 20 tudocuatui` shows `drive configured`. Never print the env file.
       8. Smoke, on the Mac in a clone of `mmlabs-online/deployment` on an up-to-date `main`:
