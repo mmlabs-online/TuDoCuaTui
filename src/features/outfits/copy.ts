@@ -41,6 +41,7 @@ export const OUTFITS_COPY = {
     icon: "✨",
     toggle: "Gợi ý bằng AI",
     chip: "AI",
+    openSettings: "Mở cài đặt",
     loading: "Đang nhờ AI gợi ý…",
     note: (code: string): string => {
       if (code === "rate_limited") return "Hôm nay đã dùng hết lượt AI, đang dùng gợi ý thường.";

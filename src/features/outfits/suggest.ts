@@ -245,16 +245,17 @@ export function cleanReason(s: string): string {
   return Array.from(
     s
       .normalize("NFC")
-      // Tab / newline (U+0009-000D) stay for the whitespace collapse below.
+      // Tab, newline and U+2028/2029 stay for the whitespace collapse below.
       .replace(
-        /[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF]/g,
+        /[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,
         "",
       )
       .replace(/\s+/g, " ")
       .trim(),
   )
     .slice(0, 120)
-    .join("");
+    .join("")
+    .trimEnd();
 }
 
 /** Maps the AI answer back to items, dropping outfits that are no longer valid. At most 3 are returned. */

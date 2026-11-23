@@ -487,9 +487,23 @@ describe("candidatePool", () => {
 });
 
 describe("cleanReason", () => {
-  it("removes bidi, zero-width, line/paragraph separators and controls", () => {
-    const dirty = "a​b‏c‮d e⁦f﻿g\u0007h\u0085i";
+  it("removes bidi, zero-width and controls", () => {
+    const dirty = "a​b‏c‮de⁦f﻿g\u0007h\u0085i";
     expect(cleanReason(dirty)).toBe("abcdefghi");
+  });
+
+  it("line/paragraph separators collapse to a space", () => {
+    expect(cleanReason("a\u2028b\u2029c")).toBe("a b c");
+    expect(cleanReason("a\u2028b")).toBe(cleanReason("a\nb"));
+  });
+
+  it("no trailing space when the cut lands on a space", () => {
+    const a = cleanReason("a".repeat(119) + " bc");
+    expect(a).toBe("a".repeat(119));
+    expect(a.endsWith(" ")).toBe(false);
+    const v = cleanReason("ạ".repeat(119) + " đ");
+    expect(Array.from(v)).toHaveLength(119);
+    expect(v.endsWith(" ")).toBe(false);
   });
 
   it("NFC and Vietnamese kept", () => {

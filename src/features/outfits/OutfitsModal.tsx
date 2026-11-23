@@ -7,9 +7,9 @@ import { categoryIcons } from "@/constants/wardrobe";
 import { WEATHER_PLACES } from "@/constants/weather";
 import { AiSettingsError, type AiSettingsClient } from "@/data/aiSettings";
 import type { AiOutfitSuggester, AiSuggestResult } from "@/data/aiOutfits";
-import { SEASON_TO_DB } from "@/data/mappers";
+import { SEASON_TO_DB, type DbSeason } from "@/data/mappers";
 import type { Weather, WeatherClient } from "@/data/weather";
-import { aiAvailability } from "@/features/items/aiFill";
+import { aiAvailability, needsSettings } from "@/features/items/aiFill";
 import { useAiLoad } from "@/features/items/useAiLoad";
 import { OUTFITS_COPY as COPY } from "@/features/outfits/copy";
 import {
@@ -59,6 +59,7 @@ export function OutfitsModal({
     settings: Pick<AiSettingsClient, "get">;
     settingsRev: number;
     outfits: AiOutfitSuggester;
+    onOpenSettings?: () => void;
   };
 }) {
   const [now] = useState(() => Date.now());
@@ -109,7 +110,7 @@ export function OutfitsModal({
   const pool = useMemo(() => candidatePool(items, { now, weather: w }), [items, now, w]);
   const poolKey = pool.map((i) => i.id).join(",");
   const { cold, hot, rain } = weatherKind(w);
-  const seasonId: string | undefined = SEASON_TO_DB[season];
+  const seasonId: DbSeason | undefined = SEASON_TO_DB[season];
   const eligible =
     aiActive && status !== "loading" && !!seasonId && pool.length >= 2 && outfits.length > 0;
   const key = [poolKey, seasonId, cold, hot, rain, seed].join("|");
@@ -129,6 +130,7 @@ export function OutfitsModal({
     aiActive && !aiLoading && aiOutcome?.key === key && aiOutcome.error
       ? COPY.ai.note(aiOutcome.error)
       : null;
+  const settingsLink = !!ai?.onOpenSettings && !!aiNote && needsSettings(aiOutcome?.error ?? "");
 
   useEffect(() => {
     if (!aiLoading || !suggester || !seasonId) return;
@@ -206,7 +208,7 @@ export function OutfitsModal({
             {status === "failed" && <span>{COPY.weather.unavailable}</span>}
           </div>
         )}
-        {ready && (
+        {ready && outfits.length > 0 && (
           <label className="outfit-ai-toggle">
             <input
               type="checkbox"
@@ -240,6 +242,11 @@ export function OutfitsModal({
               <p className="outfit-ai-note" role="status">
                 {aiLoading ? COPY.ai.loading : (aiNote ?? "")}
               </p>
+            )}
+            {settingsLink && (
+              <button type="button" className="ai-fill-link" onClick={ai.onOpenSettings}>
+                {COPY.ai.openSettings}
+              </button>
             )}
             <div
               className={"outfit-list" + (aiLoading ? " outfit-list--loading" : "")}

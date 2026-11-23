@@ -33,6 +33,12 @@ const failure = async (p: Promise<unknown>) => {
 const bodyOf = (fetchFn: ReturnType<typeof make>["fetchFn"]) =>
   JSON.parse((fetchFn.mock.calls[0] as [string, RequestInit])[1].body as string);
 
+it("season only accepts DB ids", () => {
+  // @ts-expect-error a label is not a DbSeason
+  const bad: AiSuggestInput["season"] = "Đông";
+  expect(bad).toBe("Đông");
+});
+
 describe("createHttpAiOutfits", () => {
   it("posts JSON to /api/ai/suggest-outfits", async () => {
     const { fetchFn, client } = make(() => json({ outfits: OUTFITS }));

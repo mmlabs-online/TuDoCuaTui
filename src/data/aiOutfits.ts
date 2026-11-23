@@ -1,6 +1,7 @@
 import { ApiError } from "./apiErrors";
 import { AiSettingsError } from "./aiSettings";
 import { createAuthedFetch, type AuthOptions } from "./authFetch";
+import type { DbSeason } from "./mappers";
 import { isServerErrorCode } from "@/shared/ai/errors";
 
 type FetchFn = typeof fetch;
@@ -8,7 +9,7 @@ type FetchFn = typeof fetch;
 export interface AiSuggestInput {
   candidateIds: string[];
   /** DB season id, e.g. "winter". */
-  season: string;
+  season: DbSeason;
   weather: { cold: boolean; hot: boolean; rain: boolean };
   /** Items shown last time; the server ignores ids that are not candidates. */
   avoidIds?: string[];

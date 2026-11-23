@@ -291,7 +291,12 @@ function App({
           <OutfitsModal
             items={items}
             weather={weatherClient}
-            ai={{ settings: aiClient, settingsRev: aiSettingsRev, outfits: aiOutfits }}
+            ai={{
+              settings: aiClient,
+              settingsRev: aiSettingsRev,
+              outfits: aiOutfits,
+              onOpenSettings: () => setSettingsOpen(true),
+            }}
             onClose={() => setOutfitsOpen(false)}
             onOpenItem={(item) => {
               setOutfitsOpen(false);

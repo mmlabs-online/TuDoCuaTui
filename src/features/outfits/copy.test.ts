@@ -54,6 +54,7 @@ describe("OUTFITS_COPY.ai", () => {
     const ai = OUTFITS_COPY.ai;
     expect(ai.toggle).toBe("Gợi ý bằng AI");
     expect(ai.chip).toBe("AI");
+    expect(ai.openSettings).toBe("Mở cài đặt");
     expect(ai.loading).toBe("Đang nhờ AI gợi ý…");
     expect(ai.note("rate_limited")).toBe("Hôm nay đã dùng hết lượt AI, đang dùng gợi ý thường.");
     expect(ai.note("provider_rate_limited")).toBe(

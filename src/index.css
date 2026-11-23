@@ -3050,6 +3050,9 @@ main {
   height: 20px;
   accent-color: var(--green);
 }
+.dark .outfit-ai-toggle input {
+  accent-color: var(--green-ink);
+}
 .outfit-ai-toggle input:focus-visible {
   outline: 2px solid var(--green-ink);
   outline-offset: 2px;

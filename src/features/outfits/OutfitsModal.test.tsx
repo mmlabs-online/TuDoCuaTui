@@ -212,7 +212,11 @@ const aiProps = (get: () => Promise<AiSettingsView | null> = async () => viewRea
   },
 });
 type AiP = ReturnType<typeof aiProps>;
-const renderAi = (items: Item[], ai: AiP | undefined, weather?: WeatherClient) =>
+const renderAi = (
+  items: Item[],
+  ai: (AiP & { onOpenSettings?: () => void }) | undefined,
+  weather?: WeatherClient,
+) =>
   render(
     <OutfitsModal items={items} onClose={vi.fn()} onOpenItem={vi.fn()} weather={weather} ai={ai} />,
   );
@@ -253,6 +257,13 @@ test.each([
   renderAi(aiItems(), ai);
   await settle();
   expect(screen.queryByRole("switch")).toBeNull();
+});
+
+test("toggle hidden when the rule set is empty", async () => {
+  renderAi([mk("Áo")], aiProps());
+  await settle();
+  expect(screen.queryByRole("switch")).toBeNull();
+  expect(screen.getByText(OUTFITS_COPY.empty.title)).toBeTruthy();
 });
 
 test("toggle is off on open and makes no call", async () => {
@@ -330,6 +341,40 @@ test.each([
   expect(screen.getByRole("status").textContent).toBe(OUTFITS_COPY.ai.note(code));
   expect(aiCards()).toHaveLength(3);
   expect(hasChip()).toBe(0);
+});
+
+const settingsLinkName = { name: OUTFITS_COPY.ai.openSettings };
+
+test("settings error: link calls onOpenSettings", async () => {
+  const onOpenSettings = vi.fn();
+  const ai = { ...aiProps(), onOpenSettings };
+  ai.outfits.suggest.mockRejectedValue(new AiSettingsError(409, "not_configured"));
+  renderAi(aiItems(), ai);
+  await settle();
+  await turnOn();
+  expect(screen.getByRole("status").textContent).toBe(OUTFITS_COPY.ai.note("not_configured"));
+  fireEvent.click(screen.getByRole("button", settingsLinkName));
+  expect(onOpenSettings).toHaveBeenCalledTimes(1);
+});
+
+test("non-settings error: no settings link", async () => {
+  const ai = { ...aiProps(), onOpenSettings: vi.fn() };
+  ai.outfits.suggest.mockRejectedValue(new AiSettingsError(429, "rate_limited"));
+  renderAi(aiItems(), ai);
+  await settle();
+  await turnOn();
+  expect(screen.getByRole("status").textContent).toBe(OUTFITS_COPY.ai.note("rate_limited"));
+  expect(screen.queryByRole("button", settingsLinkName)).toBeNull();
+});
+
+test("no onOpenSettings: note stays text-only", async () => {
+  const ai = aiProps();
+  ai.outfits.suggest.mockRejectedValue(new AiSettingsError(409, "not_configured"));
+  renderAi(aiItems(), ai);
+  await settle();
+  await turnOn();
+  expect(screen.getByRole("status").textContent).toBe(OUTFITS_COPY.ai.note("not_configured"));
+  expect(screen.queryByRole("button", settingsLinkName)).toBeNull();
 });
 
 test("AI error: a plain Error maps to internal", async () => {
