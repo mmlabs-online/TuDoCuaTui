@@ -359,8 +359,4 @@ Tick (`- [x]`) and date items when done. `/run` adds plan-approval and escalatio
 - [x] (2026-11-22) **M-44 — Approve plan for F-706.2** (spend meter and price table): work/tickets/F-706.2/plan.md (touches server/**, db/migrations/**). Approve assumptions A1–A12 (cap as code constant, ai_cap_reached 503, no-charge list, all six models priced, pessimistic estimates).
 - [ ] **M-45 — Recheck AI prices before the F-706.4 release:** compare the price table in `server/ai/spendPrices.js` (F-706.2) with the live Gemini and Anthropic pricing pages and bump `PRICE_VERSION` if anything changed (D53).
 - [x] (2026-11-22) **M-46 — Approve plan for F-706.3** (shared AI key storage): work/tickets/F-706.3/plan.md (touches server/**, db/migrations/**). Approve assumptions A1–A4 (providers claude/gemini/openai, model list checks, /api/admin/ai-keys path, app-v1 crypto format).
-<<<<<<< HEAD
-- [ ] **M-47 — Approve plan for T-029** (cross-tab sign-out): work/tickets/T-029/plan.md (touches src/features/auth/**). Approve assumptions A1–A6 ("Dùng tài khoản khác" broadcasts, retry signs out re-signed-in tabs, localStorage.clear() ignored, plain notice in other tabs, warning text unchanged, go ahead before BUG-008).
-=======
 - [x] (2026-11-23) **M-47 — Approve plan for T-029** (cross-tab sign-out): work/tickets/T-029/plan.md (touches src/features/auth/**). Approve assumptions A1–A6 ("Dùng tài khoản khác" broadcasts, retry signs out re-signed-in tabs, localStorage.clear() ignored, plain notice in other tabs, warning text unchanged, go ahead before BUG-008).
->>>>>>> origin/main
