@@ -22,6 +22,8 @@ Plain SQL applied by `node server/migrate.js` (the `migrate` one-shot service, D
   table unforced. A new table gets `enable` + `force row level security` and an `owner_only` policy in the same
   migration (a catalog test enforces it). An app-wide table without user data (`credit_settings`, F-706.1;
   `ai_spend_ops`, F-706.2; `ai_app_keys`, F-706.3) gets `enable` + `force` and narrow named policies instead of `owner_only`.
+  Since F-706.5 `credit_grants` and `credit_ops` use per-command user policies (`credit_*_user_*`) instead of `owner_only`,
+  plus admin policies on `tudo.maintenance = 'credit-admin'` (`withCreditAdmin`).
   Neither the credit tables, `ai_spend_ops` nor `ai_app_keys` are part of backup and restore. `create or replace view items_with_stats` must say
   `with (security_invoker = true)`; the runner checks that too.
 - `TUDO_OWNER_SUB` (a UUID, the owner's Identity `sub`) is passed by `server/migrate.js` as the transaction-local

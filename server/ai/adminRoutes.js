@@ -9,6 +9,7 @@
 // Every route enforces that the caller is the owner (userId === ownerSub). Non-owners receive 403 immediately.
 // Plaintext keys are never echoed or returned. Logs carry fixed events only.
 import { readJson, sendError, sendJson } from "../http.js";
+import { isOwner } from "../me.js";
 import { parseTestBody } from "./validate.js";
 
 const MAX_BODY_BYTES = 4096;
@@ -42,7 +43,7 @@ function parsePutKeyBody(body) {
  * }} ctx
  */
 export async function handleAdminAiKeys(req, res, { parts, userId, ownerSub, appKeys, id, log }) {
-  if (!ownerSub || userId !== ownerSub) {
+  if (!isOwner(userId, ownerSub)) {
     log({ event: "admin_ai_keys", id, action: "auth", code: "forbidden" });
     return sendError(res, 403, "forbidden");
   }

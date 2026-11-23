@@ -2,6 +2,8 @@
 // Request router: health, readiness, /api guard, static SPA. Injectable for tests.
 import { randomUUID } from "node:crypto";
 import { createAppKeyStore } from "./ai/appKeys.js";
+import { createCreditAdmin } from "./ai/creditAdmin.js";
+import { createSpendMeter } from "./ai/spend.js";
 import { createAiStore } from "./ai/store.js";
 import { createLimiter } from "./ai/rateLimit.js";
 import { handleApi } from "./api.js";
@@ -20,6 +22,8 @@ import { serveStatic } from "./static.js";
  *   pool: { query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> } | null,
  *   distDir: string,
  *   ai?: { kek: import("./ai/crypto.js").AiKek, store?: import("./ai/store.js").AiStore, appKeys?: ReturnType<typeof import("./ai/appKeys.js").createAppKeyStore>, fetch?: typeof globalThis.fetch } | null,
+ *   creditAdmin?: ReturnType<typeof import("./ai/creditAdmin.js").createCreditAdmin> | null,
+ *   spendMeter?: import("./ai/spend.js").SpendMeter | null,
  *   drive?: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   auth: import("./auth.js").Auth,
  *   authMode?: string,
@@ -41,6 +45,8 @@ export function createApp({
   authMode = "identity",
   log,
   now = () => Date.now(),
+  creditAdmin = pool ? createCreditAdmin(pool, { now }) : null,
+  spendMeter = pool ? createSpendMeter(pool, { now }) : null,
   ownerSub = null,
   bodyTimeouts = BODY_TIMEOUTS,
   photoLimits = PHOTO_LIMITS,
@@ -136,6 +142,8 @@ export function createApp({
           userId: result.userId,
           email: result.email,
           ownerSub,
+          creditAdmin,
+          spendMeter,
           ai: aiContext,
           drive,
           folders,

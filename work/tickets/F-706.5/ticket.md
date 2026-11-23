@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BACKLOG |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -14,7 +14,7 @@
 | Attempts | 0 |
 | Created | 2026-11-22 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/110 |
 
 ## Goal
 Give the owner server routes to change grant settings, add credits manually, approve welcome credits for new accounts and see spend, so the AI budget can be managed without database access.
@@ -47,5 +47,17 @@ Give the owner server routes to change grant settings, add credits manually, app
 - Manual: none.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
+- 2026-11-23 — Plan approved by Ming ("duyệt F-706.5"), with assumptions A1–A12 as written in plan.md.
 
 ## Handoff
+
+### 2026-11-23 — claude — DONE
+- Done: implemented per approved plan (attempt 1); reviewer PASS; security review no 🔴. Checks in WSL against Postgres 17: format, typecheck, test (166 files, 2358 tests), build all green. PR #110 opened. Debt filed: mmlabs-online/spaceM#73 (bind amount/period in credit_grants user insert policy), #74 (credit_ops update guard).
+- In progress / next: Ming reviews and merges PR #110, then applies the migration via release/deploy.
+- Gotchas: Windows host has no node/pnpm/python; checks run in WSL Ubuntu-24.04 (mise) with a throwaway `tudo-test-pg17` container on 127.0.0.1:55432. Never use 15432 (tunnel to the real Postgres). Re-stamp the migration if another lands on main first.
+
+### 2026-11-23 — claude — BLOCKED
+- Done: reclaimed the abandoned 07:25Z claim; consults database-optimizer + software-architect; plan READY (migration 20261123120000_credit_admin.sql with grant_key, guard trigger, per-command user policies replacing owner_only on credit_grants/credit_ops, admin policies on tudo.maintenance='credit-admin'; withCreditAdmin, creditLock.js, creditAdmin.js, adminValidate.js, adminCreditRoutes.js; /api/admin prefix owner check via isOwner).
+- In progress / next: waiting for Ming's plan approval (M-49, assumptions A1–A12); implementation starts after approval.
+- Gotchas: this Windows machine has no Node/pnpm in PATH; implement/review need Node 22, pnpm 10 and Postgres 17 for the DB suites. Re-stamp the migration if another migration lands on main first.

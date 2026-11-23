@@ -1,11 +1,12 @@
 // @ts-check
 // /api router. Called by app.js only after the auth check, with the raw pathname (never decoded).
+import { handleAdminCredits } from "./ai/adminCreditRoutes.js";
 import { handleAdminAiKeys } from "./ai/adminRoutes.js";
 import { handleAiSettings } from "./ai/routes.js";
 import { handleSuggestOutfits } from "./ai/suggestOutfits.js";
 import { handleTagPhoto } from "./ai/tagPhoto.js";
 import { handleBackup } from "./backup.js";
-import { meBody } from "./me.js";
+import { isOwner, meBody } from "./me.js";
 import { dbLogFields, mapDbError } from "./errors.js";
 import { readJson, sendError, sendJson } from "./http.js";
 import { deleteDriveFiles, handlePhoto, servePhoto } from "./photos.js";
@@ -48,6 +49,23 @@ function match(parts) {
   if (parts.length === 6 && a === "admin" && b === "ai-keys" && c && parts[5] === "test") {
     return { route: "/api/admin/ai-keys/:provider/test", allow: "POST" };
   }
+  if (a === "admin" && b === "credits") {
+    if (parts.length === 5 && c === "settings") {
+      return { route: "/api/admin/credits/settings", allow: "GET, PUT" };
+    }
+    if (parts.length === 5 && c === "pending") {
+      return { route: "/api/admin/credits/pending", allow: "GET" };
+    }
+    if (parts.length === 7 && c === "pending" && parts[5] && parts[6] === "approve") {
+      return { route: "/api/admin/credits/pending/:userId/approve", allow: "POST" };
+    }
+    if (parts.length === 7 && c === "users" && parts[5] && parts[6] === "grants") {
+      return { route: "/api/admin/credits/users/:userId/grants", allow: "POST" };
+    }
+  }
+  if (parts.length === 4 && a === "admin" && b === "spend") {
+    return { route: "/api/admin/spend", allow: "GET" };
+  }
   if (parts.length === 4 && a === "items" && b) {
     return { route: "/api/items/:id", allow: "PUT, DELETE" };
   }
@@ -69,6 +87,8 @@ function match(parts) {
  *   userId: import("./user.js").UserId,
  *   email: string | null,
  *   ownerSub: string | null,
+ *   creditAdmin: ReturnType<typeof import("./ai/creditAdmin.js").createCreditAdmin> | null,
+ *   spendMeter: import("./ai/spend.js").SpendMeter | null,
  *   ai: import("./ai/routes.js").AiContext | null,
  *   drive: ReturnType<typeof import("./drive.js").createDriveClient> | null,
  *   folders: ReturnType<typeof import("./driveFolders.js").createFolderResolver> | null,
@@ -90,6 +110,8 @@ export async function handleApi(
     userId,
     email,
     ownerSub,
+    creditAdmin,
+    spendMeter,
     ai,
     drive,
     folders,
@@ -107,6 +129,12 @@ export async function handleApi(
   },
 ) {
   const parts = pathname.split("/");
+  // Every /api/admin/* path, method and shape is owner-only: non-owners get 403 before any route matching (F-706.5).
+  if (parts[0] === "" && parts[1] === "api" && parts[2] === "admin" && !isOwner(userId, ownerSub)) {
+    setRoute("/api/admin");
+    log({ event: "admin", id, code: "forbidden" });
+    return sendError(res, 403, "forbidden");
+  }
   const m = match(parts);
   if (!m) {
     setRoute("/api");
@@ -130,6 +158,18 @@ export async function handleApi(
   }
   if (m.route === "/api/weather") {
     return await handleWeather(req, res, { weather, userId, query, id, log });
+  }
+  if (m.route.startsWith("/api/admin/credits") || m.route === "/api/admin/spend") {
+    return await handleAdminCredits(req, res, {
+      route: m.route,
+      parts,
+      userId,
+      ownerSub,
+      creditAdmin,
+      spendMeter,
+      id,
+      log,
+    });
   }
   if (m.route.startsWith("/api/admin/ai-keys")) {
     return await handleAdminAiKeys(req, res, {

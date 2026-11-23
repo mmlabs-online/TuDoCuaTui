@@ -147,3 +147,23 @@ export async function withAppKeys(pool, fn, { readOnly = false } = {}) {
     fn,
   );
 }
+
+/**
+ * Transaction for the owner-only credit admin path (F-706.5): policies credit_admin_*. Only server/ai/creditAdmin.js calls it.
+ * @template T
+ * @param {{ connect?(): Promise<any> }} pool
+ * @param {(client: any) => Promise<T>} fn
+ * @param {{ readOnly?: boolean }} [opts]
+ * @returns {Promise<T>}
+ */
+export async function withCreditAdmin(pool, fn, { readOnly = false } = {}) {
+  return inTx(
+    pool,
+    [
+      "select set_config('tudo.maintenance', $1, true), set_config('app.user_id', '', true)",
+      "credit-admin",
+    ],
+    readOnly,
+    fn,
+  );
+}

@@ -2,10 +2,17 @@
 // Row level security (T-019.4, D32), run as the NOSUPERUSER owner role so RLS really applies.
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createPool, withAppKeys, withMaintenance, withSpendMeter, withUser } from "./db.js";
+import {
+  createPool,
+  withAppKeys,
+  withCreditAdmin,
+  withMaintenance,
+  withSpendMeter,
+  withUser,
+} from "./db.js";
 import { removeItem, saveItem } from "./items.js";
 import { runMigrations } from "./migrator.js";
-import { OWNER_A, OWNER_B } from "./test/auth.js";
+import { OWNER_A, OWNER_B, OWNER_C } from "./test/auth.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
 const realDir = path.resolve(import.meta.dirname, "../db/migrations");
@@ -286,12 +293,13 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
     }
   });
 
-  it("pg_policies: the owner_only policies, photo_sweep_read and credit_settings_read (SELECT only)", async () => {
+  it("pg_policies: owner_only (user tables), the credit user and admin policies, photo_sweep_read and credit_settings_read (SELECT only)", async () => {
     const r = await admin.query(
       `select tablename, policyname, cmd, permissive, qual, with_check from pg_policies
         where schemaname = 'public' order by tablename, policyname`,
     );
     const owner = "(user_id = ( SELECT app_user_id() AS app_user_id))";
+    const adminSetting = "current_setting('tudo.maintenance'::text, true) = 'credit-admin'::text";
     const row = (tablename: string) => ({
       tablename,
       policyname: "owner_only",
@@ -360,8 +368,48 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
         with_check:
           "((current_setting('tudo.maintenance'::text, true) = 'ai-spend'::text) AND (state = ANY (ARRAY['charged'::text, 'released'::text])))",
       },
-      row("credit_grants"),
-      row("credit_ops"),
+      ...[
+        [
+          "credit_grants",
+          "credit_admin_approve",
+          "UPDATE",
+          `((${adminSetting}) AND (bucket = 'welcome'::text) AND (approved_at IS NULL))`,
+          `((${adminSetting}) AND (bucket = 'welcome'::text) AND (approved_at IS NOT NULL))`,
+        ],
+        [
+          "credit_grants",
+          "credit_admin_manual",
+          "INSERT",
+          null,
+          `((${adminSetting}) AND (bucket = 'manual'::text) AND (approved_at IS NOT NULL) AND (period IS NULL) AND (grant_key IS NOT NULL))`,
+        ],
+        ["credit_grants", "credit_admin_read", "SELECT", `(${adminSetting})`, null],
+        [
+          "credit_grants",
+          "credit_grants_user_insert",
+          "INSERT",
+          null,
+          `((user_id = ( SELECT app_user_id() AS app_user_id)) AND (grant_key IS NULL) AND (((bucket = 'monthly'::text) AND (approved_at IS NOT NULL)) OR ((bucket = 'welcome'::text) AND (approved_at IS NULL))))`,
+        ],
+        ["credit_grants", "credit_grants_user_read", "SELECT", owner, null],
+        ["credit_ops", "credit_ops_user_insert", "INSERT", null, owner],
+        ["credit_ops", "credit_ops_user_read", "SELECT", owner, null],
+        ["credit_ops", "credit_ops_user_update", "UPDATE", owner, owner],
+        [
+          "credit_settings",
+          "credit_admin_settings",
+          "UPDATE",
+          `(${adminSetting})`,
+          `(${adminSetting})`,
+        ],
+      ].map(([tablename, policyname, cmd, qual, with_check]) => ({
+        tablename,
+        policyname,
+        cmd,
+        permissive: "PERMISSIVE",
+        qual,
+        with_check,
+      })),
       {
         tablename: "credit_settings",
         policyname: "credit_settings_read",
@@ -565,6 +613,160 @@ describe.skipIf(!dbAvailable)("row level security (real Postgres, owner role)", 
       await withSpendMeter(pool, async (c: any) => {
         expect((await c.query("select * from ai_app_keys")).rowCount).toBe(0);
       });
+    });
+  });
+
+  describe("credit admin (F-706.5)", () => {
+    const addWelcome = (u: string, approved: boolean) =>
+      admin.query(
+        `insert into credit_grants (user_id, bucket, amount, approved_at)
+         values ($1, 'welcome', 300, ${approved ? "now()" : "null"})`,
+        [u],
+      );
+    const adminTx = <T>(fn: (c: any) => Promise<T>) => withCreditAdmin(pool, fn);
+    const MANUAL = `insert into credit_grants (user_id, bucket, amount, approved_at, grant_key)
+                    values ($1, 'manual', 7, now(), $2)`;
+
+    it("withCreditAdmin selects both users' grants and inserts a manual grant (with key) for another user", async () => {
+      await adminTx(async (c) => {
+        expect((await c.query("select 1 from credit_grants")).rowCount).toBe(2);
+        expect((await c.query(MANUAL, [OWNER_A, "k1"])).rowCount).toBe(1);
+      });
+      expect(
+        (await admin.query("select 1 from credit_grants where grant_key = 'k1'")).rowCount,
+      ).toBe(1);
+    });
+
+    it("cannot insert welcome, monthly, a manual grant without approved_at, or a manual grant without grant_key (42501)", async () => {
+      const bad = [
+        "insert into credit_grants (user_id, bucket, amount) values ($1, 'welcome', 5)",
+        "insert into credit_grants (user_id, bucket, period, amount, approved_at) values ($1, 'monthly', '2026-11', 5, now())",
+        "insert into credit_grants (user_id, bucket, amount, grant_key) values ($1, 'manual', 5, 'k')",
+        "insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'manual', 5, now())",
+      ];
+      for (const sql of bad) {
+        expect(await sqlState(adminTx((c) => c.query(sql, [OWNER_A]))), sql).toBe("42501");
+      }
+    });
+
+    it("approves a pending welcome (1 row) and touches 0 rows on approved welcome, monthly and manual rows", async () => {
+      await addWelcome(OWNER_A, false);
+      await addWelcome(OWNER_B, true);
+      await admin.query(
+        "insert into credit_grants (user_id, bucket, period, amount, approved_at) values ($1, 'monthly', '2026-11', 5, now())",
+        [OWNER_B],
+      );
+      await adminTx(async (c) => {
+        const touch = (bucket: string, who: string) =>
+          c.query(
+            "update credit_grants set approved_at = now() where user_id = $1 and bucket = $2",
+            [who, bucket],
+          );
+        expect((await touch("welcome", OWNER_B)).rowCount).toBe(0);
+        expect((await touch("monthly", OWNER_B)).rowCount).toBe(0);
+        expect((await touch("manual", OWNER_B)).rowCount).toBe(0);
+        expect((await touch("welcome", OWNER_A)).rowCount).toBe(1);
+      });
+      expect(
+        (
+          await admin.query(
+            "select approved_at is not null as ok from credit_grants where user_id = $1 and bucket = 'welcome'",
+            [OWNER_A],
+          )
+        ).rows,
+      ).toEqual([{ ok: true }]);
+    });
+
+    it("delete touches 0 rows; credit_ops is invisible; credit_settings updates but insert -> 42501 and delete touches 0 rows", async () => {
+      await adminTx(async (c) => {
+        expect((await c.query("delete from credit_grants")).rowCount).toBe(0);
+        expect((await c.query("select 1 from credit_ops")).rowCount).toBe(0);
+        expect((await c.query("update credit_ops set state = 'refunded'")).rowCount).toBe(0);
+        expect((await c.query("delete from credit_settings")).rowCount).toBe(0);
+        expect((await c.query("update credit_settings set monthly_amount = 61")).rowCount).toBe(1);
+      });
+      expect(
+        await sqlState(adminTx((c) => c.query("insert into credit_settings (id) values (false)"))),
+      ).toBe("42501");
+      await admin.query("update credit_settings set monthly_amount = 60");
+    });
+
+    it("user side (note 10): cannot approve own welcome, write a manual grant, insert an approved welcome, or delete grants and ops; credit_settings is read-only", async () => {
+      await addWelcome(OWNER_A, false);
+      await withUser(pool, OWNER_A, async (c) => {
+        expect(
+          (await c.query("update credit_grants set approved_at = now() where bucket = 'welcome'"))
+            .rowCount,
+        ).toBe(0);
+        expect((await c.query("update credit_grants set amount = 9")).rowCount).toBe(0);
+        expect((await c.query("delete from credit_grants")).rowCount).toBe(0);
+        expect((await c.query("delete from credit_ops")).rowCount).toBe(0);
+        expect((await c.query("update credit_settings set monthly_amount = 1")).rowCount).toBe(0);
+      });
+      const insertAs = (sql: string) =>
+        sqlState(withUser(pool, OWNER_A, (c) => c.query(sql, [OWNER_A])));
+      expect(
+        await insertAs(
+          "insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'manual', 5, now())",
+        ),
+      ).toBe("42501");
+      expect(
+        await insertAs(
+          "insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'welcome', 5, now())",
+        ),
+      ).toBe("42501");
+      expect(
+        await insertAs(
+          "insert into credit_grants (user_id, bucket, period, amount, approved_at, grant_key) values ($1, 'monthly', '2026-11', 5, now(), 'k')",
+        ),
+      ).toBe("42501");
+    });
+
+    it("withMaintenance('photo-sweep'), withSpendMeter and withAppKeys see no credit_grants rows and cannot write them", async () => {
+      const insert =
+        "insert into credit_grants (user_id, bucket, amount, approved_at, grant_key) values ($1, 'manual', 5, now(), 'k')";
+      await withMaintenance(pool, "photo-sweep", async (c) => {
+        expect((await c.query("select 1 from credit_grants")).rowCount).toBe(0);
+      });
+      await withSpendMeter(pool, async (c: any) => {
+        expect((await c.query("select 1 from credit_grants")).rowCount).toBe(0);
+      });
+      await withAppKeys(pool, async (c: any) => {
+        expect((await c.query("select 1 from credit_grants")).rowCount).toBe(0);
+      });
+      expect(await sqlState(withSpendMeter(pool, (c: any) => c.query(insert, [OWNER_A])))).toBe(
+        "42501",
+      );
+      expect(await sqlState(withAppKeys(pool, (c: any) => c.query(insert, [OWNER_A])))).toBe(
+        "42501",
+      );
+    });
+
+    it("guard trigger: even the table owner cannot change amount, user_id, bucket, period, grant_key or clear approved_at; approving a pending welcome works", async () => {
+      await addWelcome(OWNER_A, false);
+      await admin.query(MANUAL, [OWNER_A, "gk"]);
+      const code = (sql: string) => sqlState(admin.query(sql));
+      expect(
+        await code("update credit_grants set amount = amount + 1 where bucket = 'manual'"),
+      ).toBe("23514");
+      expect(
+        await code(`update credit_grants set user_id = '${OWNER_C}' where bucket = 'manual'`),
+      ).toBe("23514");
+      expect(
+        await code("update credit_grants set grant_key = 'other' where bucket = 'manual'"),
+      ).toBe("23514");
+      expect(
+        await code("update credit_grants set approved_at = null where bucket = 'manual'"),
+      ).toBe("23514");
+      expect(await code("update credit_grants set amount = 1 where bucket = 'welcome'")).toBe(
+        "23514",
+      );
+      expect(
+        await code("update credit_grants set approved_at = now() where bucket = 'welcome'"),
+      ).toBe("ok");
+      expect(
+        await code("update credit_grants set approved_at = now() where bucket = 'welcome'"),
+      ).toBe("23514");
     });
   });
 });
