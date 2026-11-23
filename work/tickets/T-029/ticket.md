@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P2 |
 | Size | M |
 | Areas | security, architecture |
 | Gate | plan-approval |
 | Depends on | BUG-007 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-23T04:45:27Z |
 | PR | — |
 
 ## Goal
