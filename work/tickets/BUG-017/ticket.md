@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | M |
@@ -15,7 +15,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-23T07:07:49Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -67,3 +67,8 @@ a Performance profile before changing code.
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-23 — claude — DONE
+- Done: consult (software-architect, frontend-developer), plan (R-A: client-side 480 px thumbnail on display, drop badge/pill blur), implement (attempt 1); regression tests fail on main; reviewer PASS. Branch `ticket/BUG-017` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/BUG-017` with the body in `work/tickets/BUG-017/pr.md` and runs the before/after profile listed there, then the PR URL goes into this ticket.
+- Gotchas: bytes downloaded are unchanged (server variant is a High-path follow-up); acceptance criterion 2 (profile) is Ming's step.
