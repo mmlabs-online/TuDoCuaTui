@@ -58,6 +58,14 @@ JSON only. Without `DATABASE_URL` every endpoint validates its input, then answe
 | `PUT /api/admin/ai-keys/:provider` | 200 `{ key: { provider, hint, updatedAt } }` | Owner only. Encrypts and stores shared key for provider (`claude`, `gemini`, `openai`) |
 | `DELETE /api/admin/ai-keys/:provider` | 204 | Owner only. Deletes stored shared key |
 | `POST /api/admin/ai-keys/:provider/test` | 200 `{ status: "ok" }` \| 400 `{ error: { code: "key_invalid" } }` | Owner only. Tests shared key against provider API without consuming tokens |
+| `GET /api/admin/credits/settings` | 200 `{ welcomeAmount, monthlyAmount, updatedAt }` | Owner only (F-706.5). Current grant amounts |
+| `PUT /api/admin/credits/settings` | 200, same shape | Owner only. Body exactly `{ welcomeAmount, monthlyAmount }` (integers 1..100000). Applies to grants created afterwards; existing grant rows keep their amount |
+| `GET /api/admin/credits/pending` | 200 `{ accounts: [{ userId, amount, createdAt }] }` | Owner only. Accounts waiting for welcome-credit approval (D53), oldest first, at most 200 |
+| `POST /api/admin/credits/pending/:userId/approve` | 200 `{ status: "approved" \| "already_approved", userId, amount, approvedAt }` \| 400 \| 404 `not_found` | Owner only. No body. The stored welcome amount starts to count |
+| `POST /api/admin/credits/users/:userId/grants` | 201 `{ grant }`; 200 `{ grant, replay: true }` \| 400 \| 404 `unknown_user` \| 409 `grant_key_mismatch` | Owner only. Body exactly `{ amount, requestKey }`; never expires; the same `requestKey` and amount replays, another amount is 409. The user must already be known to the ledger |
+| `GET /api/admin/spend` | 200 `{ period, capMicroUsd, spentMicroUsd, remainingMicroUsd, priceVersion }` | Owner only. This month's reserved plus charged estimates against the $20 cap (the owner is not exempt) |
+
+Non-owners get 403 `forbidden` on every `/api/admin/*` path and method (unknown paths and wrong methods included); owners get 405 for a wrong method and 404 for an unknown path.
 
 `ItemRow` is a snake_case `items_with_stats` row: `price` is a number or null, dates are `YYYY-MM-DD`, `created_at`/`updated_at` are ISO strings, `primary_photo_path` is always null; `primary_photo_id` is the `item_photos` id (uuid) or null; the client builds `/api/photos/<primary_photo_id>` from it. Drive file ids never reach the browser.
 

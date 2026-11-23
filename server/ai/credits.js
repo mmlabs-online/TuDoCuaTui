@@ -1,10 +1,11 @@
 // @ts-check
 // Credit ledger (D53): reserve -> commit | refund, balance computed from grants and ops (R5). All SQL for the
-// credit tables lives here. Every call is one short withUser transaction under a per-user advisory lock and does
+// credit tables lives here and in creditAdmin.js. Every call is one short withUser transaction under a per-user advisory lock and does
 // no I/O inside it. Business outcomes are returned as statuses, never thrown, so the pooled connection survives;
 // programmer errors (bad user id, op key or kind) throw before the pool is touched. There is no owner path (D38).
 import { withUser } from "../db.js";
 import { toUserId } from "../user.js";
+import { lockCreditUser } from "./creditLock.js";
 import {
   creditPrice,
   isLive,
@@ -105,10 +106,6 @@ async function computeBalance(
   };
 }
 
-/** @param {any} c @param {string} userId */
-const lock = (c, userId) =>
-  c.query("select pg_advisory_xact_lock(hashtextextended('credits:' || $1::text, 0))", [userId]);
-
 const OP_COLUMNS = "op_key, kind, credits, monthly_part, lasting_part, period, state, expires_at";
 
 /** @param {any} c @param {string} userId @param {string} opKey */
@@ -132,7 +129,7 @@ export function createCreditLedger(pool, { now = Date.now } = {}) {
     const nowMs = now();
     const nowIso = new Date(nowMs).toISOString();
     return withUser(pool, userId, async (c) => {
-      await lock(c, userId);
+      await lockCreditUser(c, userId);
       // A commit needs a live reservation; a refund works on any reserved op, expired or not.
       const done = await c.query(
         `update credit_ops set state = $3, settled_at = $4::timestamptz
@@ -167,7 +164,7 @@ export function createCreditLedger(pool, { now = Date.now } = {}) {
       const nowIso = new Date(nowMs).toISOString();
       const period = vnMonth(nowMs);
       return withUser(pool, userId, async (c) => {
-        await lock(c, userId);
+        await lockCreditUser(c, userId);
         const existing = await findOp(c, userId, opKey);
         if (existing) {
           return existing.kind === kind
@@ -224,7 +221,7 @@ export function createCreditLedger(pool, { now = Date.now } = {}) {
       const nowIso = new Date(nowMs).toISOString();
       const period = vnMonth(nowMs);
       return withUser(pool, userId, async (c) => {
-        await lock(c, userId);
+        await lockCreditUser(c, userId);
         await ensureGrants(c, userId, period, nowIso);
         const { welcomePending: _pending, ...balance } = await computeBalance(
           c,

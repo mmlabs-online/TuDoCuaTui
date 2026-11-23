@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { meBody } from "./me.js";
+import { isOwner, meBody } from "./me.js";
 import { OWNER_A, OWNER_B } from "./test/auth.js";
 
 describe("meBody", () => {
@@ -22,5 +22,14 @@ describe("meBody", () => {
       email: null,
       role: "user",
     });
+  });
+});
+
+describe("isOwner", () => {
+  it("true only for equal ids; false for a null or undefined ownerSub", () => {
+    expect(isOwner(OWNER_A, OWNER_A)).toBe(true);
+    expect(isOwner(OWNER_A, OWNER_B)).toBe(false);
+    expect(isOwner(OWNER_A, null)).toBe(false);
+    expect(isOwner(OWNER_A, undefined)).toBe(false);
   });
 });
