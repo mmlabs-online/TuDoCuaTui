@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P2 |
 | Size | M |
 | Areas | security, architecture |
@@ -11,7 +11,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-19 |
-| Claimed by | claude@2026-11-23T04:05:03Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -44,5 +44,11 @@ D50 ("Sign in with mmlabs" consumer spec: cross-tab session); follow-ups F1, F2 
 - Manual: two real tabs, DevTools Offline sign-out then retry.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-23 — claude — BLOCKED
+- Done: consult (software-architect), plan.md (Status READY, T1–T20, assumptions A1–A6 with defaults).
+- In progress / next: Ming approves the plan (M-47); then /run T-029 resumes at IMPLEMENT.
+- Gotchas: AuthGate.tsx is shared with BUG-008 (whichever lands second rebases and re-runs BUG-008 T1–T3); SignInScreen.tsx props shared with T-031. loop.config.md High paths omit src/features/auth/** (already a BUG-008 follow-up).
