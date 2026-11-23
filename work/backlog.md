@@ -107,7 +107,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | BUG-009 | Editor test "a result for a replaced photo is ignored" fails intermittently | MERGED | P2 | XS | architecture | — | none | 2 | 2026-11-19 |
 | T-029 | Finish cross-tab sign-out (broadcast on lost sessions, fallback, retry sign-out) | DONE | P2 | M | security, architecture | BUG-007 | plan-approval | 1 | 2026-11-23 |
 | T-030 | Decide whether a 403 from the API signs the user out | DONE | P2 | XS | security | — | none | 1 | 2026-11-23 |
-| T-031 | Auth and server tidy-ups from T-028 | PLANNING | P3 | S | security | BUG-008 | plan-approval | 0 | 2026-11-23 |
+| T-031 | Auth and server tidy-ups from T-028 | BLOCKED | P3 | S | security | BUG-008 | plan-approval | 0 | 2026-11-23 |
 | T-032 | AI outfits tidy-ups from F-704 | BACKLOG | P3 | S | ui | — | none | 0 | 2026-11-19 |
 | BUG-011 | Never-worn items show "hơn 1 năm" and a new item counts as "≥ 90 ngày chưa mặc" | MERGED | P1 | S | ui, data | — | none | 1 | 2026-11-21 |
 | BUG-012 | Outfit suggestion says "Mùa Đông" in hot weather | MERGED | P1 | XS | ui, data | — | none | 2 | 2026-11-22 |
