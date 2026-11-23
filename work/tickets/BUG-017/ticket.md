@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | DONE |
+| State | MERGED |
 | Severity | S3 |
 | Priority | P2 |
 | Size | M |
@@ -16,7 +16,7 @@
 | Attempts | 1 |
 | Created | 2026-11-20 |
 | Claimed by | — |
-| PR | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/109 |
 
 ## Report
 UAT of production v0.3.1 (2026-11-20, `work/uat/2026-11-20-uat-v0.3.1.md`, UAT-8).
