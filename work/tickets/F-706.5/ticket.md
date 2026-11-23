@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-23T13:21:03Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
