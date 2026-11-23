@@ -10,6 +10,7 @@ import {
   type PhotoJob,
 } from "./photoImport";
 import type { GetToken } from "./authFetch";
+import { makeThumb } from "./photoThumb";
 import { createPhotoLoader, type PhotoLoader } from "./photoUrls";
 import { createHttpRepo } from "./repo.http";
 import type { SaveOptions } from "./repo";
@@ -36,7 +37,7 @@ export function useWardrobe({
     [], // getToken is injected once
   );
   const photos = useMemo<PhotoLoader | null>(
-    () => (getToken ? createPhotoLoader({ getToken, onAuthLost }) : null),
+    () => (getToken ? createPhotoLoader({ getToken, onAuthLost, makeThumb }) : null),
     [], // getToken is injected once
   );
   useEffect(() => () => photos?.clear(), [photos]);

@@ -418,7 +418,6 @@ main {
   border-radius: 999px;
   font-size: 9px;
   font-weight: 600;
-  backdrop-filter: blur(6px);
 }
 .badge {
   top: 9px;

@@ -241,6 +241,110 @@ describe("createPhotoLoader", () => {
     await expect(loader.acquire(src(1)).promise).resolves.toBe("blob:test/1");
   });
 
+  describe("thumb variant", () => {
+    const thumbBlob = () => new Blob(["t"], { type: "image/jpeg" });
+
+    test("thumb variant: makeThumb gets the fetched blob and createUrl gets its result", async () => {
+      const made = thumbBlob();
+      const makeThumb = vi.fn(async (_b: Blob) => made);
+      const seen: Blob[] = [];
+      const { loader, fetchFn } = setup({
+        makeThumb,
+        createUrl: (b) => (seen.push(b), "blob:t/1"),
+      });
+      await expect(loader.acquire(src(1), "thumb").promise).resolves.toBe("blob:t/1");
+      expect(makeThumb).toHaveBeenCalledTimes(1);
+      expect(makeThumb.mock.calls[0][0].type).toBe("image/jpeg");
+      expect(seen).toEqual([made]);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn.mock.calls[0][0]).toBe(src(1));
+      expect(String(fetchFn.mock.calls[0][0])).not.toContain("?");
+    });
+
+    test("thumb variant: a makeThumb failure falls back to the full blob", async () => {
+      const seen: Blob[] = [];
+      const given: Blob[] = [];
+      const { loader } = setup({
+        makeThumb: async (blob) => {
+          given.push(blob);
+          throw new Error("decode failed tok");
+        },
+        createUrl: (b) => (seen.push(b), "blob:t/1"),
+      });
+      await expect(loader.acquire(src(1), "thumb").promise).resolves.toBe("blob:t/1");
+      expect(seen).toHaveLength(1);
+      expect(seen[0]).toBe(given[0]);
+      expect(seen[0].type).toBe("image/jpeg");
+    });
+
+    test("thumb and full of the same id are separate entries", async () => {
+      const { loader, fetchFn, revoked, created } = setup({ makeThumb: async (b) => b });
+      const t = loader.acquire(src(1), "thumb");
+      const f = loader.acquire(src(1), "full");
+      const [tu, fu] = await Promise.all([t.promise, f.promise]);
+      expect(tu).not.toBe(fu);
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      t.release();
+      expect(revoked).toEqual([]);
+      expect(created).toHaveLength(2);
+    });
+
+    test("without makeThumb, a thumb acquire shares the full entry", async () => {
+      const { loader, fetchFn } = setup();
+      const [a, b] = await Promise.all([
+        loader.acquire(src(1), "thumb").promise,
+        loader.acquire(src(1), "full").promise,
+      ]);
+      expect(a).toBe(b);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    test("thumbs use their own keepUnused limit (default 150)", async () => {
+      const { loader, revoked, created } = setup({ makeThumb: async (b) => b, keepUnused: 1 });
+      const hs = [];
+      for (let n = 1; n <= 151; n++) hs.push(loader.acquire(src(n), "thumb"));
+      await Promise.all(hs.map((h) => h.promise));
+      for (const h of hs.slice(0, 150)) h.release();
+      expect(revoked).toEqual([]);
+      hs[150].release();
+      expect(revoked).toEqual([created[0]]);
+    });
+
+    test("clear revokes thumb URLs; a makeThumb that resolves after clear creates no unrevoked URL", async () => {
+      const a = setup({ makeThumb: async (b) => b });
+      await a.loader.acquire(src(1), "thumb").promise;
+      a.loader.clear();
+      expect(a.revoked).toEqual([a.created[0]]);
+
+      let finish!: () => void;
+      const gate = new Promise<void>((r) => (finish = r));
+      const b = setup({
+        makeThumb: async (blob) => {
+          await gate;
+          return blob;
+        },
+      });
+      const p = b.loader.acquire(src(1), "thumb").promise.catch(() => {});
+      await tick();
+      b.loader.clear();
+      finish();
+      await p;
+      await tick();
+      expect(b.created.filter((u) => !b.revoked.includes(u))).toEqual([]);
+    });
+
+    test("queued thumb released before start is dropped", async () => {
+      const d = deferredFetch();
+      const { loader } = setup({ fetchFn: d.fetchFn, maxConcurrent: 1, makeThumb: async (b) => b });
+      loader.acquire(src(1), "thumb");
+      loader.acquire(src(2), "thumb").release();
+      await tick();
+      d.pending[0].res(imageRes());
+      await tick();
+      expect(d.calls).toHaveBeenCalledTimes(1);
+    });
+  });
+
   test("the token never reaches console or error messages", async () => {
     const spies = (["log", "warn", "error", "info", "debug"] as const).map((m) =>
       vi.spyOn(console, m).mockImplementation(() => {}),

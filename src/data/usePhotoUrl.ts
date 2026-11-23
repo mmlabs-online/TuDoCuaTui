@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import type { PhotoLoader } from "./photoUrls";
+import type { PhotoLoader, PhotoVariant } from "./photoUrls";
 
 /** Null when no loader handles photos: they then render from their plain URL. */
 export const PhotoLoaderContext = createContext<PhotoLoader | null>(null);
@@ -10,7 +10,10 @@ type Resolved = { src: string; url: string | null; failed: boolean };
  * `src` to put in an `<img>`: the URL itself when no loader handles it, a `blob:` URL once loaded, `null` while
  * pending. `lazy` loads only while the element is near the viewport.
  */
-export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
+export function usePhotoUrl(
+  src: string,
+  { lazy, variant = "full" }: { lazy: boolean; variant?: PhotoVariant },
+) {
   const loader = useContext(PhotoLoaderContext);
   const handled = !!loader && loader.handles(src);
   const [node, setNode] = useState<Element | null>(null);
@@ -26,7 +29,7 @@ export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
       if (current) return;
       const mine = {};
       current = mine;
-      const h = loader.acquire(src);
+      const h = loader.acquire(src, variant);
       release = h.release;
       h.promise.then(
         (url) => current === mine && setState({ src, url, failed: false }),
@@ -61,7 +64,7 @@ export function usePhotoUrl(src: string, { lazy }: { lazy: boolean }) {
       io.disconnect();
       release?.();
     };
-  }, [loader, handled, observe, node, src]);
+  }, [loader, handled, observe, node, src, variant]);
 
   if (!handled) return { src, failed: false, ref };
   const mine = state.src === src;
