@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | REVIEW |
+| State | DONE |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -15,7 +15,7 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-20 |
-| Claimed by | claude@2026-11-23T06:26:42Z |
+| Claimed by | — |
 | PR | — |
 
 ## Report
@@ -58,3 +58,8 @@ while `src/features/items/ItemCard.tsx:39` has its own rule. The two do not shar
 
 ## Handoff
 - 2026-11-20 — claude — recorded from the v0.3.1 UAT; record branch `bug/BUG-010`, record PR opened by Ming (no `gh` on this device)
+
+### 2026-11-23 — claude — DONE
+- Done: consult (frontend-developer), plan, implement (attempt 1): shared `lastWornLabel` in copy.ts used by card and editor; regression test failed on main before the fix; reviewer PASS. Branch `ticket/BUG-015` pushed.
+- In progress / next: no GitHub CLI or MCP on this machine; Ming opens the PR from `ticket/BUG-015` with the body in `work/tickets/BUG-015/pr.md`, then the PR URL goes into this ticket.
+- Gotchas: editor wording drops "trước" (copy call for Ming); no textual conflict with BUG-014, but re-run checks on whichever merges second.
