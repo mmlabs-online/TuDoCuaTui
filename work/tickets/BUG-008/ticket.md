@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Type | bug |
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Severity | S3 |
 | Priority | P2 |
 | Size | XS |
@@ -13,9 +13,9 @@
 | Introduced in | T-028.3 |
 | Depends on | — |
 | Needs Ming | M-38 |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-19 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-23T04:31:26Z |
 | PR | — |
 
 ## Report
