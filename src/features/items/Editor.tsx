@@ -327,7 +327,9 @@ export function Editor({
                   </div>
                 </div>
                 <div>
-                  <Btn onClick={() => onWorn(-1)}>−1</Btn>
+                  <Btn disabled={item.wearCount <= 0} onClick={() => onWorn(-1)}>
+                    −1
+                  </Btn>
                   <Btn kind="primary" onClick={() => onWorn(1)}>
                     <Icon name="shirt" /> Mặc hôm nay
                   </Btn>

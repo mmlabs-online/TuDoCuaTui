@@ -764,3 +764,35 @@ describe("AI fill", () => {
     await waitFor(() => expect(ai.settings.get).toHaveBeenCalledTimes(2));
   });
 });
+
+describe("wear bar", () => {
+  const wornItem = (wearCount: number): Item => ({ ...blankItem(), id: "i1", wearCount });
+
+  test("−1 is disabled at 0 wears", () => {
+    const onWorn = vi.fn();
+    render(<Editor {...props(wornItem(0))} isNew={false} onWorn={onWorn} />);
+    const btn = screen.getByRole("button", { name: "−1" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(onWorn).not.toHaveBeenCalled();
+  });
+
+  test("−1 is enabled above 0 wears and calls onWorn(-1)", () => {
+    const onWorn = vi.fn();
+    render(<Editor {...props(wornItem(2))} isNew={false} onWorn={onWorn} />);
+    const btn = screen.getByRole("button", { name: "−1" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(onWorn).toHaveBeenCalledTimes(1);
+    expect(onWorn).toHaveBeenCalledWith(-1);
+  });
+
+  test("Mặc hôm nay stays enabled at 0 wears", () => {
+    const onWorn = vi.fn();
+    render(<Editor {...props(wornItem(0))} isNew={false} onWorn={onWorn} />);
+    const btn = screen.getByRole("button", { name: /Mặc hôm nay/ }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(onWorn).toHaveBeenCalledWith(1);
+  });
+});
