@@ -47,5 +47,11 @@ Give the owner server routes to change grant settings, add credits manually, app
 - Manual: none.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 
 ## Handoff
+
+### 2026-11-23 — claude — BLOCKED
+- Done: reclaimed the abandoned 07:25Z claim; consults database-optimizer + software-architect; plan READY (migration 20261123120000_credit_admin.sql with grant_key, guard trigger, per-command user policies replacing owner_only on credit_grants/credit_ops, admin policies on tudo.maintenance='credit-admin'; withCreditAdmin, creditLock.js, creditAdmin.js, adminValidate.js, adminCreditRoutes.js; /api/admin prefix owner check via isOwner).
+- In progress / next: waiting for Ming's plan approval (M-49, assumptions A1–A12); implementation starts after approval.
+- Gotchas: this Windows machine has no Node/pnpm in PATH; implement/review need Node 22, pnpm 10 and Postgres 17 for the DB suites. Re-stamp the migration if another migration lands on main first.
