@@ -59,6 +59,8 @@ export const AI_ERRORS: Record<AiErrorCode, string> = {
   provider_bad_response: "AI trả về kết quả không đọc được, thử lại",
   ai_busy: "AI đang bận, thử lại sau vài giây",
   ai_cap_reached: "AI đang tạm tắt đến hết tháng này, các chức năng khác vẫn dùng bình thường",
+  credits_exhausted: "Bạn đã hết credit AI",
+  welcome_pending: "Credit chào mừng đang chờ duyệt",
   not_available: "Tính năng AI chỉ có khi dùng máy chủ",
   network: "Không kết nối được máy chủ — kiểm tra mạng hoặc tải lại trang để đăng nhập lại",
 };

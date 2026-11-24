@@ -20,7 +20,7 @@ export interface AiSuggestResult {
 }
 
 export interface AiOutfitSuggester {
-  suggest(input: AiSuggestInput, signal?: AbortSignal): Promise<AiSuggestResult>;
+  suggest(input: AiSuggestInput, signal?: AbortSignal, opKey?: string): Promise<AiSuggestResult>;
 }
 
 function parseOutfits(json: unknown): AiSuggestResult {
@@ -45,13 +45,21 @@ export function createHttpAiOutfits(
 ): AiOutfitSuggester {
   const authedFetch = createAuthedFetch({ fetchFn, ...auth });
   return {
-    suggest: async ({ candidateIds, season, weather, avoidIds }, signal) => {
+    suggest: async (
+      { candidateIds, season, weather, avoidIds },
+      signal,
+      opKey = crypto.randomUUID(),
+    ) => {
       const { cold, hot, rain } = weather;
       let res: Response;
       try {
         res = await authedFetch(`${base}/ai/suggest-outfits`, {
           method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "Idempotency-Key": opKey,
+          },
           body: JSON.stringify({
             candidateIds,
             season,

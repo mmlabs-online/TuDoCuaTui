@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { OWNER_A } from "../test/auth.js";
+import { fakePool } from "../test/fake-pool.js";
 import { CREDIT_PRICES } from "./creditMath.js";
 import { createCreditLedger } from "./credits.js";
 
@@ -45,7 +46,7 @@ describe("credit ledger (no database)", () => {
     expect([...kinds].sort()).toEqual(Object.keys(CREDIT_PRICES).sort());
   });
 
-  it("inert: no non-test file under server/ or src/ imports credits.js, and only credits.js imports creditMath.js", () => {
+  it("only app.js and paidCall.js import credits.js (F-706.4), and only credits.js imports creditMath.js", () => {
     const files = [...walk(server), ...walk(path.join(root, "src"))].filter(
       (f) => /\.(js|ts|tsx)$/.test(f) && !/\.test\.(ts|tsx)$/.test(f),
     );
@@ -53,11 +54,61 @@ describe("credit ledger (no database)", () => {
       files.filter((f) =>
         new RegExp(`from\\s+["'][^"']*/${name}\\.js["']`).test(readFileSync(f, "utf8")),
       );
-    expect(importers("credits")).toEqual([]);
+    expect(
+      importers("credits")
+        .map((f) => path.basename(f))
+        .sort(),
+    ).toEqual(["app.js", "paidCall.js"]);
     expect(importers("creditMath").map((f) => path.basename(f))).toEqual(["credits.js"]);
   });
 
   it("backup.js never mentions credit_", () => {
     expect(readFileSync(path.join(server, "backup.js"), "utf8")).not.toMatch(/credit_/);
+  });
+});
+
+describe("credit ledger settle arguments (fake pool)", () => {
+  const op = {
+    op_key: "k1",
+    kind: "photo_fill",
+    credits: 1,
+    monthly_part: 1,
+    lasting_part: 0,
+    period: "2026-11",
+    state: "committed",
+    expires_at: new Date(Date.now() + 60_000),
+    request_hash: "a".repeat(64),
+    result: { suggestion: { name: null } },
+    error_code: null,
+  };
+  const run = async (fn: (l: ReturnType<typeof createCreditLedger>) => Promise<unknown>) => {
+    const seen: { sql: string; params: unknown[] }[] = [];
+    const pool = fakePool({
+      query: async (sql: string, params: unknown[]) => {
+        seen.push({ sql, params });
+        return { rows: sql.includes("update credit_ops") ? [op] : [] };
+      },
+    });
+    const out = await fn(createCreditLedger(pool as never));
+    return { out, update: seen.find((s) => s.sql.includes("update credit_ops")) };
+  };
+
+  it("commit writes the request hash and the JSON result in the same UPDATE and returns them", async () => {
+    const hash = "a".repeat(64);
+    const { out, update } = await run((l) =>
+      l.commit(OWNER_A, "k1", { requestHash: hash, result: op.result }),
+    );
+    expect(update?.params.slice(4)).toEqual([hash, JSON.stringify(op.result), null]);
+    expect(out).toMatchObject({
+      status: "committed",
+      op: { requestHash: hash, result: op.result, errorCode: null },
+    });
+  });
+
+  it("refund writes the error code; a plain commit or refund stores nulls", async () => {
+    const a = await run((l) => l.refund(OWNER_A, "k1", { errorCode: "provider_unavailable" }));
+    expect(a.update?.params.slice(4)).toEqual([null, null, "provider_unavailable"]);
+    const b = await run((l) => l.commit(OWNER_A, "k1"));
+    expect(b.update?.params.slice(4)).toEqual([null, null, null]);
   });
 });

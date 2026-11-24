@@ -14,8 +14,10 @@ import {
   vnMonth,
 } from "./creditMath.js";
 
+export { CREDIT_PRICES, isValidOpKey } from "./creditMath.js";
+
 /** @typedef {{ query(text: string, values?: unknown[]): Promise<any>, connect?(): Promise<any> }} Pool */
-/** @typedef {{ opKey: string, kind: string, credits: number, monthlyPart: number, lastingPart: number, period: string, state: string, expiresAt: string, expired: boolean }} CreditOp */
+/** @typedef {{ opKey: string, kind: string, credits: number, monthlyPart: number, lastingPart: number, period: string, state: string, expiresAt: string, expired: boolean, requestHash: string | null, result: any, errorCode: string | null }} CreditOp */
 /** @typedef {{ period: string, monthly: number, lasting: number, total: number, welcome: "approved" | "pending" }} CreditBalance */
 
 /** @param {string} userId */
@@ -37,6 +39,9 @@ function toOp(r, nowMs) {
     monthlyPart: r.monthly_part,
     lastingPart: r.lasting_part,
     period: r.period,
+    requestHash: r.request_hash ?? null,
+    result: r.result ?? null,
+    errorCode: r.error_code ?? null,
     state: r.state,
     expiresAt: r.expires_at.toISOString(),
     expired:
@@ -109,7 +114,8 @@ async function computeBalance(
 const lock = (c, userId) =>
   c.query("select pg_advisory_xact_lock(hashtextextended('credits:' || $1::text, 0))", [userId]);
 
-const OP_COLUMNS = "op_key, kind, credits, monthly_part, lasting_part, period, state, expires_at";
+const OP_COLUMNS =
+  "op_key, kind, credits, monthly_part, lasting_part, period, state, expires_at, request_hash, result, error_code";
 
 /** @param {any} c @param {string} userId @param {string} opKey */
 const findOp = async (c, userId, opKey) =>
@@ -124,9 +130,12 @@ const findOp = async (c, userId, opKey) =>
 export function createCreditLedger(pool, { now = Date.now } = {}) {
   /**
    * Moves a reserved op to `state`; a no-op result when it is already settled.
+   * `extra` stores the replay data in the same UPDATE: the request hash and result on a commit, the error code on
+   * a refund.
    * @param {string} userId @param {string} opKey @param {"committed" | "refunded"} state
+   * @param {{ requestHash?: string | null, result?: unknown, errorCode?: string | null }} [extra]
    */
-  async function settle(userId, opKey, state) {
+  async function settle(userId, opKey, state, extra = {}) {
     needUser(userId);
     needKey(opKey);
     const nowMs = now();
@@ -135,11 +144,20 @@ export function createCreditLedger(pool, { now = Date.now } = {}) {
       await lock(c, userId);
       // A commit needs a live reservation; a refund works on any reserved op, expired or not.
       const done = await c.query(
-        `update credit_ops set state = $3, settled_at = $4::timestamptz
+        `update credit_ops set state = $3, settled_at = $4::timestamptz,
+                request_hash = $5::text, result = $6::jsonb, error_code = $7::text
           where user_id = $1 and op_key = $2 and state = 'reserved'
             and ($3 = 'refunded' or expires_at > $4::timestamptz)
           returning ${OP_COLUMNS}`,
-        [userId, opKey, state, nowIso],
+        [
+          userId,
+          opKey,
+          state,
+          nowIso,
+          extra.requestHash ?? null,
+          extra.result === undefined ? null : JSON.stringify(extra.result),
+          extra.errorCode ?? null,
+        ],
       );
       if (done.rows[0]) return { status: state, op: toOp(done.rows[0], nowMs) };
       const row = await findOp(c, userId, opKey);
@@ -208,11 +226,17 @@ export function createCreditLedger(pool, { now = Date.now } = {}) {
       });
     },
 
-    /** @param {string} userId @param {string} opKey */
-    commit: (userId, opKey) => settle(userId, opKey, "committed"),
+    /**
+     * @param {string} userId @param {string} opKey
+     * @param {{ requestHash?: string, result?: unknown }} [data] stored for replay (F-706.4)
+     */
+    commit: (userId, opKey, data) => settle(userId, opKey, "committed", data),
 
-    /** @param {string} userId @param {string} opKey */
-    refund: (userId, opKey) => settle(userId, opKey, "refunded"),
+    /**
+     * @param {string} userId @param {string} opKey
+     * @param {{ errorCode?: string }} [data] stored for replay (F-706.4)
+     */
+    refund: (userId, opKey, data) => settle(userId, opKey, "refunded", data),
 
     /**
      * Applies the lazy grants (a write transaction on purpose) and returns the balance.

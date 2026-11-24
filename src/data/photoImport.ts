@@ -43,6 +43,9 @@ export const AI_BATCH_OFF: ReadonlySet<string> = new Set([
   "invalid_model",
   "model_unavailable",
   "server_misconfigured",
+  "credits_exhausted",
+  "welcome_pending",
+  "ai_cap_reached",
   "unauthorized",
   "not_available",
 ]);

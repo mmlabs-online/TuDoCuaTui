@@ -84,6 +84,8 @@ describe("routing", () => {
   it("unknown /api paths -> 404 not_found; wrong method -> 405 with Allow", async () => {
     const base = await start(spyPool().pool);
     expect((await fetch(base + "/api/nope")).status).toBe(404);
+    // F-706.4: the BYOK key test route is gone.
+    expect((await fetch(base + "/api/ai-settings/test", { method: "POST" })).status).toBe(404);
     const cases: [string, string, string][] = [
       ["POST", "/api/items", "GET"],
       ["DELETE", "/api/locations", "GET"],

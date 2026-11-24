@@ -103,7 +103,7 @@ describe("spend meter (no database)", () => {
     expect(spendPricesSrc).not.toMatch(re);
   });
 
-  it("inert: no non-test file under server/ or src/ imports spend.js; only spend.js imports spendPrices.js; only spend.js and db.js mention withSpendMeter", () => {
+  it("only app.js imports spend.js (F-706.4); only spend.js imports spendPrices.js; only spend.js and db.js mention withSpendMeter", () => {
     const files = [...walk(server), ...walk(path.join(root, "src"))].filter(
       (f) => /\.(js|ts|tsx)$/.test(f) && !/\.test\.(ts|tsx)$/.test(f),
     );
@@ -111,7 +111,7 @@ describe("spend meter (no database)", () => {
       files.filter((f) =>
         new RegExp(`from\\s+["'][^"']*/${name}\\.js["']`).test(readFileSync(f, "utf8")),
       );
-    expect(importers("spend")).toEqual([]);
+    expect(importers("spend").map((f) => path.basename(f))).toEqual(["app.js"]);
     expect(importers("spendPrices").map((f) => path.basename(f))).toEqual(["spend.js"]);
 
     const withSpendMeterUsers = files.filter((f) =>

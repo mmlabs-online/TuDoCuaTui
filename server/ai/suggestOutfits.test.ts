@@ -1,17 +1,16 @@
 // @vitest-environment node
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { importKek, sealKey } from "./crypto.js";
+import { importKek } from "./crypto.js";
 import type { AiStore } from "./store.js";
 import { fixedAuth, headerAuth, OWNER_A, OWNER_B, OWNER_C } from "../test/auth.js";
+import { fakeAppKeys, fakeCredits, fakeSpend, SHARED_KEY } from "../test/fake-ai.js";
 import { fakePool } from "../test/fake-pool.js";
 import { SUGGEST_CATEGORIES } from "./outfitSuggest.js";
 
-const SENTINEL = "sk-ant-SENTINEL-0123456789abcdef";
-const GEMINI_SENTINEL = "AIzaSENTINEL-0123456789abcdefghijkl";
 const URL_ = "/api/ai/suggest-outfits";
 const JSON_H = { "Content-Type": "application/json" };
 const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -55,13 +54,6 @@ const row = (n: number, category: string, over: Partial<Row> = {}): Row => ({
 });
 const WARDROBE = [row(1, "top"), row(2, "bottom"), row(3, "dress"), row(4, "shoes")];
 
-const claudeAnswer = (input: unknown) =>
-  new Response(
-    JSON.stringify({
-      stop_reason: "tool_use",
-      content: [{ type: "tool_use", name: "suggest_outfits", input }],
-    }),
-  );
 const geminiAnswer = (input: unknown) =>
   new Response(
     JSON.stringify({
@@ -70,64 +62,56 @@ const geminiAnswer = (input: unknown) =>
   );
 const GOOD = { outfits: [{ items: ["i1", "i2"], reason: REASON }] };
 
-type Secret = { provider: string; model: string; ciphertext: string } | null;
 type Fetch = (url: string, init: RequestInit) => Response | Promise<Response>;
 
 async function start(
   opts: {
-    provider?: "claude" | "gemini";
-    secret?: Secret | "default";
-    store?: AiStore | null;
     ai?: boolean;
+    pool?: boolean;
     fetch?: Fetch;
     now?: () => number;
-    getSecretError?: Error;
     queryError?: Error;
     headerAuth?: boolean;
     ownerSub?: string | null;
     wardrobe?: Row[];
     bodyTimeouts?: { totalMs: number; idleMs: number };
+    balance?: number;
+    welcomePending?: boolean;
+    cap?: boolean;
+    appKeys?: Parameters<typeof fakeAppKeys>[0];
   } = {},
 ) {
   const kek = await importKek(randomBytes(32).toString("base64"));
-  const provider = opts.provider ?? "claude";
-  const defaultSecret = opts.secret === undefined || opts.secret === "default";
   const state = {
     getSecret: 0,
     fetches: [] as { url: string; init: RequestInit }[],
     queries: [] as { sql: string; params: unknown[] }[],
   };
-  const store: AiStore | null =
-    opts.store === undefined
-      ? ({
-          async getSecret(userId: string) {
-            state.getSecret++;
-            if (opts.getSecretError) throw opts.getSecretError;
-            if (!defaultSecret) return opts.secret;
-            return {
-              provider,
-              model: provider === "claude" ? "claude-haiku-5-5" : "gemini-2.5-flash",
-              ciphertext: await sealKey(
-                kek,
-                userId,
-                provider,
-                provider === "claude" ? SENTINEL : GEMINI_SENTINEL,
-              ),
-            };
-          },
-        } as unknown as AiStore)
-      : opts.store;
+  // A BYOK row exists: the route must never read it.
+  const store = {
+    async getSecret() {
+      state.getSecret++;
+      return { provider: "claude", model: "claude-haiku-5-5", ciphertext: "x" };
+    },
+    async get() {
+      return null;
+    },
+  } as unknown as AiStore;
+  const appKeys = fakeAppKeys(opts.appKeys);
+  const credits = fakeCredits({
+    balance: opts.balance ?? 1000,
+    welcomePending: opts.welcomePending,
+  });
+  const spend = fakeSpend({ cap: opts.cap });
   const fetchFn = (async (url: string, init: RequestInit) => {
     state.fetches.push({ url, init });
-    return (
-      opts.fetch ?? (() => (provider === "claude" ? claudeAnswer(GOOD) : geminiAnswer(GOOD)))
-    )(url, init);
+    return (opts.fetch ?? (() => geminiAnswer(GOOD)))(url, init);
   }) as unknown as typeof globalThis.fetch;
   const wardrobe = opts.wardrobe ?? WARDROBE;
   const logs: Record<string, unknown>[] = [];
   const server = http.createServer(
     createApp({
-      pool: (opts.store === null
+      pool: (opts.pool === false
         ? null
         : fakePool({
             query: async (sql: string, params: unknown[]) => {
@@ -145,7 +129,17 @@ async function start(
               };
             },
           })) as never,
-      ai: opts.ai === false ? null : { kek, store: store as AiStore, fetch: fetchFn },
+      ai:
+        opts.ai === false
+          ? null
+          : {
+              kek,
+              store,
+              appKeys: appKeys as never,
+              credits: credits as never,
+              spend: spend as never,
+              fetch: fetchFn,
+            },
       distDir: "/nonexistent",
       auth: opts.headerAuth ? headerAuth() : fixedAuth(OWNER_A),
       log: (e) => logs.push(e),
@@ -157,7 +151,7 @@ async function start(
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);
   const port = (server.address() as AddressInfo).port;
-  return { base: `http://127.0.0.1:${port}`, port, logs, state, kek };
+  return { base: `http://127.0.0.1:${port}`, port, logs, state, appKeys, credits, spend };
 }
 
 const BODY = {
@@ -165,17 +159,28 @@ const BODY = {
   season: "winter",
   weather: { cold: true, hot: false, rain: false },
 };
-const post = (base: string, body: unknown = BODY, headers: Record<string, string> = JSON_H) =>
+const post = (
+  base: string,
+  body: unknown = BODY,
+  headers: Record<string, string> = {},
+  key: string | null = randomUUID(),
+) =>
   fetch(base + URL_, {
     method: "POST",
-    headers,
+    headers: { ...JSON_H, ...(key ? { "Idempotency-Key": key } : {}), ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 const err = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const tagPost = (base: string) =>
+  fetch(base + "/api/ai/tag-photo", {
+    method: "POST",
+    headers: { "Content-Type": "image/jpeg", "Idempotency-Key": randomUUID() },
+    body: Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(16)]),
+  });
 
-describe("success", () => {
-  it("claude: 200 with outfits made of the candidates' real ids", async () => {
+describe("shared key and credits", () => {
+  it("shared key: reserves suggest (1 credit) and commits; outfits use the candidates' real ids", async () => {
     const s = await start();
     const res = await post(s.base);
     expect(res.status).toBe(200);
@@ -184,28 +189,26 @@ describe("success", () => {
       outfits: [{ itemIds: [uid(1), uid(2)], reason: REASON }],
     });
     expect(s.state.fetches).toHaveLength(1);
-    expect(s.state.fetches[0].url).toBe("https://api.anthropic.com/v1/messages");
+    expect(s.state.fetches[0].url).toContain("gemini-2.5-flash:generateContent");
+    expect((s.state.fetches[0].init.headers as Record<string, string>)["x-goog-api-key"]).toBe(
+      SHARED_KEY,
+    );
     const sent = String(s.state.fetches[0].init.body);
     expect(sent).toContain(NAME_SENTINEL);
     expect(sent).not.toContain(uid(1));
-    expect(sent).not.toContain('"image"');
-  });
-
-  it("gemini: 200 with the same shape", async () => {
-    const s = await start({ provider: "gemini" });
-    const res = await post(s.base);
-    expect([res.status, await res.json()]).toEqual([
-      200,
-      { outfits: [{ itemIds: [uid(1), uid(2)], reason: REASON }] },
+    expect(sent).not.toContain("inline_data");
+    expect(s.credits.log).toEqual(["reserve:suggest", "commit"]);
+    expect(s.credits.state.balance).toBe(999);
+    expect(s.spend.reserves).toEqual([
+      { provider: "gemini", model: "gemini-2.5-flash", kind: "suggest" },
     ]);
-    expect(s.state.fetches[0].url).toContain("generativelanguage.googleapis.com");
-    expect(String(s.state.fetches[0].init.body)).not.toContain("inline_data");
+    expect(s.state.getSecret).toBe(0);
   });
 
   it("an alias outside the sent set is dropped; an outfit that breaks the rules is dropped", async () => {
     const s = await start({
       fetch: () =>
-        claudeAnswer({
+        geminiAnswer({
           outfits: [
             { items: ["i1", "i9"], reason: "x" },
             { items: ["i1", "i3"], reason: "dress + top" },
@@ -215,6 +218,97 @@ describe("success", () => {
     });
     const res = await post(s.base);
     expect(await res.json()).toEqual({ outfits: [{ itemIds: [uid(3), uid(4)], reason: REASON }] });
+  });
+
+  it("missing or invalid Idempotency-Key -> 400 bad_request before any reserve", async () => {
+    const s = await start();
+    for (const key of [null, "", "x".repeat(129), "bad key!"]) {
+      const res = await post(s.base, BODY, {}, key);
+      expect([res.status, await err(res)]).toEqual([400, "bad_request"]);
+    }
+    expect(s.credits.log).toEqual([]);
+    expect(s.state.queries).toHaveLength(0);
+  });
+
+  it("no shared key -> 409 not_configured, no reserve", async () => {
+    const s = await start({ appKeys: { key: null } });
+    const res = await post(s.base);
+    expect([res.status, await err(res)]).toEqual([409, "not_configured"]);
+    expect(s.credits.log).toEqual([]);
+    expect(s.state.fetches).toHaveLength(0);
+  });
+
+  it("out of credits -> 402 credits_exhausted; welcome pending -> 402 welcome_pending", async () => {
+    const a = await start({ balance: 0 });
+    const ra = await post(a.base);
+    expect([ra.status, await err(ra)]).toEqual([402, "credits_exhausted"]);
+    const b = await start({ balance: 0, welcomePending: true });
+    const rb = await post(b.base);
+    expect([rb.status, await err(rb)]).toEqual([402, "welcome_pending"]);
+    expect(a.state.fetches.length + b.state.fetches.length).toBe(0);
+  });
+
+  it("replay same key + same body -> stored outfits, one call, one credit; other body -> 400", async () => {
+    const s = await start();
+    const a = await post(s.base, BODY, {}, "op-1");
+    const first = await a.json();
+    const b = await post(s.base, BODY, {}, "op-1");
+    expect([b.status, await b.json()]).toEqual([200, first]);
+    expect(s.state.fetches).toHaveLength(1);
+    expect(s.credits.state.balance).toBe(999);
+    const c = await post(s.base, { ...BODY, season: "summer" }, {}, "op-1");
+    expect([c.status, await err(c)]).toEqual([400, "bad_request"]);
+    expect(s.state.fetches).toHaveLength(1);
+  });
+
+  it("refunded key replays the stored error code, no second call", async () => {
+    const s = await start({ fetch: () => new Response("{}", { status: 500 }) });
+    const a = await post(s.base, BODY, {}, "op-2");
+    expect([a.status, await err(a)]).toEqual([502, "provider_unavailable"]);
+    const b = await post(s.base, BODY, {}, "op-2");
+    expect([b.status, await err(b)]).toEqual([502, "provider_unavailable"]);
+    expect(s.state.fetches).toHaveLength(1);
+    expect(s.credits.state.balance).toBe(1000);
+  });
+
+  it("cap reached -> 503 ai_cap_reached, credits refunded, no provider call; owner too", async () => {
+    const s = await start({ cap: true, headerAuth: true, ownerSub: OWNER_A });
+    const res = await post(s.base, BODY, { "x-test-user": "a" });
+    expect([res.status, await err(res)]).toEqual([503, "ai_cap_reached"]);
+    expect(s.state.fetches).toHaveLength(0);
+    expect(s.credits.log).toEqual(["reserve:suggest", "refund"]);
+    expect(s.credits.state.balance).toBe(1000);
+    const me = await fetch(s.base + "/api/auth/me", { headers: { "x-test-user": "a" } });
+    expect(me.status).toBe(200);
+  });
+
+  it("validation failure -> refund, spend charged (provider_bad_response)", async () => {
+    const s = await start({
+      fetch: () => geminiAnswer({ outfits: [{ items: ["i1"], reason: "x" }] }),
+    });
+    const res = await post(s.base);
+    expect([res.status, await err(res)]).toEqual([502, "provider_bad_response"]);
+    expect(s.credits.state.balance).toBe(1000);
+    expect(s.spend.settles.map((x) => x.outcome)).toEqual(["provider_bad_response"]);
+  });
+
+  it("provider statuses map to codes and refund", async () => {
+    const cases: [number, number, string][] = [
+      [401, 422, "invalid_key"],
+      [403, 422, "key_forbidden"],
+      [404, 422, "model_unavailable"],
+      [429, 429, "provider_rate_limited"],
+      [500, 502, "provider_unavailable"],
+    ];
+    for (const [from, status, code] of cases) {
+      const s = await start({
+        fetch: () => new Response(`{"e":"${SHARED_KEY}"}`, { status: from }),
+      });
+      const res = await post(s.base);
+      expect([res.status, await err(res)]).toEqual([status, code]);
+      expect(s.credits.state.balance).toBe(1000);
+      expect(s.spend.settles.map((x) => x.outcome)).toEqual([code]);
+    }
   });
 });
 
@@ -249,7 +343,7 @@ describe("candidates", () => {
     expect(sent).not.toContain("i5");
   });
 
-  it("fewer than 2 usable candidates -> 200 [] without quota, key or fetch", async () => {
+  it("fewer than 2 candidates: 200 [] with no reserve and no key open", async () => {
     const s = await start();
     const one = { ...BODY, candidateIds: [uid(1), uid(98), uid(99)] };
     for (let i = 0; i < 31; i++) {
@@ -258,6 +352,8 @@ describe("candidates", () => {
     }
     expect(s.state.fetches).toHaveLength(0);
     expect(s.state.getSecret).toBe(0);
+    expect(s.credits.log).toEqual([]);
+    expect(s.appKeys.calls).toEqual([]);
     const real = await post(s.base);
     expect(real.status).toBe(200);
     expect(s.state.fetches).toHaveLength(1);
@@ -265,21 +361,16 @@ describe("candidates", () => {
 });
 
 describe("rate limit", () => {
-  it("30 pass, the 31st is 429 before getSecret; tag-photo is still allowed; passes 24 h later", async () => {
+  it("30 pass, the 31st is 429 before any key is opened; tag-photo is still allowed; passes 24 h later", async () => {
     let t = 1_000_000;
     const s = await start({ now: () => t });
     for (let i = 0; i < 30; i++) expect((await post(s.base)).status).toBe(200);
-    const before = s.state.getSecret;
+    const before = s.appKeys.calls.length;
     const res = await post(s.base);
     expect([res.status, await err(res)]).toEqual([429, "rate_limited"]);
-    expect(s.state.getSecret).toBe(before);
+    expect(s.appKeys.calls.length).toBe(before);
     expect(s.state.fetches).toHaveLength(30);
-    const tag = await fetch(s.base + "/api/ai/tag-photo", {
-      method: "POST",
-      headers: { "Content-Type": "image/jpeg" },
-      body: Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(16)]),
-    });
-    expect(tag.status).not.toBe(429);
+    expect((await tagPost(s.base)).status).not.toBe(429);
     t += 24 * 60 * 60 * 1000 + 1;
     expect((await post(s.base)).status).toBe(200);
   }, 30_000);
@@ -292,8 +383,8 @@ describe("in-flight cap", () => {
     const s = await start({
       fetch: () =>
         ++calls === 1
-          ? new Promise<Response>((r) => (release = () => r(claudeAnswer(GOOD))))
-          : claudeAnswer(GOOD),
+          ? new Promise<Response>((r) => (release = () => r(geminiAnswer(GOOD))))
+          : geminiAnswer(GOOD),
     });
     const first = post(s.base);
     while (!release) await wait(5);
@@ -312,27 +403,12 @@ describe("in-flight cap", () => {
   it("a held tag-photo call does not block suggest", async () => {
     const release: (() => void)[] = [];
     const s = await start({
-      fetch: (url) =>
-        String(url).includes("/messages") && release.length === 0
-          ? new Promise<Response>((r) =>
-              release.push(() =>
-                r(
-                  new Response(
-                    JSON.stringify({
-                      stop_reason: "tool_use",
-                      content: [{ type: "tool_use", name: "tag_item", input: {} }],
-                    }),
-                  ),
-                ),
-              ),
-            )
-          : claudeAnswer(GOOD),
+      fetch: (_url, init) =>
+        String(init.body).includes("inline_data") && release.length === 0
+          ? new Promise<Response>((r) => release.push(() => r(geminiAnswer({}))))
+          : geminiAnswer(GOOD),
     });
-    const tag = fetch(s.base + "/api/ai/tag-photo", {
-      method: "POST",
-      headers: { "Content-Type": "image/jpeg" },
-      body: Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(16)]),
-    });
+    const tag = tagPost(s.base);
     while (release.length < 1) await wait(5);
     expect((await post(s.base)).status).toBe(200);
     release[0]();
@@ -347,9 +423,9 @@ describe("in-flight cap", () => {
       wardrobe: [OWNER_A, OWNER_B, OWNER_C].flatMap((user) =>
         WARDROBE.map((r) => ({ ...r, user })),
       ),
-      fetch: () => new Promise<Response>((r) => release.push(() => r(claudeAnswer(GOOD)))),
+      fetch: () => new Promise<Response>((r) => release.push(() => r(geminiAnswer(GOOD)))),
     });
-    const as = (u: string) => ({ ...JSON_H, "x-test-user": u });
+    const as = (u: string) => ({ "x-test-user": u });
     const b = post(s.base, BODY, as("b"));
     const c = post(s.base, BODY, as("c"));
     while (release.length < 2) await wait(5);
@@ -363,15 +439,15 @@ describe("in-flight cap", () => {
 });
 
 describe("request guards", () => {
-  it("bad body, wrong content type and over 8 KB -> 400/415/413, no quota, no fetch", async () => {
+  it("bad body, wrong content type and over 8 KB -> 400/415/413, no quota, no fetch, nothing reserved", async () => {
     const s = await start();
     const cases: [unknown, Record<string, string>, number, string][] = [
-      [{ ...BODY, extra: 1 }, JSON_H, 400, "bad_request"],
-      [{ ...BODY, candidateIds: [] }, JSON_H, 400, "bad_request"],
-      [{ ...BODY, season: "Đông" }, JSON_H, 400, "bad_request"],
-      ["{not json", JSON_H, 400, "invalid_json"],
+      [{ ...BODY, extra: 1 }, {}, 400, "bad_request"],
+      [{ ...BODY, candidateIds: [] }, {}, 400, "bad_request"],
+      [{ ...BODY, season: "Đông" }, {}, 400, "bad_request"],
+      ["{not json", {}, 400, "invalid_json"],
       [BODY, { "Content-Type": "text/plain" }, 415, "unsupported_media_type"],
-      [{ ...BODY, pad: "x".repeat(9000) }, JSON_H, 413, "payload_too_large"],
+      [{ ...BODY, pad: "x".repeat(9000) }, {}, 413, "payload_too_large"],
     ];
     for (const [body, headers, status, code] of cases) {
       const res = await post(s.base, body, headers);
@@ -380,6 +456,7 @@ describe("request guards", () => {
     expect(s.state.fetches).toHaveLength(0);
     expect(s.state.getSecret).toBe(0);
     expect(s.state.queries).toHaveLength(0);
+    expect(s.credits.log).toEqual([]);
     // None of that used quota: 30 real calls still pass.
     for (let i = 0; i < 30; i++) expect((await post(s.base)).status).toBe(200);
   }, 30_000);
@@ -388,7 +465,7 @@ describe("request guards", () => {
     const s = await start();
     const get = await fetch(s.base + URL_);
     expect([get.status, get.headers.get("allow")]).toEqual([405, "POST"]);
-    const x = await post(s.base, BODY, { ...JSON_H, "Sec-Fetch-Site": "cross-site" });
+    const x = await post(s.base, BODY, { "Sec-Fetch-Site": "cross-site" });
     expect([x.status, await err(x)]).toEqual([403, "forbidden_origin"]);
     expect((await fetch(s.base + URL_ + "/x", { method: "POST" })).status).toBe(404);
   });
@@ -402,46 +479,16 @@ describe("error codes", () => {
   });
 
   it("no pool -> 503 db_unavailable", async () => {
-    const s = await start({ store: null });
+    const s = await start({ pool: false });
     const res = await post(s.base);
     expect([res.status, await err(res)]).toEqual([503, "db_unavailable"]);
-  });
-
-  it("no settings -> 409 not_configured, no fetch", async () => {
-    const s = await start({ secret: null });
-    const res = await post(s.base);
-    expect([res.status, await err(res)]).toEqual([409, "not_configured"]);
-    expect(s.state.fetches).toHaveLength(0);
-  });
-
-  it("provider statuses map to codes", async () => {
-    const cases: [number, number, string][] = [
-      [401, 422, "invalid_key"],
-      [403, 422, "key_forbidden"],
-      [404, 422, "model_unavailable"],
-      [429, 429, "provider_rate_limited"],
-      [500, 502, "provider_unavailable"],
-    ];
-    for (const [from, status, code] of cases) {
-      const s = await start({ fetch: () => new Response(`{"e":"${SENTINEL}"}`, { status: from }) });
-      const res = await post(s.base);
-      expect([res.status, await err(res)]).toEqual([status, code]);
-    }
-  });
-
-  it("every outfit invalid -> 502 provider_bad_response", async () => {
-    const s = await start({
-      fetch: () => claudeAnswer({ outfits: [{ items: ["i1"], reason: "x" }] }),
-    });
-    const res = await post(s.base);
-    expect([res.status, await err(res)]).toEqual([502, "provider_bad_response"]);
   });
 
   it("DB errors: 57P01 -> 503; others -> 500 internal with requestId", async () => {
     const down = Object.assign(new Error("x"), { code: "57P01" });
     const a = await start({ queryError: down });
     expect((await post(a.base)).status).toBe(503);
-    const b = await start({ getSecretError: new Error("boom") });
+    const b = await start({ queryError: new Error("boom") });
     const res = await post(b.base);
     const body = (await res.json()) as { error: { code: string; requestId: string } };
     expect([res.status, body.error.code, typeof body.error.requestId]).toEqual([
@@ -455,10 +502,10 @@ describe("error codes", () => {
 describe("secrets and logs", () => {
   it("the key never leaves the server, and goes only in the provider header", async () => {
     const cases: Fetch[] = [
-      () => claudeAnswer(GOOD),
-      () => new Response(`{"echo":"${SENTINEL}"}`, { status: 401 }),
+      () => geminiAnswer(GOOD),
+      () => new Response(`{"echo":"${SHARED_KEY}"}`, { status: 401 }),
       () => {
-        throw new TypeError("fetch failed " + SENTINEL);
+        throw new TypeError("fetch failed " + SHARED_KEY);
       },
     ];
     for (const f of cases) {
@@ -466,11 +513,12 @@ describe("secrets and logs", () => {
       const res = await post(s.base);
       const text = await res.text();
       expect(text + JSON.stringify([...res.headers]) + JSON.stringify(s.logs)).not.toContain(
-        SENTINEL,
+        SHARED_KEY,
       );
-      const { init } = s.state.fetches[0];
-      expect((init.headers as Record<string, string>)["x-api-key"]).toBe(SENTINEL);
-      expect(String(init.body)).not.toContain(SENTINEL);
+      const { url, init } = s.state.fetches[0];
+      expect(url).not.toContain(SHARED_KEY);
+      expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe(SHARED_KEY);
+      expect(String(init.body)).not.toContain(SHARED_KEY);
     }
   });
 
@@ -486,6 +534,6 @@ describe("secrets and logs", () => {
     }
     expect(entries.map((l) => l.code)).toEqual(["ok", "bad_request"]);
     const all = JSON.stringify(s.logs);
-    for (const secret of [SENTINEL, NAME_SENTINEL, REASON]) expect(all).not.toContain(secret);
+    for (const secret of [SHARED_KEY, NAME_SENTINEL, REASON]) expect(all).not.toContain(secret);
   });
 });

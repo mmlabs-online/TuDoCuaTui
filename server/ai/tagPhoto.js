@@ -1,17 +1,14 @@
 // @ts-check
-// POST /api/ai/tag-photo: raw JPEG body -> suggested item fields (DB ids only), using the user's own saved key.
-// Logs carry fixed fields only: never the image, the key, the suggestion or an error object.
+// POST /api/ai/tag-photo: raw JPEG body -> suggested item fields (DB ids only), using the shared key (F-706.4).
+// A paid call (photo_fill): credits and the spend cap are reserved before the body is read, so a request that
+// cannot be served never uploads 2 MB. The Idempotency-Key header is required. Logs carry fixed fields only:
+// never the image, the key, the suggestion or an error object.
 import { dbLogFields, mapDbError } from "../errors.js";
-import { sendError, sendJson } from "../http.js";
+import { sendError } from "../http.js";
 import { MAX_BYTES, readBody, rejectUnread } from "../photos.js";
-import { AI_ERROR_STATUS } from "./catalog.js";
-import { tagPhotoWithClaude } from "./claude.js";
 import { tagPhotoWithGemini } from "./gemini.js";
-import { loadSettingsKey } from "./routes.js";
+import { hashBytes, parseOpKey, runPaidCall } from "./paidCall.js";
 import { parseTagSuggestion } from "./tagging.js";
-
-/** @type {Record<import("./catalog.js").AiProvider, typeof tagPhotoWithClaude | typeof tagPhotoWithGemini>} */
-const TAGGERS = { claude: tagPhotoWithClaude, gemini: tagPhotoWithGemini };
 
 /**
  * @param {import("node:http").IncomingMessage} req
@@ -27,10 +24,10 @@ export async function handleTagPhoto(req, res, { ai, userId, id, log }) {
     done(code);
     return rejectUnread(req, res, status, code, headers);
   };
-  /** @param {number} status @param {string} code */
-  const fail = (status, code) => {
+  /** @param {number} status @param {string} code @param {Record<string, string>} [headers] */
+  const fail = (status, code, headers) => {
     done(code);
-    if (!res.destroyed) sendError(res, status, code);
+    if (!res.destroyed) sendError(res, status, code, {}, headers);
   };
 
   if (!ai) return reject(503, "server_misconfigured");
@@ -42,33 +39,49 @@ export async function handleTagPhoto(req, res, { ai, userId, id, log }) {
   if (!release) return reject(503, "ai_busy", { "Retry-After": "5" });
   try {
     if (!ai.limiter.check(userId, "tag")) return reject(429, "rate_limited");
-    const store = ai.store;
-    if (!store) return reject(503, "db_unavailable");
-    // Decrypts before the body is read, so no_key / invalid_model never make the client upload 2 MB.
-    const s = await loadSettingsKey({ ...ai, store }, userId);
-    if (!s.ok) return reject(s.status, s.code);
-    const body = await readBody(req, ai.bodyTimeouts);
-    if (!body.ok) {
-      return body.status === 400 ? fail(400, "invalid_photo") : reject(body.status, body.code);
-    }
-    const b = body.bytes;
-    if (b.length < 3 || b[0] !== 0xff || b[1] !== 0xd8 || b[2] !== 0xff) {
-      return fail(400, "invalid_photo");
-    }
-    const ctl = new AbortController();
-    res.once("close", () => ctl.abort());
-    const r = await TAGGERS[s.provider]({
-      fetch: ai.fetch,
-      key: s.key,
-      model: s.model,
-      image: b,
-      signal: ctl.signal,
+    const key = parseOpKey(req.headers);
+    if (!key.ok) return reject(400, "bad_request");
+    let bodyRead = false;
+    await runPaidCall({
+      ai,
+      userId,
+      opKey: key.opKey,
+      kind: "photo_fill",
+      res,
+      log,
+      id,
+      unread: () => !bodyRead,
+      reject,
+      fail,
+      done,
+      getInput: async () => {
+        const body = await readBody(req, ai.bodyTimeouts);
+        bodyRead = true;
+        if (!body.ok) {
+          return body.status === 400
+            ? { ok: false, status: 400, code: "invalid_photo" }
+            : { ok: false, status: body.status, code: body.code, close: true };
+        }
+        const b = body.bytes;
+        if (b.length < 3 || b[0] !== 0xff || b[1] !== 0xd8 || b[2] !== 0xff) {
+          return { ok: false, status: 400, code: "invalid_photo" };
+        }
+        return { ok: true, hash: hashBytes(b), input: b };
+      },
+      call: async ({ key: apiKey, model, input, signal }) => {
+        const r = await tagPhotoWithGemini({
+          fetch: ai.fetch,
+          key: apiKey,
+          model,
+          image: input,
+          signal,
+        });
+        if (!r.ok) return { ok: false, code: r.code };
+        const parsed = parseTagSuggestion(r.input);
+        if (!parsed.ok) return { ok: false, code: parsed.code };
+        return { ok: true, result: { suggestion: parsed.value } };
+      },
     });
-    if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
-    const parsed = parseTagSuggestion(r.input);
-    if (!parsed.ok) return fail(AI_ERROR_STATUS[parsed.code], parsed.code);
-    done("ok");
-    if (!res.destroyed) sendJson(res, 200, { suggestion: parsed.value });
   } catch (err) {
     const mapped = mapDbError(err);
     log({ event: "db_error", id, route: "/api/ai/tag-photo", ...dbLogFields(err) });

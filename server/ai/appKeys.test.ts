@@ -58,20 +58,26 @@ describe("appKeys unit", () => {
     });
   });
 
-  it("inert: no AI route (tag-photo, suggest-outfits) imports appKeys or reads shared keys", async () => {
-    const aiDir = path.resolve(__dirname);
-    const checkedFiles = [
-      path.join(aiDir, "tagPhoto.js"),
-      path.join(aiDir, "suggestOutfits.js"),
-      path.join(aiDir, "outfitSuggest.js"),
-    ];
+  it("open rejects an invalid provider before touching the pool", async () => {
+    const kek = await importKek(b64(32));
+    const store = createAppKeyStore({} as any, kek);
+    expect(await store.open("unknown")).toEqual({
+      ok: false,
+      status: 400,
+      code: "invalid_provider",
+    });
+  });
 
-    for (const f of checkedFiles) {
-      const content = await readFile(f, "utf8");
-      expect(content).not.toMatch(/\bappKeys\b/);
+  it("the AI routes reach the shared key only through paidCall.js appKeys.open", async () => {
+    const aiDir = path.resolve(__dirname);
+    const paid = await readFile(path.join(aiDir, "paidCall.js"), "utf8");
+    expect(paid).toMatch(/appKeys\.open\(/);
+    for (const f of ["tagPhoto.js", "suggestOutfits.js", "outfitSuggest.js", "paidCall.js"]) {
+      const content = await readFile(path.join(aiDir, f), "utf8");
       expect(content).not.toMatch(/\bai_app_keys\b/);
       expect(content).not.toMatch(/\bsealAppKey\b/);
       expect(content).not.toMatch(/\bopenAppKey\b/);
+      if (f !== "paidCall.js") expect(content).not.toMatch(/\bappKeys\b/);
     }
   });
 });

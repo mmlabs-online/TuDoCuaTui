@@ -29,6 +29,8 @@ export const AI_ERROR_STATUS = {
   provider_bad_response: 502,
   ai_busy: 503,
   ai_cap_reached: 503,
+  credits_exhausted: 402,
+  welcome_pending: 402,
 } as const;
 
 export type AiServerErrorCode = keyof typeof AI_ERROR_STATUS;

@@ -134,6 +134,19 @@ describe.skipIf(!dbAvailable)("ai_app_keys (real Postgres)", () => {
     });
   });
 
+  it("open returns the stored key; wrong KEK -> key_unreadable; missing -> not_configured", async () => {
+    const store = createAppKeyStore(pool, kek);
+    expect(await store.open("gemini")).toEqual({ ok: false, status: 409, code: "not_configured" });
+    const key = "AIza-test-gemini-key-0123456789";
+    await store.put("gemini", key);
+    expect(await store.open("gemini")).toEqual({ ok: true, key });
+    const other = createAppKeyStore(pool, await importKek(b64(32)));
+    expect(await other.open("gemini")).toEqual({ ok: false, status: 409, code: "key_unreadable" });
+    // A key sealed for another provider does not open as this one.
+    await admin.query("update ai_app_keys set provider = 'openai' where provider = 'gemini'");
+    expect(await store.open("openai")).toEqual({ ok: false, status: 409, code: "key_unreadable" });
+  });
+
   it("RLS isolation: withUser cannot read or insert into ai_app_keys", async () => {
     const store = createAppKeyStore(pool, kek);
     await store.put("claude", "sk-ant-secret-key-1234567890");

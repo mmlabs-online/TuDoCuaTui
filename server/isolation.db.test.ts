@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Two users on one database (T-019.2): everything one user does is invisible to, and cannot change, the other's.
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
@@ -12,6 +12,7 @@ import { createPool } from "./db.js";
 import { createDriveClient } from "./drive.js";
 import { runMigrations } from "./migrator.js";
 import { headerAuth, OWNER_A, OWNER_B } from "./test/auth.js";
+import { fakeAppKeys, fakeCredits, fakeSpend, SHARED_KEY } from "./test/fake-ai.js";
 import { fakeConfig, startFakeDrive } from "./test/fake-drive.js";
 import { createTestDb, dbAvailable, type TestDb } from "./test/pg.js";
 
@@ -346,12 +347,10 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
         headers: JSON_H,
         body: JSON.stringify(body),
       });
-    const test = (as: As) =>
-      aiCall(as, "/api/ai-settings/test", { method: "POST", headers: JSON_H, body: "{}" });
     const tag = (as: As) =>
       aiCall(as, "/api/ai/tag-photo", {
         method: "POST",
-        headers: { "Content-Type": "image/jpeg" },
+        headers: { "Content-Type": "image/jpeg", "Idempotency-Key": randomUUID() },
         body: JPEG,
       });
     const codeOf = async (r: Response) => ((await r.json()) as any).error.code;
@@ -359,36 +358,32 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
 
     beforeAll(async () => {
       const kek = await importKek(randomBytes(32).toString("base64"));
+      const gemini = (input: unknown) =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              { finishReason: "STOP", content: { parts: [{ text: JSON.stringify(input) }] } },
+            ],
+          }),
+        );
       const fakeFetch = (async (url: string, init: RequestInit) => {
-        fetched.push({ url, key: (init.headers as Record<string, string>)["x-api-key"] });
-        if (String(init.body).includes('"suggest_outfits"')) {
+        fetched.push({ url, key: (init.headers as Record<string, string>)["x-goog-api-key"] });
+        if (!String(init.body).includes("inline_data")) {
           suggestBodies.push(String(init.body));
-          return new Response(
-            JSON.stringify({
-              stop_reason: "tool_use",
-              content: [
-                {
-                  type: "tool_use",
-                  name: "suggest_outfits",
-                  input: { outfits: [{ items: ["i1", "i2"], reason: "Hợp thời tiết" }] },
-                },
-              ],
-            }),
-          );
+          return gemini({ outfits: [{ items: ["i1", "i2"], reason: "Hợp thời tiết" }] });
         }
-        return url.endsWith("/messages")
-          ? new Response(
-              JSON.stringify({
-                stop_reason: "tool_use",
-                content: [{ type: "tool_use", name: "tag_item", input: { name: "x" } }],
-              }),
-            )
-          : new Response("{}");
+        return gemini({ name: "x" });
       }) as unknown as typeof globalThis.fetch;
       aiServer = http.createServer(
         createApp({
           pool: recording(pool),
-          ai: { kek, fetch: fakeFetch },
+          ai: {
+            kek,
+            fetch: fakeFetch,
+            appKeys: fakeAppKeys() as never,
+            credits: fakeCredits({ balance: 1000 }) as never,
+            spend: fakeSpend() as never,
+          },
           distDir: "/nonexistent",
           auth: headerAuth(),
           log: () => {},
@@ -420,19 +415,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
       expect(await view("b")).toMatchObject({ provider: "claude", hasKey: false });
     });
 
-    it("B's /test and tag-photo never use A's key: 409 not_configured, no fetch", async () => {
-      await save("a", { ...base_, apiKey: KEY_A });
-      const bt = await test("b");
-      expect([bt.status, await codeOf(bt)]).toEqual([409, "not_configured"]);
-      const bg = await tag("b");
-      expect([bg.status, await codeOf(bg)]).toEqual([409, "not_configured"]);
-      expect(fetched).toEqual([]);
-      expect((await test("a")).status).toBe(200);
-      expect(fetched).toHaveLength(1);
-      expect(fetched[0].key).toBe(KEY_A);
-    });
-
-    it("row copy: A's ciphertext in B's row -> 409 key_unreadable, no fetch", async () => {
+    it("B's tag-photo uses the shared key, never A's BYOK ciphertext (even copied into B's row)", async () => {
       await save("a", { ...base_, apiKey: KEY_A });
       await save("b", base_);
       await pool.query(
@@ -440,11 +423,15 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
          from ai_settings a where a.user_id = $1 and b.user_id = $2`,
         [OWNER_A, OWNER_B],
       );
-      const bt = await test("b");
-      expect([bt.status, await codeOf(bt)]).toEqual([409, "key_unreadable"]);
-      const bg = await tag("b");
-      expect([bg.status, await codeOf(bg)]).toEqual([409, "key_unreadable"]);
-      expect(fetched).toEqual([]);
+      const before = (
+        await pool.query("select user_id, key_ciphertext from ai_settings order by 1")
+      ).rows;
+      expect((await tag("b")).status).toBe(200);
+      expect((await tag("a")).status).toBe(200);
+      expect(fetched.map((f) => f.key)).toEqual([SHARED_KEY, SHARED_KEY]);
+      const after = (await pool.query("select user_id, key_ciphertext from ai_settings order by 1"))
+        .rows;
+      expect(after).toEqual(before);
     });
 
     it("suggest-outfits: B sending A's item ids gets no outfits and no provider call; A's stored item is not sent", async () => {
@@ -461,7 +448,7 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
       const ask = (as: As) =>
         aiCall(as, "/api/ai/suggest-outfits", {
           method: "POST",
-          headers: JSON_H,
+          headers: { ...JSON_H, "Idempotency-Key": randomUUID() },
           body: JSON.stringify({
             candidateIds: [uuid(11), uuid(12), uuid(13)],
             season: "winter",
@@ -485,7 +472,6 @@ describe.skipIf(!dbAvailable)("isolation between two users (real Postgres)", () 
     it("every statement of the AI routes mentions user_id", async () => {
       await save("a", { ...base_, apiKey: KEY_A });
       await view("a");
-      await test("a");
       await tag("a");
       await aiCall("a", "/api/ai-settings/key", { method: "DELETE" });
       const control = /^\s*(begin( read only)?|commit|rollback)\s*$/i;
