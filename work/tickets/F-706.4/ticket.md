@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | BLOCKED |
+| State | IN_PROGRESS |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | — |
+| Claimed by | claude@2026-11-24T04:22:19Z |
 | PR | — |
 
 ## Goal
@@ -57,6 +57,7 @@ Make photo fill, bulk tagging and outfit suggestions use the shared key, charged
 
 ## Notes / answers from Ming
 Waiting for Ming: plan approval (High tier)
+- 2026-11-24 — Plan approved by Ming ("duyệt F-706.4, mặc định cả"): assumptions A1–A14 at their defaults, including A3 and A6 (recorded as D56); split approved — `GET /api/ai/credits` is ticket F-706.9. Debt: spaceM#75 (A1), #76 (A8), #77 (A9).
 - 2026-11-24 — Ming: F-706.4 may start now; M-42 (paid no-training tier + provider-console cap) is required before the release, not before implementation. Also adopt the F-706.7 contract (M-50 defaults): `GET /api/ai/credits` returning `{credits:{balance:{period,monthly,lasting,total},welcome,capReached,costs:{photo_fill,suggest},provider}}`, codes `credits_exhausted` 402 and `welcome_pending` 402, reuse `ai_cap_reached` 503 (see work/tickets/F-706.7/plan.md on branch ticket/F-706.7). Existing accounts must read welcome=approved.
 
 ## Handoff
