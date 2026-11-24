@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | ui, ux, data |
 | Gate | none |
-| Depends on | F-706.1, F-706.2, F-706.3, F-706.4 |
+| Depends on | F-706.1, F-706.2, F-706.3, F-706.4, F-706.9 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
