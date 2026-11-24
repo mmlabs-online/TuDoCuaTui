@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P1 |
 | Size | S |
 | Milestone | M4 |
@@ -11,7 +11,7 @@
 | Gate | none |
 | Depends on | BUG-012, BUG-013 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-22 |
 | Claimed by | claude@2026-11-24T03:37:48Z |
 | PR | — |
