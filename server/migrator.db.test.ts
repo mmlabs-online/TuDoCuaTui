@@ -252,7 +252,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     try {
       await runMigrations({ connectionString: other.url, dir: realDir, ownerSub: OWNER });
       for (const url of [db.url, other.url]) {
-        expect((await query(url, "select version from schema_migrations")).length).toBe(11);
+        expect((await query(url, "select version from schema_migrations")).length).toBe(12);
         expect(
           (
             await query(
@@ -616,6 +616,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
     const CREDIT = "20261122120000_credit_ledger.sql";
     const SPEND = "20261122140000_ai_spend_meter.sql";
     const APP_KEYS = "20261122160000_ai_app_keys.sql";
+    const REPLAY = "20261124120000_credit_ops_replay.sql";
     const CREDIT_TABLES = ["credit_grants", "credit_ops", "credit_settings"];
     const uid = (n: number) => `0190a6f2-7c3e-7b8a-9d4e-${String(n).padStart(12, "0")}`;
     const [U1, U2, U3, U4, NEW_USER] = [uid(1), uid(2), uid(3), uid(4), uid(5)];
@@ -629,6 +630,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       await unlink(path.join(dir, CREDIT));
       await unlink(path.join(dir, SPEND)).catch(() => {});
       await unlink(path.join(dir, APP_KEYS)).catch(() => {});
+      await unlink(path.join(dir, REPLAY)).catch(() => {});
       if (extra) await writeFile(path.join(dir, extra[0]), extra[1]);
       return dir;
     }
@@ -712,6 +714,7 @@ describe.skipIf(!dbAvailable)("runMigrations (real Postgres)", () => {
       await cp(path.join(realDir, CREDIT), path.join(dir, CREDIT));
       await cp(path.join(realDir, SPEND), path.join(dir, SPEND));
       await cp(path.join(realDir, APP_KEYS), path.join(dir, APP_KEYS));
+      await cp(path.join(realDir, REPLAY), path.join(dir, REPLAY));
       const err = await run(dir).catch((e) => e);
       expect(err).toBeInstanceOf(MigrationError);
       expect(err.message).toMatch(/row level security not forced on credit_ops/);

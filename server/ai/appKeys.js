@@ -1,7 +1,8 @@
 // @ts-check
 // App-wide shared AI keys (F-706.3, D52).
 // Owner-only storage, replacement and testing of one shared key per provider (Claude, Gemini, OpenAI).
-// Plaintext keys never leave this module: responses carry masked hints only, and logs never carry keys or hints.
+// Plaintext keys never leave this module except through open() (F-706.4, to the provider adapter): responses
+// carry masked hints only, and logs never carry keys or hints.
 import { withAppKeys } from "../db.js";
 import { AI_ERROR_STATUS } from "./catalog.js";
 import { checkClaudeKey } from "./claude.js";
@@ -99,6 +100,36 @@ export function createAppKeyStore(pool, kek, { fetch = globalThis.fetch } = {}) 
         await client.query("delete from ai_app_keys where provider = $1", [provider]);
       });
       return { ok: true };
+    },
+
+    /**
+     * Opens the stored key for a paid call (F-706.4). Server-internal: the plaintext goes to the provider adapter
+     * only, never into a response or a log.
+     * @param {string} provider
+     * @returns {Promise<{ ok: true, key: string } | { ok: false, status: number, code: string }>}
+     */
+    async open(provider) {
+      if (!isAppKeyProvider(provider)) {
+        return { ok: false, status: 400, code: "invalid_provider" };
+      }
+      /** @type {string | null} */
+      const ciphertext = await withAppKeys(
+        pool,
+        async (client) => {
+          const res = await client.query(
+            "select key_ciphertext from ai_app_keys where provider = $1",
+            [provider],
+          );
+          return res.rows[0]?.key_ciphertext ?? null;
+        },
+        { readOnly: true },
+      );
+      if (!ciphertext) return { ok: false, status: 409, code: "not_configured" };
+      try {
+        return { ok: true, key: await openAppKey(kek, provider, ciphertext) };
+      } catch {
+        return { ok: false, status: 409, code: "key_unreadable" };
+      }
     },
 
     /**

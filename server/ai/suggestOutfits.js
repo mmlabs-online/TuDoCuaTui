@@ -1,14 +1,14 @@
 // @ts-check
-// POST /api/ai/suggest-outfits: candidate item ids -> up to 3 AI-picked outfits (DB ids only), using the user's own
-// saved key. The candidates are reloaded from the DB (own, active, outfit categories), so a foreign or unknown id
-// never reaches the provider. Text only: no photos. Logs carry fixed fields only: never the key, names or reasons.
+// POST /api/ai/suggest-outfits: candidate item ids -> up to 3 AI-picked outfits (DB ids only), using the shared key
+// (F-706.4). The candidates are reloaded from the DB (own, active, outfit categories), so a foreign or unknown id
+// never reaches the provider. Text only: no photos. A paid call (suggest) unless fewer than 2 candidates remain,
+// which answers [] for free. The Idempotency-Key header is required. Logs carry fixed fields only: never the key,
+// names or reasons.
 import { dbLogFields, mapDbError } from "../errors.js";
 import { readJson, sendError, sendJson } from "../http.js";
 import { loadSuggestCandidates } from "../items.js";
 import { rejectUnread } from "../photos.js";
 import { vnToday } from "../validate.js";
-import { AI_ERROR_STATUS } from "./catalog.js";
-import { suggestWithClaude } from "./claude.js";
 import { suggestWithGemini } from "./gemini.js";
 import {
   buildSuggestPrompt,
@@ -18,10 +18,7 @@ import {
   SUGGEST_LIMITS,
   validateSuggestions,
 } from "./outfitSuggest.js";
-import { loadSettingsKey } from "./routes.js";
-
-/** @type {Record<import("./catalog.js").AiProvider, typeof suggestWithClaude | typeof suggestWithGemini>} */
-const SUGGESTERS = { claude: suggestWithClaude, gemini: suggestWithGemini };
+import { hashJson, parseOpKey, runPaidCall } from "./paidCall.js";
 
 /**
  * @param {import("node:http").IncomingMessage} req
@@ -37,10 +34,10 @@ export async function handleSuggestOutfits(req, res, { ai, pool, userId, id, log
     done(code);
     return rejectUnread(req, res, status, code, headers);
   };
-  /** @param {number} status @param {string} code */
-  const fail = (status, code) => {
+  /** @param {number} status @param {string} code @param {Record<string, string>} [headers] */
+  const fail = (status, code, headers) => {
     done(code);
-    if (!res.destroyed) sendError(res, status, code);
+    if (!res.destroyed) sendError(res, status, code, {}, headers);
   };
 
   if (!ai) return reject(503, "server_misconfigured");
@@ -48,6 +45,8 @@ export async function handleSuggestOutfits(req, res, { ai, pool, userId, id, log
   const release = ai.suggestSlots.tryAcquire(userId);
   if (!release) return reject(503, "ai_busy", { "Retry-After": "5" });
   try {
+    const key = parseOpKey(req.headers);
+    if (!key.ok) return reject(400, "bad_request");
     const body = await readJson(req, {
       limit: SUGGEST_LIMITS.bodyBytes,
       timeouts: ai.bodyTimeouts,
@@ -67,35 +66,45 @@ export async function handleSuggestOutfits(req, res, { ai, pool, userId, id, log
       return;
     }
     if (!ai.limiter.check(userId, "suggest")) return fail(429, "rate_limited");
-    const store = ai.store;
-    if (!store) return fail(503, "db_unavailable");
-    const s = await loadSettingsKey({ ...ai, store }, userId);
-    if (!s.ok) return fail(s.status, s.code);
     const { prompt, aliases } = buildSuggestPrompt(rows, {
       season,
       weather,
       avoidIds,
       today: vnToday(now()),
     });
-    const ctl = new AbortController();
-    res.once("close", () => ctl.abort());
-    const r = await SUGGESTERS[s.provider]({
-      fetch: ai.fetch,
-      key: s.key,
-      model: s.model,
-      prompt,
-      schema: buildSuggestSchema(aliases),
-      signal: ctl.signal,
+    const categories = new Map(rows.map((x) => [x.id, x.category]));
+    await runPaidCall({
+      ai,
+      userId,
+      opKey: key.opKey,
+      kind: "suggest",
+      res,
+      log,
+      id,
+      unread: () => false,
+      reject,
+      fail,
+      done,
+      getInput: async () => ({
+        ok: true,
+        hash: hashJson({ candidateIds, season, weather, avoidIds }),
+        input: null,
+      }),
+      call: async ({ key: apiKey, model, signal }) => {
+        const r = await suggestWithGemini({
+          fetch: ai.fetch,
+          key: apiKey,
+          model,
+          prompt,
+          schema: buildSuggestSchema(aliases),
+          signal,
+        });
+        if (!r.ok) return { ok: false, code: r.code };
+        const valid = validateSuggestions(r.input, aliases, categories);
+        if (!valid.ok) return { ok: false, code: valid.code };
+        return { ok: true, result: { outfits: valid.outfits } };
+      },
     });
-    if (!r.ok) return fail(AI_ERROR_STATUS[r.code], r.code);
-    const valid = validateSuggestions(
-      r.input,
-      aliases,
-      new Map(rows.map((x) => [x.id, x.category])),
-    );
-    if (!valid.ok) return fail(AI_ERROR_STATUS[valid.code], valid.code);
-    done("ok");
-    if (!res.destroyed) sendJson(res, 200, { outfits: valid.outfits });
   } catch (err) {
     const mapped = mapDbError(err);
     log({ event: "db_error", id, route: "/api/ai/suggest-outfits", ...dbLogFields(err) });

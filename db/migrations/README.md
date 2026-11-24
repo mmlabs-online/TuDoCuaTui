@@ -24,6 +24,7 @@ Plain SQL applied by `node server/migrate.js` (the `migrate` one-shot service, D
   `ai_spend_ops`, F-706.2; `ai_app_keys`, F-706.3) gets `enable` + `force` and narrow named policies instead of `owner_only`.
   Neither the credit tables, `ai_spend_ops` nor `ai_app_keys` are part of backup and restore. `create or replace view items_with_stats` must say
   `with (security_invoker = true)`; the runner checks that too.
+- `20261124120000_credit_ops_replay` (F-706.4) reruns the welcome backfill for accounts that exist at deploy time and approves their pending welcome row; `credit_grants` is forced, so the file lifts `force` on it too (with the five tables) for the write.
 - `TUDO_OWNER_SUB` (a UUID, the owner's Identity `sub`) is passed by `server/migrate.js` as the transaction-local
   setting `tudo.owner_sub`. If rows exist and it is unset the migration fails and rolls back; on an empty database
   it is a no-op. A malformed value exits 2. The value is never printed.

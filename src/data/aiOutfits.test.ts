@@ -57,6 +57,30 @@ describe("createHttpAiOutfits", () => {
     });
   });
 
+  it("sends Idempotency-Key: the given opKey, else a fresh UUID per call", async () => {
+    const { fetchFn, client } = make(() => json({ outfits: OUTFITS }));
+    await client.suggest(INPUT, undefined, "op-123");
+    await client.suggest(INPUT);
+    const keys = fetchFn.mock.calls.map(
+      (c) =>
+        ((c as unknown[])[1] as RequestInit & { headers: Record<string, string> }).headers[
+          "Idempotency-Key"
+        ],
+    );
+    expect(keys[0]).toBe("op-123");
+    expect(keys[1]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it.each([
+    [402, "welcome_pending"],
+    [402, "credits_exhausted"],
+    [503, "ai_cap_reached"],
+  ])("maps %i %s to AiSettingsError", async (status, code) => {
+    const { client } = make(() => json({ error: { code } }, status));
+    const e = await failure(client.suggest(INPUT));
+    expect([e.status, e.code]).toEqual([status, code]);
+  });
+
   it("sends avoidIds only when non-empty", async () => {
     for (const avoidIds of [[], undefined]) {
       const { fetchFn, client } = make(() => json({ outfits: [] }));

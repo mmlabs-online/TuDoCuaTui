@@ -1,5 +1,7 @@
 // @vitest-environment node
 // Credit ledger (F-706.1, D53) against real Postgres, run as the NOSUPERUSER owner role so RLS and FORCE apply.
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createPool } from "../db.js";
@@ -257,6 +259,56 @@ describe.skipIf(!dbAvailable)("credit ledger (real Postgres, owner role)", () =>
     });
   });
 
+  describe("replay storage (F-706.4)", () => {
+    const HASH = "ab".repeat(32);
+    const RESULT = { suggestion: { name: "Áo", tags: ["basic"] } };
+
+    it("commit stores result and request hash atomically; replay returns them", async () => {
+      await ledger().reserve(OWNER_A, "k1", "photo_fill");
+      const c = await ledger().commit(OWNER_A, "k1", { requestHash: HASH, result: RESULT });
+      expect(c).toMatchObject({
+        status: "committed",
+        op: { requestHash: HASH, result: RESULT, errorCode: null },
+      });
+      expect(await rows("select state, request_hash, result, error_code from credit_ops")).toEqual([
+        { state: "committed", request_hash: HASH, result: RESULT, error_code: null },
+      ]);
+      expect(await ledger().reserve(OWNER_A, "k1", "photo_fill")).toMatchObject({
+        status: "replay",
+        op: { state: "committed", requestHash: HASH, result: RESULT },
+      });
+    });
+
+    it("a commit that finds the reservation expired stores nothing", async () => {
+      await ledger().reserve(OWNER_A, "k1", "photo_fill");
+      t += RESERVATION_TTL_MS + 1;
+      const c = await ledger().commit(OWNER_A, "k1", { requestHash: HASH, result: RESULT });
+      expect(c.status).toBe("expired");
+      expect(await rows("select request_hash, result from credit_ops")).toEqual([
+        { request_hash: null, result: null },
+      ]);
+    });
+
+    it("refund stores error_code; replay of refunded returns it", async () => {
+      await ledger().reserve(OWNER_A, "k1", "suggest");
+      await ledger().refund(OWNER_A, "k1", { errorCode: "provider_unavailable" });
+      expect(await ledger().reserve(OWNER_A, "k1", "suggest")).toMatchObject({
+        status: "replay",
+        op: { state: "refunded", errorCode: "provider_unavailable", result: null },
+      });
+    });
+
+    it("the columns reject a malformed hash and an empty error code", async () => {
+      await ledger().reserve(OWNER_A, "k1", "photo_fill");
+      await expect(
+        admin.query("update credit_ops set request_hash = 'xyz' where op_key = 'k1'"),
+      ).rejects.toMatchObject({ code: "23514" });
+      await expect(
+        admin.query("update credit_ops set error_code = '' where op_key = 'k1'"),
+      ).rejects.toMatchObject({ code: "23514" });
+    });
+  });
+
   describe("settle", () => {
     it("refund returns the parts to the right buckets", async () => {
       await grant(OWNER_A, "monthly", 4, { period: PERIOD });
@@ -504,5 +556,62 @@ describe.skipIf(!dbAvailable)("credit ledger (real Postgres, owner role)", () =>
       );
       expect(await ledger().balance(OWNER_A)).toMatchObject({ monthly: 50, lasting: 300 });
     });
+  });
+});
+
+// F-706.4: 20261124120000_credit_ops_replay reruns the welcome backfill for accounts that exist at deploy time.
+describe.skipIf(!dbAvailable)("credit_ops_replay migration (real Postgres)", () => {
+  const NEW = "20261124120000_credit_ops_replay.sql";
+  const OWNER_C_ = "33333333-3333-4333-8333-333333333333";
+  const OWNER_D = "44444444-4444-4444-8444-444444444444";
+  let db: TestDb;
+  let admin: ReturnType<typeof createPool>;
+  let before: string;
+  beforeAll(async () => {
+    db = await createTestDb({ owner: true });
+    before = fs.mkdtempSync(path.join(os.tmpdir(), "tudo-mig-"));
+    for (const f of fs.readdirSync(realDir)) {
+      if (f.endsWith(".sql") && f < NEW)
+        fs.copyFileSync(path.join(realDir, f), path.join(before, f));
+    }
+    await runMigrations({ connectionString: db.url, dir: before, ownerSub: OWNER_A });
+    admin = createPool(db.adminUrl);
+  });
+  afterAll(async () => {
+    await admin?.end();
+    await db?.drop();
+    fs.rmSync(before, { recursive: true, force: true });
+  });
+
+  it("existing account (has data) without a grant gets an approved welcome; a pending welcome of an existing account becomes approved; an account with no data stays absent or pending", async () => {
+    // B has data and no grant; C has data and a pending welcome row; D has no data and a pending welcome row.
+    await admin.query("insert into locations (user_id, name) values ($1, 'Tủ B'), ($2, 'Tủ C')", [
+      OWNER_B,
+      OWNER_C_,
+    ]);
+    await admin.query(
+      `insert into credit_grants (user_id, bucket, amount, approved_at) values ($1, 'welcome', 300, null), ($2, 'welcome', 300, null)`,
+      [OWNER_C_, OWNER_D],
+    );
+
+    await runMigrations({ connectionString: db.url, dir: realDir, ownerSub: OWNER_A });
+
+    const grants = (
+      await admin.query(
+        "select user_id, approved_at is not null as approved from credit_grants where bucket = 'welcome' order by user_id",
+      )
+    ).rows;
+    expect(grants).toEqual([
+      { user_id: OWNER_A, approved: true },
+      { user_id: OWNER_B, approved: true },
+      { user_id: OWNER_C_, approved: true },
+      { user_id: OWNER_D, approved: false },
+    ]);
+    const cols = (
+      await admin.query(
+        "select column_name from information_schema.columns where table_name = 'credit_ops' and column_name in ('request_hash','result','error_code')",
+      )
+    ).rows;
+    expect(cols).toHaveLength(3);
   });
 });

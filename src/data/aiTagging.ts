@@ -17,7 +17,7 @@ export interface TagSuggestion {
 }
 
 export interface AiTagger {
-  tag(image: Blob, signal?: AbortSignal): Promise<TagSuggestion>;
+  tag(image: Blob, signal?: AbortSignal, opKey?: string): Promise<TagSuggestion>;
 }
 
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
@@ -51,12 +51,16 @@ export function createHttpAiTagger(
 ): AiTagger {
   const authedFetch = createAuthedFetch({ fetchFn, ...auth });
   return {
-    tag: async (image, signal) => {
+    tag: async (image, signal, opKey = crypto.randomUUID()) => {
       let res: Response;
       try {
         res = await authedFetch(`${base}/ai/tag-photo`, {
           method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "image/jpeg" },
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "image/jpeg",
+            "Idempotency-Key": opKey,
+          },
           body: image,
           cache: "no-store",
           credentials: "same-origin",

@@ -53,6 +53,33 @@ describe("createHttpAiTagger", () => {
     expect(init.signal).toBe(ctl.signal);
   });
 
+  it("sends Idempotency-Key: the given opKey, else a fresh UUID per call", async () => {
+    const { fetchFn, tagger } = make(() => json({ suggestion: SUGGESTION }));
+    await tagger.tag(blob(), undefined, "op-123");
+    await tagger.tag(blob());
+    await tagger.tag(blob());
+    const keys = fetchFn.mock.calls.map(
+      (c) =>
+        ((c as unknown[])[1] as RequestInit & { headers: Record<string, string> }).headers[
+          "Idempotency-Key"
+        ],
+    );
+    expect(keys[0]).toBe("op-123");
+    expect(keys[1]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keys[2]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keys[1]).not.toBe(keys[2]);
+  });
+
+  it.each([
+    [402, "credits_exhausted"],
+    [402, "welcome_pending"],
+    [503, "ai_cap_reached"],
+  ])("maps %i %s to AiSettingsError", async (status, code) => {
+    const { tagger } = make(() => json({ error: { code } }, status));
+    const e = await failure(tagger.tag(blob()));
+    expect([e.status, e.code]).toEqual([status, code]);
+  });
+
   it("returns the suggestion", async () => {
     const { tagger } = make(() => json({ suggestion: SUGGESTION }));
     expect(await tagger.tag(blob())).toEqual(SUGGESTION);

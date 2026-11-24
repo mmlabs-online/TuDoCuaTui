@@ -607,6 +607,24 @@ describe("runPhotoImport AI", () => {
     expect(out.stopped).toBeUndefined();
   });
 
+  test.each(["credits_exhausted", "welcome_pending", "ai_cap_reached"])(
+    '%s mid-batch: earlier photos keep their AI state, later ones are ai = "off", every file saved, aiStopped set',
+    async (code) => {
+      const { deps, saved } = aiSetup();
+      const tag = vi
+        .fn<(b: Blob) => Promise<TagSuggestion>>()
+        .mockResolvedValueOnce(SUGGESTION)
+        .mockRejectedValueOnce(aiErr(code));
+      const out = await runPhotoImport([job(1), job(2), job(3)], deps, { defaults: DEFAULTS, tag });
+      expect(tag).toHaveBeenCalledTimes(2);
+      expect(saved).toHaveLength(3);
+      expect(out.jobs.map((j) => j.state)).toEqual(["done", "done", "done"]);
+      expect(out.jobs.map((j) => j.ai)).toEqual(["filled", "skipped", "off"]);
+      expect(out.aiStopped).toBe(code);
+      expect(out.stopped).toBeUndefined();
+    },
+  );
+
   test("invalid_key turns AI off for the batch (aiStopped = invalid_key)", async () => {
     const { deps } = aiSetup();
     const tag = vi.fn(async () => {
