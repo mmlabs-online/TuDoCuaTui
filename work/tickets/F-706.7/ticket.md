@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-24T03:59:10Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -52,3 +52,8 @@ Show every user their AI credit balance and the cost of each AI action, with cle
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-24 — claude — BLOCKED
+- Done: consults frontend-developer + ux-architect; plan written with Status BLOCKED (full plan under defaults included, split into F-706.7.1 client state/flows and F-706.7.2 settings panel + BYOK retirement).
+- In progress / next: Ming answers the 7 questions in plan.md (M-50): endpoint owner (default F-706.4), contract shape, codes (credits_exhausted 402, welcome_pending 402, reuse ai_cap_reached 503), merge order (default: depend on F-706.4), "Xoá key cũ" row (default yes when hasKey), settings panel replacement, split. Answer "defaults" → re-plan READY and add F-706.4 to Depends on.
+- Gotchas: no user balance endpoint exists and no ticket owns it; F-706.4 must set welcome=approved for existing accounts; avoid 403 for credit errors (T-030 sign-out handling).
