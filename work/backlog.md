@@ -122,7 +122,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-706.3 | Owner-only shared AI key storage, replacement and test | MERGED | P1 | M | db, security, architecture | — | plan-approval | 1 | 2026-11-23 |
 | F-706.5 | Owner-only admin API for grants, credits, approvals and spend | DONE | P1 | M | security, architecture, db | F-706.1 | plan-approval | 1 | 2026-11-23 |
 | F-706.6 | Owner admin screen for the shared key, grants and approvals | BACKLOG | P1 | M | ui, ux, security | F-706.3, F-706.5 | plan-approval | 0 | 2026-11-22 |
-| F-707.1 | Occasion enum and rule prefilter in the outfit pool | PLANNING | P1 | S | data | BUG-012, BUG-013 | none | 0 | 2026-11-24 |
+| F-707.1 | Occasion enum and rule prefilter in the outfit pool | DONE | P1 | S | data | BUG-012, BUG-013 | none | 1 | 2026-11-24 |
 | F-707.2 | Suggest route accepts the occasion and enforces 20 candidates | BACKLOG | P1 | S | security, data | F-707.1 | plan-approval | 0 | 2026-11-22 |
 | F-707.3 | Same-day suggestion cache in Postgres | BACKLOG | P1 | M | db, security, data | F-707.2 | plan-approval | 0 | 2026-11-22 |
 | F-707.4 | Occasion picker; AI runs only on an explicit tap | BACKLOG | P1 | M | ui, ux, data | F-707.3 | none | 0 | 2026-11-22 |
