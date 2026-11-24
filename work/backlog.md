@@ -126,7 +126,7 @@ This board is changed only on `main` (D16); each ticket's `ticket.md` is the sou
 | F-707.2 | Suggest route accepts the occasion and enforces 20 candidates | BACKLOG | P1 | S | security, data | F-707.1 | plan-approval | 0 | 2026-11-22 |
 | F-707.3 | Same-day suggestion cache in Postgres | BACKLOG | P1 | M | db, security, data | F-707.2 | plan-approval | 0 | 2026-11-22 |
 | F-707.4 | Occasion picker; AI runs only on an explicit tap | BACKLOG | P1 | M | ui, ux, data | F-707.3 | none | 0 | 2026-11-22 |
-| F-706.4 | Cut AI over to the shared key, credits and spend cap | BACKLOG | P1 | M | security, architecture, data | F-706.1, F-706.2, F-706.3 | plan-approval | 0 | 2026-11-22 |
+| F-706.4 | Cut AI over to the shared key, credits and spend cap | PLANNING | P1 | M | security, architecture, data | F-706.1, F-706.2, F-706.3 | plan-approval | 0 | 2026-11-24 |
 | F-706.7 | User credit UI and retire the BYOK form | BLOCKED | P1 | M | ui, ux, data | F-706.1, F-706.2, F-706.3, F-706.4 | none | 0 | 2026-11-24 |
 | F-708.1 | Sticker table and Drive storage | BACKLOG | P1 | M | db, security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |
 | F-708.2 | Image provider adapter with input and output downscaling | BACKLOG | P1 | M | security, architecture | F-705, F-706.4 | plan-approval | 0 | 2026-11-22 |
