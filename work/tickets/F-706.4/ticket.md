@@ -10,7 +10,7 @@
 | Areas | security, architecture, data |
 | Gate | plan-approval |
 | Depends on | F-706.1, F-706.2, F-706.3 |
-| Needs Ming | M-42 |
+| Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
 | Claimed by | — |
@@ -56,5 +56,6 @@ Make photo fill, bulk tagging and outfit suggestions use the shared key, charged
 - Manual (Ming): one real photo fill and one suggestion on production after M-42.
 
 ## Notes / answers from Ming
+- 2026-11-24 — Ming: F-706.4 may start now; M-42 (paid no-training tier + provider-console cap) is required before the release, not before implementation. Also adopt the F-706.7 contract (M-50 defaults): `GET /api/ai/credits` returning `{credits:{balance:{period,monthly,lasting,total},welcome,capReached,costs:{photo_fill,suggest},provider}}`, codes `credits_exhausted` 402 and `welcome_pending` 402, reuse `ai_cap_reached` 503 (see work/tickets/F-706.7/plan.md on branch ticket/F-706.7). Existing accounts must read welcome=approved.
 
 ## Handoff
