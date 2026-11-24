@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { OccasionId } from "@/constants/occasions";
 import { SEASON_TO_DB } from "@/data/mappers";
 import {
   AI_CANDIDATE_CAP,
@@ -457,16 +458,16 @@ describe("candidatePool", () => {
     expect(pool([a, b, c, d, e, f]).map((i) => i.id)).toEqual(["e", "f", "d", "c", "b", "a"]);
   });
 
-  it("caps at 40", () => {
+  it("caps at 20", () => {
     expect(pool(many("Áo", 60))).toHaveLength(AI_CANDIDATE_CAP);
-    expect(AI_CANDIDATE_CAP).toBe(40);
+    expect(AI_CANDIDATE_CAP).toBe(20);
   });
 
   it("round-robin keeps every role under the cap", () => {
     const bottoms = many("Quần/váy", 3);
     const shoes = many("Giày/dép", 2);
     const got = pool([...many("Áo", 50), ...bottoms, ...shoes]);
-    expect(got).toHaveLength(40);
+    expect(got).toHaveLength(AI_CANDIDATE_CAP);
     for (const i of [...bottoms, ...shoes]) expect(got.map((g) => g.id)).toContain(i.id);
   });
 
@@ -483,6 +484,93 @@ describe("candidatePool", () => {
 
   it("empty wardrobe -> []", () => {
     expect(pool([])).toEqual([]);
+  });
+
+  describe("occasion", () => {
+    const occ = (items: Item[], occasion: OccasionId | undefined, now = JULY) =>
+      candidatePool(items, { now, occasion })
+        .map((i) => i.id)
+        .sort();
+    const sorted = (list: Item[]) => list.map((i) => i.id).sort();
+
+    it("occasion: drops main pieces tagged only for another occasion", () => {
+      const work = many("Đầm", 3, { tags: ["đi làm"] });
+      const trip = many("Đầm", 3, { tags: ["du lịch"] });
+      const plain = mk("Đầm");
+      expect(occ([...work, ...trip, plain], "di_lam")).toEqual(sorted([...work, plain]));
+    });
+
+    it("occasion: items tagged for it come first within a role", () => {
+      const tagged = mk("Áo", { tags: ["hẹn hò"], wearCount: 3, lastWorn: iso(JULY, 2) });
+      const rest = many("Áo", 25, { wearCount: 0, lastWorn: "" });
+      const got = candidatePool([...rest, tagged], { now: JULY, occasion: "hen_ho" });
+      expect(got[0].id).toBe(tagged.id);
+      expect(got).toHaveLength(AI_CANDIDATE_CAP);
+    });
+
+    it("occasion: shoes, outer and accessory keep all their items when none fit", () => {
+      const shoes = many("Giày/dép", 2, { tags: ["du lịch"] });
+      const top = mk("Áo");
+      expect(occ([top, ...shoes], "di_lam")).toEqual(sorted([top, ...shoes]));
+    });
+
+    it("occasion: main pieces fall back to the season pool when the filtered ones cannot build an outfit", () => {
+      const tops = many("Áo", 2, { tags: ["đi làm"] });
+      const bottoms = many("Quần/váy", 2, { tags: ["đi làm"] });
+      expect(occ([...tops, ...bottoms], "hen_ho")).toEqual(sorted([...tops, ...bottoms]));
+      const top = mk("Áo", { tags: ["hẹn hò"] });
+      const bottom = mk("Quần/váy", { tags: ["đi làm"] });
+      expect(occ([top, bottom], "hen_ho")).toEqual(sorted([top, bottom]));
+    });
+
+    it("occasion: runs after the season step", () => {
+      const winter = mk("Áo", { tags: ["hẹn hò"], seasons: ["Đông"] });
+      const summer = mk("Áo", { seasons: ["Hạ"] });
+      expect(occ([winter, summer], "hen_ho")).toEqual([summer.id]);
+    });
+
+    it("without an occasion, tags are ignored", () => {
+      const items = [
+        ...many("Đầm", 2, { tags: ["đi làm"] }),
+        ...many("Đầm", 2, { tags: ["du lịch"] }),
+      ];
+      expect(occ(items, undefined)).toEqual(sorted(items));
+      expect(candidatePool(items, { now: JULY })).toEqual(
+        candidatePool(items, { now: JULY, occasion: undefined }),
+      );
+    });
+
+    it("occasion: does not mutate the input", () => {
+      const items = [...many("Đầm", 2, { tags: ["đi làm"] }), mk("Áo"), mk("Quần/váy")];
+      const copy = structuredClone(items);
+      candidatePool(items, { now: JULY, occasion: "di_lam" });
+      expect(items).toEqual(copy);
+    });
+  });
+});
+
+describe("suggestOutfits occasion", () => {
+  const work = many("Đầm", 3, { tags: ["đi làm"] });
+  const party = many("Đầm", 3, { tags: ["dự tiệc"] });
+
+  it("occasion: main pieces come from the occasion", () => {
+    const workIds = new Set(work.map((i) => i.id));
+    for (let seed = 1; seed <= 10; seed++) {
+      const got = suggestOutfits([...work, ...party], {
+        now: JULY,
+        seed,
+        occasion: "di_lam",
+      }).outfits.flatMap(ids);
+      expect(got).toHaveLength(3);
+      for (const id of got) expect(workIds.has(id)).toBe(true);
+    }
+  });
+
+  it("occasion undefined gives the same result as today", () => {
+    const items = [...work, ...party];
+    expect(suggestOutfits(items, { now: JULY, seed: 3, occasion: undefined })).toEqual(
+      run(items, 3),
+    );
   });
 });
 

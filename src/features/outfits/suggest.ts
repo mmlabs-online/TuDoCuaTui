@@ -1,6 +1,8 @@
 import { CATEGORY_TO_DB, STATUS_TO_DB } from "@/data/mappers";
 import type { AiSuggestResult } from "@/data/aiOutfits";
+import type { OccasionId } from "@/constants/occasions";
 import { isStale } from "@/features/items/filters";
+import { fitsOccasion, tagOccasions } from "@/features/outfits/occasion";
 import type { Item } from "@/types/item";
 
 /** Month index 0–11 (Jan–Dec, UTC+7) → season label. */
@@ -68,6 +70,7 @@ export type SuggestOptions = {
   avoid?: readonly string[];
   count?: number;
   weather?: WeatherInput;
+  occasion?: OccasionId;
 };
 
 const ONE_PIECE = ["dress", "set", "ao_dai"];
@@ -99,7 +102,7 @@ type Eligibility = {
 /** Active items in the rule categories, after the season/weather step shared by the rules and the AI pool. */
 function eligibility(
   items: readonly Item[],
-  opts: { now: number; weather?: WeatherInput },
+  opts: { now: number; weather?: WeatherInput; occasion?: OccasionId },
 ): Eligibility {
   const season = seasonOf(opts.now);
   const { cold, hot, rain } = weatherKind(opts.weather);
@@ -119,6 +122,23 @@ function eligibility(
   for (const [role, all] of Object.entries(byRole)) {
     const fit = all.filter(inSeason);
     pools[role] = fit.length ? fit : all;
+  }
+  const { occasion } = opts;
+  if (occasion) {
+    const fitting: Record<string, Item[]> = {};
+    for (const [role, list] of Object.entries(pools)) {
+      fitting[role] = list.filter((i) => fitsOccasion(i, occasion));
+    }
+    const mains = [...ONE_PIECE, "top", "bottom"];
+    const canBuild =
+      ONE_PIECE.some((r) => fitting[r]?.length) || (fitting.top?.length && fitting.bottom?.length);
+    for (const role of Object.keys(pools)) {
+      if (mains.includes(role)) {
+        if (canBuild) pools[role] = fitting[role];
+      } else if (fitting[role].length) {
+        pools[role] = fitting[role];
+      }
+    }
   }
   return {
     season,
@@ -199,8 +219,8 @@ export function suggestOutfits(items: readonly Item[], opts: SuggestOptions): Su
   return { season, seasons, outfits, fallback };
 }
 
-/** Most candidates sent to the AI per call (F-704.3 A2). */
-export const AI_CANDIDATE_CAP = 40;
+/** Most candidates sent to the AI per call (F-707.1; server limit lowered in F-707.2). */
+export const AI_CANDIDATE_CAP = 20;
 const POOL_ROLES = ["top", "bottom", "dress", "set", "ao_dai", "shoes", "outer", "accessory"];
 
 const wornGroup = (i: Item) => (i.wearCount === 0 ? 0 : i.lastWorn === "" ? 1 : 2);
@@ -216,9 +236,11 @@ const byUnworn = (a: Item, b: Item) =>
  */
 export function candidatePool(
   items: readonly Item[],
-  opts: { now: number; weather?: WeatherInput },
+  opts: { now: number; weather?: WeatherInput; occasion?: OccasionId },
 ): Item[] {
   const { cold, outerWanted, pools } = eligibility(items, opts);
+  const { occasion } = opts;
+  const tagged = (i: Item) => (occasion && tagOccasions(i.tags).has(occasion) ? 0 : 1);
   const lists = POOL_ROLES.filter((r) => r !== "outer" || outerWanted).map((r) =>
     [...(pools[r] ?? [])].sort((a, b) => {
       if (cold) {
@@ -226,7 +248,7 @@ export function candidatePool(
         const pB = b.seasons.includes("Hạ") ? 1 : 0;
         if (pA !== pB) return pA - pB;
       }
-      return byUnworn(a, b);
+      return tagged(a) - tagged(b) || byUnworn(a, b);
     }),
   );
   const out: Item[] = [];
