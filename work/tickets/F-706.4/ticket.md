@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | PLANNING |
+| State | BLOCKED |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -13,7 +13,7 @@
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-24T04:07:40Z |
+| Claimed by | — |
 | PR | — |
 
 ## Goal
@@ -56,6 +56,12 @@ Make photo fill, bulk tagging and outfit suggestions use the shared key, charged
 - Manual (Ming): one real photo fill and one suggestion on production after M-42.
 
 ## Notes / answers from Ming
+Waiting for Ming: plan approval (High tier)
 - 2026-11-24 — Ming: F-706.4 may start now; M-42 (paid no-training tier + provider-console cap) is required before the release, not before implementation. Also adopt the F-706.7 contract (M-50 defaults): `GET /api/ai/credits` returning `{credits:{balance:{period,monthly,lasting,total},welcome,capReached,costs:{photo_fill,suggest},provider}}`, codes `credits_exhausted` 402 and `welcome_pending` 402, reuse `ai_cap_reached` 503 (see work/tickets/F-706.7/plan.md on branch ticket/F-706.7). Existing accounts must read welcome=approved.
 
 ## Handoff
+
+### 2026-11-24 — claude — BLOCKED
+- Done: consult software-architect; plan READY (migration 20261124120000_credit_ops_replay.sql: request_hash/result/error_code on credit_ops + welcome backfill/approval for existing accounts; appKeys.open, shared provider constant gemini-2.5-flash, one paid-call runner, cutover of tag-photo and suggest, /api/ai-settings/test removed, new codes credits_exhausted/welcome_pending 402, Idempotency-Key header from the client). Proposes splitting GET /api/ai/credits into a new ticket F-706.9.
+- In progress / next: waiting for Ming's plan approval (M-51, A1–A14; A3 and A6 need explicit confirmation before release) and the F-706.9 split.
+- Gotchas: planner could not read the F-706.7 plan (other branch); A11 makes the implementer compare it first. Hotspots with PR #110 (F-706.5) and #111 (F-707.1): expect a rebase. CLAUDE.md R2 still names supabase/migrations/.
