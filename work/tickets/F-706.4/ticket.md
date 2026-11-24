@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| State | REVIEW |
+| State | DONE |
 | Priority | P1 |
 | Size | M |
 | Milestone | M4 |
@@ -11,7 +11,7 @@
 | Gate | plan-approval |
 | Depends on | F-706.1, F-706.2, F-706.3 |
 | Needs Ming | — |
-| Attempts | 0 |
+| Attempts | 1 |
 | Created | 2026-11-22 |
 | Claimed by | claude@2026-11-24T04:22:19Z |
 | PR | — |
