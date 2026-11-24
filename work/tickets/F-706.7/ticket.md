@@ -9,7 +9,7 @@
 | Epic | E7 — AI |
 | Areas | ui, ux, data |
 | Gate | none |
-| Depends on | F-706.1, F-706.2, F-706.3 |
+| Depends on | F-706.1, F-706.2, F-706.3, F-706.4 |
 | Needs Ming | — |
 | Attempts | 0 |
 | Created | 2026-11-22 |
@@ -50,6 +50,7 @@ Show every user their AI credit balance and the cost of each AI action, with cle
 - Manual: one-off Playwright check at 390px/dark.
 
 ## Notes / answers from Ming
+- 2026-11-24 — Ming: "mặc định cả" — all 7 plan.md questions take their defaults (endpoint `GET /api/ai/credits` built in F-706.4 with the plan.md contract; codes `credits_exhausted` 402, `welcome_pending` 402, reuse `ai_cap_reached` 503; F-706.7 depends on F-706.4, merges after it, same release, no hasKey fallback; keep "Xoá key cũ" row while `hasKey`, no keyHint; read-only credit panel replaces the settings modal; split F-706.7.1 / F-706.7.2). Re-plan READY once F-706.4 is merged.
 
 ## Handoff
 
