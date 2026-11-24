@@ -13,8 +13,8 @@
 | Needs Ming | — |
 | Attempts | 1 |
 | Created | 2026-11-22 |
-| Claimed by | claude@2026-11-24T03:37:48Z |
-| PR | — |
+| Claimed by | — |
+| PR | https://github.com/mmlabs-online/TuDoCuaTui/pull/111 |
 
 ## Goal
 Narrow the outfit candidate pool by occasion with pure rules before any AI call, so suggestions fit the occasion and fewer items reach the provider.
@@ -48,3 +48,8 @@ Narrow the outfit candidate pool by occasion with pure rules before any AI call,
 ## Notes / answers from Ming
 
 ## Handoff
+
+### 2026-11-24 — claude — DONE
+- Done: implemented per plan (attempt 1), reviewer PASS; checks in WSL green (format, typecheck, test 163 files / 2338 tests, build). PR #111 opened.
+- In progress / next: Ming reviews the occasion keyword/category table in the PR and merges. Next in chain: F-707.2 (server cap 20 + server-side enum).
+- Gotchas: occasion mapping is a planner proposal (OQ-7 fixed only the five ids and the sources); one occasion-tagged dress can shrink results to 1 outfit (decide in F-707.4).
